@@ -21,7 +21,7 @@
   },
   "files": [
     "dist",
-    "src/globals.css",
+    "src",
     "README.md"
   ],
   "scripts": {
