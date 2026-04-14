@@ -63,11 +63,7 @@ export interface McpAppViewProps {
   labels?: McpAppViewLabels
 }
 
-export function McpAppView({
-  widgets,
-  refreshToolName = "refresh-view",
-  labels,
-}: McpAppViewProps) {
+export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }: McpAppViewProps) {
   const effectiveLabels = { ...DEFAULT_LABELS, ...labels }
   const {
     props: initialViewData,
@@ -84,7 +80,7 @@ export function McpAppView({
 
   useEffect(() => {
     if (!isPending && initialViewData) {
-      setViewData(initialViewData as ViewData)
+      setViewData(initialViewData)
     }
   }, [isPending, initialViewData])
 
@@ -95,7 +91,7 @@ export function McpAppView({
   const toggleFullscreen = useCallback(async () => {
     const newMode = displayMode === "fullscreen" ? "inline" : "fullscreen"
     try {
-      const result = await requestDisplayMode(newMode as "inline" | "fullscreen")
+      const result = await requestDisplayMode(newMode)
       setDisplayMode(result.mode)
     } catch (e) {
       console.error("Failed to toggle display mode:", e)
@@ -121,7 +117,7 @@ export function McpAppView({
       if (result.structuredContent) {
         setViewData(result.structuredContent as unknown as ViewData)
       }
-      queryClient.invalidateQueries()
+      void queryClient.invalidateQueries()
     } catch (e) {
       console.error("Failed to refresh view:", e)
     } finally {
@@ -131,10 +127,10 @@ export function McpAppView({
 
   if (isPending || !viewData) {
     return (
-      <div className="p-4 flex flex-col gap-4">
+      <div className="flex flex-col gap-4 p-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32 w-full" />
-        <p className="text-sm text-muted-foreground">{effectiveLabels.loading}</p>
+        <p className="text-muted-foreground text-sm">{effectiveLabels.loading}</p>
       </div>
     )
   }
@@ -151,21 +147,25 @@ export function McpAppView({
         paddingLeft: safeArea?.insets?.left,
       }}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         {viewData.title && <h2 className="text-xl font-bold">{viewData.title}</h2>}
         <div className="flex items-center gap-2">
           {viewData._refreshParams && (
             <button
-              onClick={refreshView}
+              onClick={() => {
+                void refreshView()
+              }}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+              className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
             >
               {isRefreshing ? effectiveLabels.refreshing : effectiveLabels.refresh}
             </button>
           )}
           <button
-            onClick={toggleFullscreen}
-            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            onClick={() => {
+              void toggleFullscreen()
+            }}
+            className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
           >
             {displayMode === "fullscreen"
               ? effectiveLabels.exitFullscreen
@@ -175,11 +175,11 @@ export function McpAppView({
       </div>
 
       {viewData.context.errors.length > 0 && (
-        <div className="flex flex-col gap-2 mb-4">
+        <div className="mb-4 flex flex-col gap-2">
           {viewData.context.errors.map((err) => (
             <div
               key={err.stepId}
-              className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm"
+              className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
             >
               <strong>{err.stepId}:</strong> {err.reason}
             </div>

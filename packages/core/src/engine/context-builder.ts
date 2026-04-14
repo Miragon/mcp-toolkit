@@ -20,9 +20,7 @@ export function validatePipeline(
 
     for (const key of stepDef.requires) {
       if (!availableKeys.has(key)) {
-        issues.push(
-          `Step "${ref.id}" requires key "${key}" but no earlier step produces it`,
-        )
+        issues.push(`Step "${ref.id}" requires key "${key}" but no earlier step produces it`)
       }
     }
 

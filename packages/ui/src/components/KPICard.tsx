@@ -16,7 +16,7 @@ export function KPICard({ label, value, unit, className }: KPICardProps) {
       <CardContent>
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-semibold tracking-tight">{value}</span>
-          {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
+          {unit && <span className="text-muted-foreground text-sm">{unit}</span>}
         </div>
       </CardContent>
     </Card>

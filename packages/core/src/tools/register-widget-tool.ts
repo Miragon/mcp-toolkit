@@ -38,7 +38,7 @@ export function createWidgetToolRegistrar<TClient>(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback type incompatible with ToolArgs
       async (params: any) => {
         try {
-          const result = await config.handler(client, params)
+          const result = await config.handler(client, params as ToolArgs)
           return {
             content: [{ type: "text" as const, text: result.text }],
             structuredContent: result.structuredContent,

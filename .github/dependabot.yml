@@ -1,6 +1,5 @@
 version: 2
 updates:
-
   # Config for npm dependencies (pnpm monorepo)
   - package-ecosystem: "npm"
     directory: "/"
