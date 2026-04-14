@@ -25,3 +25,22 @@ jobs:
       - run: pnpm -r run typecheck
 
       - run: pnpm -r run build
+
+  quality:
+    name: Lint + Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r run lint
+
+      - run: pnpm format:check

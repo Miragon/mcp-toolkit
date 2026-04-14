@@ -45,6 +45,12 @@ const DEFAULT_LABELS: Required<DataTableLabels> = {
   next: "Next →",
 }
 
+/** Converts an unknown cell value to a display string. Objects are JSON-serialized. */
+function safeString(value: unknown): string {
+  if (typeof value === "object" && value !== null) return JSON.stringify(value)
+  return String(value as string | number | boolean | bigint | symbol)
+}
+
 function formatValue(
   value: unknown,
   format: DataTableColumn["format"] | undefined,
@@ -64,15 +70,15 @@ function formatValue(
     return new Intl.NumberFormat(locale).format(Number(value))
   }
   if (format === "date") {
-    return String(value)
+    return safeString(value)
   }
-  return String(value)
+  return safeString(value)
 }
 
 function getSortValue(value: unknown, format?: DataTableColumn["format"]): string | number {
   if (value == null) return ""
   if (format === "currency" || format === "number") return Number(value)
-  return String(value).toLowerCase()
+  return safeString(value).toLowerCase()
 }
 
 export function DataTable({
@@ -128,7 +134,7 @@ export function DataTable({
                     : col.align === "center"
                       ? "text-center"
                       : undefined,
-                  col.sortable !== false && "cursor-pointer select-none hover:text-foreground",
+                  col.sortable !== false && "hover:text-foreground cursor-pointer select-none",
                 )}
                 onClick={col.sortable !== false ? () => handleSort(col.key) : undefined}
               >
@@ -163,7 +169,7 @@ export function DataTable({
       </Table>
 
       {pageSize && totalPages > 1 && (
-        <div className="flex items-center justify-between px-2 py-3 text-sm text-muted-foreground">
+        <div className="text-muted-foreground flex items-center justify-between px-2 py-3 text-sm">
           <span>
             {effectiveLabels.range(
               page * pageSize + 1,
@@ -173,14 +179,14 @@ export function DataTable({
           </span>
           <div className="flex gap-1">
             <button
-              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+              className="hover:bg-accent rounded-md border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
               disabled={page === 0}
               onClick={() => setPage((p) => p - 1)}
             >
               {effectiveLabels.previous}
             </button>
             <button
-              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+              className="hover:bg-accent rounded-md border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
             >

@@ -11,14 +11,14 @@ export function ProgressBar({ value, label, className }: ProgressBarProps) {
   return (
     <div className={cn("w-full", className)}>
       {label && (
-        <div className="flex justify-between text-sm mb-1">
+        <div className="mb-1 flex justify-between text-sm">
           <span className="text-muted-foreground">{label}</span>
           <span className="font-medium">{Math.round(clamped)}%</span>
         </div>
       )}
-      <div className="h-2 w-full rounded-full bg-secondary">
+      <div className="bg-secondary h-2 w-full rounded-full">
         <div
-          className="h-full rounded-full bg-primary transition-all"
+          className="bg-primary h-full rounded-full transition-all"
           style={{ width: `${clamped}%` }}
         />
       </div>

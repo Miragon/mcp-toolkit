@@ -48,12 +48,7 @@ export {
   DialogTitle,
   DialogTrigger,
 } from "./primitives/dialog.js"
-export {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "./primitives/tooltip.js"
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./primitives/tooltip.js"
 export {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -110,11 +105,7 @@ export {
   SidebarTrigger,
   useSidebar,
 } from "./primitives/sidebar.js"
-export {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "./primitives/collapsible.js"
+export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./primitives/collapsible.js"
 
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile.js"

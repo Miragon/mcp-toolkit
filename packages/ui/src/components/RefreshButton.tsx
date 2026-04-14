@@ -15,7 +15,7 @@ export function RefreshButton({
     <button
       onClick={onClick}
       disabled={isLoading}
-      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+      className="text-muted-foreground hover:text-foreground text-xs transition-colors"
     >
       {isLoading ? loadingLabel : label}
     </button>

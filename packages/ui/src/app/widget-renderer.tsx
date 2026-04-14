@@ -1,19 +1,9 @@
 import { Component, type ComponentType, type ReactNode, type ErrorInfo } from "react"
-import type {
-  LayoutConfig,
-  PipelineContext,
-  RowDef,
-  WidgetProps,
-} from "@miragon/mcp-toolkit-core"
+import type { LayoutConfig, PipelineContext, RowDef, WidgetProps } from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { GridLayout, GridItem } from "../components/GridLayout.js"
 import { Card, CardContent } from "../primitives/card.js"
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "../primitives/tabs.js"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../primitives/tabs.js"
 
 export type WidgetComponent = ComponentType<WidgetProps>
 
@@ -32,7 +22,7 @@ class WidgetErrorBoundary extends Component<
     if (this.state.error) {
       return (
         <Card>
-          <CardContent className="py-3 text-sm text-muted-foreground">
+          <CardContent className="text-muted-foreground py-3 text-sm">
             Widget "{this.props.widgetId}" failed to render.
           </CardContent>
         </Card>
@@ -89,13 +79,7 @@ function RowsRenderer({
   )
 }
 
-export function WidgetRenderer({
-  layout,
-  keys,
-  stepData,
-  errors,
-  widgets,
-}: WidgetRendererProps) {
+export function WidgetRenderer({ layout, keys, stepData, errors, widgets }: WidgetRendererProps) {
   const steps: Record<string, PipelineContext["steps"][string]> = {}
   if (stepData) {
     for (const [id, result] of Object.entries(stepData)) {
