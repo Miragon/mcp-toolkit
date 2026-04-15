@@ -123,7 +123,7 @@ export { ProgressBar } from "./components/ProgressBar.js"
 export { RefreshButton } from "./components/RefreshButton.js"
 
 // Providers
-export { AppQueryProvider, useCallTool, queryClient } from "./providers/query-provider.js"
+export { AppQueryProvider, useCallTool, useAppQueryClient } from "./providers/query-provider.js"
 
 // NOTE: MCP App shell (McpAppView, WidgetRenderer) is exported from the
 // `./app` subpath only. Keeping it out of the main barrel prevents consumers

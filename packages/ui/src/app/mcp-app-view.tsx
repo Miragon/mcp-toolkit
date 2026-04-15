@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect } from "react"
 import { useWidget } from "mcp-use/react"
+import { QueryClient } from "@tanstack/react-query"
 import type { LayoutConfig } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
-import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
+import { Alert, AlertDescription } from "../primitives/alert.js"
+import { AppQueryProvider } from "../providers/query-provider.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
 
 export interface McpAppViewLabels {
@@ -43,6 +45,17 @@ interface ViewData {
   layout: LayoutConfig
 }
 
+function isViewData(x: unknown): x is ViewData {
+  if (typeof x !== "object" || x === null) return false
+  const obj = x as Record<string, unknown>
+  return (
+    typeof obj["context"] === "object" &&
+    obj["context"] !== null &&
+    "keys" in obj["context"] &&
+    typeof obj["layout"] !== "undefined"
+  )
+}
+
 export interface McpAppViewProps {
   /**
    * Map of widget ID to React component. The consumer aggregates this from
@@ -61,9 +74,19 @@ export interface McpAppViewProps {
    * Defaults to English.
    */
   labels?: McpAppViewLabels
+  /**
+   * Optional scope key passed to `queryClient.invalidateQueries` on refresh.
+   * When omitted, all queries are invalidated (existing behavior, documented footgun).
+   */
+  scope?: string
 }
 
-export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }: McpAppViewProps) {
+export function McpAppView({
+  widgets,
+  refreshToolName = "refresh-view",
+  labels,
+  scope,
+}: McpAppViewProps) {
   const effectiveLabels = { ...DEFAULT_LABELS, ...labels }
   const {
     props: initialViewData,
@@ -74,9 +97,21 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
     safeArea,
   } = useWidget<ViewData>()
 
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 30_000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+  )
   const [viewData, setViewData] = useState<ViewData | null>(null)
   const [displayMode, setDisplayMode] = useState<string>("inline")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isPending && initialViewData) {
@@ -115,15 +150,20 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
         viewData._refreshParams as unknown as Record<string, unknown>,
       )
       if (result.structuredContent) {
-        setViewData(result.structuredContent as unknown as ViewData)
+        if (isViewData(result.structuredContent)) {
+          setRefreshError(null)
+          setViewData(result.structuredContent)
+        } else {
+          console.error("[McpAppView] refresh returned unexpected shape", result.structuredContent)
+        }
       }
-      void queryClient.invalidateQueries()
+      void queryClient.invalidateQueries(scope ? { queryKey: [scope] } : undefined)
     } catch (e) {
-      console.error("Failed to refresh view:", e)
+      setRefreshError(e instanceof Error ? e.message : String(e))
     } finally {
       setIsRefreshing(false)
     }
-  }, [callTool, refreshToolName, viewData?._refreshParams])
+  }, [callTool, queryClient, refreshToolName, scope, viewData?._refreshParams])
 
   if (isPending || !viewData) {
     return (
@@ -174,6 +214,12 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
         </div>
       </div>
 
+      {refreshError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{refreshError}</AlertDescription>
+        </Alert>
+      )}
+
       {viewData.context.errors.length > 0 && (
         <div className="mb-4 flex flex-col gap-2">
           {viewData.context.errors.map((err) => (
@@ -187,7 +233,7 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
         </div>
       )}
 
-      <AppQueryProvider callTool={callToolFn}>
+      <AppQueryProvider callTool={callToolFn} client={queryClient} scope={scope}>
         <WidgetRenderer
           layout={viewData.layout}
           keys={viewData.context.keys}

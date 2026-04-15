@@ -10,6 +10,7 @@ function parseToolResult(result: unknown): unknown {
     try {
       return JSON.parse(text)
     } catch {
+      console.warn("[useToolQuery] Tool returned non-JSON text; falling back to raw string:", text)
       return text
     }
   }
@@ -25,7 +26,11 @@ export function useToolQuery<TData = unknown, TSelected = TData>(
   queryKey: unknown[],
   toolName: string,
   args: Record<string, unknown>,
-  opts?: { enabled?: boolean; select?: (data: TData) => TSelected },
+  opts?: {
+    enabled?: boolean
+    select?: (data: TData) => TSelected
+    parseResult?: (raw: unknown) => TData
+  },
 ) {
   const callTool = useCallTool()
 
@@ -34,7 +39,8 @@ export function useToolQuery<TData = unknown, TSelected = TData>(
     queryFn: async () => {
       if (!callTool) throw new Error("callTool not available")
       const result = await callTool(toolName, args)
-      return parseToolResult(result) as TData
+      const parsed = parseToolResult(result)
+      return (opts?.parseResult ? opts.parseResult(parsed) : parsed) as TData
     },
     select: opts?.select,
     enabled: !!callTool && (opts?.enabled ?? true),

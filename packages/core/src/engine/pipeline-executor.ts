@@ -33,6 +33,14 @@ export async function executePipeline(
       continue
     }
 
+    if (!ref.step.includes(":")) {
+      context.errors.push({
+        stepId: ref.id,
+        reason: `Invalid step ref "${ref.step}": must follow "appName:stepName" format`,
+      })
+      continue
+    }
+
     try {
       const appName = ref.step.split(":")[0]
       const appConfig = appConfigs?.[appName] ?? {}
