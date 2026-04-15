@@ -45,7 +45,7 @@ export function getFrameworkManifest(
 
     steps: stepRegistry.getAll().map((step) => ({
       id: step.id,
-      app: step.id.split(":")[0] ?? step.id,
+      app: step.id.split(":")[0],
       dataType: step.dataType,
       requires: step.requires,
       produces: step.produces,
@@ -53,7 +53,7 @@ export function getFrameworkManifest(
 
     widgets: widgetRegistry.getAll().map((widget) => ({
       id: widget.id,
-      app: widget.id.split(":")[0] ?? widget.id,
+      app: widget.id.split(":")[0],
       requires: widget.requires,
       size: widget.size,
     })),
