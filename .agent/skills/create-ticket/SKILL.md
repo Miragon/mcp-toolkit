@@ -13,6 +13,7 @@
 7. **Report** – Display final issue state and URL
 
 **Critical Requirements:**
+
 - Always use `gh` CLI (never call the GitHub API directly)
 - Abort if `gh` is unavailable; ask user to install and restart
 - Ask user for guidance if any `gh` call fails
