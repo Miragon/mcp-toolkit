@@ -3,20 +3,21 @@ import { z } from "zod"
 
 type ZodRawShape = Record<string, z.ZodTypeAny>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK provides args as Record<string, any> after zod validation
-type ToolArgs = Record<string, any>
+type InferArgs<TSchema extends ZodRawShape | undefined> = TSchema extends ZodRawShape
+  ? z.infer<z.ZodObject<TSchema>>
+  : Record<string, never>
 
 interface WidgetToolResult {
   text: string
   structuredContent: Record<string, unknown>
 }
 
-export interface WidgetToolConfig<TClient> {
+export interface WidgetToolConfig<TClient, TSchema extends ZodRawShape | undefined = undefined> {
   name: string
   title: string
   description: string
-  inputSchema?: ZodRawShape
-  handler: (client: TClient, params: ToolArgs) => Promise<WidgetToolResult>
+  inputSchema?: TSchema
+  handler: (client: TClient, params: InferArgs<TSchema>) => Promise<WidgetToolResult>
 }
 
 export function createWidgetToolRegistrar<TClient>(
@@ -24,7 +25,9 @@ export function createWidgetToolRegistrar<TClient>(
   client: TClient,
   resourceUri: string,
 ) {
-  return function register(config: WidgetToolConfig<TClient>) {
+  return function register<TSchema extends ZodRawShape | undefined = undefined>(
+    config: WidgetToolConfig<TClient, TSchema>,
+  ) {
     server.tool(
       {
         name: config.name,
@@ -35,10 +38,10 @@ export function createWidgetToolRegistrar<TClient>(
           ui: { resourceUri, visibility: ["app"] },
         },
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback type incompatible with ToolArgs
-      async (params: any) => {
+      async (params) => {
         try {
-          const result = await config.handler(client, params)
+          const typedParams = params as InferArgs<TSchema>
+          const result = await config.handler(client, typedParams)
           return {
             content: [{ type: "text" as const, text: result.text }],
             structuredContent: result.structuredContent,

@@ -3,22 +3,23 @@ import { z } from "zod"
 
 type ZodRawShape = Record<string, z.ZodTypeAny>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK provides args as Record<string, any> after zod validation
-type ToolArgs = Record<string, any>
+type InferArgs<TSchema extends ZodRawShape | undefined> = TSchema extends ZodRawShape
+  ? z.infer<z.ZodObject<TSchema>>
+  : Record<string, never>
 
-export interface ToolConfig<TClient> {
+export interface ToolConfig<TClient, TSchema extends ZodRawShape | undefined = undefined> {
   name: string
   description: string
   category?: string
-  inputSchema?: ZodRawShape
+  inputSchema?: TSchema
   annotations?: {
     readOnlyHint?: boolean
     destructiveHint?: boolean
     idempotentHint?: boolean
     openWorldHint?: boolean
   }
-  handler: (client: TClient, args: ToolArgs) => Promise<unknown>
-  formatResult?: (result: unknown, args: ToolArgs) => string
+  handler: (client: TClient, args: InferArgs<TSchema>) => Promise<unknown>
+  formatResult?: (result: unknown, args: InferArgs<TSchema>) => string
 }
 
 export interface RegisteredToolMeta {
@@ -29,7 +30,9 @@ export interface RegisteredToolMeta {
 export function createToolRegistrar<TClient>(server: MCPServer, client: TClient) {
   const registeredTools: RegisteredToolMeta[] = []
 
-  function register(config: ToolConfig<TClient>) {
+  function register<TSchema extends ZodRawShape | undefined = undefined>(
+    config: ToolConfig<TClient, TSchema>,
+  ) {
     registeredTools.push({ name: config.name, category: config.category })
     server.tool(
       {
@@ -40,9 +43,10 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
       },
       async (args) => {
         try {
-          const result = await config.handler(client, args)
+          const typedArgs = args as InferArgs<TSchema>
+          const result = await config.handler(client, typedArgs)
           if (config.formatResult) {
-            return text(config.formatResult(result, args))
+            return text(config.formatResult(result, typedArgs))
           }
           if (result !== null && result !== undefined) {
             return text(JSON.stringify(result, null, 2))
