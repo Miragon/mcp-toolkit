@@ -14,6 +14,10 @@
     "./tools": {
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.js"
+    },
+    "./proxy": {
+      "types": "./dist/proxy/index.d.ts",
+      "import": "./dist/proxy/index.js"
     }
   },
   "files": [
@@ -28,10 +32,13 @@
     "prepare": "tsc"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
     "mcp-use": "1.23.1",
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@types/node": "25.6.0",
     "mcp-use": "1.23.1",
     "typescript": "6.0.2",
     "zod": "4.3.6"
