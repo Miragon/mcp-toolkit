@@ -41,6 +41,12 @@ importers:
 
   packages/core:
     devDependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.29.0
+        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
+      '@types/node':
+        specifier: 25.6.0
+        version: 25.6.0
       mcp-use:
         specifier: 1.23.1
         version: 1.23.1(e514eb983c4db11569211cfcea3ad278)
