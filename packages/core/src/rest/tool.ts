@@ -87,6 +87,7 @@ export function createRestTool<TArgs extends ToolArgs = ToolArgs, TRaw = unknown
         body: parts.body,
         headers: parts.headers,
       })
+      if (raw === undefined) return undefined as TOut
       return config.projection ? config.projection(raw, typedArgs) : (raw as unknown as TOut)
     },
     formatResult: config.formatResult
@@ -119,8 +120,12 @@ function defaultBuildRequest(
     }
   }
 
+  const hasRest = Object.keys(rest).length > 0
   if (method === "GET" || method === "DELETE") {
-    return { pathParams, query: rest as Record<string, QueryValue | QueryValue[]> }
+    return {
+      pathParams,
+      query: hasRest ? (rest as Record<string, QueryValue | QueryValue[]>) : undefined,
+    }
   }
-  return { pathParams, body: rest }
+  return { pathParams, body: hasRest ? rest : undefined }
 }

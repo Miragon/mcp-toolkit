@@ -138,6 +138,37 @@ describe("createRestClient", () => {
     expect(calls[0].url).toBe("https://api.example.com/v2/ping")
   })
 
+  it("merges default headers, auth headers, and per-request headers (later wins)", async () => {
+    const { fetch, calls } = makeFetchStub(jsonResponse(200, {}))
+    const client = createRestClient({
+      baseUrl: "https://api.example.com",
+      auth: { mode: "bearer", token: "t" },
+      defaultHeaders: { "x-client": "sdk-1", "x-trace": "default" },
+      fetch,
+    })
+
+    await client.request({
+      method: "GET",
+      path: "/ping",
+      headers: { "x-trace": "per-request" },
+    })
+
+    const headers = calls[0].init.headers as Record<string, string>
+    expect(headers["x-client"]).toBe("sdk-1")
+    expect(headers.authorization).toBe("Bearer t")
+    expect(headers["x-trace"]).toBe("per-request")
+  })
+
+  it("returns raw text when response is not JSON", async () => {
+    const { fetch } = makeFetchStub(
+      new Response("plain body", { status: 200, headers: { "content-type": "text/plain" } }),
+    )
+    const client = createRestClient({ baseUrl: "https://api.example.com", fetch })
+
+    const result = await client.request<string>({ method: "GET", path: "/ping" })
+    expect(result).toBe("plain body")
+  })
+
   it("RestError truncates overly long bodies for readability", () => {
     const body = "x".repeat(500)
     const err = new RestError(500, "Internal Server Error", body, "https://api.example.com/foo")

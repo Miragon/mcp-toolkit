@@ -165,7 +165,7 @@ describe("createRestTool", () => {
     expect(tool.formatResult!({ id: "o-1" }, { id: "o-1" })).toBe("order o-1")
   })
 
-  it("handles placeholders that are not in args by omitting them (client rejects later)", async () => {
+  it("omits query entirely when no non-path args are present", async () => {
     const { client, request } = makeClientStub()
 
     const tool = createRestTool({
@@ -175,15 +175,55 @@ describe("createRestTool", () => {
       path: "/orders/{orderId}",
     })
 
-    await tool.handler(client, {})
+    await tool.handler(client, { orderId: "o-1" })
 
     expect(request).toHaveBeenCalledWith({
       method: "GET",
       path: "/orders/{orderId}",
-      pathParams: {},
-      query: {},
+      pathParams: { orderId: "o-1" },
+      query: undefined,
       body: undefined,
       headers: undefined,
     })
+  })
+
+  it("omits body entirely when POST has no non-path args (avoids '{}' payload)", async () => {
+    const { client, request } = makeClientStub()
+
+    const tool = createRestTool({
+      name: "trigger",
+      description: "x",
+      method: "POST",
+      path: "/orders/{orderId}/ship",
+    })
+
+    await tool.handler(client, { orderId: "o-1" })
+
+    expect(request).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/orders/{orderId}/ship",
+      pathParams: { orderId: "o-1" },
+      query: undefined,
+      body: undefined,
+      headers: undefined,
+    })
+  })
+
+  it("skips projection when response is undefined (e.g. 204)", async () => {
+    const { client, setResponse } = makeClientStub()
+    setResponse(undefined)
+    const projection = vi.fn()
+
+    const tool = createRestTool<{ id: string }, { id: string }, { id: string }>({
+      name: "delete",
+      description: "x",
+      method: "DELETE",
+      path: "/things/{id}",
+      projection: projection as (raw: { id: string }) => { id: string },
+    })
+
+    const result = await tool.handler(client, { id: "t-1" })
+    expect(result).toBeUndefined()
+    expect(projection).not.toHaveBeenCalled()
   })
 })
