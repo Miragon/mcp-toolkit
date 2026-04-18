@@ -18,6 +18,10 @@
     "./proxy": {
       "types": "./dist/proxy/index.d.ts",
       "import": "./dist/proxy/index.js"
+    },
+    "./rest": {
+      "types": "./dist/rest/index.d.ts",
+      "import": "./dist/rest/index.js"
     }
   },
   "files": [
@@ -26,6 +30,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
@@ -41,6 +46,7 @@
     "@types/node": "25.6.0",
     "mcp-use": "1.23.1",
     "typescript": "6.0.2",
+    "vitest": "4.1.4",
     "zod": "4.3.6"
   }
 }
