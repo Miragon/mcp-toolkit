@@ -222,7 +222,7 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
         }
 
         await this.createUpstreamSession(server, pending.userId, pending.provider)
-        this.notifyToolsListChanged(server, pending.inboundSessionId)
+        await this.notifyToolsListChanged(server, pending.inboundSessionId)
         await this.sessionStore.deletePending(state)
 
         return c.html(
@@ -266,7 +266,7 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
 
         if (result === "AUTHORIZED") {
           await this.createUpstreamSession(server, userId, provider)
-          if (inboundSessionId) this.notifyToolsListChanged(server, inboundSessionId)
+          if (inboundSessionId) await this.notifyToolsListChanged(server, inboundSessionId)
           return toolText(`Authenticated with ${this.name} (no redirect needed).`)
         }
 
@@ -382,17 +382,16 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
     server.tool(toolDef, handler)
   }
 
-  private notifyToolsListChanged(server: MCPServer, sessionId: string): void {
-    if (!sessionId) return
-    // mcp-use currently doesn't expose a public notify-by-session-id API.
-    // Reach into the internal sessions map; degrade gracefully if absent.
-    const sessions = (server as unknown as { sessions?: Map<string, InboundSession> }).sessions
-    const session = sessions?.get(sessionId)
-    const inboundServer = session?.server
-    const sendFn = inboundServer?.sendToolListChanged
-    if (typeof sendFn !== "function" || !inboundServer) return
+  private async notifyToolsListChanged(server: MCPServer, sessionId: string): Promise<void> {
     try {
-      sendFn.call(inboundServer)
+      if (sessionId) {
+        const delivered = await server.sendNotificationToSession(
+          sessionId,
+          "notifications/tools/list_changed",
+        )
+        if (delivered) return
+      }
+      await server.sendToolsListChanged()
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.warn(`[UpstreamProxyPlugin(${this.name})] notifyToolsListChanged failed: ${message}`)
@@ -414,10 +413,6 @@ interface HonoContext {
 
 interface HonoResponse {
   readonly __honoResponse: true
-}
-
-interface InboundSession {
-  server?: { sendToolListChanged?: () => void }
 }
 
 // --- Tool-response helpers (match mcp-use `text`/`error` shape) ------------
