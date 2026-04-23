@@ -1,0 +1,14 @@
+# Input layout for `render-view` against the items-ui module (UI-only).
+#
+#   tools/call render-view '{
+#     "keys": { "items-ui:itemId": "1" },
+#     "layout": <this document>
+#   }'
+#
+# The `items-ui:resolve-item` step calls `items_get-item` through the proxy
+# bound to the upstream-mock, produces `items-ui:item`, which satisfies the
+# `items-ui:item-card` widget.
+rows:
+  - row:
+      - widget: items-ui:item-card
+        span: 6

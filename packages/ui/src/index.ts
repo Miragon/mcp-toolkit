@@ -110,6 +110,7 @@ export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./primitive
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile.js"
 export { useToolQuery, useToolMutation } from "./hooks/use-tool-query.js"
+export type { UseToolQueryOptions } from "./hooks/use-tool-query.js"
 
 // Composed components
 export { StatusBadge, DEFAULT_STATUS_MAP } from "./components/StatusBadge.js"

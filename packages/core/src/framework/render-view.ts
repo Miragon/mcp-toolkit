@@ -1,4 +1,4 @@
-import { executePipeline } from "../engine/pipeline-executor.js"
+import { executePipeline, type PipelineExecutionContext } from "../engine/pipeline-executor.js"
 import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
@@ -15,11 +15,16 @@ export interface RenderViewInput {
  * Executes a pipeline of steps to populate the keys map and returns a payload
  * ready to be embedded into an MCP App widget. The resulting `structuredContent`
  * is consumed by the `McpAppView` component in `@miragon/mcp-toolkit-ui`.
+ *
+ * `ctx` carries per-request info (currently: the calling userId) that the
+ * pipeline executor uses to pre-bind user-scoped `callTool` closures on step
+ * `appConfig`s. Pass it through from the tool handler's `ctx.auth?.user?.userId`.
  */
 export async function renderView(
   input: RenderViewInput,
   stepRegistry: StepRegistry,
   appConfigs?: Record<string, Record<string, unknown>>,
+  ctx?: PipelineExecutionContext,
 ) {
   const initialKeys = input.keys ?? {}
   const pipelineConfig = { steps: input.steps }
@@ -39,7 +44,7 @@ export async function renderView(
     }
   }
 
-  const context = await executePipeline(pipelineConfig, initialKeys, stepRegistry, appConfigs)
+  const context = await executePipeline(pipelineConfig, initialKeys, stepRegistry, appConfigs, ctx)
 
   const textSummary = [
     input.title ?? "View",

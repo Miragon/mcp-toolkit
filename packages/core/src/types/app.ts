@@ -27,6 +27,17 @@ export interface AppDefinition {
 export interface AppPlugin<TServer = any> {
   definition: AppDefinition
   appConfig?: Record<string, unknown>
+  /**
+   * Name of an `UpstreamProxyPlugin` this plugin is bound to. When set,
+   * `buildProxyAppConfigs()` (from `@miragon/mcp-toolkit-tool-codegen`)
+   * injects a typed `callTool` closure into this plugin's `appConfig` at
+   * boot, so pipeline steps can dispatch tool calls against the upstream
+   * MCP without knowing about the proxy plumbing.
+   *
+   * UI-only modules typically set this and omit `registerTools` entirely —
+   * the upstream's tools are already federated via the proxy.
+   */
+  proxyBinding?: string
   registerTools?: (server: TServer) => void
   registerWidgetTools?: (server: TServer, resourceUri: string) => void
 }

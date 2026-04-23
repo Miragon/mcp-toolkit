@@ -92,7 +92,7 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
   readonly definition: AppDefinition
   readonly appConfig: Record<string, unknown>
 
-  private readonly name: string
+  public readonly name: string
   private readonly upstreamUrl: string
   private readonly authConfig: UpstreamAuthConfig
   private readonly sessionStore: SessionStore
@@ -166,6 +166,49 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
     if (this.authConfig.mode === "oauth2") return
     this.initPromise ??= this.initStaticClient(server)
     return this.initPromise
+  }
+
+  /**
+   * Dispatch a tool call through the upstream session without going through
+   * the public MCP RPC surface. Used by server-internal code (e.g. pipeline
+   * steps) that needs to invoke an upstream tool typed-safely.
+   *
+   * `toolName` may be either the proxy-prefixed name (`"<proxy>_<tool>"`) or
+   * the bare upstream name — the prefix is stripped automatically so callers
+   * can use whatever is in their generated type map.
+   *
+   * For static-auth modes (`none`/`bearer`/`header`) the shared session is
+   * used and `userId` is ignored. For `oauth2` a per-user session is looked
+   * up in the SessionStore; `userId` is required, and this throws if the
+   * user has no active upstream session (i.e. has not completed the
+   * `<name>_authenticate` flow yet).
+   */
+  async callUpstream(toolName: string, args: unknown, userId?: string): Promise<unknown> {
+    const prefix = `${this.name}_`
+    const bareName = toolName.startsWith(prefix) ? toolName.slice(prefix.length) : toolName
+
+    if (this.authConfig.mode === "oauth2") {
+      if (!userId) {
+        throw new Error(
+          `UpstreamProxyPlugin(${this.name}).callUpstream: userId is required for oauth2 mode`,
+        )
+      }
+      const stored = await this.sessionStore.getSession(userId, this.name)
+      const session = stored?.session as UpstreamSession | undefined
+      if (!session) {
+        throw new Error(
+          `UpstreamProxyPlugin(${this.name}).callUpstream: no active session for user "${userId}". User must complete ${this.name}_authenticate first.`,
+        )
+      }
+      return session.callTool(bareName, args)
+    }
+
+    if (!this.staticSession) {
+      throw new Error(
+        `UpstreamProxyPlugin(${this.name}).callUpstream: static session not initialised. Call init(server) before dispatching.`,
+      )
+    }
+    return this.staticSession.callTool(bareName, args)
   }
 
   // --- Static-auth init -----------------------------------------------------

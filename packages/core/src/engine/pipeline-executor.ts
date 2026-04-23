@@ -2,11 +2,45 @@ import type { PipelineContext } from "../types/context.js"
 import type { PipelineConfig } from "../types/pipeline.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 
+/**
+ * Per-request context threaded into steps. Currently only carries the
+ * calling user's id, which the executor uses to pre-bind a user-scoped
+ * `callTool` closure on the step's `appConfig` so step code stays
+ * synchronous and userId-free.
+ */
+export interface PipelineExecutionContext {
+  userId?: string
+}
+
+/**
+ * If the step's appConfig contains a `callTool` function (injected by
+ * `buildProxyAppConfigs` from the tool-codegen package), rewrap it so the
+ * step-facing call signature is `(name, args)` while the underlying
+ * closure receives the current `{ userId }` via a hidden 3rd argument.
+ * All other keys pass through untouched.
+ */
+function bindAppConfig(appConfig: unknown, ctx: PipelineExecutionContext | undefined): unknown {
+  if (!appConfig || typeof appConfig !== "object") return appConfig
+  const cfg = appConfig as Record<string, unknown>
+  const callTool = cfg.callTool
+  if (typeof callTool !== "function") return appConfig
+  const raw = callTool as (
+    name: string,
+    args: unknown,
+    ctx?: { userId?: string },
+  ) => Promise<unknown>
+  return {
+    ...cfg,
+    callTool: (name: string, args: unknown) => raw(name, args, ctx),
+  }
+}
+
 export async function executePipeline(
   config: PipelineConfig,
   initialKeys: Record<string, unknown>,
   registry: StepRegistry,
   appConfigs?: Record<string, unknown>,
+  ctx?: PipelineExecutionContext,
 ): Promise<PipelineContext> {
   const context: PipelineContext = {
     steps: {},
@@ -35,7 +69,8 @@ export async function executePipeline(
 
     try {
       const appName = ref.step.split(":")[0]
-      const appConfig = appConfigs?.[appName] ?? {}
+      const rawConfig = appConfigs?.[appName] ?? {}
+      const appConfig = bindAppConfig(rawConfig, ctx)
       const output = await stepDef.execute(context, appConfig)
       const result = { ...output, _dataType: stepDef.dataType }
       context.steps[ref.id] = result

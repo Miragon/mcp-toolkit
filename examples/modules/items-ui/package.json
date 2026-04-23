@@ -1,0 +1,10 @@
+{
+  "name": "items-ui-example",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "mcp-tool-codegen generate --config ./codegen.config.ts",
+    "generate:check": "mcp-tool-codegen generate --config ./codegen.config.ts --check"
+  }
+}

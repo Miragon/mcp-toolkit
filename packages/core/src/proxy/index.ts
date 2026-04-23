@@ -1,4 +1,5 @@
 export { UpstreamProxyPlugin, type UpstreamProxyPluginOptions } from "./UpstreamProxyPlugin.js"
+export { buildProxyAppConfigs } from "./build-proxy-app-configs.js"
 export { ServerSideOAuthProvider } from "./ServerSideOAuthProvider.js"
 export type { ServerSideOAuthProviderOptions } from "./ServerSideOAuthProvider.js"
 export { InMemorySessionStore } from "./SessionStore.js"

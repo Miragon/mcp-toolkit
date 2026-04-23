@@ -16,6 +16,11 @@ function parseToolResult(result: unknown): unknown {
   return r?.structuredContent ?? r
 }
 
+export interface UseToolQueryOptions<TData = unknown, TSelected = TData> {
+  enabled?: boolean
+  select?: (data: TData) => TSelected
+}
+
 /**
  * Loads data from a widget tool via TanStack Query.
  * Widgets sharing a query key share the cache.
@@ -24,8 +29,8 @@ function parseToolResult(result: unknown): unknown {
 export function useToolQuery<TData = unknown, TSelected = TData>(
   queryKey: unknown[],
   toolName: string,
-  args: Record<string, unknown>,
-  opts?: { enabled?: boolean; select?: (data: TData) => TSelected },
+  args: object,
+  opts?: UseToolQueryOptions<TData, TSelected>,
 ) {
   const callTool = useCallTool()
 

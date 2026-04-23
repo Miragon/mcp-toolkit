@@ -1,7 +1,10 @@
 import { createContext, useContext, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
-type CallToolFn = (name: string, args: Record<string, unknown>) => Promise<unknown>
+// `object` (not `Record<string, unknown>`) because generated tool input
+// interfaces lack an implicit index signature and TS rejects the assignment
+// otherwise. JSON args are objects either way.
+type CallToolFn = (name: string, args: object) => Promise<unknown>
 
 const CallToolContext = createContext<CallToolFn | undefined>(undefined)
 

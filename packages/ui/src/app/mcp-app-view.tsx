@@ -100,8 +100,8 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
 
   // Stable callTool callback (avoids a new object reference on every render)
   const callToolFn = useCallback(
-    async (name: string, args: Record<string, unknown>) => {
-      return callTool(name, args)
+    async (name: string, args: object) => {
+      return callTool(name, args as Record<string, unknown>)
     },
     [callTool],
   )

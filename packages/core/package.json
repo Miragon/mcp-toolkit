@@ -32,11 +32,13 @@
     "prepare": "tsc"
   },
   "peerDependencies": {
+    "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "mcp-use": "1.23.1",
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@types/node": "25.6.0",
     "mcp-use": "1.23.1",
