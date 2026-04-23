@@ -138,8 +138,7 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
   return (
     <main
       style={{
-        minHeight: "600px",
-        maxHeight: "600px",
+        minHeight: displayMode === "fullscreen" ? "100vh" : "500px",
         overflowY: "auto",
         paddingTop: safeArea?.insets?.top,
         paddingRight: safeArea?.insets?.right,
