@@ -5,7 +5,7 @@ import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
 import { renderView } from "../framework/render-view.js"
 import type { LayoutConfig } from "../framework/layout-types.js"
-import { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
+import type { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
@@ -16,6 +16,12 @@ export interface RegisterFrameworkToolsOptions {
   config: AppConfig
   appConfigs: Record<string, Record<string, unknown>>
   plugins: AppPlugin[]
+  /**
+   * Upstream proxies the `read-widget-bundle` tool routes through. Kept
+   * separate from `plugins` because proxies aren't `AppPlugin`s (they have
+   * no definition/steps/widgets) — same shape as `buildProxyAppConfigs`.
+   */
+  proxies?: UpstreamProxyPlugin[]
   /**
    * The MCP UI resource URI that hosts the widget bundle (typically the
    * compiled `mcp-app.html`). Referenced by `render-view` / `refresh-view`
@@ -79,6 +85,7 @@ export function registerFrameworkTools(
     config,
     appConfigs,
     plugins,
+    proxies = [],
     resourceUri,
     htmlPath,
     refreshToolName = "refresh-view",
@@ -140,7 +147,7 @@ export function registerFrameworkTools(
     renderHandler,
   )
 
-  registerReadWidgetBundleTool(server, { widgetRegistry, plugins })
+  registerReadWidgetBundleTool(server, { widgetRegistry, plugins, proxies })
 
   server.resource(
     {
@@ -170,14 +177,16 @@ export function registerFrameworkTools(
  */
 function registerReadWidgetBundleTool(
   server: MCPServer,
-  deps: { widgetRegistry: WidgetRegistry; plugins: AppPlugin[] },
+  deps: {
+    widgetRegistry: WidgetRegistry
+    plugins: AppPlugin[]
+    proxies: UpstreamProxyPlugin[]
+  },
 ): void {
-  const { widgetRegistry, plugins } = deps
+  const { widgetRegistry, plugins, proxies } = deps
   const proxiesByName = new Map<string, UpstreamProxyPlugin>()
-  for (const plugin of plugins) {
-    if (plugin instanceof UpstreamProxyPlugin) {
-      proxiesByName.set(plugin.name, plugin)
-    }
+  for (const proxy of proxies) {
+    proxiesByName.set(proxy.name, proxy)
   }
   const proxyBindingByModule = new Map<string, string>()
   for (const plugin of plugins) {

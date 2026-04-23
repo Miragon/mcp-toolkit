@@ -122,8 +122,10 @@ const json2tsOptions: Partial<Json2TsOptions> = {
 
 async function schemaToType(schema: Record<string, unknown>, name: string): Promise<string> {
   const result = await compileJsonSchema(
-    // json-schema-to-typescript treats the top-level title as the type name.
-    { title: name, ...schema } as Parameters<typeof compileJsonSchema>[0],
+    // json-schema-to-typescript treats the top-level title as the type name,
+    // and `title` beats the `name` arg to `compile()`. Spread first so an
+    // upstream-supplied title can't override the codegen's chosen name.
+    { ...schema, title: name } as Parameters<typeof compileJsonSchema>[0],
     name,
     json2tsOptions,
   )

@@ -157,6 +157,7 @@ export async function createFrameworkApp(
     config: appConfig,
     appConfigs,
     plugins: allPlugins,
+    proxies,
     resourceUri: options.app.resourceUri,
     htmlPath: options.app.htmlPath,
     refreshToolName: options.app.refreshToolName,
