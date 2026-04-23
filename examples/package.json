@@ -5,11 +5,13 @@
   "type": "module",
   "description": "Standalone playground for the MCP toolkit. Not published — consumed locally via pnpm workspace.",
   "scripts": {
-    "dev:upstream": "tsx --env-file-if-exists=.env upstream-mock/server.ts",
+    "dev:articles-upstream": "tsx --env-file-if-exists=.env articles-upstream/server.ts",
+    "dev:customers-upstream": "pnpm run build:customer-widget && tsx --env-file-if-exists=.env customers-upstream/server.ts",
     "dev:host": "tsx --env-file-if-exists=.env host/index.ts",
     "build:bundle": "vite build --config app-bundle/vite.config.ts",
-    "generate": "pnpm --filter items-ui-example run generate",
-    "generate:check": "pnpm --filter items-ui-example run generate:check",
+    "build:customer-widget": "vite build --config customers-upstream/widget/vite.config.ts",
+    "generate": "pnpm --filter articles-example run generate",
+    "generate:check": "pnpm --filter articles-example run generate:check",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

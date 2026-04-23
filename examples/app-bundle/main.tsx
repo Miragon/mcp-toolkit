@@ -4,8 +4,7 @@ import * as ReactDOMClient from "react-dom/client"
 import { createRoot } from "react-dom/client"
 import { useWidget } from "mcp-use/react"
 import { McpAppView, createRemoteWidgetLoader } from "@miragon/mcp-toolkit-ui/app"
-import { GreetingCard } from "../modules/hello-full/widgets/GreetingCard.js"
-import { ItemCard } from "../modules/items-ui/widgets/ItemCard.js"
+import { ArticleCard } from "../modules/articles/widgets/ArticleCard.js"
 import "./main.css"
 
 // Expose the host's React + ReactDOM on globalThis so upstream-hosted widget
@@ -15,9 +14,11 @@ import "./main.css"
 // (hooks + context rely on instance identity, not just version parity).
 Object.assign(globalThis, { React, ReactDOM: ReactDOMClient })
 
+// Host-bundled widget registry. Upstream-hosted widgets (e.g. the customers
+// module) are resolved at runtime via `widgetLoader` instead of being listed
+// here.
 const widgets = {
-  "hello:greeting-card": GreetingCard,
-  "items-ui:item-card": ItemCard,
+  "articles:article-card": ArticleCard,
 }
 
 function App() {
