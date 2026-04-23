@@ -1,6 +1,7 @@
 import { executePipeline, type PipelineExecutionContext } from "../engine/pipeline-executor.js"
 import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
+import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
 import type { LayoutConfig } from "./layout-types.js"
 
@@ -9,6 +10,16 @@ export interface RenderViewInput {
   steps?: PipelineStepRef[]
   layout: LayoutConfig
   title?: string
+}
+
+/**
+ * Bundle metadata for a widget whose code lives on an upstream MCP server.
+ * The browser-side widget loader reads `bundle` via the upstream identified
+ * by `moduleId` and dynamically imports the result.
+ */
+export interface RemoteWidgetInfo {
+  bundle: string
+  moduleId: string
 }
 
 /**
@@ -25,6 +36,7 @@ export async function renderView(
   stepRegistry: StepRegistry,
   appConfigs?: Record<string, Record<string, unknown>>,
   ctx?: PipelineExecutionContext,
+  widgetRegistry?: WidgetRegistry,
 ) {
   const initialKeys = input.keys ?? {}
   const pipelineConfig = { steps: input.steps }
@@ -57,6 +69,15 @@ export async function renderView(
     .filter(Boolean)
     .join("\n")
 
+  const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
+  if (widgetRegistry) {
+    for (const widget of widgetRegistry.getAll()) {
+      if (widget.bundle && widget.moduleId) {
+        remoteWidgets[widget.id] = { bundle: widget.bundle, moduleId: widget.moduleId }
+      }
+    }
+  }
+
   return {
     content: [{ type: "text" as const, text: textSummary }],
     structuredContent: {
@@ -84,6 +105,7 @@ export async function renderView(
         errors: context.errors,
       },
       layout: input.layout,
+      remoteWidgets,
     },
   }
 }

@@ -1,4 +1,5 @@
 import type { AppPlugin } from "../types/app.js"
+import type { WidgetDefinition } from "../types/widget.js"
 import { buildStepFromDeclaration } from "../pipeline/declarative-step.js"
 import type { DiscoveredModule } from "./discover.js"
 
@@ -14,20 +15,27 @@ import type { DiscoveredModule } from "./discover.js"
  *   `buildProxyAppConfigs` injects a `callTool` pre-bound to that
  *   upstream. Cross-module tool routing is structurally impossible.
  * - Compiles each declarative step via `buildStepFromDeclaration`.
+ * - Compiles each remote widget into a `WidgetDefinition` carrying the
+ *   bundle URI + originating `moduleId`. `render-view` relays the bundle
+ *   metadata to the browser-side loader.
  *
- * Widgets from the manifest are attached at the plugin level (to preserve
- * them for Phase 3's remote-widget loader) but are not yet translated
- * into `WidgetDefinition`s here — that wiring lands with the remote
- * loader so we don't register incomplete widgets into the registry in the
- * meantime.
+ * Widget size defaults to `"full"` when the manifest omits it — matches
+ * the pre-size-field contract.
  */
 export function synthesizeModulePlugin(discovered: DiscoveredModule): AppPlugin {
   const { manifest, proxy } = discovered
+  const widgets: WidgetDefinition[] = manifest.widgets.map((w) => ({
+    id: w.id,
+    requires: [...w.requires],
+    size: w.size ?? "full",
+    bundle: w.bundle,
+    moduleId: manifest.moduleId,
+  }))
   return {
     definition: {
       name: manifest.moduleId,
       steps: manifest.steps.map((step) => buildStepFromDeclaration(step, manifest.moduleId)),
-      widgets: [],
+      widgets,
     },
     proxyBinding: proxy.name,
   }

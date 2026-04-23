@@ -24,7 +24,7 @@ export { WidgetRegistry } from "./registry/widget-registry.js"
 export { loadApps } from "./registry/app-loader.js"
 
 export { renderView } from "./framework/render-view.js"
-export type { RenderViewInput } from "./framework/render-view.js"
+export type { RenderViewInput, RemoteWidgetInfo } from "./framework/render-view.js"
 export { getFrameworkManifest } from "./framework/manifest.js"
 export type { FrameworkManifest } from "./framework/manifest.js"
 export { normalizeLayout } from "./framework/layout-types.js"

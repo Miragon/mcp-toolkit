@@ -82,6 +82,15 @@ export const DeclarativeStepSchema = z.object({
 export type DeclarativeStep = z.infer<typeof DeclarativeStepSchema>
 
 /**
+ * Layout size hint mirrored from `@miragon/mcp-toolkit-core`'s `WidgetSize`.
+ * Duplicated here so the manifest contract stays standalone — the host maps
+ * this string straight onto `WidgetDefinition.size` when synthesising.
+ */
+export const WidgetSizeSchema = z.enum(["quarter", "third", "half", "full", "header"])
+
+export type WidgetSizeHint = z.infer<typeof WidgetSizeSchema>
+
+/**
  * A widget served as an MCP resource by the upstream. The host's widget
  * loader fetches the bundle URI at render time via the originating upstream's
  * proxy, dynamically `import()`s the ESM, and asserts React-major
@@ -100,6 +109,12 @@ export const RemoteWidgetSchema = z.object({
    * the upstream's MCP resource API.
    */
   bundle: z.string().min(1),
+  /**
+   * Optional layout size hint for the widget. Defaults to `"full"` when
+   * omitted — matches the prior (size-less) contract, so upstreams that
+   * haven't set it still register with a sensible default.
+   */
+  size: WidgetSizeSchema.optional(),
 })
 
 export type RemoteWidget = z.infer<typeof RemoteWidgetSchema>

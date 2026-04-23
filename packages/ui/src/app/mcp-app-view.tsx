@@ -1,9 +1,11 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { useWidget } from "mcp-use/react"
-import type { LayoutConfig } from "@miragon/mcp-toolkit-core"
+import type { LayoutConfig, RowDef } from "@miragon/mcp-toolkit-core"
+import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
+import type { WidgetLoader } from "./remote-widget-loader.js"
 
 export interface McpAppViewLabels {
   loading?: string
@@ -28,6 +30,11 @@ interface RefreshParams {
   title?: string
 }
 
+interface RemoteWidgetInfo {
+  bundle: string
+  moduleId: string
+}
+
 interface ViewData {
   _refreshParams?: RefreshParams
   title?: string
@@ -41,6 +48,7 @@ interface ViewData {
     errors: { stepId: string; reason: string }[]
   }
   layout: LayoutConfig
+  remoteWidgets?: Record<string, RemoteWidgetInfo>
 }
 
 export interface McpAppViewProps {
@@ -50,6 +58,14 @@ export interface McpAppViewProps {
    * entry point.
    */
   widgets: Record<string, WidgetComponent>
+  /**
+   * Optional loader invoked for widget IDs that aren't in `widgets` but are
+   * advertised by the server in `viewData.remoteWidgets`. Typically built
+   * via `createRemoteWidgetLoader({ fetchResource })` so upstream-hosted
+   * modules render without a host rebuild. Widgets loaded through the
+   * loader are memoised for the lifetime of the view.
+   */
+  widgetLoader?: WidgetLoader
   /**
    * Name of the MCP tool that the refresh button invokes. Consumers typically
    * register this tool as a thin wrapper around `renderView(...)` from
@@ -63,7 +79,12 @@ export interface McpAppViewProps {
   labels?: McpAppViewLabels
 }
 
-export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }: McpAppViewProps) {
+export function McpAppView({
+  widgets,
+  widgetLoader,
+  refreshToolName = "refresh-view",
+  labels,
+}: McpAppViewProps) {
   const effectiveLabels = { ...DEFAULT_LABELS, ...labels }
   const {
     props: initialViewData,
@@ -77,6 +98,7 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
   const [viewData, setViewData] = useState<ViewData | null>(null)
   const [displayMode, setDisplayMode] = useState<string>("inline")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [remoteWidgets, setRemoteWidgets] = useState<Record<string, WidgetComponent>>({})
 
   useEffect(() => {
     if (!isPending && initialViewData) {
@@ -87,6 +109,43 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
   useEffect(() => {
     if (currentDisplayMode) setDisplayMode(currentDisplayMode)
   }, [currentDisplayMode])
+
+  // Lazy-load any remote widgets referenced by the current layout that the
+  // consumer didn't pre-wire. The server advertises bundle URIs via
+  // `viewData.remoteWidgets` (populated by `renderView` from the host's
+  // WidgetRegistry); the loader fetches + evaluates each bundle exactly
+  // once and memoises the component in local state.
+  const widgetIdsInLayout = useMemo<string[]>(() => {
+    if (!viewData) return []
+    return collectLayoutWidgetIds(viewData.layout)
+  }, [viewData])
+
+  useEffect(() => {
+    if (!widgetLoader || !viewData?.remoteWidgets) return
+    const manifest = viewData.remoteWidgets
+    const missing = widgetIdsInLayout.filter(
+      (id) => !widgets[id] && !remoteWidgets[id] && manifest[id],
+    )
+    if (missing.length === 0) return
+    let cancelled = false
+    for (const id of missing) {
+      const info = manifest[id]
+      widgetLoader(id, info.bundle)
+        .then((component) => {
+          if (cancelled) return
+          setRemoteWidgets((prev) => (prev[id] ? prev : { ...prev, [id]: component }))
+        })
+        .catch((err: unknown) => {
+          const reason = err instanceof Error ? err.message : String(err)
+          console.error(`[mcp-toolkit] failed to load remote widget "${id}": ${reason}`)
+        })
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [widgetLoader, viewData?.remoteWidgets, widgetIdsInLayout, widgets, remoteWidgets])
+
+  const mergedWidgets = useMemo(() => ({ ...widgets, ...remoteWidgets }), [widgets, remoteWidgets])
 
   const toggleFullscreen = useCallback(async () => {
     const newMode = displayMode === "fullscreen" ? "inline" : "fullscreen"
@@ -192,9 +251,30 @@ export function McpAppView({ widgets, refreshToolName = "refresh-view", labels }
           keys={viewData.context.keys}
           stepData={viewData.context.stepData}
           errors={viewData.context.errors}
-          widgets={widgets}
+          widgets={mergedWidgets}
         />
       </AppQueryProvider>
     </main>
   )
+}
+
+/**
+ * Walks a normalised layout (rows or tabs) and returns the set of widget
+ * IDs it references, de-duplicated. The remote-widget-loader effect uses
+ * it to decide which bundles still need fetching.
+ */
+function collectLayoutWidgetIds(layout: LayoutConfig): string[] {
+  const seen = new Set<string>()
+  const normalised = normalizeLayout(layout)
+  const collectRows = (rows: RowDef[]) => {
+    for (const row of rows) {
+      for (const cell of row.row) seen.add(cell.widget)
+    }
+  }
+  if ("tabs" in normalised) {
+    for (const tab of normalised.tabs) collectRows(tab.rows)
+  } else {
+    collectRows(normalised.rows)
+  }
+  return [...seen]
 }

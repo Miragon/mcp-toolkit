@@ -5,6 +5,7 @@ import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
 import { renderView } from "../framework/render-view.js"
 import type { LayoutConfig } from "../framework/layout-types.js"
+import { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
@@ -108,6 +109,7 @@ export function registerFrameworkTools(
       stepRegistry,
       appConfigs,
       { userId: extractUserId(ctx) },
+      widgetRegistry,
     )
   }
 
@@ -138,6 +140,8 @@ export function registerFrameworkTools(
     renderHandler,
   )
 
+  registerReadWidgetBundleTool(server, { widgetRegistry, plugins })
+
   server.resource(
     {
       name: "mcp-app-html",
@@ -148,6 +152,89 @@ export function registerFrameworkTools(
       const html = await fs.readFile(htmlPath, "utf-8")
       return {
         contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
+      }
+    },
+  )
+}
+
+/**
+ * Registers the host-side bridge the browser widget-loader calls to read
+ * an upstream-hosted widget bundle. The tool takes a widget `id` declared
+ * in the manifest, looks up the owning plugin's `proxyBinding`, and reads
+ * the resource through that `UpstreamProxyPlugin`'s session — same
+ * transport (and auth) as any other upstream tool call, keeping widget
+ * fetches on the SDK path instead of leaking a separate fetch endpoint.
+ *
+ * Marked `visibility: ["app"]` so it is only callable from inside the
+ * widget iframe, not the LLM.
+ */
+function registerReadWidgetBundleTool(
+  server: MCPServer,
+  deps: { widgetRegistry: WidgetRegistry; plugins: AppPlugin[] },
+): void {
+  const { widgetRegistry, plugins } = deps
+  const proxiesByName = new Map<string, UpstreamProxyPlugin>()
+  for (const plugin of plugins) {
+    if (plugin instanceof UpstreamProxyPlugin) {
+      proxiesByName.set(plugin.name, plugin)
+    }
+  }
+  const proxyBindingByModule = new Map<string, string>()
+  for (const plugin of plugins) {
+    if (plugin.proxyBinding) {
+      proxyBindingByModule.set(plugin.definition.name, plugin.proxyBinding)
+    }
+  }
+
+  server.tool(
+    {
+      name: "read-widget-bundle",
+      title: "Read Widget Bundle",
+      description:
+        "App-only tool. Returns the JS source of an upstream-hosted widget bundle so the browser-side loader can evaluate it. Pass the widget id declared in the manifest.",
+      schema: z.object({
+        id: z.string().describe("Namespaced widget id, e.g. 'items-ui:item-card'."),
+      }),
+      _meta: { ui: { visibility: ["app"] } },
+    },
+    async ({ id }, ctx) => {
+      const widget = widgetRegistry.get(id)
+      if (!widget?.bundle || !widget.moduleId) {
+        return {
+          content: [{ type: "text" as const, text: `Widget "${id}" is not upstream-hosted.` }],
+          isError: true,
+        }
+      }
+      const proxyName = proxyBindingByModule.get(widget.moduleId)
+      const proxy = proxyName ? proxiesByName.get(proxyName) : undefined
+      if (!proxy) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `No upstream proxy registered for module "${widget.moduleId}".`,
+            },
+          ],
+          isError: true,
+        }
+      }
+      try {
+        const source = await proxy.readUpstreamResourceText(widget.bundle, extractUserId(ctx))
+        return {
+          content: [{ type: "text" as const, text: source }],
+          structuredContent: { id, bundle: widget.bundle, source },
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Failed to read widget bundle "${id}": ${message}`,
+            },
+          ],
+          isError: true,
+        }
       }
     },
   )

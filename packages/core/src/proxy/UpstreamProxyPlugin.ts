@@ -47,6 +47,12 @@ interface UpstreamTool {
 interface UpstreamSession {
   listTools(): Promise<UpstreamTool[]>
   callTool(name: string, args: unknown): Promise<unknown>
+  readResource(uri: string): Promise<{
+    contents: Array<
+      | { uri: string; text: string; mimeType?: string }
+      | { uri: string; blob: string; mimeType?: string }
+    >
+  }>
 }
 
 /** Shape of the `ctx` the mcp-use tool handler receives. */
@@ -209,6 +215,51 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
       )
     }
     return this.staticSession.callTool(bareName, args)
+  }
+
+  /**
+   * Read an MCP resource from the upstream, returning the text payload of
+   * the first text-shaped content block. Used by the framework's
+   * `read-widget-bundle` tool so the browser-side widget loader can pull
+   * widget JS over the same transport (and authentication) as regular tool
+   * calls. Binary blobs are rejected — widget bundles are always ES
+   * modules, so a `blob` content is a protocol mismatch, not a valid
+   * alternative.
+   */
+  async readUpstreamResourceText(uri: string, userId?: string): Promise<string> {
+    let session: UpstreamSession | undefined
+    if (this.authConfig.mode === "oauth2") {
+      if (!userId) {
+        throw new Error(
+          `UpstreamProxyPlugin(${this.name}).readUpstreamResourceText: userId is required for oauth2 mode`,
+        )
+      }
+      const stored = await this.sessionStore.getSession(userId, this.name)
+      session = stored?.session as UpstreamSession | undefined
+      if (!session) {
+        throw new Error(
+          `UpstreamProxyPlugin(${this.name}).readUpstreamResourceText: no active session for user "${userId}".`,
+        )
+      }
+    } else {
+      if (!this.staticSession) {
+        throw new Error(
+          `UpstreamProxyPlugin(${this.name}).readUpstreamResourceText: static session not initialised.`,
+        )
+      }
+      session = this.staticSession
+    }
+
+    const result = await session.readResource(uri)
+    const textBlock = result.contents.find(
+      (c): c is { uri: string; text: string; mimeType?: string } => "text" in c,
+    )
+    if (!textBlock) {
+      throw new Error(
+        `UpstreamProxyPlugin(${this.name}): resource "${uri}" has no text content — widget bundles must be served as text/javascript.`,
+      )
+    }
+    return textBlock.text
   }
 
   // --- Static-auth init -----------------------------------------------------

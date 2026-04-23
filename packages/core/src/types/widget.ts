@@ -16,4 +16,18 @@ export interface WidgetDefinition {
    */
   requires: string[]
   size: WidgetSize
+  /**
+   * Optional MCP resource URI the widget's compiled ESM bundle can be
+   * fetched from. Present only on widgets registered via an upstream
+   * module manifest (Phase 3 remote loading); local widgets leave it
+   * unset and stay baked into the app-bundle at build time.
+   */
+  bundle?: string
+  /**
+   * Module ID that contributed this widget. Mirrors the namespace prefix
+   * on `id`. Used by render-view to tell the app-bundle which upstream
+   * the bundle lives on so the browser-side loader can route the resource
+   * read to the right proxy.
+   */
+  moduleId?: string
 }
