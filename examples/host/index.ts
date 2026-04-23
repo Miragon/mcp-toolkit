@@ -20,11 +20,8 @@ const app = await createFrameworkApp({
   proxies: parseProxyConfigEnv(process.env.MCP_PROXIES),
   callbackBaseUrl: process.env.MCP_URL,
   app: {
-    // The example host doesn't ship a widget bundle — this is a placeholder
-    // resource URI. Widget rendering in a real consumer points at the Vite
-    // build output.
     resourceUri: "ui://toolkit-example/mcp-app.html",
-    htmlPath: path.join(here, "placeholder-mcp-app.html"),
+    htmlPath: path.join(here, "..", "app-bundle", "dist", "index.html"),
   },
 })
 

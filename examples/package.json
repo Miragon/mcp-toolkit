@@ -7,6 +7,7 @@
   "scripts": {
     "dev:upstream": "tsx upstream-mock/server.ts",
     "dev:host": "tsx host/index.ts",
+    "build:bundle": "vite build --config app-bundle/vite.config.ts",
     "generate": "pnpm --filter items-ui-example run generate",
     "generate:check": "pnpm --filter items-ui-example run generate:check",
     "typecheck": "tsc --noEmit"
@@ -19,13 +20,20 @@
     "@modelcontextprotocol/sdk": "1.29.0",
     "mcp-use": "1.23.1",
     "react": "19.2.5",
+    "react-dom": "19.2.5",
     "yaml": "2.8.1",
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "4.2.2",
     "@types/node": "25.6.0",
     "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "tailwindcss": "4.2.2",
     "tsx": "4.20.6",
-    "typescript": "6.0.2"
+    "typescript": "6.0.2",
+    "vite": "8.0.8",
+    "vite-plugin-singlefile": "2.3.2"
   }
 }

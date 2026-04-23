@@ -1,0 +1,4 @@
+@import "@miragon/mcp-toolkit-ui/globals.css";
+
+/* Widgets live outside the UI package, so Tailwind needs to scan them too. */
+@source "../modules/**/*.{ts,tsx}";
