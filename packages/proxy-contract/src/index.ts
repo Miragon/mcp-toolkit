@@ -10,6 +10,22 @@ import { z } from "zod"
  * compile-time error instead of a runtime surprise.
  */
 
+export {
+  MODULE_ID_PATTERN,
+  NAMESPACED_ID_PATTERN,
+  RuntimeRequirementSchema,
+  DeclarativeStepSchema,
+  RemoteWidgetSchema,
+  ModuleManifestSchema,
+  GET_MODULE_MANIFEST_TOOL,
+} from "./module-manifest.js"
+export type {
+  RuntimeRequirement,
+  DeclarativeStep,
+  RemoteWidget,
+  ModuleManifest,
+} from "./module-manifest.js"
+
 // Proxy names become a tool-name prefix (`<proxy>_<tool>`) and a route segment
 // (`/oauth/callback/<proxy>`). Keep them URL-safe and MCP-tool-name-safe.
 export const PROXY_NAME_PATTERN = /^[a-z][a-z0-9-]*$/
@@ -40,6 +56,12 @@ export const ProxyConfigEntrySchema = z.object({
   label: z.string().min(1),
   upstreamUrl: z.string().url(),
   auth: proxyAuthSchema,
+  /**
+   * Opt-in: when true, the host calls `get-module-manifest` on this upstream
+   * at boot and registers any returned widgets/steps into its framework
+   * registries. See `@miragon/mcp-toolkit-proxy-contract/module-manifest`.
+   */
+  upstreamModules: z.boolean().optional(),
 })
 
 export const ProxyConfigSchema = z.array(ProxyConfigEntrySchema).superRefine((entries, ctx) => {

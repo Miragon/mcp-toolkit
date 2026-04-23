@@ -133,3 +133,14 @@ export { AppQueryProvider, useCallTool, queryClient } from "./providers/query-pr
 
 // Utils
 export { cn } from "./lib/utils.js"
+
+/**
+ * Major React version this toolkit ships against. Exported so the host's
+ * module-discovery logic and the remote-widget loader can runtime-check
+ * that upstream-hosted modules were built against a compatible runtime
+ * before mounting their components.
+ *
+ * Bump in lockstep with the `react` peer dependency in this package's
+ * `package.json`.
+ */
+export const TOOLKIT_REACT_MAJOR = 19 as const
