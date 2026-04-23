@@ -90,7 +90,7 @@ export async function createFrameworkApp(
   const baseConfig = {
     name: options.name,
     version: options.version ?? "0.1.0",
-    host: options.host ?? "0.0.0.0",
+    host: options.host ?? "localhost",
     baseUrl: options.baseUrl,
   }
   const server: McpServerInstance<boolean> = options.oauth
