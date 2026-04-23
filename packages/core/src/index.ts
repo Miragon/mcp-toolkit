@@ -34,6 +34,12 @@ export { layoutSchema, rowSchema } from "./framework/layout-schemas.js"
 export { resolveActiveModules } from "./framework/active-modules.js"
 export { buildProxyAppConfigs } from "./proxy/build-proxy-app-configs.js"
 
+export { buildStepFromDeclaration, dotPath } from "./pipeline/declarative-step.js"
+export type { DeclarativeAppConfig } from "./pipeline/declarative-step.js"
+export { discoverUpstreamModules, DEFAULT_HOST_REACT_MAJOR } from "./module-loader/discover.js"
+export type { DiscoveredModule, DiscoverUpstreamModulesOptions } from "./module-loader/discover.js"
+export { synthesizeModulePlugin } from "./module-loader/synthesize-plugin.js"
+
 export { createOrgGateMiddleware } from "./middleware/org-gate.js"
 export type { OrgGateMiddleware } from "./middleware/org-gate.js"
 export { createRoleFilterMiddleware } from "./middleware/role-filter.js"

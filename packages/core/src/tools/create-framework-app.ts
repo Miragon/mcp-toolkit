@@ -6,6 +6,8 @@ import { WidgetRegistry } from "../registry/widget-registry.js"
 import { buildProxyAppConfigs } from "../proxy/build-proxy-app-configs.js"
 import { createOrgGateMiddleware } from "../middleware/org-gate.js"
 import { createRoleFilterMiddleware } from "../middleware/role-filter.js"
+import { discoverUpstreamModules, DEFAULT_HOST_REACT_MAJOR } from "../module-loader/discover.js"
+import { synthesizeModulePlugin } from "../module-loader/synthesize-plugin.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
 import { registerFrameworkTools } from "./register-framework-tools.js"
 import { registerUpstreamProxies } from "./register-upstream-proxies.js"
@@ -21,6 +23,14 @@ export interface CreateFrameworkAppOptionsBase {
   proxies: ProxyConfig
   /** Required when any proxy entry uses `auth.mode === "oauth2"`. */
   callbackBaseUrl?: string
+  /**
+   * Major React version the host ships. Controls whether an upstream-hosted
+   * module's `runtime.react` range is accepted at discovery time. Defaults
+   * to the toolkit's own `TOOLKIT_REACT_MAJOR` when omitted. Pass an
+   * explicit number if the host's React runtime diverges from the bundled
+   * UI package's peer range (rare).
+   */
+  hostReactMajor?: number
   middleware?: {
     /** When set, every RPC must come from a token with this organization_id. */
     orgGate?: string
@@ -115,21 +125,29 @@ export async function createFrameworkApp(
     secretResolver: options.secretResolver,
   })
 
+  const discoveredModules = await discoverUpstreamModules({
+    entries: options.proxies,
+    proxies,
+    hostReactMajor: options.hostReactMajor ?? DEFAULT_HOST_REACT_MAJOR,
+  })
+  const modulePlugins = discoveredModules.map(synthesizeModulePlugin)
+  const allPlugins: AppPlugin[] = [...options.plugins, ...modulePlugins]
+
   const stepRegistry = new StepRegistry()
   const widgetRegistry = new WidgetRegistry()
   loadApps(
-    options.plugins.map((p) => p.definition),
+    allPlugins.map((p) => p.definition),
     stepRegistry,
     widgetRegistry,
   )
 
-  for (const plugin of options.plugins) {
+  for (const plugin of allPlugins) {
     plugin.registerTools?.(server)
   }
 
-  const appConfigs = buildProxyAppConfigs(options.plugins, proxies)
+  const appConfigs = buildProxyAppConfigs(allPlugins, proxies)
   const appConfig: AppConfig = options.appConfig ?? {
-    activeApps: options.plugins.map((p) => ({ app: p.definition.name, config: {} })),
+    activeApps: allPlugins.map((p) => ({ app: p.definition.name, config: {} })),
     pipelines: {},
   }
 
@@ -138,7 +156,7 @@ export async function createFrameworkApp(
     widgetRegistry,
     config: appConfig,
     appConfigs,
-    plugins: options.plugins,
+    plugins: allPlugins,
     resourceUri: options.app.resourceUri,
     htmlPath: options.app.htmlPath,
     refreshToolName: options.app.refreshToolName,

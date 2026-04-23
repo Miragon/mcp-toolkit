@@ -1,13 +1,18 @@
 import { MCPServer, text } from "mcp-use/server"
+import { GET_MODULE_MANIFEST_TOOL, type ModuleManifest } from "@miragon/mcp-toolkit-proxy-contract"
 import { z } from "zod"
 
 /**
- * Minimal fake "external MCP" that the host example proxies to. Exposes three
- * tools so the codegen has something interesting to type-generate:
+ * Minimal fake "external MCP" that the host example proxies to. Exposes four
+ * tools so the codegen has something interesting to type-generate and so the
+ * host can exercise the upstream-hosted modules path:
  *
- *  - echo       plain string round-trip
- *  - list-items returns an array (exercises the outputSchema path)
- *  - get-item   takes an id, returns an item (exercises per-tool input types)
+ *  - echo                   plain string round-trip
+ *  - list-items             returns an array (exercises the outputSchema path)
+ *  - get-item               takes an id, returns an item (per-tool input types)
+ *  - get-module-manifest    advertises an upstream-hosted module so the host's
+ *                           discovery path compiles declarative steps against
+ *                           this server at boot
  */
 
 const server = new MCPServer({
@@ -81,6 +86,38 @@ server.tool(
       structuredContent: item,
     }
   },
+)
+
+const mockItemsManifest: ModuleManifest = {
+  moduleId: "mock-items",
+  runtime: { react: "^19.0.0" },
+  steps: [
+    {
+      id: "mock-items:resolve-item",
+      dataType: "mock-items:item",
+      requires: ["mock-items:itemId"],
+      produces: ["mock-items:item"],
+      tool: "get-item",
+      inputMapping: { id: "keys.mock-items:itemId" },
+      outputMapping: { "mock-items:item": "structuredContent" },
+    },
+  ],
+  widgets: [],
+}
+
+server.tool(
+  {
+    name: GET_MODULE_MANIFEST_TOOL,
+    description:
+      "Returns the upstream-hosted module manifest this server contributes to a toolkit host.",
+    schema: z.object({}),
+    annotations: { readOnlyHint: true },
+  },
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async () => ({
+    content: [{ type: "text" as const, text: JSON.stringify(mockItemsManifest) }],
+    structuredContent: mockItemsManifest,
+  }),
 )
 
 const port = Number(process.env.UPSTREAM_MOCK_PORT ?? 4000)
