@@ -277,16 +277,19 @@ export function LayoutBuilder({
   const [stepEntries, setStepEntries] = useState<PipelineStepRef[]>(() => initialSteps ?? [])
 
   // Live snapshot driven by the latest open-view-builder response. Seed from
-  // props and update on refresh.
+  // props and update on refresh — including `availableSteps`, which can grow
+  // as upstream-module discovery finishes after the initial load.
   const [liveReachable, setLiveReachable] = useState<ReachableWidget[]>(reachableWidgets)
   const [liveUnreachable, setLiveUnreachable] = useState<UnreachableWidget[]>(
     unreachableWidgets ?? [],
   )
   const [liveCatalog, setLiveCatalog] = useState<KeyCatalogEntry[]>(keyCatalog ?? [])
+  const [liveSteps, setLiveSteps] = useState<AvailableStep[]>(availableSteps)
   const [liveContext, setLiveContext] = useState<PipelineContext>(context)
   useEffect(() => setLiveReachable(reachableWidgets), [reachableWidgets])
   useEffect(() => setLiveUnreachable(unreachableWidgets ?? []), [unreachableWidgets])
   useEffect(() => setLiveCatalog(keyCatalog ?? []), [keyCatalog])
+  useEffect(() => setLiveSteps(availableSteps), [availableSteps])
   useEffect(() => setLiveContext(context), [context])
 
   const [isRefreshing, setRefreshing] = useState(false)
@@ -497,6 +500,7 @@ export function LayoutBuilder({
         structuredContent?: {
           reachableWidgets?: ReachableWidget[]
           unreachableWidgets?: UnreachableWidget[]
+          availableSteps?: AvailableStep[]
           keyCatalog?: KeyCatalogEntry[]
           context?: PipelineContext
         }
@@ -504,6 +508,7 @@ export function LayoutBuilder({
       const sc = result.structuredContent
       if (sc?.reachableWidgets) setLiveReachable(sc.reachableWidgets)
       if (sc?.unreachableWidgets) setLiveUnreachable(sc.unreachableWidgets)
+      if (sc?.availableSteps) setLiveSteps(sc.availableSteps)
       if (sc?.keyCatalog) setLiveCatalog(sc.keyCatalog)
       if (sc?.context) setLiveContext(sc.context)
     } finally {
@@ -611,7 +616,7 @@ export function LayoutBuilder({
         labels={L}
         keyEntries={keyEntries}
         stepEntries={stepEntries}
-        availableSteps={availableSteps}
+        availableSteps={liveSteps}
         keyCatalog={liveCatalog}
         isRefreshing={isRefreshing}
         onAddKey={addKey}
@@ -626,7 +631,7 @@ export function LayoutBuilder({
       <CataloguePanel
         labels={L}
         keyCatalog={liveCatalog}
-        availableSteps={availableSteps}
+        availableSteps={liveSteps}
         unreachableWidgets={liveUnreachable}
         onSeedKey={(name) => addKey(name)}
       />
