@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import {
+  ArrowDownToLine,
+  ArrowRightToLine,
   ChevronDown,
   ChevronUp,
+  CircleDot,
   Eye,
   GripVertical,
+  Layers,
   Library,
+  Loader2,
   Pencil,
   Plus,
-  RefreshCw,
-  Rows3,
   Save,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react"
@@ -27,9 +29,9 @@ import type {
 } from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { GridLayout, GridItem } from "../components/GridLayout.js"
+import { cn } from "../lib/utils.js"
 import { Badge } from "../primitives/badge.js"
 import { Button } from "../primitives/button.js"
-import { Card } from "../primitives/card.js"
 import {
   Dialog,
   DialogClose,
@@ -41,7 +43,6 @@ import {
 } from "../primitives/dialog.js"
 import { Input } from "../primitives/input.js"
 import { ScrollArea } from "../primitives/scroll-area.js"
-import { Separator } from "../primitives/separator.js"
 import {
   Select,
   SelectContent,
@@ -49,12 +50,49 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../primitives/select.js"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "../primitives/sheet.js"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../primitives/tabs.js"
 import type { WidgetComponent } from "./widget-renderer.js"
 
+// -------------------------------------------------------------------------- //
+// Types & labels
+// -------------------------------------------------------------------------- //
+
 export interface LayoutBuilderLabels {
   title?: string
-  palette?: string
+  builderBadge?: string
+  previewBadge?: string
+  preview?: string
+  edit?: string
+  catalogue?: string
+  save?: string
+  saveDialogTitle?: string
+  saveDialogDescription?: string
+  saveNameLabel?: string
+  saveDescriptionLabel?: string
+  saveConfirm?: string
+  cancel?: string
+  pipelineHeader?: string
+  keysHeader?: string
+  stepsHeader?: string
+  keyName?: string
+  keyValue?: string
+  stepContextId?: string
+  stepPickerLabel?: string
+  addKey?: string
+  addStep?: string
+  emptyKeys?: string
+  emptySteps?: string
+  statusUpToDate?: string
+  statusPending?: string
+  statusRefreshing?: string
+  paletteHeader?: string
   paletteEmpty?: string
   canvasEmpty?: string
   canvasDropHint?: string
@@ -63,83 +101,73 @@ export interface LayoutBuilderLabels {
   removeRow?: string
   renameTab?: string
   removeTab?: string
-  edit?: string
-  preview?: string
-  save?: string
-  saveDialogTitle?: string
-  saveDialogDescription?: string
-  saveNameLabel?: string
-  saveDescriptionLabel?: string
-  saveConfirm?: string
-  cancel?: string
-  keysHeader?: string
-  stepsHeader?: string
-  keyName?: string
-  keyValue?: string
-  stepContextId?: string
-  stepPickerLabel?: string
-  applyContext?: string
-  addKey?: string
-  addStep?: string
-  refreshing?: string
-  contextError?: string
-  catalogue?: string
-  catalogueHint?: string
-  catalogueEmpty?: string
+  tabsLabel?: string
+  catalogueDescription?: string
+  catalogueKeys?: string
+  catalogueSteps?: string
   catalogueUnreachable?: string
   catalogueUnreachableEmpty?: string
-  catalogueKeyInContext?: string
-  catalogueKeyNotInContext?: string
   catalogueProducedBy?: string
   catalogueConsumedBy?: string
   catalogueNeedsKeys?: string
   cataloguePickKey?: string
+  catalogueAddProducingStep?: string
+  catalogueLive?: string
+  catalogueMissing?: string
 }
 
 const DEFAULT_LABELS: Required<LayoutBuilderLabels> = {
   title: "View Builder",
-  palette: "Available widgets",
-  paletteEmpty: "No widgets match the current key set. Add keys or steps above to unlock more.",
-  canvasEmpty: "Drag a widget from the palette (or click it) to add it here.",
-  canvasDropHint: "Drop to add to this row",
-  addRow: "Add row",
-  addTab: "Add tab",
-  removeRow: "Remove row",
-  renameTab: "Rename tab",
-  removeTab: "Remove tab",
-  edit: "Edit",
+  builderBadge: "Builder",
+  previewBadge: "Preview",
   preview: "Preview",
-  save: "Save dashboard",
+  edit: "Edit",
+  catalogue: "Catalogue",
+  save: "Save",
   saveDialogTitle: "Save dashboard",
   saveDialogDescription:
     "Persists the current layout along with the keys and steps that populate it.",
   saveNameLabel: "Name",
   saveDescriptionLabel: "Description",
-  saveConfirm: "Save",
+  saveConfirm: "Save dashboard",
   cancel: "Cancel",
-  keysHeader: "Initial keys",
-  stepsHeader: "Pipeline steps",
+  pipelineHeader: "Pipeline",
+  keysHeader: "Keys",
+  stepsHeader: "Steps",
   keyName: "key",
   keyValue: '"value", 42, or {"id":1}',
-  stepContextId: "context id",
-  stepPickerLabel: "Step",
-  applyContext: "Apply",
+  stepContextId: "ctx id",
+  stepPickerLabel: "pick a step",
   addKey: "Add key",
   addStep: "Add step",
-  refreshing: "Refreshing…",
-  contextError: "One or more keys have invalid JSON values — using the raw string.",
-  catalogue: "Catalogue",
-  catalogueHint:
+  emptyKeys: "No keys seeded.",
+  emptySteps: "No steps configured.",
+  statusUpToDate: "Up to date",
+  statusPending: "Applying soon…",
+  statusRefreshing: "Applying…",
+  paletteHeader: "Palette",
+  paletteEmpty: "No widgets reachable yet — seed a key or add a step.",
+  canvasEmpty: "Drag a widget here, or click one in the palette.",
+  canvasDropHint: "Drop to add",
+  addRow: "Add row",
+  addTab: "Add tab",
+  removeRow: "Remove row",
+  renameTab: "Rename tab",
+  removeTab: "Remove tab",
+  tabsLabel: "Tabs",
+  catalogueDescription:
     "Every key and widget the framework knows about, whether or not it's reachable right now.",
-  catalogueEmpty: "No keys or widgets registered yet.",
-  catalogueUnreachable: "Widgets not reachable",
+  catalogueKeys: "Keys",
+  catalogueSteps: "Steps",
+  catalogueUnreachable: "Unreachable widgets",
   catalogueUnreachableEmpty: "Every registered widget is reachable.",
-  catalogueKeyInContext: "live",
-  catalogueKeyNotInContext: "not in context",
   catalogueProducedBy: "produced by",
   catalogueConsumedBy: "consumed by",
   catalogueNeedsKeys: "needs",
-  cataloguePickKey: "Use as seed",
+  cataloguePickKey: "Add as key",
+  catalogueAddProducingStep: "Add producing step",
+  catalogueLive: "live",
+  catalogueMissing: "missing",
 }
 
 type DraftLayout = { kind: "rows"; rows: RowDef[] } | { kind: "tabs"; tabs: DraftTab[] }
@@ -156,37 +184,27 @@ interface KeyEntry {
 const WIDGET_DRAG_MIME = "application/x-mcp-widget-id"
 
 export interface LayoutBuilderProps {
-  /** Optional draft layout to resume editing. */
   initialLayout?: LayoutConfig
   title?: string
-  /** Initial keys that seeded the builder (also shown in the key editor). */
   initialKeys?: Record<string, unknown>
-  /** Steps that were declared on the open-view-builder call (shown in the step editor). */
   initialSteps?: PipelineStepRef[]
-  /** Live pipeline context — used for WYSIWYG preview of the draft layout. */
   context: PipelineContext
-  /** Widgets whose `requires` are satisfied by the current key set. */
   reachableWidgets: ReachableWidget[]
-  /** Widgets registered but missing one or more `requires` keys. */
   unreachableWidgets?: UnreachableWidget[]
-  /** Full step catalogue — populates the step-picker dropdown. */
   availableSteps: AvailableStep[]
-  /** Every key the framework could see, with producers + consumers. */
   keyCatalog?: KeyCatalogEntry[]
-  /** Merged widget-component map (host-bundled + remote-loaded). */
   widgets: Record<string, WidgetComponent>
-  /** Bridge to the MCP host for refresh / save round-trips. */
   callTool: (name: string, args: object) => Promise<unknown>
-  /** Override the tool name used to re-run the builder pipeline. Default: `open-view-builder`. */
   builderToolName?: string
-  /** Override the save tool name. Default: `save-dashboard`. */
   saveToolName?: string
-  /** Optional existing dashboard id when resuming a saved layout. */
   dashboardId?: string
   labels?: LayoutBuilderLabels
-  /** Called with `{ id, name }` after a successful save. */
   onSaved?: (result: { id: string; name: string }) => void
 }
+
+// -------------------------------------------------------------------------- //
+// Helpers
+// -------------------------------------------------------------------------- //
 
 function emptyRows(): RowDef[] {
   return [{ row: [] }]
@@ -243,6 +261,34 @@ function entriesToKeys(entries: KeyEntry[]): Record<string, unknown> {
   return out
 }
 
+function sizeToSpan(size: string): number {
+  switch (size) {
+    case "quarter":
+      return 3
+    case "third":
+      return 4
+    case "half":
+      return 6
+    case "full":
+    case "header":
+      return 12
+    default:
+      return 12
+  }
+}
+
+function defaultStepIdFor(stepId: string, takenIds: Set<string>): string {
+  const base = stepId.split(":")[1] || stepId.replace(/[^a-z0-9]/gi, "-")
+  if (!takenIds.has(base)) return base
+  let i = 2
+  while (takenIds.has(`${base}-${i}`)) i++
+  return `${base}-${i}`
+}
+
+// -------------------------------------------------------------------------- //
+// Main component
+// -------------------------------------------------------------------------- //
+
 export function LayoutBuilder({
   initialLayout,
   title,
@@ -263,22 +309,18 @@ export function LayoutBuilder({
 }: LayoutBuilderProps) {
   const L = { ...DEFAULT_LABELS, ...labels }
 
-  // Layout draft (rows / tabs) — lives locally, flushed to the server only on
-  // save-dashboard. Never round-trips through render-view, so the user can
-  // always return to edit mode (fix for "nach Render view kein Weg zurück").
+  // ── Draft layout ────────────────────────────────────────────────────────
   const [draft, setDraft] = useState<DraftLayout>(() => initDraft(initialLayout))
   const [activeTabIndex, setActiveTabIndex] = useState(0)
   const [focusedRowIndex, setFocusedRowIndex] = useState(0)
   const [preview, setPreview] = useState(false)
+  const [catalogueOpen, setCatalogueOpen] = useState(false)
 
-  // Keys + steps editor state. Backed by a separate "live" set that only
-  // updates after a successful `open-view-builder` re-run.
+  // ── Keys + steps editor state ───────────────────────────────────────────
   const [keyEntries, setKeyEntries] = useState<KeyEntry[]>(() => keysToEntries(initialKeys))
   const [stepEntries, setStepEntries] = useState<PipelineStepRef[]>(() => initialSteps ?? [])
 
-  // Live snapshot driven by the latest open-view-builder response. Seed from
-  // props and update on refresh — including `availableSteps`, which can grow
-  // as upstream-module discovery finishes after the initial load.
+  // ── Live snapshots from open-view-builder responses ─────────────────────
   const [liveReachable, setLiveReachable] = useState<ReachableWidget[]>(reachableWidgets)
   const [liveUnreachable, setLiveUnreachable] = useState<UnreachableWidget[]>(
     unreachableWidgets ?? [],
@@ -292,15 +334,25 @@ export function LayoutBuilder({
   useEffect(() => setLiveSteps(availableSteps), [availableSteps])
   useEffect(() => setLiveContext(context), [context])
 
-  const [isRefreshing, setRefreshing] = useState(false)
-  const [isBusy, setBusy] = useState(false)
+  // ── Refresh status (for the auto-apply chip) ────────────────────────────
+  type RefreshStatus = "idle" | "pending" | "refreshing"
+  const [status, setStatus] = useState<RefreshStatus>("idle")
 
+  // ── Save dialog ─────────────────────────────────────────────────────────
+  const [isBusy, setBusy] = useState(false)
   const [saveOpen, setSaveOpen] = useState(false)
   const [saveName, setSaveName] = useState(title ?? "")
   const [saveDescription, setSaveDescription] = useState("")
 
-  // Drag-and-drop feedback state.
+  // ── DnD ──────────────────────────────────────────────────────────────────
   const [dragOverRow, setDragOverRow] = useState<number | null>(null)
+
+  // ── Derived ─────────────────────────────────────────────────────────────
+  const widgetById = useMemo(() => {
+    const map = new Map<string, ReachableWidget>()
+    for (const w of liveReachable) map.set(w.id, w)
+    return map
+  }, [liveReachable])
 
   const paletteByApp = useMemo(() => {
     const groups = new Map<string, ReachableWidget[]>()
@@ -311,15 +363,21 @@ export function LayoutBuilder({
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
   }, [liveReachable])
 
-  const widgetById = useMemo(() => {
-    const map = new Map<string, ReachableWidget>()
-    for (const w of liveReachable) map.set(w.id, w)
-    return map
-  }, [liveReachable])
+  const liveKeyCount = useMemo(() => liveCatalog.filter((c) => c.inContext).length, [liveCatalog])
+
+  const stepsByApp = useMemo(() => {
+    const groups = new Map<string, AvailableStep[]>()
+    for (const s of liveSteps) {
+      if (!groups.has(s.app)) groups.set(s.app, [])
+      groups.get(s.app)!.push(s)
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
+  }, [liveSteps])
 
   const activeRows: RowDef[] =
     draft.kind === "tabs" ? (draft.tabs[activeTabIndex]?.rows ?? []) : draft.rows
 
+  // ── Layout mutations ────────────────────────────────────────────────────
   const mutateActiveRows = useCallback(
     (fn: (rows: RowDef[]) => RowDef[]) => {
       setDraft((prev) => {
@@ -414,7 +472,6 @@ export function LayoutBuilder({
         setActiveTabIndex(prev.tabs.length)
         return { kind: "tabs", tabs: [...prev.tabs, { label, rows: emptyRows() }] }
       }
-      // Convert rows → tabs: the existing rows become the first tab.
       setActiveTabIndex(1)
       return {
         kind: "tabs",
@@ -429,8 +486,7 @@ export function LayoutBuilder({
   const renameTab = useCallback((tabIdx: number, label: string) => {
     setDraft((prev) => {
       if (prev.kind !== "tabs") return prev
-      const tabs = prev.tabs.map((t, i) => (i === tabIdx ? { ...t, label } : t))
-      return { kind: "tabs", tabs }
+      return { kind: "tabs", tabs: prev.tabs.map((t, i) => (i === tabIdx ? { ...t, label } : t)) }
     })
   }, [])
 
@@ -439,24 +495,17 @@ export function LayoutBuilder({
       if (prev.kind !== "tabs") return prev
       const tabs = prev.tabs.filter((_, i) => i !== tabIdx)
       setActiveTabIndex((idx) => Math.max(0, Math.min(idx, tabs.length - 1)))
-      if (tabs.length === 0) {
-        return { kind: "rows", rows: emptyRows() }
-      }
-      if (tabs.length === 1) {
-        // Collapse back to rows-only form for simplicity.
-        return { kind: "rows", rows: tabs[0].rows }
-      }
+      if (tabs.length === 0) return { kind: "rows", rows: emptyRows() }
+      if (tabs.length === 1) return { kind: "rows", rows: tabs[0].rows }
       return { kind: "tabs", tabs }
     })
   }, [])
 
-  // --- Keys + steps editors -------------------------------------------------
-
+  // ── Keys/steps mutations ────────────────────────────────────────────────
   const addKey = useCallback((prefilledName?: string) => {
     setKeyEntries((prev) => {
       if (prefilledName) {
-        const existingIdx = prev.findIndex((e) => e.name === prefilledName)
-        if (existingIdx >= 0) return prev
+        if (prev.some((e) => e.name === prefilledName)) return prev
         return [...prev, { name: prefilledName, rawValue: "" }]
       }
       return [...prev, { name: "", rawValue: "" }]
@@ -473,10 +522,9 @@ export function LayoutBuilder({
 
   const addStep = useCallback((stepId?: string) => {
     setStepEntries((prev) => {
-      const next = [...prev]
-      const baseId = stepId ? stepId.split(":")[1] || stepId : `step-${prev.length + 1}`
-      next.push({ id: baseId, step: stepId ?? "", optional: false })
-      return next
+      const taken = new Set(prev.map((s) => s.id))
+      const newId = stepId ? defaultStepIdFor(stepId, taken) : `step-${prev.length + 1}`
+      return [...prev, { id: newId, step: stepId ?? "", optional: false }]
     })
   }, [])
 
@@ -488,8 +536,9 @@ export function LayoutBuilder({
     setStepEntries((prev) => prev.filter((_, i) => i !== idx))
   }, [])
 
+  // ── Refresh + auto-apply ────────────────────────────────────────────────
   const refreshBuilder = useCallback(async () => {
-    setRefreshing(true)
+    setStatus("refreshing")
     try {
       const result = (await callTool(builderToolName, {
         keys: entriesToKeys(keyEntries),
@@ -512,12 +561,35 @@ export function LayoutBuilder({
       if (sc?.keyCatalog) setLiveCatalog(sc.keyCatalog)
       if (sc?.context) setLiveContext(sc.context)
     } finally {
-      setRefreshing(false)
+      setStatus("idle")
     }
   }, [builderToolName, callTool, draft, keyEntries, stepEntries, title])
 
-  // --- Save dialog ----------------------------------------------------------
+  // Auto-apply on key/step edits, debounced. Skip the very first render (we
+  // already have fresh server-side state from the props). The ref pattern
+  // keeps the effect dependent on only `keyEntries` / `stepEntries` — without
+  // it, every layout edit would also retrigger the apply because
+  // `refreshBuilder`'s identity depends on `draft` etc.
+  const refreshRef = useRef(refreshBuilder)
+  useEffect(() => {
+    refreshRef.current = refreshBuilder
+  }, [refreshBuilder])
+  const skipFirstAutoApply = useRef(true)
+  useEffect(() => {
+    if (skipFirstAutoApply.current) {
+      skipFirstAutoApply.current = false
+      return
+    }
+    setStatus("pending")
+    const handle = window.setTimeout(() => {
+      void refreshRef.current()
+    }, 600)
+    return () => {
+      window.clearTimeout(handle)
+    }
+  }, [keyEntries, stepEntries])
 
+  // ── Save ────────────────────────────────────────────────────────────────
   const saveDraft = useCallback(async () => {
     if (!saveName.trim()) return
     setBusy(true)
@@ -554,24 +626,36 @@ export function LayoutBuilder({
     title,
   ])
 
+  // ── Smart action: add a producing step for a missing key ────────────────
+  const addProducingStepFor = useCallback(
+    (key: string) => {
+      const producer = liveCatalog.find((c) => c.key === key)?.producedBySteps[0]
+      if (!producer) return
+      addStep(producer)
+    },
+    [addStep, liveCatalog],
+  )
+
   const widgetProps: WidgetProps = { keys: liveContext.keys, context: liveContext }
   const hasAnyCell = activeRows.some((r) => r.row.length > 0)
 
-  // --- Preview path ---------------------------------------------------------
-
+  // ── Preview path ────────────────────────────────────────────────────────
   if (preview) {
     return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Eye className="text-primary size-4" />
-            <h2 className="text-lg font-semibold">{title ?? L.title}</h2>
-            <Badge variant="outline">{L.preview}</Badge>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setPreview(false)}>
-            <Pencil /> {L.edit}
-          </Button>
-        </div>
+      <div className="flex min-h-[60vh] flex-col gap-4 p-1">
+        <Toolbar
+          L={L}
+          previewMode
+          isBusy={isBusy}
+          status={status}
+          liveKeys={liveKeyCount}
+          reachableCount={liveReachable.length}
+          unreachableCount={liveUnreachable.length}
+          onTogglePreview={() => setPreview(false)}
+          onOpenCatalogue={() => setCatalogueOpen(true)}
+          onOpenSave={() => setSaveOpen(true)}
+          hasAnyCell={hasAnyCell}
+        />
         <PreviewPane
           draft={draft}
           activeTabIndex={activeTabIndex}
@@ -579,61 +663,68 @@ export function LayoutBuilder({
           widgets={widgets}
           widgetProps={widgetProps}
         />
+        <CatalogueSheet
+          L={L}
+          open={catalogueOpen}
+          onOpenChange={setCatalogueOpen}
+          keyCatalog={liveCatalog}
+          availableSteps={liveSteps}
+          unreachableWidgets={liveUnreachable}
+          onSeedKey={(name) => {
+            addKey(name)
+            setCatalogueOpen(false)
+          }}
+          onAddProducingStep={(key) => {
+            addProducingStepFor(key)
+            setCatalogueOpen(false)
+          }}
+        />
+        <SaveDialog
+          L={L}
+          open={saveOpen}
+          onOpenChange={setSaveOpen}
+          name={saveName}
+          setName={setSaveName}
+          description={saveDescription}
+          setDescription={setSaveDescription}
+          onSubmit={saveDraft}
+          busy={isBusy}
+        />
       </div>
     )
   }
 
-  // --- Edit path ------------------------------------------------------------
-
+  // ── Edit path ───────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="text-primary size-4" />
-          <h2 className="text-lg font-semibold">{title ?? L.title}</h2>
-          <Badge variant="secondary">Builder</Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPreview(true)}
-            disabled={isBusy || isRefreshing || !hasAnyCell}
-          >
-            <Eye /> {L.preview}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setSaveOpen(true)}
-            disabled={isBusy || isRefreshing || !hasAnyCell}
-          >
-            <Save /> {L.save}
-          </Button>
-        </div>
-      </div>
+    <div className="flex min-h-[60vh] flex-col gap-4 p-1">
+      <Toolbar
+        L={L}
+        previewMode={false}
+        isBusy={isBusy}
+        status={status}
+        liveKeys={liveKeyCount}
+        reachableCount={liveReachable.length}
+        unreachableCount={liveUnreachable.length}
+        onTogglePreview={() => setPreview(true)}
+        onOpenCatalogue={() => setCatalogueOpen(true)}
+        onOpenSave={() => setSaveOpen(true)}
+        hasAnyCell={hasAnyCell}
+      />
 
-      <ContextEditor
-        labels={L}
+      <PipelineStrip
+        L={L}
         keyEntries={keyEntries}
         stepEntries={stepEntries}
-        availableSteps={liveSteps}
         keyCatalog={liveCatalog}
-        isRefreshing={isRefreshing}
+        availableSteps={liveSteps}
+        stepsByApp={stepsByApp}
         onAddKey={addKey}
         onUpdateKey={updateKey}
         onRemoveKey={removeKey}
         onAddStep={addStep}
         onUpdateStep={updateStep}
         onRemoveStep={removeStep}
-        onApply={() => void refreshBuilder()}
-      />
-
-      <CataloguePanel
-        labels={L}
-        keyCatalog={liveCatalog}
-        availableSteps={liveSteps}
-        unreachableWidgets={liveUnreachable}
-        onSeedKey={(name) => addKey(name)}
+        status={status}
       />
 
       {draft.kind === "tabs" ? (
@@ -644,7 +735,7 @@ export function LayoutBuilder({
             if (idx >= 0) setActiveTabIndex(idx)
           }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <TabsList>
               {draft.tabs.map((tab) => (
                 <TabsTrigger key={tab.label} value={tab.label}>
@@ -661,30 +752,34 @@ export function LayoutBuilder({
             >
               <Plus />
             </Button>
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => {
-                const next = window.prompt(L.renameTab, draft.tabs[activeTabIndex]?.label ?? "")
-                if (next && next.trim()) renameTab(activeTabIndex, next.trim())
-              }}
-            >
-              {L.renameTab}
-            </Button>
-            <Button variant="ghost" size="xs" onClick={() => removeTab(activeTabIndex)}>
-              {L.removeTab}
-            </Button>
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  const next = window.prompt(L.renameTab, draft.tabs[activeTabIndex]?.label ?? "")
+                  if (next && next.trim()) renameTab(activeTabIndex, next.trim())
+                }}
+              >
+                {L.renameTab}
+              </Button>
+              <Button variant="ghost" size="xs" onClick={() => removeTab(activeTabIndex)}>
+                {L.removeTab}
+              </Button>
+            </div>
           </div>
           {draft.tabs.map((tab, idx) => (
             <TabsContent key={tab.label} value={tab.label} className="mt-3">
               {idx === activeTabIndex ? (
-                <BuilderWorkspace
-                  labels={L}
+                <Workspace
+                  L={L}
+                  paletteByApp={paletteByApp}
+                  paletteCount={liveReachable.length}
                   activeRows={activeRows}
                   focusedRowIndex={focusedRowIndex}
+                  setFocusedRowIndex={setFocusedRowIndex}
                   dragOverRow={dragOverRow}
                   setDragOverRow={setDragOverRow}
-                  setFocusedRowIndex={setFocusedRowIndex}
                   onAddRow={addRow}
                   onRemoveRow={removeRow}
                   onMoveRow={moveRow}
@@ -693,423 +788,407 @@ export function LayoutBuilder({
                   onAddWidget={addWidgetToRow}
                   widgets={widgets}
                   widgetProps={widgetProps}
-                  paletteByApp={paletteByApp}
-                  paletteCount={liveReachable.length}
                 />
               ) : null}
             </TabsContent>
           ))}
         </Tabs>
       ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={addTab}
-              aria-label={L.addTab}
-              title={L.addTab}
-            >
-              <Plus /> {L.addTab}
-            </Button>
-          </div>
-          <BuilderWorkspace
-            labels={L}
-            activeRows={activeRows}
-            focusedRowIndex={focusedRowIndex}
-            dragOverRow={dragOverRow}
-            setDragOverRow={setDragOverRow}
-            setFocusedRowIndex={setFocusedRowIndex}
-            onAddRow={addRow}
-            onRemoveRow={removeRow}
-            onMoveRow={moveRow}
-            onSetCellSpan={setCellSpan}
-            onRemoveCell={removeCell}
-            onAddWidget={addWidgetToRow}
-            widgets={widgets}
-            widgetProps={widgetProps}
-            paletteByApp={paletteByApp}
-            paletteCount={liveReachable.length}
-          />
-        </div>
+        <Workspace
+          L={L}
+          paletteByApp={paletteByApp}
+          paletteCount={liveReachable.length}
+          activeRows={activeRows}
+          focusedRowIndex={focusedRowIndex}
+          setFocusedRowIndex={setFocusedRowIndex}
+          dragOverRow={dragOverRow}
+          setDragOverRow={setDragOverRow}
+          onAddRow={addRow}
+          onRemoveRow={removeRow}
+          onMoveRow={moveRow}
+          onSetCellSpan={setCellSpan}
+          onRemoveCell={removeCell}
+          onAddWidget={addWidgetToRow}
+          widgets={widgets}
+          widgetProps={widgetProps}
+          showAddTabButton
+          onAddTab={addTab}
+        />
       )}
 
-      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{L.saveDialogTitle}</DialogTitle>
-            <DialogDescription>{L.saveDialogDescription}</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">{L.saveNameLabel}</span>
-              <Input
-                value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-                placeholder="Invoice overview"
-                autoFocus
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">{L.saveDescriptionLabel}</span>
-              <Input
-                value={saveDescription}
-                onChange={(e) => setSaveDescription(e.target.value)}
-                placeholder="Optional"
-              />
-            </label>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">{L.cancel}</Button>
-            </DialogClose>
-            <Button
-              disabled={!saveName.trim() || isBusy}
-              onClick={() => {
-                void saveDraft()
-              }}
-            >
-              {L.saveConfirm}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CatalogueSheet
+        L={L}
+        open={catalogueOpen}
+        onOpenChange={setCatalogueOpen}
+        keyCatalog={liveCatalog}
+        availableSteps={liveSteps}
+        unreachableWidgets={liveUnreachable}
+        onSeedKey={(name) => {
+          addKey(name)
+          setCatalogueOpen(false)
+        }}
+        onAddProducingStep={(key) => {
+          addProducingStepFor(key)
+          setCatalogueOpen(false)
+        }}
+      />
+
+      <SaveDialog
+        L={L}
+        open={saveOpen}
+        onOpenChange={setSaveOpen}
+        name={saveName}
+        setName={setSaveName}
+        description={saveDescription}
+        setDescription={setSaveDescription}
+        onSubmit={saveDraft}
+        busy={isBusy}
+      />
     </div>
   )
 }
 
 // -------------------------------------------------------------------------- //
-// Sub-components
+// Toolbar — sticky top, dense status row + actions
 // -------------------------------------------------------------------------- //
 
-function ContextEditor({
-  labels,
+function Toolbar({
+  L,
+  previewMode,
+  isBusy,
+  status,
+  liveKeys,
+  reachableCount,
+  unreachableCount,
+  onTogglePreview,
+  onOpenCatalogue,
+  onOpenSave,
+  hasAnyCell,
+}: {
+  L: Required<LayoutBuilderLabels>
+  previewMode: boolean
+  isBusy: boolean
+  status: "idle" | "pending" | "refreshing"
+  liveKeys: number
+  reachableCount: number
+  unreachableCount: number
+  onTogglePreview: () => void
+  onOpenCatalogue: () => void
+  onOpenSave: () => void
+  hasAnyCell: boolean
+}) {
+  return (
+    <header className="bg-background/80 sticky top-0 z-10 -mx-1 flex flex-wrap items-center gap-3 border-b px-1 py-2 backdrop-blur">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex size-6 items-center justify-center rounded-md",
+            previewMode ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary",
+          )}
+          aria-hidden="true"
+        >
+          {previewMode ? <Eye className="size-3.5" /> : <Layers className="size-3.5" />}
+        </span>
+        <h2 className="text-sm font-semibold tracking-tight">{L.title}</h2>
+        <Badge variant={previewMode ? "outline" : "secondary"} className="font-normal">
+          {previewMode ? L.previewBadge : L.builderBadge}
+        </Badge>
+      </div>
+
+      <div className="text-muted-foreground hidden items-center gap-3 text-[11px] sm:flex">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-emerald-500" />
+          <span>
+            <span className="text-foreground font-medium">{liveKeys}</span> live
+          </span>
+        </span>
+        <span className="bg-border h-3 w-px" aria-hidden="true" />
+        <span>
+          <span className="text-foreground font-medium">{reachableCount}</span> reachable
+        </span>
+        {unreachableCount > 0 && (
+          <>
+            <span className="bg-border h-3 w-px" aria-hidden="true" />
+            <span>
+              <span className="text-foreground font-medium">{unreachableCount}</span> unreachable
+            </span>
+          </>
+        )}
+        <StatusChip status={status} L={L} />
+      </div>
+
+      <div className="ml-auto flex items-center gap-1">
+        <Button variant="ghost" size="sm" onClick={onOpenCatalogue}>
+          <Library /> {L.catalogue}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onTogglePreview}
+          disabled={isBusy || (!hasAnyCell && !previewMode)}
+        >
+          {previewMode ? <Pencil /> : <Eye />}
+          {previewMode ? L.edit : L.preview}
+        </Button>
+        <Button size="sm" onClick={onOpenSave} disabled={isBusy || !hasAnyCell}>
+          <Save /> {L.save}
+        </Button>
+      </div>
+    </header>
+  )
+}
+
+function StatusChip({
+  status,
+  L,
+}: {
+  status: "idle" | "pending" | "refreshing"
+  L: Required<LayoutBuilderLabels>
+}) {
+  if (status === "idle") {
+    return (
+      <span className="text-muted-foreground inline-flex items-center gap-1.5">
+        <CircleDot className="size-3" />
+        {L.statusUpToDate}
+      </span>
+    )
+  }
+  if (status === "pending") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+        <span className="size-1.5 animate-pulse rounded-full bg-amber-500" />
+        {L.statusPending}
+      </span>
+    )
+  }
+  return (
+    <span className="text-primary inline-flex items-center gap-1.5">
+      <Loader2 className="size-3 animate-spin" />
+      {L.statusRefreshing}
+    </span>
+  )
+}
+
+// -------------------------------------------------------------------------- //
+// Pipeline strip — compact horizontal Keys + Steps
+// -------------------------------------------------------------------------- //
+
+function PipelineStrip({
+  L,
   keyEntries,
   stepEntries,
-  availableSteps,
   keyCatalog,
-  isRefreshing,
+  availableSteps,
+  stepsByApp,
   onAddKey,
   onUpdateKey,
   onRemoveKey,
   onAddStep,
   onUpdateStep,
   onRemoveStep,
-  onApply,
+  status,
 }: {
-  labels: Required<LayoutBuilderLabels>
+  L: Required<LayoutBuilderLabels>
   keyEntries: KeyEntry[]
   stepEntries: PipelineStepRef[]
-  availableSteps: AvailableStep[]
   keyCatalog: KeyCatalogEntry[]
-  isRefreshing: boolean
-  onAddKey: () => void
+  availableSteps: AvailableStep[]
+  stepsByApp: [string, AvailableStep[]][]
+  onAddKey: (prefilledName?: string) => void
   onUpdateKey: (idx: number, patch: Partial<KeyEntry>) => void
   onRemoveKey: (idx: number) => void
   onAddStep: (stepId?: string) => void
   onUpdateStep: (idx: number, patch: Partial<PipelineStepRef>) => void
   onRemoveStep: (idx: number) => void
-  onApply: () => void
+  status: "idle" | "pending" | "refreshing"
 }) {
   const datalistId = useId()
+  const stepLookup = useMemo(() => {
+    const map = new Map<string, AvailableStep>()
+    for (const s of availableSteps) map.set(s.id, s)
+    return map
+  }, [availableSteps])
+
   return (
-    <Card className="gap-0 p-3">
+    <section className="bg-muted/30 -mx-1 rounded-lg border px-3 py-3">
       <datalist id={datalistId}>
         {keyCatalog.map((e) => (
           <option key={e.key} value={e.key} />
         ))}
       </datalist>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <section className="flex flex-col gap-2">
-          <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-            {labels.keysHeader}
+
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
+          {L.pipelineHeader}
+        </span>
+        <span className="text-muted-foreground/60 text-[10px]">· auto-applies on edit</span>
+        <div className="ml-auto text-[11px]">
+          <StatusChip status={status} L={L} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-x-6 gap-y-3 lg:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-semibold">
+            <ArrowRightToLine className="size-3" />
+            {L.keysHeader}
+            <Badge variant="outline" className="px-1.5 text-[10px]">
+              {keyEntries.length}
+            </Badge>
           </div>
           {keyEntries.length === 0 ? (
-            <div className="text-muted-foreground text-xs italic">
-              No keys yet — add one below to unlock widgets.
+            <div className="text-muted-foreground rounded-md border border-dashed px-2 py-1.5 text-xs italic">
+              {L.emptyKeys}
             </div>
           ) : (
-            keyEntries.map((entry, idx) => (
-              <div key={idx} className="flex items-center gap-1">
-                <Input
-                  value={entry.name}
-                  onChange={(e) => onUpdateKey(idx, { name: e.target.value })}
-                  placeholder={labels.keyName}
-                  className="font-mono text-xs"
-                  list={datalistId}
-                />
-                <Input
-                  value={entry.rawValue}
-                  onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
-                  placeholder={labels.keyValue}
-                  className="font-mono text-xs"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => onRemoveKey(idx)}
-                  aria-label="Remove key"
-                >
-                  <X />
-                </Button>
-              </div>
-            ))
-          )}
-          <Button variant="outline" size="sm" onClick={onAddKey} className="self-start">
-            <Plus /> {labels.addKey}
-          </Button>
-        </section>
-
-        <section className="flex flex-col gap-2">
-          <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-            {labels.stepsHeader}
-          </div>
-          {stepEntries.length === 0 ? (
-            <div className="text-muted-foreground text-xs italic">
-              No steps yet — optional, but widgets that need step-produced keys stay hidden without
-              them.
-            </div>
-          ) : (
-            stepEntries.map((step, idx) => (
-              <div key={idx} className="flex items-center gap-1">
-                <Input
-                  value={step.id}
-                  onChange={(e) => onUpdateStep(idx, { id: e.target.value })}
-                  placeholder={labels.stepContextId}
-                  className="w-28 font-mono text-xs"
-                />
-                <Select
-                  value={step.step || undefined}
-                  onValueChange={(value) => onUpdateStep(idx, { step: value })}
-                >
-                  <SelectTrigger className="h-9 flex-1 text-xs">
-                    <SelectValue placeholder={labels.stepPickerLabel} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableSteps.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        <span className="font-mono text-xs">{s.id}</span>
-                        <span className="text-muted-foreground ml-2 text-[10px]">
-                          {s.requires.length > 0 ? `← ${s.requires.join(", ")}` : "(no inputs)"}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => onRemoveStep(idx)}
-                  aria-label="Remove step"
-                >
-                  <X />
-                </Button>
-              </div>
-            ))
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddStep()}
-            className="self-start"
-            disabled={availableSteps.length === 0}
-          >
-            <Plus /> {labels.addStep}
-          </Button>
-        </section>
-      </div>
-
-      <Separator className="my-3" />
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={onApply} disabled={isRefreshing}>
-          {isRefreshing ? (
-            <>
-              <RefreshCw className="animate-spin" /> {labels.refreshing}
-            </>
-          ) : (
-            <>
-              <RefreshCw /> {labels.applyContext}
-            </>
-          )}
-        </Button>
-        <span className="text-muted-foreground text-xs">
-          Applies new keys + steps and refreshes the palette.
-        </span>
-      </div>
-    </Card>
-  )
-}
-
-function CataloguePanel({
-  labels,
-  keyCatalog,
-  availableSteps,
-  unreachableWidgets,
-  onSeedKey,
-}: {
-  labels: Required<LayoutBuilderLabels>
-  keyCatalog: KeyCatalogEntry[]
-  availableSteps: AvailableStep[]
-  unreachableWidgets: UnreachableWidget[]
-  onSeedKey: (name: string) => void
-}) {
-  return (
-    <Card className="gap-0 p-3">
-      <details open>
-        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium select-none">
-          <Library className="size-4" />
-          {labels.catalogue}
-          <span className="text-muted-foreground text-xs font-normal">
-            — {labels.catalogueHint}
-          </span>
-        </summary>
-
-        <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <section className="lg:col-span-2">
-            <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
-              Keys
-              <Badge variant="outline">{keyCatalog.length}</Badge>
-            </div>
-            {keyCatalog.length === 0 ? (
-              <div className="text-muted-foreground text-xs italic">{labels.catalogueEmpty}</div>
-            ) : (
-              <ScrollArea className="max-h-[40vh]">
-                <ul className="flex flex-col gap-1 pr-2">
-                  {keyCatalog.map((entry) => (
-                    <li
-                      key={entry.key}
-                      className="hover:bg-accent/50 flex items-start justify-between gap-2 rounded-md border px-2 py-1.5 text-xs"
-                    >
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate font-mono">{entry.key}</span>
-                          <Badge
-                            variant={entry.inContext ? "default" : "outline"}
-                            className="shrink-0 text-[10px]"
-                          >
-                            {entry.inContext
-                              ? labels.catalogueKeyInContext
-                              : labels.catalogueKeyNotInContext}
-                          </Badge>
-                        </div>
-                        {(entry.producedBySteps.length > 0 ||
-                          entry.consumedBySteps.length > 0 ||
-                          entry.consumedByWidgets.length > 0) && (
-                          <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
-                            {entry.producedBySteps.length > 0 && (
-                              <span>
-                                {labels.catalogueProducedBy}:{" "}
-                                <span className="font-mono">
-                                  {entry.producedBySteps.join(", ")}
-                                </span>
-                              </span>
-                            )}
-                            {entry.consumedBySteps.length > 0 && (
-                              <span>
-                                step {labels.catalogueConsumedBy}:{" "}
-                                <span className="font-mono">
-                                  {entry.consumedBySteps.join(", ")}
-                                </span>
-                              </span>
-                            )}
-                            {entry.consumedByWidgets.length > 0 && (
-                              <span>
-                                widget {labels.catalogueConsumedBy}:{" "}
-                                <span className="font-mono">
-                                  {entry.consumedByWidgets.join(", ")}
-                                </span>
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {!entry.inContext && (
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          className="shrink-0"
-                          onClick={() => onSeedKey(entry.key)}
-                          title={labels.cataloguePickKey}
-                        >
-                          <Plus />
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </ScrollArea>
-            )}
-          </section>
-
-          <section>
-            <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
-              Steps
-              <Badge variant="outline">{availableSteps.length}</Badge>
-            </div>
-            {availableSteps.length === 0 ? (
-              <div className="text-muted-foreground text-xs italic">No steps registered.</div>
-            ) : (
-              <ScrollArea className="max-h-[40vh]">
-                <ul className="flex flex-col gap-1 pr-2">
-                  {availableSteps.map((s) => (
-                    <li
-                      key={s.id}
-                      className="flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
-                    >
-                      <span className="truncate font-mono">{s.id}</span>
-                      <span className="text-muted-foreground">
-                        {s.requires.length > 0 ? `← ${s.requires.join(", ")}` : "(no inputs)"}
-                        {" → "}
-                        {s.produces.length > 0 ? s.produces.join(", ") : "(nothing)"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </ScrollArea>
-            )}
-          </section>
-        </div>
-
-        <Separator className="my-3" />
-
-        <div>
-          <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
-            {labels.catalogueUnreachable}
-            <Badge variant="outline">{unreachableWidgets.length}</Badge>
-          </div>
-          {unreachableWidgets.length === 0 ? (
-            <div className="text-muted-foreground text-xs italic">
-              {labels.catalogueUnreachableEmpty}
-            </div>
-          ) : (
-            <ul className="grid grid-cols-1 gap-1 md:grid-cols-2">
-              {unreachableWidgets.map((w) => (
-                <li
-                  key={w.id}
-                  className="bg-muted/20 flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
-                >
-                  <span className="truncate font-mono">{w.id}</span>
-                  <span className="text-muted-foreground">
-                    {labels.catalogueNeedsKeys}:{" "}
-                    <span className="font-mono">{w.missingKeys.join(", ")}</span>
-                  </span>
+            <ul className="flex flex-col gap-1">
+              {keyEntries.map((entry, idx) => (
+                <li key={idx} className="flex items-center gap-1">
+                  <Input
+                    value={entry.name}
+                    onChange={(e) => onUpdateKey(idx, { name: e.target.value })}
+                    placeholder={L.keyName}
+                    className="h-7 font-mono text-xs"
+                    list={datalistId}
+                  />
+                  <Input
+                    value={entry.rawValue}
+                    onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
+                    placeholder={L.keyValue}
+                    className="h-7 font-mono text-xs"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onRemoveKey(idx)}
+                    aria-label="Remove key"
+                  >
+                    <X />
+                  </Button>
                 </li>
               ))}
             </ul>
           )}
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onAddKey()}
+            className="text-muted-foreground hover:text-foreground self-start"
+          >
+            <Plus /> {L.addKey}
+          </Button>
         </div>
-      </details>
-    </Card>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-semibold">
+            <ArrowDownToLine className="size-3" />
+            {L.stepsHeader}
+            <Badge variant="outline" className="px-1.5 text-[10px]">
+              {stepEntries.length}
+            </Badge>
+          </div>
+          {stepEntries.length === 0 ? (
+            <div className="text-muted-foreground rounded-md border border-dashed px-2 py-1.5 text-xs italic">
+              {L.emptySteps}
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {stepEntries.map((step, idx) => {
+                const meta = stepLookup.get(step.step)
+                return (
+                  <li key={idx} className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={step.id}
+                        onChange={(e) => onUpdateStep(idx, { id: e.target.value })}
+                        placeholder={L.stepContextId}
+                        className="h-7 w-24 font-mono text-xs"
+                      />
+                      <Select
+                        value={step.step || undefined}
+                        onValueChange={(value) => onUpdateStep(idx, { step: value })}
+                      >
+                        <SelectTrigger className="h-7 flex-1 text-xs">
+                          <SelectValue placeholder={L.stepPickerLabel} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stepsByApp.map(([app, items]) => (
+                            <div key={app}>
+                              <div className="text-muted-foreground px-2 py-1 text-[10px] font-semibold tracking-wide uppercase">
+                                {app}
+                              </div>
+                              {items.map((s) => (
+                                <SelectItem key={s.id} value={s.id} className="py-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="font-mono text-xs">{s.id}</span>
+                                    <div className="text-muted-foreground flex flex-wrap gap-x-2 text-[10px]">
+                                      <span className="font-mono">
+                                        ←{" "}
+                                        {s.requires.length ? s.requires.join(", ") : "(no inputs)"}
+                                      </span>
+                                      <span className="font-mono">
+                                        → {s.produces.length ? s.produces.join(", ") : "(none)"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </div>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => onRemoveStep(idx)}
+                        aria-label="Remove step"
+                      >
+                        <X />
+                      </Button>
+                    </div>
+                    {meta && (
+                      <div className="text-muted-foreground/80 ml-1 flex flex-wrap gap-x-2 pl-24 text-[10px]">
+                        <span className="font-mono">
+                          ← {meta.requires.length ? meta.requires.join(", ") : "(no inputs)"}
+                        </span>
+                        <span className="font-mono">
+                          → {meta.produces.length ? meta.produces.join(", ") : "(none)"}
+                        </span>
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onAddStep()}
+            disabled={availableSteps.length === 0}
+            className="text-muted-foreground hover:text-foreground self-start"
+          >
+            <Plus /> {L.addStep}
+          </Button>
+        </div>
+      </div>
+    </section>
   )
 }
 
-function BuilderWorkspace({
-  labels,
+// -------------------------------------------------------------------------- //
+// Workspace — palette + canvas (palette sticky on lg+)
+// -------------------------------------------------------------------------- //
+
+function Workspace({
+  L,
+  paletteByApp,
+  paletteCount,
   activeRows,
   focusedRowIndex,
+  setFocusedRowIndex,
   dragOverRow,
   setDragOverRow,
-  setFocusedRowIndex,
   onAddRow,
   onRemoveRow,
   onMoveRow,
@@ -1118,15 +1197,17 @@ function BuilderWorkspace({
   onAddWidget,
   widgets,
   widgetProps,
-  paletteByApp,
-  paletteCount,
+  showAddTabButton,
+  onAddTab,
 }: {
-  labels: Required<LayoutBuilderLabels>
+  L: Required<LayoutBuilderLabels>
+  paletteByApp: [string, ReachableWidget[]][]
+  paletteCount: number
   activeRows: RowDef[]
   focusedRowIndex: number
+  setFocusedRowIndex: (idx: number) => void
   dragOverRow: number | null
   setDragOverRow: (idx: number | null) => void
-  setFocusedRowIndex: (idx: number) => void
   onAddRow: () => void
   onRemoveRow: (rowIdx: number) => void
   onMoveRow: (rowIdx: number, direction: -1 | 1) => void
@@ -1135,65 +1216,58 @@ function BuilderWorkspace({
   onAddWidget: (widgetId: string, targetRowIdx?: number) => void
   widgets: Record<string, WidgetComponent>
   widgetProps: WidgetProps
-  paletteByApp: [string, ReachableWidget[]][]
-  paletteCount: number
+  showAddTabButton?: boolean
+  onAddTab?: () => void
 }) {
   return (
     <div className="grid grid-cols-12 gap-4">
-      <aside className="col-span-12 md:col-span-4 lg:col-span-3">
-        <Card className="gap-0 p-3">
-          <div className="mb-2 flex items-center justify-between text-xs font-medium">
-            <span>{labels.palette}</span>
-            <Badge variant="outline">{paletteCount}</Badge>
+      <aside className="col-span-12 lg:col-span-3 xl:col-span-2">
+        <div className="lg:sticky lg:top-16">
+          <div className="text-muted-foreground mb-2 flex items-center gap-2 text-[10px] font-semibold tracking-[0.12em] uppercase">
+            {L.paletteHeader}
+            <Badge variant="outline" className="px-1.5 text-[10px]">
+              {paletteCount}
+            </Badge>
           </div>
-          <Separator className="mb-2" />
           {paletteCount === 0 ? (
-            <div className="text-muted-foreground text-xs">{labels.paletteEmpty}</div>
+            <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
+              {L.paletteEmpty}
+            </div>
           ) : (
-            <ScrollArea className="max-h-[60vh]">
-              <div className="flex flex-col gap-3 pr-2">
+            <ScrollArea className="lg:max-h-[70vh]">
+              <div className="flex flex-col gap-3 pr-1">
                 {paletteByApp.map(([app, ws]) => (
                   <div key={app} className="flex flex-col gap-1">
-                    <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                    <div className="text-muted-foreground/80 text-[10px] font-semibold tracking-wide uppercase">
                       {app}
                     </div>
                     {ws.map((w) => (
-                      <button
-                        key={w.id}
-                        type="button"
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData(WIDGET_DRAG_MIME, w.id)
-                          e.dataTransfer.effectAllowed = "copy"
-                        }}
-                        onClick={() => onAddWidget(w.id)}
-                        className="hover:bg-accent hover:text-accent-foreground group flex cursor-grab flex-col items-start gap-0.5 rounded-md border px-2 py-1.5 text-left text-xs transition-colors active:cursor-grabbing"
-                      >
-                        <span className="flex w-full items-center justify-between gap-2">
-                          <span className="truncate font-mono">{w.id}</span>
-                          <GripVertical className="text-muted-foreground size-3" />
-                        </span>
-                        {w.requires.length > 0 && (
-                          <span className="text-muted-foreground truncate">
-                            requires: {w.requires.join(", ")}
-                          </span>
-                        )}
-                      </button>
+                      <PaletteItem key={w.id} w={w} onClick={() => onAddWidget(w.id)} />
                     ))}
                   </div>
                 ))}
               </div>
             </ScrollArea>
           )}
-        </Card>
+          {showAddTabButton && onAddTab && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={onAddTab}
+              className="text-muted-foreground hover:text-foreground mt-3"
+            >
+              <Plus /> {L.addTab}
+            </Button>
+          )}
+        </div>
       </aside>
 
-      <section className="col-span-12 md:col-span-8 lg:col-span-9">
+      <section className="col-span-12 lg:col-span-9 xl:col-span-10">
         <div className="flex flex-col gap-3">
           {activeRows.map((row, rowIdx) => (
-            <BuilderRow
+            <CanvasRow
               key={rowIdx}
-              labels={labels}
+              L={L}
               row={row}
               rowIdx={rowIdx}
               focused={rowIdx === focusedRowIndex}
@@ -1211,19 +1285,46 @@ function BuilderWorkspace({
               widgetProps={widgetProps}
             />
           ))}
-          <div>
-            <Button variant="outline" size="sm" onClick={onAddRow}>
-              <Plus /> {labels.addRow}
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={onAddRow} className="self-start text-xs">
+            <Plus /> {L.addRow}
+          </Button>
         </div>
       </section>
     </div>
   )
 }
 
-function BuilderRow({
-  labels,
+function PaletteItem({ w, onClick }: { w: ReachableWidget; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(WIDGET_DRAG_MIME, w.id)
+        e.dataTransfer.effectAllowed = "copy"
+      }}
+      onClick={onClick}
+      className="hover:bg-accent hover:text-accent-foreground group bg-background/50 flex cursor-grab flex-col items-start gap-0.5 rounded-md border px-2 py-1.5 text-left text-xs transition-colors active:cursor-grabbing"
+    >
+      <span className="flex w-full items-center justify-between gap-2">
+        <span className="truncate font-mono">{w.id}</span>
+        <GripVertical className="text-muted-foreground/40 group-hover:text-muted-foreground size-3" />
+      </span>
+      {w.requires.length > 0 && (
+        <span className="text-muted-foreground/80 truncate font-mono text-[10px]">
+          ← {w.requires.join(", ")}
+        </span>
+      )}
+    </button>
+  )
+}
+
+// -------------------------------------------------------------------------- //
+// Canvas row — drop target + per-cell controls + resize handle
+// -------------------------------------------------------------------------- //
+
+function CanvasRow({
+  L,
   row,
   rowIdx,
   focused,
@@ -1240,7 +1341,7 @@ function BuilderRow({
   widgets,
   widgetProps,
 }: {
-  labels: Required<LayoutBuilderLabels>
+  L: Required<LayoutBuilderLabels>
   row: RowDef
   rowIdx: number
   focused: boolean
@@ -1260,7 +1361,7 @@ function BuilderRow({
   const gridRef = useRef<HTMLDivElement | null>(null)
 
   return (
-    <Card
+    <div
       onClick={() => setFocusedRowIndex(rowIdx)}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes(WIDGET_DRAG_MIME)) return
@@ -1269,7 +1370,6 @@ function BuilderRow({
         setDragOverRow(rowIdx)
       }}
       onDragLeave={(e) => {
-        // Only clear if leaving the card itself, not a child element.
         if (e.currentTarget.contains(e.relatedTarget as Node)) return
         setDragOverRow(null)
       }}
@@ -1281,22 +1381,22 @@ function BuilderRow({
           onAddWidget(id, rowIdx)
         }
       }}
-      data-focused={focused}
-      className={
-        "gap-0 p-3 transition-colors " +
-        (focused ? "ring-ring ring-2 ring-offset-1 " : "") +
-        (dragOver ? "bg-accent/40" : "")
-      }
+      className={cn(
+        "group relative rounded-lg border-l-2 px-3 py-2 transition-colors",
+        focused
+          ? "border-l-primary bg-card"
+          : "bg-background hover:bg-card/60 border-l-transparent",
+        dragOver && "bg-primary/5 border-l-primary",
+      )}
     >
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-muted-foreground flex items-center gap-2 text-xs">
-          <Rows3 className="size-3.5" />
-          Row {rowIdx + 1}
-          <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5">
-            {row.row.length} widget{row.row.length === 1 ? "" : "s"}
+        <div className="text-muted-foreground flex items-center gap-2 text-[11px]">
+          <span className="font-mono">row {rowIdx + 1}</span>
+          <span className="bg-muted/60 rounded px-1 py-0.5 text-[10px]">
+            {row.row.length} {row.row.length === 1 ? "widget" : "widgets"}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="opacity-0 transition-opacity group-hover:opacity-100">
           <Button
             variant="ghost"
             size="icon-xs"
@@ -1328,7 +1428,7 @@ function BuilderRow({
               e.stopPropagation()
               onRemoveRow(rowIdx)
             }}
-            aria-label={labels.removeRow}
+            aria-label={L.removeRow}
           >
             <Trash2 />
           </Button>
@@ -1336,14 +1436,14 @@ function BuilderRow({
       </div>
       {row.row.length === 0 ? (
         <div
-          className={
-            "rounded-md border border-dashed p-4 text-center text-xs transition-colors " +
-            (dragOver
-              ? "border-primary text-primary"
-              : "border-muted-foreground/30 text-muted-foreground")
-          }
+          className={cn(
+            "rounded-md border border-dashed py-6 text-center text-[11px] transition-colors",
+            dragOver
+              ? "border-primary bg-primary/5 text-primary"
+              : "border-muted-foreground/30 text-muted-foreground",
+          )}
         >
-          {dragOver ? labels.canvasDropHint : labels.canvasEmpty}
+          {dragOver ? L.canvasDropHint : L.canvasEmpty}
         </div>
       ) : (
         <div ref={gridRef} data-row-grid>
@@ -1353,15 +1453,11 @@ function BuilderRow({
               const Widget = widgets[cell.widget]
               return (
                 <GridItem key={`${cell.widget}-${cellIdx}`} span={span}>
-                  <div className="border-border bg-card relative overflow-hidden rounded-md border">
-                    <div className="bg-muted/40 flex items-center justify-between gap-2 px-2 py-1 text-xs">
-                      <span className="text-muted-foreground truncate font-mono">
-                        {cell.widget}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground min-w-8 text-center font-mono">
-                          {span}/12
-                        </span>
+                  <div className="border-border bg-card relative overflow-hidden rounded-md border shadow-sm">
+                    <div className="text-muted-foreground bg-muted/30 flex items-center justify-between gap-2 border-b px-2 py-1 text-[10px]">
+                      <span className="truncate font-mono">{cell.widget}</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-muted-foreground/80 font-mono">{span}/12</span>
                         <Button
                           variant="ghost"
                           size="icon-xs"
@@ -1379,7 +1475,7 @@ function BuilderRow({
                       {Widget ? (
                         <Widget {...widgetProps} />
                       ) : (
-                        <div className="text-muted-foreground rounded border border-dashed p-4 text-center text-xs">
+                        <div className="text-muted-foreground rounded border border-dashed p-3 text-center text-[11px]">
                           Widget "{cell.widget}" not bundled.
                         </div>
                       )}
@@ -1398,15 +1494,14 @@ function BuilderRow({
           </GridLayout>
         </div>
       )}
-    </Card>
+    </div>
   )
 }
 
-/**
- * Right-edge grab handle. On pointerDown it captures the pointer, measures
- * the enclosing row's grid width, and converts mouse movement to integer
- * span deltas (1 col = gridWidth / 12).
- */
+// -------------------------------------------------------------------------- //
+// Resize handle
+// -------------------------------------------------------------------------- //
+
 function ResizeHandle({
   rowIdx,
   cellIdx,
@@ -1430,8 +1525,6 @@ function ResizeHandle({
       const colWidth = rect.width / 12
       const startX = e.clientX
       const startSpan = span
-      // Shared closure — avoids the mutual dependency between move/up
-      // handlers that plagues the useCallback-per-handler pattern.
       const onMove = (ev: PointerEvent) => {
         const delta = ev.clientX - startX
         const next = Math.round(startSpan + delta / colWidth)
@@ -1451,12 +1544,300 @@ function ResizeHandle({
     <div
       onPointerDown={onPointerDown}
       onClick={(e) => e.stopPropagation()}
-      className="hover:bg-primary/40 absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none select-none"
+      className="hover:bg-primary/40 absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none"
       aria-label="Resize widget"
       role="separator"
     />
   )
 }
+
+// -------------------------------------------------------------------------- //
+// Catalogue Sheet — slides in from the right
+// -------------------------------------------------------------------------- //
+
+function CatalogueSheet({
+  L,
+  open,
+  onOpenChange,
+  keyCatalog,
+  availableSteps,
+  unreachableWidgets,
+  onSeedKey,
+  onAddProducingStep,
+}: {
+  L: Required<LayoutBuilderLabels>
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  keyCatalog: KeyCatalogEntry[]
+  availableSteps: AvailableStep[]
+  unreachableWidgets: UnreachableWidget[]
+  onSeedKey: (name: string) => void
+  onAddProducingStep: (key: string) => void
+}) {
+  const producerOf = useMemo(() => {
+    const map = new Map<string, string | undefined>()
+    for (const e of keyCatalog) map.set(e.key, e.producedBySteps[0])
+    return map
+  }, [keyCatalog])
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-md md:max-w-lg">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-base">
+            <Library className="size-4" />
+            {L.catalogue}
+          </SheetTitle>
+          <SheetDescription>{L.catalogueDescription}</SheetDescription>
+        </SheetHeader>
+
+        <ScrollArea className="flex-1 px-4 pb-4">
+          <div className="flex flex-col gap-6">
+            <section className="flex flex-col gap-2">
+              <CatalogueSectionHeader title={L.catalogueKeys} count={keyCatalog.length} />
+              {keyCatalog.length === 0 ? (
+                <p className="text-muted-foreground text-xs italic">No keys registered.</p>
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {keyCatalog.map((entry) => (
+                    <li
+                      key={entry.key}
+                      className="hover:bg-accent/40 flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="truncate font-mono">{entry.key}</span>
+                        <span
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1 text-[10px]",
+                            entry.inContext
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "size-1.5 rounded-full",
+                              entry.inContext ? "bg-emerald-500" : "bg-muted-foreground/40",
+                            )}
+                          />
+                          {entry.inContext ? L.catalogueLive : L.catalogueMissing}
+                        </span>
+                      </div>
+                      {(entry.producedBySteps.length > 0 ||
+                        entry.consumedBySteps.length > 0 ||
+                        entry.consumedByWidgets.length > 0) && (
+                        <div className="text-muted-foreground/80 flex flex-col gap-0.5 text-[10px]">
+                          {entry.producedBySteps.length > 0 && (
+                            <span>
+                              {L.catalogueProducedBy}{" "}
+                              <span className="font-mono">{entry.producedBySteps.join(", ")}</span>
+                            </span>
+                          )}
+                          {entry.consumedBySteps.length > 0 && (
+                            <span>
+                              step {L.catalogueConsumedBy}{" "}
+                              <span className="font-mono">{entry.consumedBySteps.join(", ")}</span>
+                            </span>
+                          )}
+                          {entry.consumedByWidgets.length > 0 && (
+                            <span>
+                              widget {L.catalogueConsumedBy}{" "}
+                              <span className="font-mono">
+                                {entry.consumedByWidgets.join(", ")}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {!entry.inContext && (
+                        <div className="mt-0.5 flex items-center gap-1">
+                          <Button variant="ghost" size="xs" onClick={() => onSeedKey(entry.key)}>
+                            <Plus /> {L.cataloguePickKey}
+                          </Button>
+                          {producerOf.get(entry.key) && (
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => onAddProducingStep(entry.key)}
+                            >
+                              <ArrowDownToLine /> {L.catalogueAddProducingStep}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <CatalogueSectionHeader title={L.catalogueSteps} count={availableSteps.length} />
+              {availableSteps.length === 0 ? (
+                <p className="text-muted-foreground text-xs italic">No steps registered.</p>
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {availableSteps.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
+                    >
+                      <span className="truncate font-mono">{s.id}</span>
+                      <div className="text-muted-foreground/80 flex flex-wrap gap-x-3 text-[10px]">
+                        <span className="font-mono">
+                          ← {s.requires.length ? s.requires.join(", ") : "(no inputs)"}
+                        </span>
+                        <span className="font-mono">
+                          → {s.produces.length ? s.produces.join(", ") : "(none)"}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <CatalogueSectionHeader
+                title={L.catalogueUnreachable}
+                count={unreachableWidgets.length}
+              />
+              {unreachableWidgets.length === 0 ? (
+                <p className="text-muted-foreground text-xs italic">
+                  {L.catalogueUnreachableEmpty}
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {unreachableWidgets.map((w) => {
+                    const candidate = w.missingKeys
+                      .map((k) => ({ key: k, step: producerOf.get(k) }))
+                      .find((c) => c.step)
+                    return (
+                      <li
+                        key={w.id}
+                        className="bg-muted/20 flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
+                      >
+                        <span className="truncate font-mono">{w.id}</span>
+                        <span className="text-muted-foreground/80 text-[10px]">
+                          {L.catalogueNeedsKeys}{" "}
+                          <span className="font-mono">{w.missingKeys.join(", ")}</span>
+                        </span>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                          {w.missingKeys.map((k) => (
+                            <Button key={k} variant="ghost" size="xs" onClick={() => onSeedKey(k)}>
+                              <Plus />
+                              <span className="font-mono">{k}</span>
+                            </Button>
+                          ))}
+                          {candidate && (
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => onAddProducingStep(candidate.key)}
+                            >
+                              <ArrowDownToLine /> {L.catalogueAddProducingStep}
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function CatalogueSectionHeader({ title, count }: { title: string; count: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
+        {title}
+      </span>
+      <span className="bg-border h-px flex-1" aria-hidden="true" />
+      <Badge variant="outline" className="px-1.5 text-[10px]">
+        {count}
+      </Badge>
+    </div>
+  )
+}
+
+// -------------------------------------------------------------------------- //
+// Save dialog
+// -------------------------------------------------------------------------- //
+
+function SaveDialog({
+  L,
+  open,
+  onOpenChange,
+  name,
+  setName,
+  description,
+  setDescription,
+  onSubmit,
+  busy,
+}: {
+  L: Required<LayoutBuilderLabels>
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  name: string
+  setName: (v: string) => void
+  description: string
+  setDescription: (v: string) => void
+  onSubmit: () => Promise<void>
+  busy: boolean
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{L.saveDialogTitle}</DialogTitle>
+          <DialogDescription>{L.saveDialogDescription}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">{L.saveNameLabel}</span>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Invoice overview"
+              autoFocus
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">{L.saveDescriptionLabel}</span>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+            />
+          </label>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">{L.cancel}</Button>
+          </DialogClose>
+          <Button
+            disabled={!name.trim() || busy}
+            onClick={() => {
+              void onSubmit()
+            }}
+          >
+            {L.saveConfirm}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// -------------------------------------------------------------------------- //
+// Preview pane
+// -------------------------------------------------------------------------- //
 
 function PreviewPane({
   draft,
@@ -1471,7 +1852,6 @@ function PreviewPane({
   widgets: Record<string, WidgetComponent>
   widgetProps: WidgetProps
 }) {
-  const rows = draft.kind === "tabs" ? (draft.tabs[activeTabIndex]?.rows ?? []) : draft.rows
   const renderRows = (rs: RowDef[]) => (
     <div className="flex flex-col gap-4">
       {rs.map((row, rowIdx) => (
@@ -1519,21 +1899,5 @@ function PreviewPane({
       </Tabs>
     )
   }
-  return renderRows(rows)
-}
-
-function sizeToSpan(size: string): number {
-  switch (size) {
-    case "quarter":
-      return 3
-    case "third":
-      return 4
-    case "half":
-      return 6
-    case "full":
-    case "header":
-      return 12
-    default:
-      return 12
-  }
+  return renderRows(draft.rows)
 }
