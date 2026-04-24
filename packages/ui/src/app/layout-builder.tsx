@@ -135,7 +135,7 @@ const DEFAULT_LABELS: Required<LayoutBuilderLabels> = {
   keysHeader: "Keys",
   stepsHeader: "Steps",
   keyName: "key",
-  keyValue: '"value", 42, or {"id":1}',
+  keyValue: 'value, "literal", true, {…}',
   stepContextId: "ctx id",
   stepPickerLabel: "pick a step",
   addKey: "Add key",
@@ -234,22 +234,58 @@ function draftToLayout(draft: DraftLayout): LayoutConfig {
   return { rows: cloneRows(draft.rows) }
 }
 
-function keysToEntries(keys: Record<string, unknown> | undefined): KeyEntry[] {
-  if (!keys) return []
-  return Object.entries(keys).map(([name, value]) => ({
-    name,
-    rawValue: typeof value === "string" ? value : JSON.stringify(value),
-  }))
-}
-
+/**
+ * Parses a value the user typed into a key field.
+ *
+ * Only treats the input as JSON when there's an *obvious* JSON marker
+ * (`{`, `[`, `"`) or it's a literal `true` / `false` / `null`. Bare
+ * numbers and bare words stay as strings, because IDs in this builder
+ * are strings ~99% of the time and `id = "1"` typed without quotes was
+ * silently turning into the number `1` and breaking widgets.
+ *
+ * Users who really want a primitive number / boolean / object can still
+ * type `[1,2]`, `{"id":1}`, `true` etc. with explicit JSON syntax.
+ */
 function parseKeyValue(raw: string): unknown {
   const trimmed = raw.trim()
   if (trimmed === "") return ""
+  const first = trimmed[0]
+  const looksLikeJson = first === "{" || first === "[" || first === '"'
+  const isLiteral = trimmed === "true" || trimmed === "false" || trimmed === "null"
+  if (!looksLikeJson && !isLiteral) return raw
   try {
     return JSON.parse(trimmed)
   } catch {
     return raw
   }
+}
+
+/**
+ * Inverse of `parseKeyValue`. Round-trip safe: any value whose plain
+ * string form would change type when re-parsed (e.g. the literal string
+ * `"true"`) is wrapped in JSON quotes so the next edit cycle preserves
+ * the original type.
+ */
+function keysToEntries(keys: Record<string, unknown> | undefined): KeyEntry[] {
+  if (!keys) return []
+  return Object.entries(keys).map(([name, value]) => {
+    if (typeof value === "string") {
+      const reparsed = parseKeyValue(value)
+      if (typeof reparsed !== "string" || reparsed !== value) {
+        return { name, rawValue: JSON.stringify(value) }
+      }
+      return { name, rawValue: value }
+    }
+    return { name, rawValue: JSON.stringify(value) }
+  })
+}
+
+function valueTypeLabel(raw: string): string {
+  if (raw === "") return "str"
+  const v = parseKeyValue(raw)
+  if (v === null) return "null"
+  if (Array.isArray(v)) return "arr"
+  return typeof v === "object" ? "obj" : (typeof v as string).slice(0, 4)
 }
 
 function entriesToKeys(entries: KeyEntry[]): Record<string, unknown> {
@@ -1051,12 +1087,20 @@ function PipelineStrip({
                     className="h-7 font-mono text-xs"
                     list={datalistId}
                   />
-                  <Input
-                    value={entry.rawValue}
-                    onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
-                    placeholder={L.keyValue}
-                    className="h-7 font-mono text-xs"
-                  />
+                  <div className="relative flex-1">
+                    <Input
+                      value={entry.rawValue}
+                      onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
+                      placeholder={L.keyValue}
+                      className="h-7 pr-12 font-mono text-xs"
+                    />
+                    <span
+                      className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums"
+                      title="parsed type"
+                    >
+                      {valueTypeLabel(entry.rawValue)}
+                    </span>
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon-xs"
