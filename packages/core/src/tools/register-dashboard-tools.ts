@@ -32,8 +32,6 @@ const idSchema = z.object({
   id: z.string().describe("Dashboard id as returned by `save-dashboard` or `list-dashboards`."),
 })
 
-const listSchema = z.object({}).optional()
-
 function extractUserId(ctx: unknown): string | undefined {
   const user = (ctx as { auth?: { user?: { userId?: unknown } } } | undefined)?.auth?.user
   return typeof user?.userId === "string" ? user.userId : undefined
@@ -97,7 +95,6 @@ export function registerDashboardTools(
       title: "List Dashboards",
       description:
         "Returns the dashboards visible to the caller (scoped by userId when auth is enabled). Metadata only — fetch a full record via `load-dashboard`.",
-      schema: listSchema,
       annotations: { readOnlyHint: true },
     },
     async (_params, ctx) => {
