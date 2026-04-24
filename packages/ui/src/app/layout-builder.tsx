@@ -10,9 +10,9 @@ import {
   Layers,
   Library,
   Loader2,
-  Pencil,
   Plus,
   Save,
+  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react"
@@ -68,10 +68,11 @@ export interface LayoutBuilderLabels {
   title?: string
   builderBadge?: string
   previewBadge?: string
-  preview?: string
-  edit?: string
   catalogue?: string
   save?: string
+  viewLayoutTab?: string
+  viewPipelineTab?: string
+  viewPreviewTab?: string
   saveDialogTitle?: string
   saveDialogDescription?: string
   saveNameLabel?: string
@@ -120,10 +121,11 @@ const DEFAULT_LABELS: Required<LayoutBuilderLabels> = {
   title: "View Builder",
   builderBadge: "Builder",
   previewBadge: "Preview",
-  preview: "Preview",
-  edit: "Edit",
   catalogue: "Catalogue",
   save: "Save",
+  viewLayoutTab: "Layout",
+  viewPipelineTab: "Pipeline",
+  viewPreviewTab: "Preview",
   saveDialogTitle: "Save dashboard",
   saveDialogDescription:
     "Persists the current layout along with the keys and steps that populate it.",
@@ -280,6 +282,23 @@ function keysToEntries(keys: Record<string, unknown> | undefined): KeyEntry[] {
   })
 }
 
+/**
+ * Compact preview of a value as it currently lives in the pipeline.
+ * Used as the placeholder when the editor's `rawValue` is empty so the
+ * user can see what the server is actually working with right now
+ * without the editor overwriting their (empty) input.
+ */
+function formatLiveKeyValue(value: unknown): string | undefined {
+  if (value === undefined) return undefined
+  if (value === "") return undefined
+  if (typeof value === "string") return `live: ${value}`
+  try {
+    return `live: ${JSON.stringify(value)}`
+  } catch {
+    return undefined
+  }
+}
+
 function valueTypeLabel(raw: string): string {
   if (raw === "") return "str"
   const v = parseKeyValue(raw)
@@ -349,7 +368,7 @@ export function LayoutBuilder({
   const [draft, setDraft] = useState<DraftLayout>(() => initDraft(initialLayout))
   const [activeTabIndex, setActiveTabIndex] = useState(0)
   const [focusedRowIndex, setFocusedRowIndex] = useState(0)
-  const [preview, setPreview] = useState(false)
+  const [view, setView] = useState<"layout" | "pipeline" | "preview">("layout")
   const [catalogueOpen, setCatalogueOpen] = useState(false)
 
   // ── Keys + steps editor state ───────────────────────────────────────────
@@ -674,183 +693,171 @@ export function LayoutBuilder({
 
   const widgetProps: WidgetProps = { keys: liveContext.keys, context: liveContext }
   const hasAnyCell = activeRows.some((r) => r.row.length > 0)
+  const liveKeysMap = liveContext.keys
 
-  // ── Preview path ────────────────────────────────────────────────────────
-  if (preview) {
-    return (
-      <div className="flex min-h-[60vh] flex-col gap-4 p-1">
-        <Toolbar
-          L={L}
-          previewMode
-          isBusy={isBusy}
-          status={status}
-          liveKeys={liveKeyCount}
-          reachableCount={liveReachable.length}
-          unreachableCount={liveUnreachable.length}
-          onTogglePreview={() => setPreview(false)}
-          onOpenCatalogue={() => setCatalogueOpen(true)}
-          onOpenSave={() => setSaveOpen(true)}
-          hasAnyCell={hasAnyCell}
-        />
-        <PreviewPane
-          draft={draft}
-          activeTabIndex={activeTabIndex}
-          setActiveTabIndex={setActiveTabIndex}
-          widgets={widgets}
-          widgetProps={widgetProps}
-        />
-        <CatalogueSheet
-          L={L}
-          open={catalogueOpen}
-          onOpenChange={setCatalogueOpen}
-          keyCatalog={liveCatalog}
-          availableSteps={liveSteps}
-          unreachableWidgets={liveUnreachable}
-          onSeedKey={(name) => {
-            addKey(name)
-            setCatalogueOpen(false)
-          }}
-          onAddProducingStep={(key) => {
-            addProducingStepFor(key)
-            setCatalogueOpen(false)
-          }}
-        />
-        <SaveDialog
-          L={L}
-          open={saveOpen}
-          onOpenChange={setSaveOpen}
-          name={saveName}
-          setName={setSaveName}
-          description={saveDescription}
-          setDescription={setSaveDescription}
-          onSubmit={saveDraft}
-          busy={isBusy}
-        />
-      </div>
+  const layoutContent =
+    draft.kind === "tabs" ? (
+      <Tabs
+        value={draft.tabs[activeTabIndex]?.label ?? ""}
+        onValueChange={(label) => {
+          const idx = draft.tabs.findIndex((t) => t.label === label)
+          if (idx >= 0) setActiveTabIndex(idx)
+        }}
+      >
+        <div className="mb-3 flex items-center gap-1">
+          <TabsList>
+            {draft.tabs.map((tab) => (
+              <TabsTrigger key={tab.label} value={tab.label}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={addTab}
+            aria-label={L.addTab}
+            title={L.addTab}
+          >
+            <Plus />
+          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                const next = window.prompt(L.renameTab, draft.tabs[activeTabIndex]?.label ?? "")
+                if (next && next.trim()) renameTab(activeTabIndex, next.trim())
+              }}
+            >
+              {L.renameTab}
+            </Button>
+            <Button variant="ghost" size="xs" onClick={() => removeTab(activeTabIndex)}>
+              {L.removeTab}
+            </Button>
+          </div>
+        </div>
+        {draft.tabs.map((tab, idx) => (
+          <TabsContent key={tab.label} value={tab.label} className="mt-0">
+            {idx === activeTabIndex ? (
+              <Workspace
+                L={L}
+                paletteByApp={paletteByApp}
+                paletteCount={liveReachable.length}
+                activeRows={activeRows}
+                focusedRowIndex={focusedRowIndex}
+                setFocusedRowIndex={setFocusedRowIndex}
+                dragOverRow={dragOverRow}
+                setDragOverRow={setDragOverRow}
+                onAddRow={addRow}
+                onRemoveRow={removeRow}
+                onMoveRow={moveRow}
+                onSetCellSpan={setCellSpan}
+                onRemoveCell={removeCell}
+                onAddWidget={addWidgetToRow}
+                widgets={widgets}
+                widgetProps={widgetProps}
+              />
+            ) : null}
+          </TabsContent>
+        ))}
+      </Tabs>
+    ) : (
+      <Workspace
+        L={L}
+        paletteByApp={paletteByApp}
+        paletteCount={liveReachable.length}
+        activeRows={activeRows}
+        focusedRowIndex={focusedRowIndex}
+        setFocusedRowIndex={setFocusedRowIndex}
+        dragOverRow={dragOverRow}
+        setDragOverRow={setDragOverRow}
+        onAddRow={addRow}
+        onRemoveRow={removeRow}
+        onMoveRow={moveRow}
+        onSetCellSpan={setCellSpan}
+        onRemoveCell={removeCell}
+        onAddWidget={addWidgetToRow}
+        widgets={widgets}
+        widgetProps={widgetProps}
+        showAddTabButton
+        onAddTab={addTab}
+      />
     )
-  }
 
-  // ── Edit path ───────────────────────────────────────────────────────────
   return (
     <div className="flex min-h-[60vh] flex-col gap-4 p-1">
       <Toolbar
         L={L}
-        previewMode={false}
+        previewMode={view === "preview"}
         isBusy={isBusy}
         status={status}
         liveKeys={liveKeyCount}
         reachableCount={liveReachable.length}
         unreachableCount={liveUnreachable.length}
-        onTogglePreview={() => setPreview(true)}
         onOpenCatalogue={() => setCatalogueOpen(true)}
         onOpenSave={() => setSaveOpen(true)}
         hasAnyCell={hasAnyCell}
       />
 
-      <PipelineStrip
-        L={L}
-        keyEntries={keyEntries}
-        stepEntries={stepEntries}
-        keyCatalog={liveCatalog}
-        availableSteps={liveSteps}
-        stepsByApp={stepsByApp}
-        onAddKey={addKey}
-        onUpdateKey={updateKey}
-        onRemoveKey={removeKey}
-        onAddStep={addStep}
-        onUpdateStep={updateStep}
-        onRemoveStep={removeStep}
-        status={status}
-      />
+      <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
+        <TabsList>
+          <TabsTrigger value="layout">
+            <Layers className="size-3.5" />
+            {L.viewLayoutTab}
+          </TabsTrigger>
+          <TabsTrigger value="pipeline">
+            <SlidersHorizontal className="size-3.5" />
+            {L.viewPipelineTab}
+            {(keyEntries.length > 0 || stepEntries.length > 0) && (
+              <span className="bg-muted text-muted-foreground ml-1 rounded px-1 font-mono text-[10px]">
+                {keyEntries.length}/{stepEntries.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="preview" disabled={!hasAnyCell}>
+            <Eye className="size-3.5" />
+            {L.viewPreviewTab}
+          </TabsTrigger>
+        </TabsList>
 
-      {draft.kind === "tabs" ? (
-        <Tabs
-          value={draft.tabs[activeTabIndex]?.label ?? ""}
-          onValueChange={(label) => {
-            const idx = draft.tabs.findIndex((t) => t.label === label)
-            if (idx >= 0) setActiveTabIndex(idx)
-          }}
-        >
-          <div className="flex items-center gap-1">
-            <TabsList>
-              {draft.tabs.map((tab) => (
-                <TabsTrigger key={tab.label} value={tab.label}>
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={addTab}
-              aria-label={L.addTab}
-              title={L.addTab}
-            >
-              <Plus />
-            </Button>
-            <div className="ml-auto flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  const next = window.prompt(L.renameTab, draft.tabs[activeTabIndex]?.label ?? "")
-                  if (next && next.trim()) renameTab(activeTabIndex, next.trim())
-                }}
-              >
-                {L.renameTab}
-              </Button>
-              <Button variant="ghost" size="xs" onClick={() => removeTab(activeTabIndex)}>
-                {L.removeTab}
-              </Button>
-            </div>
-          </div>
-          {draft.tabs.map((tab, idx) => (
-            <TabsContent key={tab.label} value={tab.label} className="mt-3">
-              {idx === activeTabIndex ? (
-                <Workspace
-                  L={L}
-                  paletteByApp={paletteByApp}
-                  paletteCount={liveReachable.length}
-                  activeRows={activeRows}
-                  focusedRowIndex={focusedRowIndex}
-                  setFocusedRowIndex={setFocusedRowIndex}
-                  dragOverRow={dragOverRow}
-                  setDragOverRow={setDragOverRow}
-                  onAddRow={addRow}
-                  onRemoveRow={removeRow}
-                  onMoveRow={moveRow}
-                  onSetCellSpan={setCellSpan}
-                  onRemoveCell={removeCell}
-                  onAddWidget={addWidgetToRow}
-                  widgets={widgets}
-                  widgetProps={widgetProps}
-                />
-              ) : null}
-            </TabsContent>
-          ))}
-        </Tabs>
-      ) : (
-        <Workspace
-          L={L}
-          paletteByApp={paletteByApp}
-          paletteCount={liveReachable.length}
-          activeRows={activeRows}
-          focusedRowIndex={focusedRowIndex}
-          setFocusedRowIndex={setFocusedRowIndex}
-          dragOverRow={dragOverRow}
-          setDragOverRow={setDragOverRow}
-          onAddRow={addRow}
-          onRemoveRow={removeRow}
-          onMoveRow={moveRow}
-          onSetCellSpan={setCellSpan}
-          onRemoveCell={removeCell}
-          onAddWidget={addWidgetToRow}
-          widgets={widgets}
-          widgetProps={widgetProps}
-          showAddTabButton
-          onAddTab={addTab}
-        />
-      )}
+        <TabsContent value="layout" className="mt-4">
+          {liveReachable.length === 0 && !hasAnyCell ? (
+            <EmptyHint L={L} onGotoPipeline={() => setView("pipeline")} />
+          ) : (
+            layoutContent
+          )}
+        </TabsContent>
+
+        <TabsContent value="pipeline" className="mt-4">
+          <PipelineStrip
+            L={L}
+            keyEntries={keyEntries}
+            stepEntries={stepEntries}
+            keyCatalog={liveCatalog}
+            availableSteps={liveSteps}
+            stepsByApp={stepsByApp}
+            liveKeys={liveKeysMap}
+            onAddKey={addKey}
+            onUpdateKey={updateKey}
+            onRemoveKey={removeKey}
+            onAddStep={addStep}
+            onUpdateStep={updateStep}
+            onRemoveStep={removeStep}
+            status={status}
+          />
+        </TabsContent>
+
+        <TabsContent value="preview" className="mt-4">
+          <PreviewPane
+            draft={draft}
+            activeTabIndex={activeTabIndex}
+            setActiveTabIndex={setActiveTabIndex}
+            widgets={widgets}
+            widgetProps={widgetProps}
+          />
+        </TabsContent>
+      </Tabs>
 
       <CatalogueSheet
         L={L}
@@ -862,10 +869,12 @@ export function LayoutBuilder({
         onSeedKey={(name) => {
           addKey(name)
           setCatalogueOpen(false)
+          setView("pipeline")
         }}
         onAddProducingStep={(key) => {
           addProducingStepFor(key)
           setCatalogueOpen(false)
+          setView("pipeline")
         }}
       />
 
@@ -884,6 +893,28 @@ export function LayoutBuilder({
   )
 }
 
+function EmptyHint({
+  L,
+  onGotoPipeline,
+}: {
+  L: Required<LayoutBuilderLabels>
+  onGotoPipeline: () => void
+}) {
+  return (
+    <div className="border-muted-foreground/30 text-muted-foreground flex flex-col items-center gap-2 rounded-md border border-dashed p-10 text-sm">
+      <Layers className="size-5" />
+      <p>No widgets reachable yet.</p>
+      <p className="text-xs">
+        Open the <span className="font-medium">{L.viewPipelineTab}</span> tab to seed keys or add a
+        pipeline step — the palette unlocks as soon as a widget's contract is satisfied.
+      </p>
+      <Button variant="outline" size="sm" onClick={onGotoPipeline} className="mt-1">
+        <SlidersHorizontal /> Open {L.viewPipelineTab}
+      </Button>
+    </div>
+  )
+}
+
 // -------------------------------------------------------------------------- //
 // Toolbar — sticky top, dense status row + actions
 // -------------------------------------------------------------------------- //
@@ -896,7 +927,6 @@ function Toolbar({
   liveKeys,
   reachableCount,
   unreachableCount,
-  onTogglePreview,
   onOpenCatalogue,
   onOpenSave,
   hasAnyCell,
@@ -908,7 +938,6 @@ function Toolbar({
   liveKeys: number
   reachableCount: number
   unreachableCount: number
-  onTogglePreview: () => void
   onOpenCatalogue: () => void
   onOpenSave: () => void
   hasAnyCell: boolean
@@ -956,15 +985,6 @@ function Toolbar({
       <div className="ml-auto flex items-center gap-1">
         <Button variant="ghost" size="sm" onClick={onOpenCatalogue}>
           <Library /> {L.catalogue}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onTogglePreview}
-          disabled={isBusy || (!hasAnyCell && !previewMode)}
-        >
-          {previewMode ? <Pencil /> : <Eye />}
-          {previewMode ? L.edit : L.preview}
         </Button>
         <Button size="sm" onClick={onOpenSave} disabled={isBusy || !hasAnyCell}>
           <Save /> {L.save}
@@ -1016,6 +1036,7 @@ function PipelineStrip({
   keyCatalog,
   availableSteps,
   stepsByApp,
+  liveKeys,
   onAddKey,
   onUpdateKey,
   onRemoveKey,
@@ -1030,6 +1051,7 @@ function PipelineStrip({
   keyCatalog: KeyCatalogEntry[]
   availableSteps: AvailableStep[]
   stepsByApp: [string, AvailableStep[]][]
+  liveKeys: Record<string, unknown>
   onAddKey: (prefilledName?: string) => void
   onUpdateKey: (idx: number, patch: Partial<KeyEntry>) => void
   onRemoveKey: (idx: number) => void
@@ -1078,39 +1100,42 @@ function PipelineStrip({
             </div>
           ) : (
             <ul className="flex flex-col gap-1">
-              {keyEntries.map((entry, idx) => (
-                <li key={idx} className="flex items-center gap-1">
-                  <Input
-                    value={entry.name}
-                    onChange={(e) => onUpdateKey(idx, { name: e.target.value })}
-                    placeholder={L.keyName}
-                    className="h-7 font-mono text-xs"
-                    list={datalistId}
-                  />
-                  <div className="relative flex-1">
+              {keyEntries.map((entry, idx) => {
+                const livePreview = formatLiveKeyValue(liveKeys[entry.name])
+                return (
+                  <li key={idx} className="flex items-center gap-1">
                     <Input
-                      value={entry.rawValue}
-                      onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
-                      placeholder={L.keyValue}
-                      className="h-7 pr-12 font-mono text-xs"
+                      value={entry.name}
+                      onChange={(e) => onUpdateKey(idx, { name: e.target.value })}
+                      placeholder={L.keyName}
+                      className="h-7 font-mono text-xs"
+                      list={datalistId}
                     />
-                    <span
-                      className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums"
-                      title="parsed type"
+                    <div className="relative flex-1">
+                      <Input
+                        value={entry.rawValue}
+                        onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
+                        placeholder={livePreview ?? L.keyValue}
+                        className="h-7 pr-12 font-mono text-xs"
+                      />
+                      <span
+                        className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums"
+                        title="parsed type"
+                      >
+                        {valueTypeLabel(entry.rawValue)}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => onRemoveKey(idx)}
+                      aria-label="Remove key"
                     >
-                      {valueTypeLabel(entry.rawValue)}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => onRemoveKey(idx)}
-                    aria-label="Remove key"
-                  >
-                    <X />
-                  </Button>
-                </li>
-              ))}
+                      <X />
+                    </Button>
+                  </li>
+                )
+              })}
             </ul>
           )}
           <Button
