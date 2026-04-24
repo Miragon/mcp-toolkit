@@ -18,6 +18,10 @@
     "./proxy": {
       "types": "./dist/proxy/index.d.ts",
       "import": "./dist/proxy/index.js"
+    },
+    "./rest": {
+      "types": "./dist/rest/index.d.ts",
+      "import": "./dist/rest/index.js"
     }
   },
   "files": [
