@@ -23,8 +23,12 @@ export interface UseToolQueryOptions<TData = unknown, TSelected = TData> {
 
 /**
  * Loads data from a widget tool via TanStack Query.
- * Widgets sharing a query key share the cache.
- * `select` transforms data on each read without mutating the cache.
+ *
+ * `args` is appended to the effective query key so two callers that share
+ * the supplied `queryKey` but pass different `args` get separate cache
+ * entries (otherwise the second caller silently reads stale data from the
+ * first — the classic queryKey-vs-args trap). `select` transforms data on
+ * each read without mutating the cache.
  */
 export function useToolQuery<TData = unknown, TSelected = TData>(
   queryKey: unknown[],
@@ -35,7 +39,7 @@ export function useToolQuery<TData = unknown, TSelected = TData>(
   const callTool = useCallTool()
 
   return useQuery<TData, Error, TSelected>({
-    queryKey,
+    queryKey: [...queryKey, args],
     queryFn: async () => {
       if (!callTool) throw new Error("callTool not available")
       const result = await callTool(toolName, args)
