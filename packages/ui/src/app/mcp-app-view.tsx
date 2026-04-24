@@ -5,7 +5,7 @@ import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
-import type { WidgetLoader } from "./remote-widget-loader.js"
+import { createRemoteWidgetLoader, type WidgetLoader } from "./remote-widget-loader.js"
 
 export interface McpAppViewLabels {
   loading?: string
@@ -17,10 +17,73 @@ export interface McpAppViewLabels {
 
 const DEFAULT_LABELS: Required<McpAppViewLabels> = {
   loading: "Waiting for pipeline result...",
-  refresh: "⟳ Refresh",
-  refreshing: "⟳ Loading...",
-  enterFullscreen: "↗ Fullscreen",
-  exitFullscreen: "↙ Collapse",
+  refresh: "Refresh",
+  refreshing: "Loading...",
+  enterFullscreen: "Fullscreen",
+  exitFullscreen: "Collapse",
+}
+
+function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={`h-4 w-4 ${spinning ? "animate-spin" : ""}`}
+    >
+      <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
+      <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M3 21v-5h5" />
+    </svg>
+  )
+}
+
+function ExpandIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-4 w-4"
+    >
+      <path d="M15 3h6v6" />
+      <path d="M9 21H3v-6" />
+      <path d="M21 3l-7 7" />
+      <path d="M3 21l7-7" />
+    </svg>
+  )
+}
+
+function CollapseIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-4 w-4"
+    >
+      <path d="M4 14h6v6" />
+      <path d="M20 10h-6V4" />
+      <path d="M14 10l7-7" />
+      <path d="M3 21l7-7" />
+    </svg>
+  )
 }
 
 interface RefreshParams {
@@ -60,10 +123,11 @@ export interface McpAppViewProps {
   widgets: Record<string, WidgetComponent>
   /**
    * Optional loader invoked for widget IDs that aren't in `widgets` but are
-   * advertised by the server in `viewData.remoteWidgets`. Typically built
-   * via `createRemoteWidgetLoader({ fetchResource })` so upstream-hosted
-   * modules render without a host rebuild. Widgets loaded through the
-   * loader are memoised for the lifetime of the view.
+   * advertised by the server in `viewData.remoteWidgets`. Defaults to a
+   * `createRemoteWidgetLoader` that calls the toolkit's built-in
+   * `read-widget-bundle` MCP tool via the host bridge — pass this only to
+   * override (custom evaluator, alternate tool name, etc.). Widgets loaded
+   * through the loader are memoised for the lifetime of the view.
    */
   widgetLoader?: WidgetLoader
   /**
@@ -72,6 +136,13 @@ export interface McpAppViewProps {
    * `@miragon/mcp-toolkit-core`. Defaults to `"refresh-view"`.
    */
   refreshToolName?: string
+  /**
+   * Name of the MCP tool the default `widgetLoader` calls to fetch an
+   * upstream-hosted widget bundle's JS source. Defaults to
+   * `"read-widget-bundle"` (the toolkit's built-in tool). Ignored when an
+   * explicit `widgetLoader` is passed.
+   */
+  remoteBundleToolName?: string
   /**
    * Override UI strings (loading, refresh button, fullscreen toggle).
    * Defaults to English.
@@ -83,6 +154,7 @@ export function McpAppView({
   widgets,
   widgetLoader,
   refreshToolName = "refresh-view",
+  remoteBundleToolName = "read-widget-bundle",
   labels,
 }: McpAppViewProps) {
   const effectiveLabels = { ...DEFAULT_LABELS, ...labels }
@@ -124,8 +196,27 @@ export function McpAppView({
     return collectLayoutWidgetIds(viewData.layout)
   }, [viewData])
 
+  // Default to the toolkit's built-in `read-widget-bundle` tool so consumers
+  // don't have to hand-wire a loader for standard upstream-hosted modules.
+  // An explicit `widgetLoader` prop wins when supplied.
+  const effectiveWidgetLoader = useMemo<WidgetLoader>(() => {
+    if (widgetLoader) return widgetLoader
+    return createRemoteWidgetLoader({
+      fetchResource: async (id) => {
+        const res = await callTool(remoteBundleToolName, { id })
+        const source = (res.structuredContent as { source?: string } | undefined)?.source
+        if (typeof source !== "string") {
+          throw new Error(
+            `${remoteBundleToolName} returned no source for "${id}" — check that the tool is registered on the host.`,
+          )
+        }
+        return source
+      },
+    })
+  }, [widgetLoader, callTool, remoteBundleToolName])
+
   useEffect(() => {
-    if (!widgetLoader || !viewData?.remoteWidgets) return
+    if (!viewData?.remoteWidgets) return
     const manifest = viewData.remoteWidgets
     const missing = widgetIdsInLayout.filter(
       (id) => !widgets[id] && !remoteWidgets[id] && manifest[id],
@@ -134,7 +225,7 @@ export function McpAppView({
     let cancelled = false
     for (const id of missing) {
       const info = manifest[id]
-      widgetLoader(id, info.bundle)
+      effectiveWidgetLoader(id, info.bundle)
         .then((component) => {
           if (cancelled) return
           setRemoteWidgets((prev) => (prev[id] ? prev : { ...prev, [id]: component }))
@@ -147,7 +238,7 @@ export function McpAppView({
     return () => {
       cancelled = true
     }
-  }, [widgetLoader, viewData?.remoteWidgets, widgetIdsInLayout, widgets, remoteWidgets])
+  }, [effectiveWidgetLoader, viewData?.remoteWidgets, widgetIdsInLayout, widgets, remoteWidgets])
 
   const mergedWidgets = useMemo(() => ({ ...widgets, ...remoteWidgets }), [widgets, remoteWidgets])
 
@@ -227,6 +318,7 @@ export function McpAppView({
               disabled={isRefreshing}
               className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
             >
+              <RefreshIcon spinning={isRefreshing} />
               {isRefreshing ? effectiveLabels.refreshing : effectiveLabels.refresh}
             </button>
           )}
@@ -236,6 +328,7 @@ export function McpAppView({
             }}
             className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
           >
+            {displayMode === "fullscreen" ? <CollapseIcon /> : <ExpandIcon />}
             {displayMode === "fullscreen"
               ? effectiveLabels.exitFullscreen
               : effectiveLabels.enterFullscreen}

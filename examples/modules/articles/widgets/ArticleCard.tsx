@@ -1,4 +1,12 @@
 import type { WidgetProps } from "@miragon/mcp-toolkit-core"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Skeleton,
+} from "@miragon/mcp-toolkit-ui"
 import { useArticlesGetArticle } from "../generated/hooks.js"
 
 export function ArticleCard({ keys }: WidgetProps) {
@@ -6,18 +14,44 @@ export function ArticleCard({ keys }: WidgetProps) {
   const id = typeof raw === "string" ? raw : ""
   const { data, isLoading, error } = useArticlesGetArticle({ id }, { enabled: !!id })
 
-  if (!id) return <p>(no article id)</p>
-  if (isLoading) return <p>Loading…</p>
-  if (error) return <p style={{ color: "crimson" }}>{error.message}</p>
+  if (!id) {
+    return (
+      <Card>
+        <CardContent className="text-muted-foreground text-sm">(no article id)</CardContent>
+      </Card>
+    )
+  }
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-3 w-32" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-12 w-full" />
+        </CardContent>
+      </Card>
+    )
+  }
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="text-destructive text-sm">{error.message}</CardContent>
+      </Card>
+    )
+  }
   if (!data) return null
 
   return (
-    <div style={{ padding: "1rem", border: "1px solid #ddd", borderRadius: 8 }}>
-      <h3 style={{ margin: "0 0 4px" }}>{data.title}</h3>
-      <div style={{ fontSize: "0.85em", color: "#666" }}>
-        by {data.author} · {data.publishedAt}
-      </div>
-      <p style={{ marginTop: 10, marginBottom: 0, color: "#333" }}>{data.body}</p>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{data.title}</CardTitle>
+        <CardDescription>
+          by {data.author} · {data.publishedAt}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="text-sm leading-relaxed">{data.body}</CardContent>
+    </Card>
   )
 }
