@@ -11,10 +11,17 @@ A JSON array, typically stored in `MCP_PROXIES`:
 ```jsonc
 [
   {
-    "name": "items",
-    "label": "Items Mock",
+    "name": "articles",
+    "label": "Articles",
     "upstreamUrl": "http://localhost:4000/mcp",
     "auth": { "mode": "none" },
+  },
+  {
+    "name": "customers",
+    "label": "Customers",
+    "upstreamUrl": "http://localhost:4001/mcp",
+    "auth": { "mode": "none" },
+    "upstreamModules": true,
   },
   {
     "name": "lexoffice",
@@ -30,6 +37,12 @@ A JSON array, typically stored in `MCP_PROXIES`:
   },
 ]
 ```
+
+`upstreamModules: true` enables upstream-hosted module discovery for
+that proxy — the host calls `get-module-manifest` at boot and compiles
+the returned declarative steps + widgets into a synthetic plugin. See
+[Upstream-hosted modules](../concepts/upstream-proxies.md#upstream-hosted-modules)
+for details.
 
 Parse it:
 
@@ -115,7 +128,8 @@ curl -sX POST http://localhost:3010/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
 ```
 
-Every static-auth upstream's tools appear prefixed (`items_echo`, `items_get-item`, …).
+Every static-auth upstream's tools appear prefixed
+(`articles_get-article`, `articles_list-articles`, `customers_get-customer`, …).
 oauth2 upstreams only show `<name>_authenticate` until a user completes it.
 
 ## See also

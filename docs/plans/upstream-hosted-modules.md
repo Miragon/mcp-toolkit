@@ -1,8 +1,15 @@
 # Plan: Upstream-hosted widgets + declarative steps
 
-**Status:** draft
+**Status:** shipped (branch `feat/ui-only-modules`, runnable in
+`examples/customers-upstream/`)
 **Author:** @dominikhorn + Claude
 **Date:** 2026-04-23
+
+> Kept for historical context. For how the feature actually works today
+> see [concepts/widgets — upstream-hosted widgets](../concepts/widgets.md#upstream-hosted-widgets),
+> [guides/building-a-ui-only-module](../guides/building-a-ui-only-module.md),
+> and [`examples/customers-upstream/`](../../examples/customers-upstream/).
+> A few reality notes vs the original plan are called out inline below.
 
 ## Goal
 
@@ -34,8 +41,10 @@ host-side code changes when a new module is added upstream.
   plugins use `proxyBinding: "<name>"` so `buildProxyAppConfigs` injects a
   typed `callTool` closure bound to the matching upstream proxy.
 - Widgets: baked into the app-bundle at build time
-  (`examples/app-bundle/main.tsx` statically imports each component and passes
-  the map to `<McpAppView widgets={{...}} />`).
+  (`examples/app-bundle/main.tsx` statically imports each host-bundled
+  component and passes the map to
+  `<McpToolkitApp widgets={{...}} />` — the toolkit root wraps
+  `McpAppView` in `McpUseProvider` for host auto-sizing).
 - Manifest: `get-framework-manifest` returns local plugin metadata only.
 
 ## Target architecture
@@ -91,12 +100,17 @@ interface RemoteWidget {
 
 ### App-bundle side
 
-- **Widget loader.** `McpAppView` gains a `widgetLoader?: (id, uri) =>
+- **Widget loader.** `McpAppView` accepts a `widgetLoader?: (id, uri) =>
 Promise<WidgetComponent>` prop. Inspect `viewData.layout`; for every
-  widget-id not already in `widgets`, find the matching `RemoteWidget.bundle`
-  URI from the manifest (exposed on `viewData.remoteWidgets` by the host),
-  fetch the resource, evaluate as ESM, register into a local state map before
-  rendering.
+  widget-id not already in `widgets`, find the matching
+  `RemoteWidget.bundle` URI from the manifest (exposed on
+  `viewData.remoteWidgets` by the host), fetch the resource, evaluate as
+  ESM, register into a local state map before rendering.
+  _Shipped:_ the prop is optional — when omitted, `McpAppView` builds a
+  default loader via `createRemoteWidgetLoader` that calls the framework
+  tool `read-widget-bundle` through the host bridge. Consumers of
+  `<McpToolkitApp widgets={...} />` therefore get upstream-hosted
+  widgets with zero extra wiring.
 - **Shared React runtime.** Each widget bundle is built with React/ReactDOM
   marked `external`. At runtime the host injects them via import map so
   `import "react"` inside the widget resolves to the host copy. Import-map
@@ -204,22 +218,32 @@ Enforcement:
   before handing the component to `WidgetRenderer`. Belt + suspenders — catches
   bundles that were built against a different React than their manifest
   claims.
-- **Documented**: `docs/guides/upstream-hosted-modules.md` tells module authors
-  to externalize React using the toolkit's shared Vite preset (see Phase 4).
+- **Documented**: the upstream-hosted widget contract lives in
+  [concepts/widgets](../concepts/widgets.md#upstream-hosted-widgets) and
+  [guides/building-a-ui-only-module](../guides/building-a-ui-only-module.md).
+  Module authors externalise React using the toolkit's shared Vite
+  preset (see Phase 4).
 
 ### Example rewrite
 
-- `examples/upstream-mock/server.ts`: register `get-module-manifest` + two new
-  resources serving the built widget JS.
-- `examples/modules/items-ui/widgets/ItemCard.tsx`: build rule emits a
-  stand-alone ESM into the upstream-mock's static dir.
-- `examples/modules/items-ui/steps/resolve-item.ts`: delete. Replaced by the
-  declarative step in the upstream's manifest.
-- `examples/host/index.ts`: stops importing `items-ui` plugin. Adds
-  `upstreamModules: true` to the `items` proxy config instead.
-- `examples/app-bundle/main.tsx`: wires `widgetLoader`. Still statically
-  imports `hello` widgets (the "full module" pattern) so both paths stay
-  exercised in the examples.
+_Shipped:_ the final layout landed as two upstreams split by concern,
+not one. Reality notes below.
+
+- `examples/customers-upstream/server.ts`: registers `get-customer`,
+  `get-module-manifest`, and the widget bundle as MCP resource
+  `ui://customers/customer-card.js`. Exercises the upstream-hosted path.
+- `examples/customers-upstream/widget/CustomerCard.tsx`: built by Vite
+  with `react` + `react/jsx-runtime` externalised.
+- `examples/articles-upstream/server.ts`: plain external MCP (no
+  manifest). Pairs with `examples/modules/articles/` (host-bundled UI
+  via codegen) to keep the host-bundled path exercised.
+- `examples/host/index.ts`: imports only the host-bundled `articles`
+  plugin. The `customers` proxy config sets `upstreamModules: true`, so
+  `createFrameworkApp` synthesises its `AppPlugin` from the manifest.
+- `examples/app-bundle/main.tsx`: `createRoot(root).render(<McpToolkitApp
+widgets={{ "articles:article-card": ArticleCard }} />)` — relies on
+  the default widget loader for upstream-hosted widgets, so no explicit
+  `widgetLoader` wiring appears in consumer code.
 
 ## Phases
 
@@ -349,10 +373,15 @@ Enforcement:
 
 ## Success criteria
 
-- `examples/host/index.ts` contains only the `hello` plugin; `items-ui` is
-  fully upstream-driven.
-- `render-view` with an `items-ui:item-card` layout renders the card, driven
-  by a declarative step and a remotely loaded widget bundle.
+_Shipped equivalents — the concrete module names diverged from the
+original plan (`items-ui` / `hello`) during implementation._
+
+- `examples/host/index.ts` contains only the host-bundled `articles`
+  plugin; `customers` is fully upstream-driven (manifest-discovered
+  step, upstream-served widget bundle).
+- `render-view` with a `customers:customer-card` layout renders the
+  card, driven by a declarative step and a remotely loaded widget
+  bundle.
 - CI green, Inspector screenshot captured in the PR.
 - Docs updated.
 

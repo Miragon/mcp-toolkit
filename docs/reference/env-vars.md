@@ -79,7 +79,7 @@ WORKOS_SUBDOMAIN=example
 WORKOS_ORG_ID=org_123
 
 # Upstream federation
-MCP_PROXIES='[{"name":"items","label":"Items","upstreamUrl":"http://localhost:4000/mcp","auth":{"mode":"none"}}]'
+MCP_PROXIES='[{"name":"articles","label":"Articles","upstreamUrl":"http://localhost:4000/mcp","auth":{"mode":"none"}}]'
 
 # Role-based module gating
 MCP_ROLE_MODULES='{"accountant":["lexoffice"]}'

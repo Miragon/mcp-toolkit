@@ -23,9 +23,9 @@ curl -sX POST http://localhost:3010/mcp \
   "jsonrpc": "2.0", "id": 1, "method": "tools/call",
   "params": { "name": "render-view",
     "arguments": {
-      "keys": { "items-ui:itemId": "1" },
-      "steps": [{ "id": "item", "step": "items-ui:resolve-item" }],
-      "layout": { "rows": [{ "row": [{ "widget": "items-ui:item-card", "span": 6 }] }] }
+      "keys": { "articles:articleId": "1" },
+      "steps": [{ "id": "article", "step": "articles:resolve-article" }],
+      "layout": { "rows": [{ "row": [{ "widget": "articles:article-card", "span": 6 }] }] }
     }
   }
 }
@@ -63,7 +63,7 @@ Common reasons:
   `context.keys.itemPayload`. Reconcile the key name.
 - The step's `_dataType` doesn't match what a downstream check expects.
   `dataType` is a label — pick deliberate values
-  (`"items-ui:item"`, not `"any"`).
+  (`"articles:article"`, not `"any"`).
 - The widget uses `useToolQuery` to fetch its own data and that call
   failed silently. Inspect the iframe's React DevTools or add a
   `console.error` inside the widget.

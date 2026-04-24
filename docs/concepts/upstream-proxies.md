@@ -82,6 +82,29 @@ by passing `sessionStore` to the `UpstreamProxyPlugin` constructor.
 This is what `buildProxyAppConfigs` wraps to power typed `callTool` in steps
 — see [typed-call-tool-in-steps](../guides/typed-call-tool-in-steps.md).
 
+## Upstream-hosted modules
+
+A proxy can opt into _module discovery_ by setting
+`upstreamModules: true` in its config entry. At boot the host calls
+`get-module-manifest` on the upstream — if present, the returned
+`ModuleManifest` (see `packages/proxy-contract/src/module-manifest.ts`)
+declares declarative pipeline steps and widget bundle URIs. The host
+compiles those into a synthetic `AppPlugin` and registers it alongside
+user-supplied plugins; no consumer-side plugin file needed.
+
+Declarative steps are thin wrappers: each one names an upstream tool +
+`inputMapping` + `outputMapping` and is executed by
+`buildStepFromDeclaration` via the same `callTool` that `proxyBinding`
+injects for hand-written steps. Widget bundles advertised in the
+manifest are fetched lazily at render time by the browser-side
+`widgetLoader` through the framework tool `read-widget-bundle`,
+evaluated via a Blob URL + dynamic `import()`, and mounted next to
+host-bundled widgets. See
+[widgets — upstream-hosted widgets](widgets.md#upstream-hosted-widgets).
+
+Runnable example:
+[`examples/customers-upstream/`](../../examples/customers-upstream/).
+
 ## Reference
 
 - Proxy runtime → `packages/core/src/proxy/UpstreamProxyPlugin.ts`

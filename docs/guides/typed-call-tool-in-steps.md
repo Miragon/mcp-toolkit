@@ -98,7 +98,10 @@ by hand:
 import type { TypedCallTool } from "@miragon/mcp-toolkit-tool-codegen/runtime"
 
 type MyToolMap = {
-  "items_get-item": { input: { id: string }; output: { id: string; name: string } }
+  "articles_get-article": {
+    input: { id: string }
+    output: { id: string; title: string; author: string }
+  }
 }
 
 const step: PipelineStepDefinition<{ callTool: TypedCallTool<MyToolMap> }> = { ... }

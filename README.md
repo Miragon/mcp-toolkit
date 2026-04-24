@@ -4,10 +4,10 @@ Shared framework runtime and UI primitives for MCP servers built on top of [mcp-
 
 This monorepo ships two packages that are consumed by multiple MCP server projects (currently `miranum-ai` and `automation-mcp`):
 
-| Package                                        | Description                                                                                                                                                                      |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@miragon/mcp-toolkit-core`](./packages/core) | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM. |
-| [`@miragon/mcp-toolkit-ui`](./packages/ui)     | React UI: shadcn primitives, composite components, TanStack Query hooks, MCP App shell (`McpAppView` + `WidgetRenderer`) for bundling widgets into an `mcp-app.html` resource.   |
+| Package                                        | Description                                                                                                                                                                                                                                                           |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@miragon/mcp-toolkit-core`](./packages/core) | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM.                                                                                      |
+| [`@miragon/mcp-toolkit-ui`](./packages/ui)     | React UI: shadcn primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing and a default upstream-widget loader) for bundling widgets into an `mcp-app.html` resource. |
 
 ## Usage
 

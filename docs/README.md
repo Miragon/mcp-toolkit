@@ -6,12 +6,12 @@ deployment concerns.
 
 ## Packages
 
-| Package                               | Purpose                                                                                                                                                          |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@miragon/mcp-toolkit-core`           | Plugin contract, step/widget registries, pipeline executor, framework-tool registrars, upstream-proxy runtime, middleware helpers, `createFrameworkApp` factory. |
-| `@miragon/mcp-toolkit-ui`             | React widget shell (`McpAppView`), shadcn primitives, composed components, typed `useToolQuery` hook.                                                            |
-| `@miragon/mcp-toolkit-proxy-contract` | Zod schema + parser for `MCP_PROXIES`-style proxy configuration. Shared between admin tooling and the server.                                                    |
-| `@miragon/mcp-toolkit-tool-codegen`   | Build-time codegen (`mcp-tool-codegen` CLI) that turns an upstream MCP's `tools/list` into typed TS + typed React Query hooks.                                   |
+| Package                               | Purpose                                                                                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@miragon/mcp-toolkit-core`           | Plugin contract, step/widget registries, pipeline executor, framework-tool registrars, upstream-proxy runtime, middleware helpers, `createFrameworkApp` factory.               |
+| `@miragon/mcp-toolkit-ui`             | React widget shell (`McpToolkitApp` / `McpAppView`) with host auto-sizing + default upstream-widget loader, shadcn primitives, composed components, typed `useToolQuery` hook. |
+| `@miragon/mcp-toolkit-proxy-contract` | Zod schema + parser for `MCP_PROXIES`-style proxy configuration. Shared between admin tooling and the server.                                                                  |
+| `@miragon/mcp-toolkit-tool-codegen`   | Build-time codegen (`mcp-tool-codegen` CLI) that turns an upstream MCP's `tools/list` into typed TS + typed React Query hooks.                                                 |
 
 ## Start here
 

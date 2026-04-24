@@ -79,16 +79,53 @@ Widened from `Record<string, unknown>` so generated tool input interfaces
 ## `@miragon/mcp-toolkit-ui/app`
 
 MCP app shell — imports `mcp-use/react`. Kept out of the main barrel so
-admin portals don't pull `langchain` into their Vite bundle.
+admin portals don't pull the `mcp-use` client runtime into their Vite
+bundle.
 
-| Symbol                | Signature                                                                                                     |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `McpAppView`          | `(props: McpAppViewProps) → JSX.Element`. The top-level component bundled inside the `mcp-app-html` resource. |
-| `McpAppViewProps`     | `{ widgets: Record<string, WidgetComponent>, refreshToolName?: string, labels?: McpAppViewLabels }`.          |
-| `McpAppViewLabels`    | Override strings: `loading`, `refresh`, `refreshing`, `enterFullscreen`, `exitFullscreen`. Defaults: English. |
-| `WidgetRenderer`      | Lower-level component — renders a normalized layout given the widgets map. Used internally by `McpAppView`.   |
-| `WidgetRendererProps` | `{ layout, keys, stepData?, errors, widgets }`.                                                               |
-| `WidgetComponent`     | `ComponentType<WidgetProps>`.                                                                                 |
+### Root component
+
+`McpToolkitApp` is the recommended consumer-facing root. It wraps
+`McpAppView` in `mcp-use`'s `McpUseProvider`, which installs:
+
+- host auto-sizing (`ui/notifications/size-changed` for MCP Apps hosts
+  like Claude Desktop; `notifyIntrinsicHeight` for ChatGPT's Apps SDK),
+- `StrictMode`, a default `ErrorBoundary`, and theme plumbing.
+
+```tsx
+import { createRoot } from "react-dom/client"
+import { McpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
+import { ArticleCard } from "./widgets/ArticleCard.js"
+
+const widgets = { "articles:article-card": ArticleCard }
+
+createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widgets} />)
+```
+
+### Exports
+
+| Symbol                            | Signature                                                                                                                                                                                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `McpToolkitApp`                   | `(props: McpAppViewProps) → JSX.Element`. `<McpUseProvider><McpAppView {...props} /></McpUseProvider>`.                                                                                                                                      |
+| `McpAppView`                      | `(props: McpAppViewProps) → JSX.Element`. Top-level view. Use directly only if you already own the `McpUseProvider` wiring.                                                                                                                  |
+| `McpAppViewProps`                 | `{ widgets, widgetLoader?, refreshToolName?, remoteBundleToolName?, labels? }`. See table below.                                                                                                                                             |
+| `McpAppViewLabels`                | Override strings: `loading`, `refresh`, `refreshing`, `enterFullscreen`, `exitFullscreen`. Defaults: English.                                                                                                                                |
+| `WidgetRenderer`                  | Lower-level component — renders a normalised layout given the widgets map. Used internally by `McpAppView`.                                                                                                                                  |
+| `WidgetRendererProps`             | `{ layout, keys, stepData?, errors, widgets }`.                                                                                                                                                                                              |
+| `WidgetComponent`                 | `ComponentType<WidgetProps>`.                                                                                                                                                                                                                |
+| `createRemoteWidgetLoader`        | `(opts: CreateRemoteWidgetLoaderOptions) → WidgetLoader`. Builds a loader that fetches widget JS through `fetchResource`, evaluates via Blob URL + dynamic `import()`, returns `default`. Asserts `React.version` major matches the toolkit. |
+| `WidgetLoader`                    | `(id: string, uri: string) => Promise<WidgetComponent>`.                                                                                                                                                                                     |
+| `FetchResourceText`               | `(id: string, uri: string) => Promise<string>`. Transport the loader uses to read the bundle's JS source.                                                                                                                                    |
+| `CreateRemoteWidgetLoaderOptions` | `{ fetchResource, evaluateBundle?, expectedReactMajor? }`. Only `fetchResource` is required — the other two are test hooks.                                                                                                                  |
+
+### `McpAppViewProps` in detail
+
+| Prop                    | Type                              | Default                | Purpose                                                                                                                                                                                                                 |
+| ----------------------- | --------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `widgets`               | `Record<string, WidgetComponent>` | —                      | Host-bundled widget registry, keyed by widget id.                                                                                                                                                                       |
+| `widgetLoader?`         | `WidgetLoader`                    | built-in (see below)   | Lazily loads widgets referenced by the layout but missing from `widgets` (upstream-hosted modules). The default loader calls `read-widget-bundle` via the host bridge and evaluates the returned JS — no wiring needed. |
+| `refreshToolName?`      | `string`                          | `"refresh-view"`       | Tool invoked by the refresh button. Usually a thin wrapper around `renderView(...)` on the host.                                                                                                                        |
+| `remoteBundleToolName?` | `string`                          | `"read-widget-bundle"` | Tool name the default `widgetLoader` uses to fetch an upstream-hosted widget's source. Ignored when `widgetLoader` is supplied.                                                                                         |
+| `labels?`               | `McpAppViewLabels`                | English                | Override UI strings (loading, refresh, fullscreen toggle).                                                                                                                                                              |
 
 ## Source map
 
@@ -98,7 +135,8 @@ packages/ui/src/
 ├── components/          composed components (DataTable, StatusBadge, …)
 ├── hooks/               use-tool-query, use-mobile
 ├── providers/           AppQueryProvider + useCallTool
-├── app/                 McpAppView + WidgetRenderer (subpath export)
+├── app/                 McpToolkitApp + McpAppView + WidgetRenderer
+│                        + remote-widget-loader (subpath export)
 └── lib/utils.ts         cn()
 ```
 

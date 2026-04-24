@@ -48,10 +48,17 @@ CLI) and the server.
 ```jsonc
 [
   {
-    "name": "items",
-    "label": "Items",
+    "name": "articles",
+    "label": "Articles",
     "upstreamUrl": "http://localhost:4000/mcp",
     "auth": { "mode": "none" },
+  },
+  {
+    "name": "customers",
+    "label": "Customers",
+    "upstreamUrl": "http://localhost:4001/mcp",
+    "auth": { "mode": "none" },
+    "upstreamModules": true,
   },
   {
     "name": "lexoffice",
@@ -67,6 +74,12 @@ CLI) and the server.
   },
 ]
 ```
+
+`upstreamModules: true` opts a proxy into host-side module discovery:
+at boot the host calls `get-module-manifest` on that upstream and
+registers the declared declarative steps + widgets as a synthetic
+`AppPlugin` — no consumer-side plugin file required. Omit (or set
+`false`) for plain federation.
 
 Validates against `ProxyConfigSchema`; duplicate names or malformed URLs
 fail at boot.

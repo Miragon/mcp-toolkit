@@ -75,11 +75,13 @@ See [building-a-ui-only-module](../guides/building-a-ui-only-module.md).
 
 ## Naming
 
-- `AppDefinition.name` — lower-kebab-case, e.g. `lexoffice` or `items-ui`.
-- Step ids, widget ids, and the keys they emit all prefix with the app name:
-  `lexoffice:invoice`, `items-ui:item-card`, `items-ui:itemId`. The prefix
-  is how `get-framework-manifest` groups entries, and how steps find their
-  `appConfig` (`ref.step.split(":")[0]`).
+- `AppDefinition.name` — lower-kebab-case, e.g. `lexoffice`, `articles`,
+  `customers`.
+- Step ids, widget ids, and the keys they emit all prefix with the app
+  name: `articles:article-card`, `articles:articleId`,
+  `customers:customer`. The prefix is how `get-framework-manifest`
+  groups entries, and how steps find their `appConfig`
+  (`ref.step.split(":")[0]`).
 
 ## Reference
 

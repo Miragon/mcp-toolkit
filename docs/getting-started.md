@@ -48,8 +48,11 @@ to wrap an existing upstream MCP.
 
 ## Proof it works
 
-See [examples/](../examples/). `pnpm dev:upstream` + `pnpm dev:host` in two
-terminals is a complete, running demo.
+See [examples/](../examples/). Three terminals —
+`pnpm --filter @miragon/mcp-toolkit-examples dev:articles-upstream`,
+`… dev:customers-upstream`, and `… dev:host` — boot a complete running
+demo that exercises both the host-bundled and upstream-hosted module
+paths.
 
 ## Where to next
 

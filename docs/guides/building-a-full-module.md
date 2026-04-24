@@ -1,29 +1,33 @@
 # Building a full module
 
-A "full module" owns its data — it registers MCP tools, pipeline steps, and
-widgets in a single plugin. Use this shape when the module wraps an API you
-want the host to call directly (no separate upstream MCP).
+A "full module" owns its data — it registers MCP tools, pipeline steps,
+and widgets in a single plugin. Use this shape when the module wraps an
+API you want the host to call directly (no separate upstream MCP).
 
-For the opposite case — wrapping an existing upstream MCP — see
-[building-a-ui-only-module](building-a-ui-only-module.md).
+For the opposite cases see:
+
+- [Building a UI-only module](building-a-ui-only-module.md) — wrap an
+  existing upstream MCP by binding a plugin to a proxy.
+- [Registering upstream proxies](registering-upstream-proxies.md) —
+  federate an external MCP under the host's namespace.
+
+The repo's `examples/` directory focuses on the UI-only + upstream-hosted
+paths, so there is no runnable "full module" in `examples/modules/`
+today. The pattern below still holds; drop it next to any of the other
+plugins in a consumer project.
 
 ## Layout
 
 ```
 modules/my-module/
-├── src/
-│   ├── definition.ts   AppDefinition: name, steps, widgets
-│   ├── plugin.ts       createPlugin() → AppPlugin
-│   ├── steps/*.ts      PipelineStepDefinition
-│   ├── widgets/*.tsx   React components
-│   ├── widgets.ts      widgetComponents map for the Vite bundle
-│   └── tools/*.ts      tool handlers (domain logic)
+├── definition.ts      AppDefinition: name, steps, widgets
+├── plugin.ts          createPlugin() → AppPlugin
+├── steps/*.ts         PipelineStepDefinition
+├── widgets/*.tsx      React components
+├── tools/*.ts         tool handlers (domain logic)
 ├── package.json
 └── tsconfig.json
 ```
-
-The [`hello-full`](../../examples/modules/hello-full/) example is a
-minimal runnable version.
 
 ## Wire
 
@@ -33,9 +37,9 @@ import type { AppDefinition } from "@miragon/mcp-toolkit-core"
 import { greetStep } from "./steps/greet.js"
 
 export const definition: AppDefinition = {
-  name: "hello",
+  name: "greeter",
   steps: [greetStep],
-  widgets: [{ id: "hello:greeting-card", requires: ["hello:greeting"], size: "half" }],
+  widgets: [{ id: "greeter:greeting-card", requires: ["greeter:greeting"], size: "half" }],
 }
 ```
 
@@ -52,7 +56,7 @@ export function createPlugin(): AppPlugin {
     registerTools(server) {
       server.tool(
         {
-          name: "hello_say-hi",
+          name: "greeter_say-hi",
           description: "Returns a greeting.",
           schema: z.object({ name: z.string() }),
         },
@@ -70,17 +74,17 @@ export function createPlugin(): AppPlugin {
 import type { PipelineStepDefinition } from "@miragon/mcp-toolkit-core"
 
 export const greetStep: PipelineStepDefinition = {
-  id: "hello:greet",
-  dataType: "hello:greeting",
-  requires: ["hello:name"],
-  produces: ["hello:greeting"],
+  id: "greeter:greet",
+  dataType: "greeter:greeting",
+  requires: ["greeter:name"],
+  produces: ["greeter:greeting"],
   async execute(ctx) {
-    const greeting = `Hello, ${ctx.keys["hello:name"] ?? "world"}!`
+    const greeting = `Hello, ${ctx.keys["greeter:name"] ?? "world"}!`
     return {
-      _app: "hello",
+      _app: "greeter",
       _step: "greet",
       data: { greeting },
-      keys: { "hello:greeting": greeting },
+      keys: { "greeter:greeting": greeting },
     }
   },
 }
@@ -93,7 +97,7 @@ export const greetStep: PipelineStepDefinition = {
 import type { WidgetProps } from "@miragon/mcp-toolkit-core"
 
 export function GreetingCard({ keys }: WidgetProps) {
-  return <p>{String(keys["hello:greeting"])}</p>
+  return <p>{String(keys["greeter:greeting"])}</p>
 }
 ```
 
@@ -102,25 +106,42 @@ export function GreetingCard({ keys }: WidgetProps) {
 In the host:
 
 ```ts
-import { createPlugin as createHelloPlugin } from "./modules/hello/plugin.js"
+import { createPlugin as createGreeterPlugin } from "./modules/greeter/plugin.js"
 
 await createFrameworkApp({
   ...,
-  plugins: [createHelloPlugin()],
+  plugins: [createGreeterPlugin()],
   ...
 })
 ```
 
 ## Verify end-to-end
 
+Call `render-view` with the module's keys + layout:
+
 ```sh
-# examples/ runs both terminals already
-cd vendor/mcp-toolkit
-pnpm --filter @miragon/mcp-toolkit-examples dev:host
-# elsewhere: call render-view with { keys: { "hello:name": "Ada" }, ... }
+curl -sX POST http://localhost:3010/mcp \
+  -H 'content-type: application/json' \
+  -d @- <<'JSON' | jq
+{
+  "jsonrpc":"2.0","id":1,"method":"tools/call",
+  "params":{
+    "name":"render-view",
+    "arguments":{
+      "keys":{"greeter:name":"Ada"},
+      "steps":[{"id":"greeting","step":"greeter:greet"}],
+      "layout":{"rows":[{"row":[{"widget":"greeter:greeting-card","span":6}]}]}
+    }
+  }
+}
+JSON
 ```
 
-See `examples/layouts/hello-layout.yaml` for the render-view input.
+The host-bundled UI path in
+[`examples/modules/articles/`](../../examples/modules/articles/) is the
+closest runnable reference in the repo — same plugin/definition/step
+shape, the only difference is that its tools live on an upstream MCP
+instead of being registered in-plugin.
 
 ## See also
 

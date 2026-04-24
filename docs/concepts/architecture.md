@@ -4,8 +4,9 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 
 1. **Upstream proxies** — federate external MCPs under a `<proxy>_` prefix.
 2. **App plugins** — register domain tools, widget tools, pipeline steps, widgets.
-3. **Framework tools** — `get-framework-manifest`, `render-view`, `refresh-view`,
-   plus the `mcp-app-html` widget bundle resource.
+3. **Framework tools** — `get-framework-manifest`, `render-view`,
+   `refresh-view`, `read-widget-bundle` (streams upstream-hosted widget
+   JS to the browser), plus the `mcp-app-html` widget bundle resource.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -52,11 +53,11 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 
 ## Request flow — federated upstream tool call
 
-1. Client calls `items_get-item`.
+1. Client calls `articles_get-article`.
 2. mcp-use routes to the handler `UpstreamProxyPlugin.registerForwardedTool`
    registered during `init`.
 3. **Static auth** (`none`/`bearer`/`header`) — handler calls the shared
-   `staticSession.callTool("get-item", args)`.
+   `staticSession.callTool("get-article", args)`.
 4. **oauth2** — handler looks up the per-user session via
    `sessionStore.getSession(userId, proxyName)`. If absent, returns an error
    telling the user to run `<proxy>_authenticate` first.
@@ -67,7 +68,7 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 Same upstream path, but initiated from a pipeline step, not from the public
 RPC surface:
 
-1. Step calls its injected `callTool("items_get-item", { id })`.
+1. Step calls its injected `callTool("articles_get-article", { id })`.
 2. `buildProxyAppConfigs` wraps this to `proxy.callUpstream(name, args, userId)`.
 3. `callUpstream` strips the `<proxy>_` prefix, resolves the correct session
    (static or per-user oauth2), and calls `session.callTool(bareName, args)`.

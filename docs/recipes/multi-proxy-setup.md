@@ -9,7 +9,7 @@ auth modes, and bind UI-only modules to specific proxies.
 
 Three upstreams:
 
-- **`items`** — internal mock, no auth.
+- **`articles`** — internal mock, no auth.
 - **`lexoffice`** — third-party SaaS, static bearer token.
 - **`notion`** — per-user OAuth2.
 
@@ -21,9 +21,9 @@ module `internal`.
 ```jsonc
 [
   {
-    "name": "items",
-    "label": "Items Mock",
-    "upstreamUrl": "http://items.svc.local/mcp",
+    "name": "articles",
+    "label": "Articles",
+    "upstreamUrl": "http://articles.svc.local/mcp",
     "auth": { "mode": "none" },
   },
 
@@ -109,7 +109,7 @@ For an unauthenticated session:
 
 - Framework: `get-framework-manifest`, `render-view`, `refresh-view`
 - Internal: `internal_*`
-- Items (none auth): `items_echo`, `items_list-items`, `items_get-item`
+- Articles (none auth): `articles_list-articles`, `articles_get-article`
 - Lexoffice (bearer): `lexoffice_*`
 - Notion (oauth2): only `notion_authenticate` until each user completes the flow
 

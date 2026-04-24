@@ -27,14 +27,14 @@ Three accepted forms:
 **Flat rows**
 
 ```jsonc
-[{ "row": [{ "widget": "hello:greeting-card", "span": 6 }] }]
+[{ "row": [{ "widget": "articles:article-card", "span": 6 }] }]
 ```
 
 **Explicit wrapper**
 
 ```jsonc
 {
-  "rows": [{ "row": [{ "widget": "items-ui:item-card", "span": 6 }] }],
+  "rows": [{ "row": [{ "widget": "customers:customer-card", "span": 6 }] }],
 }
 ```
 
@@ -43,8 +43,8 @@ Three accepted forms:
 ```jsonc
 {
   "tabs": [
-    { "label": "Overview", "rows": [{ "row": [{ "widget": "..." }] }] },
-    { "label": "Details", "rows": [{ "row": [{ "widget": "..." }] }] },
+    { "label": "Article", "rows": [{ "row": [{ "widget": "articles:article-card" }] }] },
+    { "label": "Customer", "rows": [{ "row": [{ "widget": "customers:customer-card" }] }] },
   ],
 }
 ```
@@ -88,10 +88,10 @@ via `app.refreshToolName`) that accepts the same schema. The UI stores
 YAML input:
 
 ```yaml
-# items-layout.yaml
+# articles-layout.yaml
 rows:
   - row:
-      - widget: items-ui:item-card
+      - widget: articles:article-card
         span: 6
 ```
 
@@ -106,16 +106,18 @@ curl -sX POST http://localhost:3010/mcp \
   "params":{
     "name":"render-view",
     "arguments":{
-      "keys":{"items-ui:itemId":"1"},
-      "steps":[{"id":"item","step":"items-ui:resolve-item"}],
-      "layout":{"rows":[{"row":[{"widget":"items-ui:item-card","span":6}]}]}
+      "keys":{"articles:articleId":"1"},
+      "steps":[{"id":"article","step":"articles:resolve-article"}],
+      "layout":{"rows":[{"row":[{"widget":"articles:article-card","span":6}]}]}
     }
   }
 }
 JSON
 ```
 
-See [`examples/layouts/`](../../examples/layouts/) for runnable shapes.
+See [`examples/layouts/`](../../examples/layouts/) for runnable shapes —
+`articles-layout.yaml` (host-bundled widget) and `customers-layout.yaml`
+(upstream-hosted widget loaded at render time).
 
 ## See also
 
