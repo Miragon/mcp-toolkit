@@ -89,9 +89,9 @@ steps 2 and 3 need no translation.
 ## Testing locally
 
 ```sh
-# Build + start the example host
-pnpm -r build
-pnpm --filter host start
+# One command: build widget bundles, then boot articles-upstream,
+# customers-upstream, and the host with startup gating.
+pnpm --filter @miragon/mcp-toolkit-examples start
 
 # In another shell — open the builder
 curl -sX POST http://localhost:3010/mcp \

@@ -43,23 +43,25 @@ Run from the toolkit root (`vendor/mcp-toolkit/`) or this directory:
 pnpm -w install
 cp examples/env.example examples/.env    # first time only
 
-# terminal 1: articles-upstream (plain external MCP)
+# one-shot: build the widget bundles and start all three servers
+# (articles-upstream, customers-upstream, host) with colored,
+# per-process log prefixes. The host is gated on both upstream
+# ports via wait-on before it boots.
+pnpm --filter @miragon/mcp-toolkit-examples start
+
+# or run each process in its own terminal
 pnpm --filter @miragon/mcp-toolkit-examples dev:articles-upstream
-
-# terminal 2: customers-upstream (ships declarative step + remote widget bundle)
 pnpm --filter @miragon/mcp-toolkit-examples dev:customers-upstream
-
-# terminal 3: the host MCP server (createFrameworkApp)
 pnpm --filter @miragon/mcp-toolkit-examples dev:host
+
+# build the widget bundles without starting any server
+pnpm --filter @miragon/mcp-toolkit-examples build:all
 
 # regenerate articles/generated/ from the running articles-upstream
 pnpm --filter @miragon/mcp-toolkit-examples generate
 
 # CI drift check — fails if committed generated/ is stale
 pnpm --filter @miragon/mcp-toolkit-examples generate:check
-
-# rebuild the customers widget bundle (runs automatically by dev:customers-upstream)
-pnpm --filter @miragon/mcp-toolkit-examples build:customer-widget
 ```
 
 Defaults: articles-upstream on `:4000`, customers-upstream on `:4001`, host on
