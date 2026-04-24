@@ -1,0 +1,49 @@
+{
+  "name": "@miragon/mcp-toolkit-tool-codegen",
+  "version": "0.1.0",
+  "description": "Build-time codegen + runtime glue for type-safe MCP tool calls: TypedCallTool helper, buildProxyAppConfigs, and a CLI that generates TypeScript types + React Query hooks from an upstream MCP's tools/list.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "mcp-tool-codegen": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js"
+    },
+    "./templates/*": "./templates/*"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/make-cli-executable.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "prepare": "tsc"
+  },
+  "peerDependencies": {
+    "@miragon/mcp-toolkit-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.29.0"
+  },
+  "dependencies": {
+    "handlebars": "4.7.8",
+    "json-schema-to-typescript": "15.0.4"
+  },
+  "devDependencies": {
+    "@miragon/mcp-toolkit-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@types/node": "25.6.0",
+    "typescript": "6.0.2"
+  }
+}

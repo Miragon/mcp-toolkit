@@ -110,6 +110,7 @@ export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./primitive
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile.js"
 export { useToolQuery, useToolMutation } from "./hooks/use-tool-query.js"
+export type { UseToolQueryOptions } from "./hooks/use-tool-query.js"
 
 // Composed components
 export { StatusBadge, DEFAULT_STATUS_MAP } from "./components/StatusBadge.js"
@@ -132,3 +133,14 @@ export { AppQueryProvider, useCallTool, queryClient } from "./providers/query-pr
 
 // Utils
 export { cn } from "./lib/utils.js"
+
+/**
+ * Major React version this toolkit ships against. Exported so the host's
+ * module-discovery logic and the remote-widget loader can runtime-check
+ * that upstream-hosted modules were built against a compatible runtime
+ * before mounting their components.
+ *
+ * Bump in lockstep with the `react` peer dependency in this package's
+ * `package.json`.
+ */
+export const TOOLKIT_REACT_MAJOR = 19 as const

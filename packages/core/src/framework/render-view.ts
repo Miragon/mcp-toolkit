@@ -1,6 +1,7 @@
-import { executePipeline } from "../engine/pipeline-executor.js"
+import { executePipeline, type PipelineExecutionContext } from "../engine/pipeline-executor.js"
 import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
+import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
 import type { LayoutConfig } from "./layout-types.js"
 
@@ -12,14 +13,30 @@ export interface RenderViewInput {
 }
 
 /**
+ * Bundle metadata for a widget whose code lives on an upstream MCP server.
+ * The browser-side widget loader reads `bundle` via the upstream identified
+ * by `moduleId` and dynamically imports the result.
+ */
+export interface RemoteWidgetInfo {
+  bundle: string
+  moduleId: string
+}
+
+/**
  * Executes a pipeline of steps to populate the keys map and returns a payload
  * ready to be embedded into an MCP App widget. The resulting `structuredContent`
  * is consumed by the `McpAppView` component in `@miragon/mcp-toolkit-ui`.
+ *
+ * `ctx` carries per-request info (currently: the calling userId) that the
+ * pipeline executor uses to pre-bind user-scoped `callTool` closures on step
+ * `appConfig`s. Pass it through from the tool handler's `ctx.auth?.user?.userId`.
  */
 export async function renderView(
   input: RenderViewInput,
   stepRegistry: StepRegistry,
   appConfigs?: Record<string, Record<string, unknown>>,
+  ctx?: PipelineExecutionContext,
+  widgetRegistry?: WidgetRegistry,
 ) {
   const initialKeys = input.keys ?? {}
   const pipelineConfig = { steps: input.steps }
@@ -39,7 +56,7 @@ export async function renderView(
     }
   }
 
-  const context = await executePipeline(pipelineConfig, initialKeys, stepRegistry, appConfigs)
+  const context = await executePipeline(pipelineConfig, initialKeys, stepRegistry, appConfigs, ctx)
 
   const textSummary = [
     input.title ?? "View",
@@ -51,6 +68,15 @@ export async function renderView(
   ]
     .filter(Boolean)
     .join("\n")
+
+  const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
+  if (widgetRegistry) {
+    for (const widget of widgetRegistry.getAll()) {
+      if (widget.bundle && widget.moduleId) {
+        remoteWidgets[widget.id] = { bundle: widget.bundle, moduleId: widget.moduleId }
+      }
+    }
+  }
 
   return {
     content: [{ type: "text" as const, text: textSummary }],
@@ -79,6 +105,7 @@ export async function renderView(
         errors: context.errors,
       },
       layout: input.layout,
+      remoteWidgets,
     },
   }
 }

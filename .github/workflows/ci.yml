@@ -26,6 +26,8 @@ jobs:
 
       - run: pnpm -r run build
 
+      - run: pnpm -r --if-present run test
+
   quality:
     name: Lint + Format
     runs-on: ubuntu-latest

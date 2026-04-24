@@ -1,0 +1,14 @@
+# Input layout for `render-view` against the articles module (host-bundled UI).
+#
+#   tools/call render-view '{
+#     "keys": { "articles:articleId": "1" },
+#     "layout": <this document>
+#   }'
+#
+# The `articles:resolve-article` step calls `articles_get-article` through the
+# proxy bound to articles-upstream, produces `articles:article`, which
+# satisfies the `articles:article-card` widget.
+rows:
+  - row:
+      - widget: articles:article-card
+        span: 6

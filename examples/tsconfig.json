@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "lib": ["ES2022", "DOM"],
+    "paths": {
+      "@miragon/mcp-toolkit-core": ["../packages/core/src/index.ts"],
+      "@miragon/mcp-toolkit-core/*": ["../packages/core/src/*"],
+      "@miragon/mcp-toolkit-proxy-contract": ["../packages/proxy-contract/src/index.ts"],
+      "@miragon/mcp-toolkit-tool-codegen": ["../packages/tool-codegen/src/index.ts"],
+      "@miragon/mcp-toolkit-tool-codegen/runtime": ["../packages/tool-codegen/src/runtime.ts"],
+      "@miragon/mcp-toolkit-ui": ["../packages/ui/src/index.ts"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}

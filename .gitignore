@@ -4,3 +4,6 @@ dist
 .turbo
 .DS_Store
 *.log
+.mcp-use/
+.gstack/
+.playwright-mcp/
