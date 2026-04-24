@@ -1,6 +1,20 @@
-import { useCallback, useMemo, useState } from "react"
-import { ChevronDown, ChevronUp, Minus, Plus, Rows3, Save, Sparkles, Trash2, X } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  GripVertical,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Rows3,
+  Save,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react"
 import type {
+  AvailableStep,
   LayoutConfig,
   PipelineContext,
   PipelineStepRef,
@@ -25,6 +39,13 @@ import {
 import { Input } from "../primitives/input.js"
 import { ScrollArea } from "../primitives/scroll-area.js"
 import { Separator } from "../primitives/separator.js"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../primitives/select.js"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../primitives/tabs.js"
 import type { WidgetComponent } from "./widget-renderer.js"
 
@@ -33,12 +54,14 @@ export interface LayoutBuilderLabels {
   palette?: string
   paletteEmpty?: string
   canvasEmpty?: string
+  canvasDropHint?: string
   addRow?: string
   addTab?: string
   removeRow?: string
   renameTab?: string
   removeTab?: string
-  render?: string
+  edit?: string
+  preview?: string
   save?: string
   saveDialogTitle?: string
   saveDialogDescription?: string
@@ -46,19 +69,32 @@ export interface LayoutBuilderLabels {
   saveDescriptionLabel?: string
   saveConfirm?: string
   cancel?: string
+  keysHeader?: string
+  stepsHeader?: string
+  keyName?: string
+  keyValue?: string
+  stepContextId?: string
+  stepPickerLabel?: string
+  applyContext?: string
+  addKey?: string
+  addStep?: string
+  refreshing?: string
+  contextError?: string
 }
 
 const DEFAULT_LABELS: Required<LayoutBuilderLabels> = {
   title: "View Builder",
   palette: "Available widgets",
-  paletteEmpty: "No widgets match the current key set. Add steps or seed keys to unlock more.",
-  canvasEmpty: "Pick a widget from the palette to add it to the canvas.",
+  paletteEmpty: "No widgets match the current key set. Add keys or steps above to unlock more.",
+  canvasEmpty: "Drag a widget from the palette (or click it) to add it here.",
+  canvasDropHint: "Drop to add to this row",
   addRow: "Add row",
   addTab: "Add tab",
   removeRow: "Remove row",
   renameTab: "Rename tab",
   removeTab: "Remove tab",
-  render: "Render view",
+  edit: "Edit",
+  preview: "Preview",
   save: "Save dashboard",
   saveDialogTitle: "Save dashboard",
   saveDialogDescription:
@@ -67,6 +103,17 @@ const DEFAULT_LABELS: Required<LayoutBuilderLabels> = {
   saveDescriptionLabel: "Description",
   saveConfirm: "Save",
   cancel: "Cancel",
+  keysHeader: "Initial keys",
+  stepsHeader: "Pipeline steps",
+  keyName: "key",
+  keyValue: '"value", 42, or {"id":1}',
+  stepContextId: "context id",
+  stepPickerLabel: "Step",
+  applyContext: "Apply",
+  addKey: "Add key",
+  addStep: "Add step",
+  refreshing: "Refreshing…",
+  contextError: "One or more keys have invalid JSON values — using the raw string.",
 }
 
 type DraftLayout = { kind: "rows"; rows: RowDef[] } | { kind: "tabs"; tabs: DraftTab[] }
@@ -75,37 +122,38 @@ interface DraftTab {
   rows: RowDef[]
 }
 
+interface KeyEntry {
+  name: string
+  rawValue: string
+}
+
+const WIDGET_DRAG_MIME = "application/x-mcp-widget-id"
+
 export interface LayoutBuilderProps {
   /** Optional draft layout to resume editing. */
   initialLayout?: LayoutConfig
   title?: string
-  /** Initial keys that seeded the builder (passed back on save/render). */
+  /** Initial keys that seeded the builder (also shown in the key editor). */
   initialKeys?: Record<string, unknown>
-  /** Steps that were declared on the open-view-builder call (passed back on save/render). */
+  /** Steps that were declared on the open-view-builder call (shown in the step editor). */
   initialSteps?: PipelineStepRef[]
   /** Live pipeline context — used for WYSIWYG preview of the draft layout. */
   context: PipelineContext
   /** Widgets whose `requires` are satisfied by the current key set. */
   reachableWidgets: ReachableWidget[]
+  /** Full step catalogue — populates the step-picker dropdown. */
+  availableSteps: AvailableStep[]
   /** Merged widget-component map (host-bundled + remote-loaded). */
   widgets: Record<string, WidgetComponent>
-  /** Bridge to the MCP host for save / render round-trips. */
+  /** Bridge to the MCP host for refresh / save round-trips. */
   callTool: (name: string, args: object) => Promise<unknown>
-  /** Override the default refresh tool name. Mirrors `McpAppView`. */
-  refreshToolName?: string
-  /** Override the default render tool name. Mirrors `McpAppView`. */
-  renderToolName?: string
-  /** Override the default save tool name. Mirrors the registered `save-dashboard`. */
+  /** Override the tool name used to re-run the builder pipeline. Default: `open-view-builder`. */
+  builderToolName?: string
+  /** Override the save tool name. Default: `save-dashboard`. */
   saveToolName?: string
   /** Optional existing dashboard id when resuming a saved layout. */
   dashboardId?: string
   labels?: LayoutBuilderLabels
-  /**
-   * Called with the resulting `structuredContent` after the render tool
-   * fires successfully. Hosts typically pipe this into the top-level
-   * `setViewData` so the Builder swaps into the rendered view.
-   */
-  onRendered?: (viewData: unknown) => void
   /** Called with `{ id, name }` after a successful save. */
   onSaved?: (result: { id: string; name: string }) => void
 }
@@ -138,6 +186,33 @@ function draftToLayout(draft: DraftLayout): LayoutConfig {
   return { rows: cloneRows(draft.rows) }
 }
 
+function keysToEntries(keys: Record<string, unknown> | undefined): KeyEntry[] {
+  if (!keys) return []
+  return Object.entries(keys).map(([name, value]) => ({
+    name,
+    rawValue: typeof value === "string" ? value : JSON.stringify(value),
+  }))
+}
+
+function parseKeyValue(raw: string): unknown {
+  const trimmed = raw.trim()
+  if (trimmed === "") return ""
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return raw
+  }
+}
+
+function entriesToKeys(entries: KeyEntry[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const entry of entries) {
+    if (!entry.name.trim()) continue
+    out[entry.name] = parseKeyValue(entry.rawValue)
+  }
+  return out
+}
+
 export function LayoutBuilder({
   initialLayout,
   title,
@@ -145,38 +220,61 @@ export function LayoutBuilder({
   initialSteps,
   context,
   reachableWidgets,
+  availableSteps,
   widgets,
   callTool,
-  renderToolName = "render-view",
+  builderToolName = "open-view-builder",
   saveToolName = "save-dashboard",
   dashboardId,
   labels,
-  onRendered,
   onSaved,
 }: LayoutBuilderProps) {
   const L = { ...DEFAULT_LABELS, ...labels }
+
+  // Layout draft (rows / tabs) — lives locally, flushed to the server only on
+  // save-dashboard. Never round-trips through render-view, so the user can
+  // always return to edit mode (fix for "nach Render view kein Weg zurück").
   const [draft, setDraft] = useState<DraftLayout>(() => initDraft(initialLayout))
   const [activeTabIndex, setActiveTabIndex] = useState(0)
   const [focusedRowIndex, setFocusedRowIndex] = useState(0)
+  const [preview, setPreview] = useState(false)
+
+  // Keys + steps editor state. Backed by a separate "live" set that only
+  // updates after a successful `open-view-builder` re-run.
+  const [keyEntries, setKeyEntries] = useState<KeyEntry[]>(() => keysToEntries(initialKeys))
+  const [stepEntries, setStepEntries] = useState<PipelineStepRef[]>(() => initialSteps ?? [])
+
+  // Live snapshot driven by the latest open-view-builder response. Seed from
+  // props and update on refresh.
+  const [liveReachable, setLiveReachable] = useState<ReachableWidget[]>(reachableWidgets)
+  const [liveContext, setLiveContext] = useState<PipelineContext>(context)
+  useEffect(() => setLiveReachable(reachableWidgets), [reachableWidgets])
+  useEffect(() => setLiveContext(context), [context])
+
+  const [isRefreshing, setRefreshing] = useState(false)
+  const [isBusy, setBusy] = useState(false)
+
   const [saveOpen, setSaveOpen] = useState(false)
   const [saveName, setSaveName] = useState(title ?? "")
   const [saveDescription, setSaveDescription] = useState("")
-  const [isBusy, setBusy] = useState(false)
 
-  const widgetById = useMemo(() => {
-    const map = new Map<string, ReachableWidget>()
-    for (const w of reachableWidgets) map.set(w.id, w)
-    return map
-  }, [reachableWidgets])
+  // Drag-and-drop feedback state.
+  const [dragOverRow, setDragOverRow] = useState<number | null>(null)
 
   const paletteByApp = useMemo(() => {
     const groups = new Map<string, ReachableWidget[]>()
-    for (const w of reachableWidgets) {
+    for (const w of liveReachable) {
       if (!groups.has(w.app)) groups.set(w.app, [])
       groups.get(w.app)!.push(w)
     }
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
-  }, [reachableWidgets])
+  }, [liveReachable])
+
+  const widgetById = useMemo(() => {
+    const map = new Map<string, ReachableWidget>()
+    for (const w of liveReachable) map.set(w.id, w)
+    return map
+  }, [liveReachable])
 
   const activeRows: RowDef[] =
     draft.kind === "tabs" ? (draft.tabs[activeTabIndex]?.rows ?? []) : draft.rows
@@ -194,19 +292,19 @@ export function LayoutBuilder({
     [activeTabIndex],
   )
 
-  const addWidgetToFocusedRow = useCallback(
-    (widgetId: string) => {
+  const addWidgetToRow = useCallback(
+    (widgetId: string, targetRowIdx?: number) => {
       const widget = widgetById.get(widgetId)
       if (!widget) return
       const defaultSpan = sizeToSpan(widget.size)
       mutateActiveRows((rows) => {
         const safeRows = rows.length > 0 ? rows : emptyRows()
-        const idx = Math.min(Math.max(focusedRowIndex, 0), safeRows.length - 1)
-        const next = safeRows.map((r, i) =>
+        const idx = Math.min(Math.max(targetRowIdx ?? focusedRowIndex, 0), safeRows.length - 1)
+        return safeRows.map((r, i) =>
           i === idx ? { row: [...r.row, { widget: widgetId, span: defaultSpan }] } : r,
         )
-        return next
       })
+      setFocusedRowIndex(targetRowIdx ?? focusedRowIndex)
     },
     [focusedRowIndex, mutateActiveRows, widgetById],
   )
@@ -311,34 +409,72 @@ export function LayoutBuilder({
     })
   }, [])
 
-  const renderDraftLayout = useCallback(async () => {
-    setBusy(true)
+  // --- Keys + steps editors -------------------------------------------------
+
+  const addKey = useCallback(() => {
+    setKeyEntries((prev) => [...prev, { name: "", rawValue: "" }])
+  }, [])
+
+  const updateKey = useCallback((idx: number, patch: Partial<KeyEntry>) => {
+    setKeyEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)))
+  }, [])
+
+  const removeKey = useCallback((idx: number) => {
+    setKeyEntries((prev) => prev.filter((_, i) => i !== idx))
+  }, [])
+
+  const addStep = useCallback((stepId?: string) => {
+    setStepEntries((prev) => {
+      const next = [...prev]
+      const baseId = stepId ? stepId.split(":")[1] || stepId : `step-${prev.length + 1}`
+      next.push({ id: baseId, step: stepId ?? "", optional: false })
+      return next
+    })
+  }, [])
+
+  const updateStep = useCallback((idx: number, patch: Partial<PipelineStepRef>) => {
+    setStepEntries((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)))
+  }, [])
+
+  const removeStep = useCallback((idx: number) => {
+    setStepEntries((prev) => prev.filter((_, i) => i !== idx))
+  }, [])
+
+  const refreshBuilder = useCallback(async () => {
+    setRefreshing(true)
     try {
-      const layout = draftToLayout(draft)
-      const result = (await callTool(renderToolName, {
-        keys: initialKeys,
-        steps: initialSteps,
-        layout,
+      const result = (await callTool(builderToolName, {
+        keys: entriesToKeys(keyEntries),
+        steps: stepEntries.filter((s) => s.step.trim().length > 0),
+        layout: draftToLayout(draft),
         title,
-      })) as { structuredContent?: unknown }
-      if (result.structuredContent && onRendered) onRendered(result.structuredContent)
+      })) as {
+        structuredContent?: {
+          reachableWidgets?: ReachableWidget[]
+          context?: PipelineContext
+        }
+      }
+      const sc = result.structuredContent
+      if (sc?.reachableWidgets) setLiveReachable(sc.reachableWidgets)
+      if (sc?.context) setLiveContext(sc.context)
     } finally {
-      setBusy(false)
+      setRefreshing(false)
     }
-  }, [callTool, draft, initialKeys, initialSteps, onRendered, renderToolName, title])
+  }, [builderToolName, callTool, draft, keyEntries, stepEntries, title])
+
+  // --- Save dialog ----------------------------------------------------------
 
   const saveDraft = useCallback(async () => {
     if (!saveName.trim()) return
     setBusy(true)
     try {
-      const layout = draftToLayout(draft)
       const result = (await callTool(saveToolName, {
         id: dashboardId,
         name: saveName.trim(),
         description: saveDescription.trim() || undefined,
-        keys: initialKeys,
-        steps: initialSteps,
-        layout,
+        keys: entriesToKeys(keyEntries),
+        steps: stepEntries.filter((s) => s.step.trim().length > 0),
+        layout: draftToLayout(draft),
         title,
       })) as { structuredContent?: { id?: string; name?: string } }
       setSaveOpen(false)
@@ -355,159 +491,45 @@ export function LayoutBuilder({
     callTool,
     dashboardId,
     draft,
-    initialKeys,
-    initialSteps,
+    keyEntries,
     onSaved,
     saveDescription,
     saveName,
     saveToolName,
+    stepEntries,
     title,
   ])
 
-  const widgetProps: WidgetProps = { keys: context.keys, context }
-
+  const widgetProps: WidgetProps = { keys: liveContext.keys, context: liveContext }
   const hasAnyCell = activeRows.some((r) => r.row.length > 0)
 
-  const canvas = (
-    <div className="flex flex-col gap-3">
-      {activeRows.map((row, rowIdx) => (
-        <Card
-          key={rowIdx}
-          onClick={() => setFocusedRowIndex(rowIdx)}
-          data-focused={rowIdx === focusedRowIndex}
-          className={
-            "gap-0 p-3 transition-colors " +
-            (rowIdx === focusedRowIndex ? "ring-ring ring-2 ring-offset-1" : "")
-          }
-        >
-          <div className="mb-2 flex items-center justify-between">
-            <div className="text-muted-foreground flex items-center gap-2 text-xs">
-              <Rows3 className="size-3.5" />
-              Row {rowIdx + 1}
-              <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5">
-                {row.row.length} widget{row.row.length === 1 ? "" : "s"}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  moveRow(rowIdx, -1)
-                }}
-                disabled={rowIdx === 0}
-                aria-label="Move row up"
-              >
-                <ChevronUp />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  moveRow(rowIdx, 1)
-                }}
-                disabled={rowIdx === activeRows.length - 1}
-                aria-label="Move row down"
-              >
-                <ChevronDown />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  removeRow(rowIdx)
-                }}
-                aria-label={L.removeRow}
-              >
-                <Trash2 />
-              </Button>
-            </div>
+  // --- Preview path ---------------------------------------------------------
+
+  if (preview) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Eye className="text-primary size-4" />
+            <h2 className="text-lg font-semibold">{title ?? L.title}</h2>
+            <Badge variant="outline">{L.preview}</Badge>
           </div>
-          {row.row.length === 0 ? (
-            <div className="border-muted-foreground/30 text-muted-foreground rounded-md border border-dashed p-4 text-center text-xs">
-              Empty row — click a widget in the palette to add it here.
-            </div>
-          ) : (
-            <GridLayout>
-              {row.row.map((cell, cellIdx) => {
-                const span = cell.span ?? 12
-                const Widget = widgets[cell.widget]
-                return (
-                  <GridItem key={`${cell.widget}-${cellIdx}`} span={span}>
-                    <div className="border-border bg-card overflow-hidden rounded-md border">
-                      <div className="bg-muted/40 flex items-center justify-between gap-2 px-2 py-1 text-xs">
-                        <span className="text-muted-foreground truncate font-mono">
-                          {cell.widget}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setCellSpan(rowIdx, cellIdx, span - 1)
-                            }}
-                            disabled={span <= 1}
-                            aria-label="Decrease span"
-                          >
-                            <Minus />
-                          </Button>
-                          <span className="min-w-8 text-center font-mono">{span}/12</span>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setCellSpan(rowIdx, cellIdx, span + 1)
-                            }}
-                            disabled={span >= 12}
-                            aria-label="Increase span"
-                          >
-                            <Plus />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removeCell(rowIdx, cellIdx)
-                            }}
-                            aria-label="Remove widget"
-                          >
-                            <X />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="p-2">
-                        {Widget ? (
-                          <Widget {...widgetProps} />
-                        ) : (
-                          <div className="text-muted-foreground rounded border border-dashed p-4 text-center text-xs">
-                            Widget "{cell.widget}" not bundled.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </GridItem>
-                )
-              })}
-            </GridLayout>
-          )}
-        </Card>
-      ))}
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={addRow}>
-          <Plus /> {L.addRow}
-        </Button>
-        <Button variant="outline" size="sm" onClick={addTab}>
-          <Plus /> {L.addTab}
-        </Button>
+          <Button variant="outline" size="sm" onClick={() => setPreview(false)}>
+            <Pencil /> {L.edit}
+          </Button>
+        </div>
+        <PreviewPane
+          draft={draft}
+          activeTabIndex={activeTabIndex}
+          setActiveTabIndex={setActiveTabIndex}
+          widgets={widgets}
+          widgetProps={widgetProps}
+        />
       </div>
-    </div>
-  )
+    )
+  }
+
+  // --- Edit path ------------------------------------------------------------
 
   return (
     <div className="flex flex-col gap-4">
@@ -521,111 +543,133 @@ export function LayoutBuilder({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              void renderDraftLayout()
-            }}
-            disabled={isBusy || !hasAnyCell}
+            onClick={() => setPreview(true)}
+            disabled={isBusy || isRefreshing || !hasAnyCell}
           >
-            {L.render}
+            <Eye /> {L.preview}
           </Button>
-          <Button size="sm" onClick={() => setSaveOpen(true)} disabled={isBusy || !hasAnyCell}>
+          <Button
+            size="sm"
+            onClick={() => setSaveOpen(true)}
+            disabled={isBusy || isRefreshing || !hasAnyCell}
+          >
             <Save /> {L.save}
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-4">
-        <aside className="col-span-12 md:col-span-4 lg:col-span-3">
-          <Card className="gap-0 p-3">
-            <div className="mb-2 flex items-center justify-between text-xs font-medium">
-              <span>{L.palette}</span>
-              <Badge variant="outline">{reachableWidgets.length}</Badge>
-            </div>
-            <Separator className="mb-2" />
-            {reachableWidgets.length === 0 ? (
-              <div className="text-muted-foreground text-xs">{L.paletteEmpty}</div>
-            ) : (
-              <ScrollArea className="max-h-[60vh]">
-                <div className="flex flex-col gap-3 pr-2">
-                  {paletteByApp.map(([app, ws]) => (
-                    <div key={app} className="flex flex-col gap-1">
-                      <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                        {app}
-                      </div>
-                      {ws.map((w) => (
-                        <button
-                          key={w.id}
-                          type="button"
-                          onClick={() => addWidgetToFocusedRow(w.id)}
-                          className="hover:bg-accent hover:text-accent-foreground group flex flex-col items-start gap-0.5 rounded-md border px-2 py-1.5 text-left text-xs transition-colors"
-                        >
-                          <span className="flex w-full items-center justify-between gap-2">
-                            <span className="truncate font-mono">{w.id}</span>
-                            <Plus className="text-muted-foreground group-hover:text-foreground size-3" />
-                          </span>
-                          {w.requires.length > 0 && (
-                            <span className="text-muted-foreground truncate">
-                              requires: {w.requires.join(", ")}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </Card>
-        </aside>
+      <ContextEditor
+        labels={L}
+        keyEntries={keyEntries}
+        stepEntries={stepEntries}
+        availableSteps={availableSteps}
+        isRefreshing={isRefreshing}
+        onAddKey={addKey}
+        onUpdateKey={updateKey}
+        onRemoveKey={removeKey}
+        onAddStep={addStep}
+        onUpdateStep={updateStep}
+        onRemoveStep={removeStep}
+        onApply={() => void refreshBuilder()}
+      />
 
-        <section className="col-span-12 md:col-span-8 lg:col-span-9">
-          {draft.kind === "tabs" ? (
-            <Tabs
-              value={draft.tabs[activeTabIndex]?.label ?? ""}
-              onValueChange={(label) => {
-                const idx = draft.tabs.findIndex((t) => t.label === label)
-                if (idx >= 0) setActiveTabIndex(idx)
+      {draft.kind === "tabs" ? (
+        <Tabs
+          value={draft.tabs[activeTabIndex]?.label ?? ""}
+          onValueChange={(label) => {
+            const idx = draft.tabs.findIndex((t) => t.label === label)
+            if (idx >= 0) setActiveTabIndex(idx)
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <TabsList>
+              {draft.tabs.map((tab) => (
+                <TabsTrigger key={tab.label} value={tab.label}>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={addTab}
+              aria-label={L.addTab}
+              title={L.addTab}
+            >
+              <Plus />
+            </Button>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                const next = window.prompt(L.renameTab, draft.tabs[activeTabIndex]?.label ?? "")
+                if (next && next.trim()) renameTab(activeTabIndex, next.trim())
               }}
             >
-              <div className="flex items-center gap-2">
-                <TabsList>
-                  {draft.tabs.map((tab) => (
-                    <TabsTrigger key={tab.label} value={tab.label}>
-                      {tab.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => {
-                    const next = window.prompt(L.renameTab, draft.tabs[activeTabIndex]?.label ?? "")
-                    if (next && next.trim()) renameTab(activeTabIndex, next.trim())
-                  }}
-                >
-                  {L.renameTab}
-                </Button>
-                <Button variant="ghost" size="xs" onClick={() => removeTab(activeTabIndex)}>
-                  {L.removeTab}
-                </Button>
-              </div>
-              {draft.tabs.map((tab, idx) => (
-                <TabsContent key={tab.label} value={tab.label} className="mt-3">
-                  {idx === activeTabIndex ? canvas : null}
-                </TabsContent>
-              ))}
-            </Tabs>
-          ) : hasAnyCell ? (
-            canvas
-          ) : (
-            <div className="border-muted-foreground/30 text-muted-foreground flex flex-col items-center gap-2 rounded-md border border-dashed p-10 text-sm">
-              <Rows3 className="size-5" />
-              {L.canvasEmpty}
-              {canvas}
-            </div>
-          )}
-        </section>
-      </div>
+              {L.renameTab}
+            </Button>
+            <Button variant="ghost" size="xs" onClick={() => removeTab(activeTabIndex)}>
+              {L.removeTab}
+            </Button>
+          </div>
+          {draft.tabs.map((tab, idx) => (
+            <TabsContent key={tab.label} value={tab.label} className="mt-3">
+              {idx === activeTabIndex ? (
+                <BuilderWorkspace
+                  labels={L}
+                  activeRows={activeRows}
+                  focusedRowIndex={focusedRowIndex}
+                  dragOverRow={dragOverRow}
+                  setDragOverRow={setDragOverRow}
+                  setFocusedRowIndex={setFocusedRowIndex}
+                  onAddRow={addRow}
+                  onRemoveRow={removeRow}
+                  onMoveRow={moveRow}
+                  onSetCellSpan={setCellSpan}
+                  onRemoveCell={removeCell}
+                  onAddWidget={addWidgetToRow}
+                  widgets={widgets}
+                  widgetProps={widgetProps}
+                  paletteByApp={paletteByApp}
+                  paletteCount={liveReachable.length}
+                />
+              ) : null}
+            </TabsContent>
+          ))}
+        </Tabs>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={addTab}
+              aria-label={L.addTab}
+              title={L.addTab}
+            >
+              <Plus /> {L.addTab}
+            </Button>
+          </div>
+          <BuilderWorkspace
+            labels={L}
+            activeRows={activeRows}
+            focusedRowIndex={focusedRowIndex}
+            dragOverRow={dragOverRow}
+            setDragOverRow={setDragOverRow}
+            setFocusedRowIndex={setFocusedRowIndex}
+            onAddRow={addRow}
+            onRemoveRow={removeRow}
+            onMoveRow={moveRow}
+            onSetCellSpan={setCellSpan}
+            onRemoveCell={removeCell}
+            onAddWidget={addWidgetToRow}
+            widgets={widgets}
+            widgetProps={widgetProps}
+            paletteByApp={paletteByApp}
+            paletteCount={liveReachable.length}
+          />
+        </div>
+      )}
 
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent>
@@ -669,6 +713,578 @@ export function LayoutBuilder({
       </Dialog>
     </div>
   )
+}
+
+// -------------------------------------------------------------------------- //
+// Sub-components
+// -------------------------------------------------------------------------- //
+
+function ContextEditor({
+  labels,
+  keyEntries,
+  stepEntries,
+  availableSteps,
+  isRefreshing,
+  onAddKey,
+  onUpdateKey,
+  onRemoveKey,
+  onAddStep,
+  onUpdateStep,
+  onRemoveStep,
+  onApply,
+}: {
+  labels: Required<LayoutBuilderLabels>
+  keyEntries: KeyEntry[]
+  stepEntries: PipelineStepRef[]
+  availableSteps: AvailableStep[]
+  isRefreshing: boolean
+  onAddKey: () => void
+  onUpdateKey: (idx: number, patch: Partial<KeyEntry>) => void
+  onRemoveKey: (idx: number) => void
+  onAddStep: (stepId?: string) => void
+  onUpdateStep: (idx: number, patch: Partial<PipelineStepRef>) => void
+  onRemoveStep: (idx: number) => void
+  onApply: () => void
+}) {
+  return (
+    <Card className="gap-0 p-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <section className="flex flex-col gap-2">
+          <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            {labels.keysHeader}
+          </div>
+          {keyEntries.length === 0 ? (
+            <div className="text-muted-foreground text-xs italic">
+              No keys yet — add one below to unlock widgets.
+            </div>
+          ) : (
+            keyEntries.map((entry, idx) => (
+              <div key={idx} className="flex items-center gap-1">
+                <Input
+                  value={entry.name}
+                  onChange={(e) => onUpdateKey(idx, { name: e.target.value })}
+                  placeholder={labels.keyName}
+                  className="font-mono text-xs"
+                />
+                <Input
+                  value={entry.rawValue}
+                  onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
+                  placeholder={labels.keyValue}
+                  className="font-mono text-xs"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => onRemoveKey(idx)}
+                  aria-label="Remove key"
+                >
+                  <X />
+                </Button>
+              </div>
+            ))
+          )}
+          <Button variant="outline" size="sm" onClick={onAddKey} className="self-start">
+            <Plus /> {labels.addKey}
+          </Button>
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            {labels.stepsHeader}
+          </div>
+          {stepEntries.length === 0 ? (
+            <div className="text-muted-foreground text-xs italic">
+              No steps yet — optional, but widgets that need step-produced keys stay hidden without
+              them.
+            </div>
+          ) : (
+            stepEntries.map((step, idx) => (
+              <div key={idx} className="flex items-center gap-1">
+                <Input
+                  value={step.id}
+                  onChange={(e) => onUpdateStep(idx, { id: e.target.value })}
+                  placeholder={labels.stepContextId}
+                  className="w-28 font-mono text-xs"
+                />
+                <Select
+                  value={step.step || undefined}
+                  onValueChange={(value) => onUpdateStep(idx, { step: value })}
+                >
+                  <SelectTrigger className="h-9 flex-1 text-xs">
+                    <SelectValue placeholder={labels.stepPickerLabel} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSteps.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <span className="font-mono text-xs">{s.id}</span>
+                        <span className="text-muted-foreground ml-2 text-[10px]">
+                          {s.requires.length > 0 ? `← ${s.requires.join(", ")}` : "(no inputs)"}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => onRemoveStep(idx)}
+                  aria-label="Remove step"
+                >
+                  <X />
+                </Button>
+              </div>
+            ))
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onAddStep()}
+            className="self-start"
+            disabled={availableSteps.length === 0}
+          >
+            <Plus /> {labels.addStep}
+          </Button>
+        </section>
+      </div>
+
+      <Separator className="my-3" />
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={onApply} disabled={isRefreshing}>
+          {isRefreshing ? (
+            <>
+              <RefreshCw className="animate-spin" /> {labels.refreshing}
+            </>
+          ) : (
+            <>
+              <RefreshCw /> {labels.applyContext}
+            </>
+          )}
+        </Button>
+        <span className="text-muted-foreground text-xs">
+          Applies new keys + steps and refreshes the palette.
+        </span>
+      </div>
+    </Card>
+  )
+}
+
+function BuilderWorkspace({
+  labels,
+  activeRows,
+  focusedRowIndex,
+  dragOverRow,
+  setDragOverRow,
+  setFocusedRowIndex,
+  onAddRow,
+  onRemoveRow,
+  onMoveRow,
+  onSetCellSpan,
+  onRemoveCell,
+  onAddWidget,
+  widgets,
+  widgetProps,
+  paletteByApp,
+  paletteCount,
+}: {
+  labels: Required<LayoutBuilderLabels>
+  activeRows: RowDef[]
+  focusedRowIndex: number
+  dragOverRow: number | null
+  setDragOverRow: (idx: number | null) => void
+  setFocusedRowIndex: (idx: number) => void
+  onAddRow: () => void
+  onRemoveRow: (rowIdx: number) => void
+  onMoveRow: (rowIdx: number, direction: -1 | 1) => void
+  onSetCellSpan: (rowIdx: number, cellIdx: number, span: number) => void
+  onRemoveCell: (rowIdx: number, cellIdx: number) => void
+  onAddWidget: (widgetId: string, targetRowIdx?: number) => void
+  widgets: Record<string, WidgetComponent>
+  widgetProps: WidgetProps
+  paletteByApp: [string, ReachableWidget[]][]
+  paletteCount: number
+}) {
+  return (
+    <div className="grid grid-cols-12 gap-4">
+      <aside className="col-span-12 md:col-span-4 lg:col-span-3">
+        <Card className="gap-0 p-3">
+          <div className="mb-2 flex items-center justify-between text-xs font-medium">
+            <span>{labels.palette}</span>
+            <Badge variant="outline">{paletteCount}</Badge>
+          </div>
+          <Separator className="mb-2" />
+          {paletteCount === 0 ? (
+            <div className="text-muted-foreground text-xs">{labels.paletteEmpty}</div>
+          ) : (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="flex flex-col gap-3 pr-2">
+                {paletteByApp.map(([app, ws]) => (
+                  <div key={app} className="flex flex-col gap-1">
+                    <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                      {app}
+                    </div>
+                    {ws.map((w) => (
+                      <button
+                        key={w.id}
+                        type="button"
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData(WIDGET_DRAG_MIME, w.id)
+                          e.dataTransfer.effectAllowed = "copy"
+                        }}
+                        onClick={() => onAddWidget(w.id)}
+                        className="hover:bg-accent hover:text-accent-foreground group flex cursor-grab flex-col items-start gap-0.5 rounded-md border px-2 py-1.5 text-left text-xs transition-colors active:cursor-grabbing"
+                      >
+                        <span className="flex w-full items-center justify-between gap-2">
+                          <span className="truncate font-mono">{w.id}</span>
+                          <GripVertical className="text-muted-foreground size-3" />
+                        </span>
+                        {w.requires.length > 0 && (
+                          <span className="text-muted-foreground truncate">
+                            requires: {w.requires.join(", ")}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </Card>
+      </aside>
+
+      <section className="col-span-12 md:col-span-8 lg:col-span-9">
+        <div className="flex flex-col gap-3">
+          {activeRows.map((row, rowIdx) => (
+            <BuilderRow
+              key={rowIdx}
+              labels={labels}
+              row={row}
+              rowIdx={rowIdx}
+              focused={rowIdx === focusedRowIndex}
+              isFirst={rowIdx === 0}
+              isLast={rowIdx === activeRows.length - 1}
+              dragOver={dragOverRow === rowIdx}
+              setDragOverRow={setDragOverRow}
+              setFocusedRowIndex={setFocusedRowIndex}
+              onRemoveRow={onRemoveRow}
+              onMoveRow={onMoveRow}
+              onSetCellSpan={onSetCellSpan}
+              onRemoveCell={onRemoveCell}
+              onAddWidget={onAddWidget}
+              widgets={widgets}
+              widgetProps={widgetProps}
+            />
+          ))}
+          <div>
+            <Button variant="outline" size="sm" onClick={onAddRow}>
+              <Plus /> {labels.addRow}
+            </Button>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function BuilderRow({
+  labels,
+  row,
+  rowIdx,
+  focused,
+  isFirst,
+  isLast,
+  dragOver,
+  setDragOverRow,
+  setFocusedRowIndex,
+  onRemoveRow,
+  onMoveRow,
+  onSetCellSpan,
+  onRemoveCell,
+  onAddWidget,
+  widgets,
+  widgetProps,
+}: {
+  labels: Required<LayoutBuilderLabels>
+  row: RowDef
+  rowIdx: number
+  focused: boolean
+  isFirst: boolean
+  isLast: boolean
+  dragOver: boolean
+  setDragOverRow: (idx: number | null) => void
+  setFocusedRowIndex: (idx: number) => void
+  onRemoveRow: (rowIdx: number) => void
+  onMoveRow: (rowIdx: number, direction: -1 | 1) => void
+  onSetCellSpan: (rowIdx: number, cellIdx: number, span: number) => void
+  onRemoveCell: (rowIdx: number, cellIdx: number) => void
+  onAddWidget: (widgetId: string, targetRowIdx?: number) => void
+  widgets: Record<string, WidgetComponent>
+  widgetProps: WidgetProps
+}) {
+  const gridRef = useRef<HTMLDivElement | null>(null)
+
+  return (
+    <Card
+      onClick={() => setFocusedRowIndex(rowIdx)}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes(WIDGET_DRAG_MIME)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = "copy"
+        setDragOverRow(rowIdx)
+      }}
+      onDragLeave={(e) => {
+        // Only clear if leaving the card itself, not a child element.
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setDragOverRow(null)
+      }}
+      onDrop={(e) => {
+        const id = e.dataTransfer.getData(WIDGET_DRAG_MIME)
+        setDragOverRow(null)
+        if (id) {
+          e.preventDefault()
+          onAddWidget(id, rowIdx)
+        }
+      }}
+      data-focused={focused}
+      className={
+        "gap-0 p-3 transition-colors " +
+        (focused ? "ring-ring ring-2 ring-offset-1 " : "") +
+        (dragOver ? "bg-accent/40" : "")
+      }
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-muted-foreground flex items-center gap-2 text-xs">
+          <Rows3 className="size-3.5" />
+          Row {rowIdx + 1}
+          <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5">
+            {row.row.length} widget{row.row.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => {
+              e.stopPropagation()
+              onMoveRow(rowIdx, -1)
+            }}
+            disabled={isFirst}
+            aria-label="Move row up"
+          >
+            <ChevronUp />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => {
+              e.stopPropagation()
+              onMoveRow(rowIdx, 1)
+            }}
+            disabled={isLast}
+            aria-label="Move row down"
+          >
+            <ChevronDown />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => {
+              e.stopPropagation()
+              onRemoveRow(rowIdx)
+            }}
+            aria-label={labels.removeRow}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      </div>
+      {row.row.length === 0 ? (
+        <div
+          className={
+            "rounded-md border border-dashed p-4 text-center text-xs transition-colors " +
+            (dragOver
+              ? "border-primary text-primary"
+              : "border-muted-foreground/30 text-muted-foreground")
+          }
+        >
+          {dragOver ? labels.canvasDropHint : labels.canvasEmpty}
+        </div>
+      ) : (
+        <div ref={gridRef} data-row-grid>
+          <GridLayout>
+            {row.row.map((cell, cellIdx) => {
+              const span = cell.span ?? 12
+              const Widget = widgets[cell.widget]
+              return (
+                <GridItem key={`${cell.widget}-${cellIdx}`} span={span}>
+                  <div className="border-border bg-card relative overflow-hidden rounded-md border">
+                    <div className="bg-muted/40 flex items-center justify-between gap-2 px-2 py-1 text-xs">
+                      <span className="text-muted-foreground truncate font-mono">
+                        {cell.widget}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground min-w-8 text-center font-mono">
+                          {span}/12
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onRemoveCell(rowIdx, cellIdx)
+                          }}
+                          aria-label="Remove widget"
+                        >
+                          <X />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      {Widget ? (
+                        <Widget {...widgetProps} />
+                      ) : (
+                        <div className="text-muted-foreground rounded border border-dashed p-4 text-center text-xs">
+                          Widget "{cell.widget}" not bundled.
+                        </div>
+                      )}
+                    </div>
+                    <ResizeHandle
+                      rowIdx={rowIdx}
+                      cellIdx={cellIdx}
+                      span={span}
+                      getGridEl={() => gridRef.current}
+                      onSetCellSpan={onSetCellSpan}
+                    />
+                  </div>
+                </GridItem>
+              )
+            })}
+          </GridLayout>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Right-edge grab handle. On pointerDown it captures the pointer, measures
+ * the enclosing row's grid width, and converts mouse movement to integer
+ * span deltas (1 col = gridWidth / 12).
+ */
+function ResizeHandle({
+  rowIdx,
+  cellIdx,
+  span,
+  getGridEl,
+  onSetCellSpan,
+}: {
+  rowIdx: number
+  cellIdx: number
+  span: number
+  getGridEl: () => HTMLElement | null
+  onSetCellSpan: (rowIdx: number, cellIdx: number, span: number) => void
+}) {
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const grid = getGridEl()
+      if (!grid) return
+      const rect = grid.getBoundingClientRect()
+      const colWidth = rect.width / 12
+      const startX = e.clientX
+      const startSpan = span
+      // Shared closure — avoids the mutual dependency between move/up
+      // handlers that plagues the useCallback-per-handler pattern.
+      const onMove = (ev: PointerEvent) => {
+        const delta = ev.clientX - startX
+        const next = Math.round(startSpan + delta / colWidth)
+        onSetCellSpan(rowIdx, cellIdx, Math.max(1, Math.min(12, next)))
+      }
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove)
+        window.removeEventListener("pointerup", onUp)
+      }
+      window.addEventListener("pointermove", onMove)
+      window.addEventListener("pointerup", onUp)
+    },
+    [cellIdx, getGridEl, onSetCellSpan, rowIdx, span],
+  )
+
+  return (
+    <div
+      onPointerDown={onPointerDown}
+      onClick={(e) => e.stopPropagation()}
+      className="hover:bg-primary/40 absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none select-none"
+      aria-label="Resize widget"
+      role="separator"
+    />
+  )
+}
+
+function PreviewPane({
+  draft,
+  activeTabIndex,
+  setActiveTabIndex,
+  widgets,
+  widgetProps,
+}: {
+  draft: DraftLayout
+  activeTabIndex: number
+  setActiveTabIndex: (idx: number) => void
+  widgets: Record<string, WidgetComponent>
+  widgetProps: WidgetProps
+}) {
+  const rows = draft.kind === "tabs" ? (draft.tabs[activeTabIndex]?.rows ?? []) : draft.rows
+  const renderRows = (rs: RowDef[]) => (
+    <div className="flex flex-col gap-4">
+      {rs.map((row, rowIdx) => (
+        <GridLayout key={rowIdx}>
+          {row.row.map((cell, cellIdx) => {
+            const Widget = widgets[cell.widget]
+            return (
+              <GridItem key={`${cell.widget}-${cellIdx}`} span={cell.span ?? 12}>
+                {Widget ? (
+                  <Widget {...widgetProps} />
+                ) : (
+                  <div className="text-muted-foreground rounded border border-dashed p-4 text-center text-xs">
+                    Widget "{cell.widget}" not bundled.
+                  </div>
+                )}
+              </GridItem>
+            )
+          })}
+        </GridLayout>
+      ))}
+    </div>
+  )
+
+  if (draft.kind === "tabs") {
+    return (
+      <Tabs
+        value={draft.tabs[activeTabIndex]?.label ?? ""}
+        onValueChange={(label) => {
+          const idx = draft.tabs.findIndex((t) => t.label === label)
+          if (idx >= 0) setActiveTabIndex(idx)
+        }}
+      >
+        <TabsList>
+          {draft.tabs.map((tab) => (
+            <TabsTrigger key={tab.label} value={tab.label}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {draft.tabs.map((tab) => (
+          <TabsContent key={tab.label} value={tab.label} className="mt-3">
+            {renderRows(tab.rows)}
+          </TabsContent>
+        ))}
+      </Tabs>
+    )
+  }
+  return renderRows(rows)
 }
 
 function sizeToSpan(size: string): number {

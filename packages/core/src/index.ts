@@ -26,7 +26,12 @@ export { loadApps } from "./registry/app-loader.js"
 export { renderView } from "./framework/render-view.js"
 export type { RenderViewInput, RemoteWidgetInfo } from "./framework/render-view.js"
 export { buildView } from "./framework/builder.js"
-export type { BuildViewInput, BuildViewPayload, ReachableWidget } from "./framework/builder.js"
+export type {
+  BuildViewInput,
+  BuildViewPayload,
+  ReachableWidget,
+  AvailableStep,
+} from "./framework/builder.js"
 // Dashboard store *implementations* live in the `./tools` subpath because
 // the filesystem impl imports `node:fs`. Types are safe to re-export here
 // for consumers typing their own stores.

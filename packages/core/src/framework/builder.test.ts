@@ -71,6 +71,15 @@ describe("buildView", () => {
     const payload = result.structuredContent
     expect(payload.reachableWidgets.map((w) => w.id)).toEqual(["sales:customer-card"])
     expect(payload.context.keys).toMatchObject({ "sales:customer": { id: "C-1" } })
+    expect(payload.availableSteps).toEqual([
+      {
+        id: "sales:load-customer",
+        app: "sales",
+        dataType: "sales:customer",
+        requires: ["sales:customerId"],
+        produces: ["sales:customer"],
+      },
+    ])
   })
 
   it("returns a non-error payload even when the pipeline validation finds issues", async () => {

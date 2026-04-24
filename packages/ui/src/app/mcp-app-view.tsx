@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react"
 import { useWidget } from "mcp-use/react"
 import type {
+  AvailableStep,
   LayoutConfig,
   PipelineContext,
   PipelineStepRef,
@@ -123,6 +124,8 @@ interface ViewData {
   remoteWidgets?: Record<string, RemoteWidgetInfo>
   /** Populated only in builder mode — palette of widgets whose `requires` are satisfied. */
   reachableWidgets?: ReachableWidget[]
+  /** Populated only in builder mode — catalogue of registered pipeline steps. */
+  availableSteps?: AvailableStep[]
 }
 
 export interface McpAppViewProps {
@@ -384,10 +387,9 @@ export function McpAppView({
             initialSteps={viewData._refreshParams?.steps}
             context={toPipelineContext(viewData.context)}
             reachableWidgets={viewData.reachableWidgets ?? []}
+            availableSteps={viewData.availableSteps ?? []}
             widgets={mergedWidgets}
             callTool={callToolFn}
-            refreshToolName={refreshToolName}
-            onRendered={(next) => setViewData(next as ViewData)}
           />
         ) : viewData.layout ? (
           <WidgetRenderer

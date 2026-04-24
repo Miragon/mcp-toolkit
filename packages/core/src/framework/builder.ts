@@ -27,6 +27,19 @@ export interface ReachableWidget {
 }
 
 /**
+ * Manifest entry for a registered pipeline step. The builder UI surfaces
+ * the catalogue in a picker so users can compose pipelines interactively
+ * without a separate `get-framework-manifest` round-trip.
+ */
+export interface AvailableStep {
+  id: string
+  app: string
+  dataType: string
+  requires: string[]
+  produces: string[]
+}
+
+/**
  * Shape of `open-view-builder`'s structuredContent. Symmetric to
  * `renderView`'s payload so the `McpAppView` can reuse the same pipeline
  * wiring for live preview, then branch on `mode === "builder"` to render
@@ -47,6 +60,7 @@ export interface BuildViewPayload {
   }
   layout?: LayoutConfig
   reachableWidgets: ReachableWidget[]
+  availableSteps: AvailableStep[]
   remoteWidgets: Record<string, RemoteWidgetInfo>
 }
 
@@ -91,6 +105,14 @@ export async function buildView(
       requires: w.requires,
       size: w.size,
     }))
+
+  const availableSteps: AvailableStep[] = stepRegistry.getAll().map((s) => ({
+    id: s.id,
+    app: s.id.split(":")[0],
+    dataType: s.dataType,
+    requires: s.requires,
+    produces: s.produces,
+  }))
 
   const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
   for (const widget of widgetRegistry.getAll()) {
@@ -145,6 +167,7 @@ export async function buildView(
       },
       layout: input.layout,
       reachableWidgets,
+      availableSteps,
       remoteWidgets,
     },
   }
