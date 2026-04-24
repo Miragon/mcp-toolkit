@@ -56,7 +56,7 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
         remote bundle • customers-upstream
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <h3 style={{ margin: "0 0 4px" }}>{name}</h3>
+        <h3 style={{ margin: "0 0 4px", color: "#0f172a" }}>{name}</h3>
         <span
           style={{
             fontSize: "0.7em",

@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import * as React from "react"
 import * as ReactDOMClient from "react-dom/client"
 import { createRoot } from "react-dom/client"
-import { useWidget } from "mcp-use/react"
+import { McpUseProvider, useWidget } from "mcp-use/react"
 import { McpAppView, createRemoteWidgetLoader } from "@miragon/mcp-toolkit-ui/app"
 import { ArticleCard } from "../modules/articles/widgets/ArticleCard.js"
 import "./main.css"
@@ -42,4 +42,8 @@ function App() {
 
 const root = document.getElementById("root")
 if (!root) throw new Error("missing #root")
-createRoot(root).render(<App />)
+createRoot(root).render(
+  <McpUseProvider>
+    <App />
+  </McpUseProvider>,
+)

@@ -101,9 +101,13 @@ export function McpAppView({
   const [remoteWidgets, setRemoteWidgets] = useState<Record<string, WidgetComponent>>({})
 
   useEffect(() => {
-    if (!isPending && initialViewData) {
-      setViewData(initialViewData)
-    }
+    if (isPending) return
+    if (!initialViewData) return
+    // Guard against the host transiently clearing toolOutput (observed when
+    // the displayMode toggles): widgetProps would then become an empty merge
+    // (no layout/context) and clobber a valid viewData, blanking the UI.
+    if (!initialViewData.layout || !initialViewData.context) return
+    setViewData(initialViewData)
   }, [isPending, initialViewData])
 
   useEffect(() => {
@@ -116,7 +120,7 @@ export function McpAppView({
   // WidgetRegistry); the loader fetches + evaluates each bundle exactly
   // once and memoises the component in local state.
   const widgetIdsInLayout = useMemo<string[]>(() => {
-    if (!viewData) return []
+    if (!viewData?.layout) return []
     return collectLayoutWidgetIds(viewData.layout)
   }, [viewData])
 
@@ -197,8 +201,15 @@ export function McpAppView({
   return (
     <main
       style={{
-        minHeight: displayMode === "fullscreen" ? "100vh" : "500px",
-        overflowY: "auto",
+        // Fullscreen: the widget owns the viewport, so we take the full window
+        // and handle our own scrolling. Inline: the host (Claude, ChatGPT) owns
+        // sizing + scrolling and is notified of our intrinsic height via
+        // `McpUseProvider`, so we let content dictate height and avoid setting
+        // overflowY (which would clip our own content inside a host that's
+        // already auto-sized to us).
+        ...(displayMode === "fullscreen"
+          ? { minHeight: "100vh", overflowY: "auto" as const }
+          : null),
         paddingTop: safeArea?.insets?.top,
         paddingRight: safeArea?.insets?.right,
         paddingBottom: safeArea?.insets?.bottom,
