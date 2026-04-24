@@ -1,6 +1,6 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { createFrameworkApp } from "@miragon/mcp-toolkit-core/tools"
+import { createFrameworkApp, createFileSystemDashboardStore } from "@miragon/mcp-toolkit-core/tools"
 import { parseProxyConfigEnv } from "@miragon/mcp-toolkit-proxy-contract"
 import { createPlugin as createArticlesPlugin } from "../modules/articles/plugin.js"
 
@@ -9,6 +9,9 @@ import { createPlugin as createArticlesPlugin } from "../modules/articles/plugin
  * two external upstreams:
  *   - articles-upstream   host ships the widget (articles plugin + codegen)
  *   - customers-upstream  upstream ships step *and* widget (fully remote module)
+ *
+ * Saved dashboards (created via the builder's Save button) land in
+ * `${here}/.dashboards/<id>.json`. Delete the directory to reset.
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -22,6 +25,9 @@ const app = await createFrameworkApp({
   app: {
     resourceUri: "ui://toolkit-example/mcp-app.html",
     htmlPath: path.join(here, "..", "app-bundle", "dist", "index.html"),
+    dashboardStore: createFileSystemDashboardStore({
+      dir: path.join(here, ".dashboards"),
+    }),
   },
 })
 

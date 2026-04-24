@@ -1,9 +1,16 @@
 import { useState, useCallback, useEffect, useMemo } from "react"
 import { useWidget } from "mcp-use/react"
-import type { LayoutConfig, RowDef } from "@miragon/mcp-toolkit-core"
+import type {
+  LayoutConfig,
+  PipelineContext,
+  PipelineStepRef,
+  ReachableWidget,
+  RowDef,
+} from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
+import { LayoutBuilder } from "./layout-builder.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
 import { createRemoteWidgetLoader, type WidgetLoader } from "./remote-widget-loader.js"
 
@@ -88,8 +95,8 @@ function CollapseIcon() {
 
 interface RefreshParams {
   keys?: Record<string, unknown>
-  steps?: { id: string; step: string; optional?: boolean }[]
-  layout: LayoutConfig
+  steps?: PipelineStepRef[]
+  layout?: LayoutConfig
   title?: string
 }
 
@@ -100,6 +107,8 @@ interface RemoteWidgetInfo {
 
 interface ViewData {
   _refreshParams?: RefreshParams
+  /** Set to `"builder"` by `open-view-builder` to switch into composer mode. */
+  mode?: "builder"
   title?: string
   context: {
     keys: Record<string, unknown>
@@ -110,8 +119,10 @@ interface ViewData {
     >
     errors: { stepId: string; reason: string }[]
   }
-  layout: LayoutConfig
+  layout?: LayoutConfig
   remoteWidgets?: Record<string, RemoteWidgetInfo>
+  /** Populated only in builder mode — palette of widgets whose `requires` are satisfied. */
+  reachableWidgets?: ReachableWidget[]
 }
 
 export interface McpAppViewProps {
@@ -178,7 +189,10 @@ export function McpAppView({
     // Guard against the host transiently clearing toolOutput (observed when
     // the displayMode toggles): widgetProps would then become an empty merge
     // (no layout/context) and clobber a valid viewData, blanking the UI.
-    if (!initialViewData.layout || !initialViewData.context) return
+    // In builder mode the layout can be absent (empty draft), but context is
+    // always present — require only `context`.
+    if (!initialViewData.context) return
+    if (initialViewData.mode !== "builder" && !initialViewData.layout) return
     setViewData(initialViewData)
   }, [isPending, initialViewData])
 
@@ -191,9 +205,19 @@ export function McpAppView({
   // `viewData.remoteWidgets` (populated by `renderView` from the host's
   // WidgetRegistry); the loader fetches + evaluates each bundle exactly
   // once and memoises the component in local state.
+  //
+  // Builder mode additionally preloads every *reachable* widget up front so
+  // the palette can render real widgets as soon as the user clicks them,
+  // without a per-click fetch delay.
   const widgetIdsInLayout = useMemo<string[]>(() => {
-    if (!viewData?.layout) return []
-    return collectLayoutWidgetIds(viewData.layout)
+    const ids = new Set<string>()
+    if (viewData?.layout) {
+      for (const id of collectLayoutWidgetIds(viewData.layout)) ids.add(id)
+    }
+    if (viewData?.mode === "builder" && viewData.reachableWidgets) {
+      for (const w of viewData.reachableWidgets) ids.add(w.id)
+    }
+    return [...ids]
   }, [viewData])
 
   // Default to the toolkit's built-in `read-widget-bundle` tool so consumers
@@ -308,9 +332,11 @@ export function McpAppView({
       }}
     >
       <div className="mb-4 flex items-center justify-between">
-        {viewData.title && <h2 className="text-xl font-bold">{viewData.title}</h2>}
-        <div className="flex items-center gap-2">
-          {viewData._refreshParams && (
+        {viewData.mode !== "builder" && viewData.title && (
+          <h2 className="text-xl font-bold">{viewData.title}</h2>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          {viewData.mode !== "builder" && viewData._refreshParams && viewData.layout && (
             <button
               onClick={() => {
                 void refreshView()
@@ -350,16 +376,39 @@ export function McpAppView({
       )}
 
       <AppQueryProvider callTool={callToolFn}>
-        <WidgetRenderer
-          layout={viewData.layout}
-          keys={viewData.context.keys}
-          stepData={viewData.context.stepData}
-          errors={viewData.context.errors}
-          widgets={mergedWidgets}
-        />
+        {viewData.mode === "builder" ? (
+          <LayoutBuilder
+            initialLayout={viewData.layout}
+            title={viewData.title}
+            initialKeys={viewData._refreshParams?.keys}
+            initialSteps={viewData._refreshParams?.steps}
+            context={toPipelineContext(viewData.context)}
+            reachableWidgets={viewData.reachableWidgets ?? []}
+            widgets={mergedWidgets}
+            callTool={callToolFn}
+            refreshToolName={refreshToolName}
+            onRendered={(next) => setViewData(next as ViewData)}
+          />
+        ) : viewData.layout ? (
+          <WidgetRenderer
+            layout={viewData.layout}
+            keys={viewData.context.keys}
+            stepData={viewData.context.stepData}
+            errors={viewData.context.errors}
+            widgets={mergedWidgets}
+          />
+        ) : null}
       </AppQueryProvider>
     </main>
   )
+}
+
+function toPipelineContext(ctx: ViewData["context"]): PipelineContext {
+  const steps: PipelineContext["steps"] = {}
+  for (const [id, result] of Object.entries(ctx.stepData)) {
+    steps[id] = { ...result, _step: id }
+  }
+  return { steps, keys: ctx.keys, errors: ctx.errors }
 }
 
 /**
