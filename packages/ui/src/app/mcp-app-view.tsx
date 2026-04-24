@@ -2,11 +2,13 @@ import { useState, useCallback, useEffect, useMemo } from "react"
 import { useWidget } from "mcp-use/react"
 import type {
   AvailableStep,
+  KeyCatalogEntry,
   LayoutConfig,
   PipelineContext,
   PipelineStepRef,
   ReachableWidget,
   RowDef,
+  UnreachableWidget,
 } from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
@@ -124,8 +126,12 @@ interface ViewData {
   remoteWidgets?: Record<string, RemoteWidgetInfo>
   /** Populated only in builder mode — palette of widgets whose `requires` are satisfied. */
   reachableWidgets?: ReachableWidget[]
+  /** Populated only in builder mode — widgets registered but missing their requires. */
+  unreachableWidgets?: UnreachableWidget[]
   /** Populated only in builder mode — catalogue of registered pipeline steps. */
   availableSteps?: AvailableStep[]
+  /** Populated only in builder mode — every key the framework could see. */
+  keyCatalog?: KeyCatalogEntry[]
 }
 
 export interface McpAppViewProps {
@@ -387,7 +393,9 @@ export function McpAppView({
             initialSteps={viewData._refreshParams?.steps}
             context={toPipelineContext(viewData.context)}
             reachableWidgets={viewData.reachableWidgets ?? []}
+            unreachableWidgets={viewData.unreachableWidgets ?? []}
             availableSteps={viewData.availableSteps ?? []}
+            keyCatalog={viewData.keyCatalog ?? []}
             widgets={mergedWidgets}
             callTool={callToolFn}
           />

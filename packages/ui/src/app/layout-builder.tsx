@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import {
   ChevronDown,
   ChevronUp,
   Eye,
   GripVertical,
+  Library,
   Pencil,
   Plus,
   RefreshCw,
@@ -15,11 +16,13 @@ import {
 } from "lucide-react"
 import type {
   AvailableStep,
+  KeyCatalogEntry,
   LayoutConfig,
   PipelineContext,
   PipelineStepRef,
   ReachableWidget,
   RowDef,
+  UnreachableWidget,
   WidgetProps,
 } from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
@@ -80,6 +83,17 @@ export interface LayoutBuilderLabels {
   addStep?: string
   refreshing?: string
   contextError?: string
+  catalogue?: string
+  catalogueHint?: string
+  catalogueEmpty?: string
+  catalogueUnreachable?: string
+  catalogueUnreachableEmpty?: string
+  catalogueKeyInContext?: string
+  catalogueKeyNotInContext?: string
+  catalogueProducedBy?: string
+  catalogueConsumedBy?: string
+  catalogueNeedsKeys?: string
+  cataloguePickKey?: string
 }
 
 const DEFAULT_LABELS: Required<LayoutBuilderLabels> = {
@@ -114,6 +128,18 @@ const DEFAULT_LABELS: Required<LayoutBuilderLabels> = {
   addStep: "Add step",
   refreshing: "Refreshing…",
   contextError: "One or more keys have invalid JSON values — using the raw string.",
+  catalogue: "Catalogue",
+  catalogueHint:
+    "Every key and widget the framework knows about, whether or not it's reachable right now.",
+  catalogueEmpty: "No keys or widgets registered yet.",
+  catalogueUnreachable: "Widgets not reachable",
+  catalogueUnreachableEmpty: "Every registered widget is reachable.",
+  catalogueKeyInContext: "live",
+  catalogueKeyNotInContext: "not in context",
+  catalogueProducedBy: "produced by",
+  catalogueConsumedBy: "consumed by",
+  catalogueNeedsKeys: "needs",
+  cataloguePickKey: "Use as seed",
 }
 
 type DraftLayout = { kind: "rows"; rows: RowDef[] } | { kind: "tabs"; tabs: DraftTab[] }
@@ -141,8 +167,12 @@ export interface LayoutBuilderProps {
   context: PipelineContext
   /** Widgets whose `requires` are satisfied by the current key set. */
   reachableWidgets: ReachableWidget[]
+  /** Widgets registered but missing one or more `requires` keys. */
+  unreachableWidgets?: UnreachableWidget[]
   /** Full step catalogue — populates the step-picker dropdown. */
   availableSteps: AvailableStep[]
+  /** Every key the framework could see, with producers + consumers. */
+  keyCatalog?: KeyCatalogEntry[]
   /** Merged widget-component map (host-bundled + remote-loaded). */
   widgets: Record<string, WidgetComponent>
   /** Bridge to the MCP host for refresh / save round-trips. */
@@ -220,7 +250,9 @@ export function LayoutBuilder({
   initialSteps,
   context,
   reachableWidgets,
+  unreachableWidgets,
   availableSteps,
+  keyCatalog,
   widgets,
   callTool,
   builderToolName = "open-view-builder",
@@ -247,8 +279,14 @@ export function LayoutBuilder({
   // Live snapshot driven by the latest open-view-builder response. Seed from
   // props and update on refresh.
   const [liveReachable, setLiveReachable] = useState<ReachableWidget[]>(reachableWidgets)
+  const [liveUnreachable, setLiveUnreachable] = useState<UnreachableWidget[]>(
+    unreachableWidgets ?? [],
+  )
+  const [liveCatalog, setLiveCatalog] = useState<KeyCatalogEntry[]>(keyCatalog ?? [])
   const [liveContext, setLiveContext] = useState<PipelineContext>(context)
   useEffect(() => setLiveReachable(reachableWidgets), [reachableWidgets])
+  useEffect(() => setLiveUnreachable(unreachableWidgets ?? []), [unreachableWidgets])
+  useEffect(() => setLiveCatalog(keyCatalog ?? []), [keyCatalog])
   useEffect(() => setLiveContext(context), [context])
 
   const [isRefreshing, setRefreshing] = useState(false)
@@ -411,8 +449,15 @@ export function LayoutBuilder({
 
   // --- Keys + steps editors -------------------------------------------------
 
-  const addKey = useCallback(() => {
-    setKeyEntries((prev) => [...prev, { name: "", rawValue: "" }])
+  const addKey = useCallback((prefilledName?: string) => {
+    setKeyEntries((prev) => {
+      if (prefilledName) {
+        const existingIdx = prev.findIndex((e) => e.name === prefilledName)
+        if (existingIdx >= 0) return prev
+        return [...prev, { name: prefilledName, rawValue: "" }]
+      }
+      return [...prev, { name: "", rawValue: "" }]
+    })
   }, [])
 
   const updateKey = useCallback((idx: number, patch: Partial<KeyEntry>) => {
@@ -451,11 +496,15 @@ export function LayoutBuilder({
       })) as {
         structuredContent?: {
           reachableWidgets?: ReachableWidget[]
+          unreachableWidgets?: UnreachableWidget[]
+          keyCatalog?: KeyCatalogEntry[]
           context?: PipelineContext
         }
       }
       const sc = result.structuredContent
       if (sc?.reachableWidgets) setLiveReachable(sc.reachableWidgets)
+      if (sc?.unreachableWidgets) setLiveUnreachable(sc.unreachableWidgets)
+      if (sc?.keyCatalog) setLiveCatalog(sc.keyCatalog)
       if (sc?.context) setLiveContext(sc.context)
     } finally {
       setRefreshing(false)
@@ -563,6 +612,7 @@ export function LayoutBuilder({
         keyEntries={keyEntries}
         stepEntries={stepEntries}
         availableSteps={availableSteps}
+        keyCatalog={liveCatalog}
         isRefreshing={isRefreshing}
         onAddKey={addKey}
         onUpdateKey={updateKey}
@@ -571,6 +621,14 @@ export function LayoutBuilder({
         onUpdateStep={updateStep}
         onRemoveStep={removeStep}
         onApply={() => void refreshBuilder()}
+      />
+
+      <CataloguePanel
+        labels={L}
+        keyCatalog={liveCatalog}
+        availableSteps={availableSteps}
+        unreachableWidgets={liveUnreachable}
+        onSeedKey={(name) => addKey(name)}
       />
 
       {draft.kind === "tabs" ? (
@@ -724,6 +782,7 @@ function ContextEditor({
   keyEntries,
   stepEntries,
   availableSteps,
+  keyCatalog,
   isRefreshing,
   onAddKey,
   onUpdateKey,
@@ -737,6 +796,7 @@ function ContextEditor({
   keyEntries: KeyEntry[]
   stepEntries: PipelineStepRef[]
   availableSteps: AvailableStep[]
+  keyCatalog: KeyCatalogEntry[]
   isRefreshing: boolean
   onAddKey: () => void
   onUpdateKey: (idx: number, patch: Partial<KeyEntry>) => void
@@ -746,8 +806,14 @@ function ContextEditor({
   onRemoveStep: (idx: number) => void
   onApply: () => void
 }) {
+  const datalistId = useId()
   return (
     <Card className="gap-0 p-3">
+      <datalist id={datalistId}>
+        {keyCatalog.map((e) => (
+          <option key={e.key} value={e.key} />
+        ))}
+      </datalist>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <section className="flex flex-col gap-2">
           <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
@@ -765,6 +831,7 @@ function ContextEditor({
                   onChange={(e) => onUpdateKey(idx, { name: e.target.value })}
                   placeholder={labels.keyName}
                   className="font-mono text-xs"
+                  list={datalistId}
                 />
                 <Input
                   value={entry.rawValue}
@@ -864,6 +931,169 @@ function ContextEditor({
           Applies new keys + steps and refreshes the palette.
         </span>
       </div>
+    </Card>
+  )
+}
+
+function CataloguePanel({
+  labels,
+  keyCatalog,
+  availableSteps,
+  unreachableWidgets,
+  onSeedKey,
+}: {
+  labels: Required<LayoutBuilderLabels>
+  keyCatalog: KeyCatalogEntry[]
+  availableSteps: AvailableStep[]
+  unreachableWidgets: UnreachableWidget[]
+  onSeedKey: (name: string) => void
+}) {
+  return (
+    <Card className="gap-0 p-3">
+      <details open>
+        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium select-none">
+          <Library className="size-4" />
+          {labels.catalogue}
+          <span className="text-muted-foreground text-xs font-normal">
+            — {labels.catalogueHint}
+          </span>
+        </summary>
+
+        <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <section className="lg:col-span-2">
+            <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+              Keys
+              <Badge variant="outline">{keyCatalog.length}</Badge>
+            </div>
+            {keyCatalog.length === 0 ? (
+              <div className="text-muted-foreground text-xs italic">{labels.catalogueEmpty}</div>
+            ) : (
+              <ScrollArea className="max-h-[40vh]">
+                <ul className="flex flex-col gap-1 pr-2">
+                  {keyCatalog.map((entry) => (
+                    <li
+                      key={entry.key}
+                      className="hover:bg-accent/50 flex items-start justify-between gap-2 rounded-md border px-2 py-1.5 text-xs"
+                    >
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate font-mono">{entry.key}</span>
+                          <Badge
+                            variant={entry.inContext ? "default" : "outline"}
+                            className="shrink-0 text-[10px]"
+                          >
+                            {entry.inContext
+                              ? labels.catalogueKeyInContext
+                              : labels.catalogueKeyNotInContext}
+                          </Badge>
+                        </div>
+                        {(entry.producedBySteps.length > 0 ||
+                          entry.consumedBySteps.length > 0 ||
+                          entry.consumedByWidgets.length > 0) && (
+                          <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                            {entry.producedBySteps.length > 0 && (
+                              <span>
+                                {labels.catalogueProducedBy}:{" "}
+                                <span className="font-mono">
+                                  {entry.producedBySteps.join(", ")}
+                                </span>
+                              </span>
+                            )}
+                            {entry.consumedBySteps.length > 0 && (
+                              <span>
+                                step {labels.catalogueConsumedBy}:{" "}
+                                <span className="font-mono">
+                                  {entry.consumedBySteps.join(", ")}
+                                </span>
+                              </span>
+                            )}
+                            {entry.consumedByWidgets.length > 0 && (
+                              <span>
+                                widget {labels.catalogueConsumedBy}:{" "}
+                                <span className="font-mono">
+                                  {entry.consumedByWidgets.join(", ")}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {!entry.inContext && (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="shrink-0"
+                          onClick={() => onSeedKey(entry.key)}
+                          title={labels.cataloguePickKey}
+                        >
+                          <Plus />
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </section>
+
+          <section>
+            <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+              Steps
+              <Badge variant="outline">{availableSteps.length}</Badge>
+            </div>
+            {availableSteps.length === 0 ? (
+              <div className="text-muted-foreground text-xs italic">No steps registered.</div>
+            ) : (
+              <ScrollArea className="max-h-[40vh]">
+                <ul className="flex flex-col gap-1 pr-2">
+                  {availableSteps.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
+                    >
+                      <span className="truncate font-mono">{s.id}</span>
+                      <span className="text-muted-foreground">
+                        {s.requires.length > 0 ? `← ${s.requires.join(", ")}` : "(no inputs)"}
+                        {" → "}
+                        {s.produces.length > 0 ? s.produces.join(", ") : "(nothing)"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </section>
+        </div>
+
+        <Separator className="my-3" />
+
+        <div>
+          <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+            {labels.catalogueUnreachable}
+            <Badge variant="outline">{unreachableWidgets.length}</Badge>
+          </div>
+          {unreachableWidgets.length === 0 ? (
+            <div className="text-muted-foreground text-xs italic">
+              {labels.catalogueUnreachableEmpty}
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 gap-1 md:grid-cols-2">
+              {unreachableWidgets.map((w) => (
+                <li
+                  key={w.id}
+                  className="bg-muted/20 flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
+                >
+                  <span className="truncate font-mono">{w.id}</span>
+                  <span className="text-muted-foreground">
+                    {labels.catalogueNeedsKeys}:{" "}
+                    <span className="font-mono">{w.missingKeys.join(", ")}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
     </Card>
   )
 }

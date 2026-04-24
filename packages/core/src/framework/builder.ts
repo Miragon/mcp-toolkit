@@ -40,6 +40,34 @@ export interface AvailableStep {
 }
 
 /**
+ * A widget that is registered but whose `requires` aren't satisfied by
+ * the current key set. Surfaces in the builder as "unreachable" with a
+ * hint about which keys are still missing so users can decide whether to
+ * add a seed, add a step, or mount another upstream.
+ */
+export interface UnreachableWidget {
+  id: string
+  app: string
+  requires: string[]
+  size: string
+  missingKeys: string[]
+}
+
+/**
+ * Every key the framework *could* see, whether a step produces it, a
+ * step requires it, or a widget consumes it. Lets the builder UI show a
+ * full catalogue of wiring points — "this key exists in the system,
+ * add it as a seed if you need it".
+ */
+export interface KeyCatalogEntry {
+  key: string
+  producedBySteps: string[]
+  consumedBySteps: string[]
+  consumedByWidgets: string[]
+  inContext: boolean
+}
+
+/**
  * Shape of `open-view-builder`'s structuredContent. Symmetric to
  * `renderView`'s payload so the `McpAppView` can reuse the same pipeline
  * wiring for live preview, then branch on `mode === "builder"` to render
@@ -60,7 +88,9 @@ export interface BuildViewPayload {
   }
   layout?: LayoutConfig
   reachableWidgets: ReachableWidget[]
+  unreachableWidgets: UnreachableWidget[]
   availableSteps: AvailableStep[]
+  keyCatalog: KeyCatalogEntry[]
   remoteWidgets: Record<string, RemoteWidgetInfo>
 }
 
@@ -97,13 +127,25 @@ export async function buildView(
   // key set the user can build against.
   const availableKeys = new Set<string>([...validation.availableKeys, ...Object.keys(context.keys)])
 
-  const reachableWidgets: ReachableWidget[] = widgetRegistry
-    .findByRequiredKeys([...availableKeys])
+  const allWidgets = widgetRegistry.getAll()
+  const reachableDefs = widgetRegistry.findByRequiredKeys([...availableKeys])
+  const reachableIds = new Set(reachableDefs.map((w) => w.id))
+
+  const reachableWidgets: ReachableWidget[] = reachableDefs.map((w) => ({
+    id: w.id,
+    app: w.id.split(":")[0],
+    requires: w.requires,
+    size: w.size,
+  }))
+
+  const unreachableWidgets: UnreachableWidget[] = allWidgets
+    .filter((w) => !reachableIds.has(w.id))
     .map((w) => ({
       id: w.id,
       app: w.id.split(":")[0],
       requires: w.requires,
       size: w.size,
+      missingKeys: w.requires.filter((k) => !availableKeys.has(k)),
     }))
 
   const availableSteps: AvailableStep[] = stepRegistry.getAll().map((s) => ({
@@ -113,6 +155,37 @@ export async function buildView(
     requires: s.requires,
     produces: s.produces,
   }))
+
+  // Build a combined "every key the framework could see" catalogue.
+  // - step producers/consumers come from StepRegistry.getKeyContracts()
+  // - widget consumers are pulled directly since they don't appear in the
+  //   step-only contracts
+  // - availableKeys marks which entries are live in the current context.
+  const stepContracts = stepRegistry.getKeyContracts()
+  const keys = new Set<string>(availableKeys)
+  for (const c of stepContracts) keys.add(c.key)
+  const widgetConsumers = new Map<string, string[]>()
+  for (const widget of allWidgets) {
+    for (const key of widget.requires) {
+      keys.add(key)
+      const list = widgetConsumers.get(key) ?? []
+      if (!list.includes(widget.id)) list.push(widget.id)
+      widgetConsumers.set(key, list)
+    }
+  }
+  const stepContractsByKey = new Map(stepContracts.map((c) => [c.key, c]))
+  const keyCatalog: KeyCatalogEntry[] = [...keys]
+    .sort((a, b) => a.localeCompare(b))
+    .map((key) => {
+      const contract = stepContractsByKey.get(key)
+      return {
+        key,
+        producedBySteps: contract?.producedBy ?? [],
+        consumedBySteps: contract?.consumedBy ?? [],
+        consumedByWidgets: widgetConsumers.get(key) ?? [],
+        inContext: availableKeys.has(key),
+      }
+    })
 
   const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
   for (const widget of widgetRegistry.getAll()) {
@@ -167,7 +240,9 @@ export async function buildView(
       },
       layout: input.layout,
       reachableWidgets,
+      unreachableWidgets,
       availableSteps,
+      keyCatalog,
       remoteWidgets,
     },
   }

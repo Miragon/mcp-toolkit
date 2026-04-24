@@ -70,6 +70,9 @@ describe("buildView", () => {
 
     const payload = result.structuredContent
     expect(payload.reachableWidgets.map((w) => w.id)).toEqual(["sales:customer-card"])
+    expect(
+      payload.unreachableWidgets.map((w) => ({ id: w.id, missingKeys: w.missingKeys })),
+    ).toEqual([{ id: "sales:invoice-card", missingKeys: ["sales:invoice"] }])
     expect(payload.context.keys).toMatchObject({ "sales:customer": { id: "C-1" } })
     expect(payload.availableSteps).toEqual([
       {
@@ -80,6 +83,23 @@ describe("buildView", () => {
         produces: ["sales:customer"],
       },
     ])
+    // Catalogue surfaces keys from step contracts *and* widget requires,
+    // with the live-context flag set for resolved entries.
+    const contract = Object.fromEntries(payload.keyCatalog.map((e) => [e.key, e]))
+    expect(contract["sales:customer"]).toMatchObject({
+      producedBySteps: ["sales:load-customer"],
+      consumedByWidgets: ["sales:customer-card"],
+      inContext: true,
+    })
+    expect(contract["sales:invoice"]).toMatchObject({
+      producedBySteps: [],
+      consumedByWidgets: ["sales:invoice-card"],
+      inContext: false,
+    })
+    expect(contract["sales:customerId"]).toMatchObject({
+      consumedBySteps: ["sales:load-customer"],
+      inContext: true,
+    })
   })
 
   it("returns a non-error payload even when the pipeline validation finds issues", async () => {

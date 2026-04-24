@@ -30,7 +30,9 @@ export type {
   BuildViewInput,
   BuildViewPayload,
   ReachableWidget,
+  UnreachableWidget,
   AvailableStep,
+  KeyCatalogEntry,
 } from "./framework/builder.js"
 // Dashboard store *implementations* live in the `./tools` subpath because
 // the filesystem impl imports `node:fs`. Types are safe to re-export here
