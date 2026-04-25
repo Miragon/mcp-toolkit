@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowDownToLine,
   ArrowRightToLine,
@@ -304,7 +304,17 @@ function valueTypeLabel(raw: string): string {
   const v = parseKeyValue(raw)
   if (v === null) return "null"
   if (Array.isArray(v)) return "arr"
-  return typeof v === "object" ? "obj" : (typeof v as string).slice(0, 4)
+  if (typeof v === "object") return "obj"
+  switch (typeof v) {
+    case "string":
+      return "str"
+    case "number":
+      return "num"
+    case "boolean":
+      return "bool"
+    default:
+      return (typeof v as string).slice(0, 4)
+  }
 }
 
 function entriesToKeys(entries: KeyEntry[]): Record<string, unknown> {
@@ -1060,7 +1070,6 @@ function PipelineStrip({
   onRemoveStep: (idx: number) => void
   status: "idle" | "pending" | "refreshing"
 }) {
-  const datalistId = useId()
   const stepLookup = useMemo(() => {
     const map = new Map<string, AvailableStep>()
     for (const s of availableSteps) map.set(s.id, s)
@@ -1069,12 +1078,6 @@ function PipelineStrip({
 
   return (
     <section className="bg-muted/30 -mx-1 rounded-lg border px-3 py-3">
-      <datalist id={datalistId}>
-        {keyCatalog.map((e) => (
-          <option key={e.key} value={e.key} />
-        ))}
-      </datalist>
-
       <div className="mb-2 flex items-center gap-2">
         <span className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
           {L.pipelineHeader}
@@ -1102,37 +1105,66 @@ function PipelineStrip({
             <ul className="flex flex-col gap-1">
               {keyEntries.map((entry, idx) => {
                 const livePreview = formatLiveKeyValue(liveKeys[entry.name])
+                const usedNames = new Set(
+                  keyEntries.map((e, i) => (i === idx ? "" : e.name)).filter(Boolean),
+                )
+                const pickable = keyCatalog.filter(
+                  (c) => c.key === entry.name || !usedNames.has(c.key),
+                )
                 return (
-                  <li key={idx} className="flex items-center gap-1">
-                    <Input
-                      value={entry.name}
-                      onChange={(e) => onUpdateKey(idx, { name: e.target.value })}
-                      placeholder={L.keyName}
-                      className="h-7 font-mono text-xs"
-                      list={datalistId}
-                    />
-                    <div className="relative flex-1">
-                      <Input
-                        value={entry.rawValue}
-                        onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
-                        placeholder={livePreview ?? L.keyValue}
-                        className="h-7 pr-12 font-mono text-xs"
-                      />
-                      <span
-                        className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums"
-                        title="parsed type"
-                      >
-                        {valueTypeLabel(entry.rawValue)}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => onRemoveKey(idx)}
-                      aria-label="Remove key"
+                  <li key={idx} className="grid grid-cols-2 items-center gap-1">
+                    <Select
+                      value={entry.name || undefined}
+                      onValueChange={(value) => onUpdateKey(idx, { name: value })}
                     >
-                      <X />
-                    </Button>
+                      <SelectTrigger className="h-7 min-w-0 font-mono text-xs">
+                        <SelectValue placeholder={L.keyName} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pickable.length === 0 ? (
+                          <div className="text-muted-foreground px-2 py-1.5 text-xs italic">
+                            No more keys available.
+                          </div>
+                        ) : (
+                          pickable.map((c) => (
+                            <SelectItem key={c.key} value={c.key} className="py-1.5">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-mono text-xs">{c.key}</span>
+                                {c.consumedByWidgets.length + c.consumedBySteps.length > 0 && (
+                                  <span className="text-muted-foreground/80 font-mono text-[10px]">
+                                    → {[...c.consumedByWidgets, ...c.consumedBySteps].join(", ")}
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex min-w-0 items-center gap-1">
+                      <div className="relative min-w-0 flex-1">
+                        <Input
+                          value={entry.rawValue}
+                          onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
+                          placeholder={livePreview ?? L.keyValue}
+                          className="h-7 pr-10 font-mono text-xs"
+                        />
+                        <span
+                          className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums"
+                          title="parsed type"
+                        >
+                          {valueTypeLabel(entry.rawValue)}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => onRemoveKey(idx)}
+                        aria-label="Remove key"
+                      >
+                        <X />
+                      </Button>
+                    </div>
                   </li>
                 )
               })}
