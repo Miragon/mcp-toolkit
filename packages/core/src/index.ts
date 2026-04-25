@@ -24,6 +24,8 @@ export { loadApps } from "./registry/app-loader.js"
 
 export { renderView } from "./framework/render-view.js"
 export type { RenderViewInput } from "./framework/render-view.js"
+export { buildSingleWidgetView } from "./framework/show-widget.js"
+export type { SingleWidgetViewInput } from "./framework/show-widget.js"
 export { getFrameworkManifest } from "./framework/manifest.js"
 export type { FrameworkManifest } from "./framework/manifest.js"
 export { normalizeLayout } from "./framework/layout-types.js"
