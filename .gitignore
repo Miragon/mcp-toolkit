@@ -8,3 +8,5 @@ dist
 .gstack/
 .playwright-mcp/
 .dashboards/
+.env
+.env.local
