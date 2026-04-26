@@ -132,7 +132,7 @@ async function schemaToType(schema: Record<string, unknown>, name: string): Prom
   return result.trim()
 }
 
-function toPascalCase(input: string): string {
+export function toPascalCase(input: string): string {
   return input
     .split(/[-_\s]+/)
     .filter(Boolean)

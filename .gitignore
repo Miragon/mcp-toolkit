@@ -7,3 +7,4 @@ dist
 .mcp-use/
 .gstack/
 .playwright-mcp/
+.claude/logs/

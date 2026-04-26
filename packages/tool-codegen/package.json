@@ -26,11 +26,12 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && node scripts/make-cli-executable.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/make-cli-executable.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "prepare": "tsc"
+    "prepare": "tsc -p tsconfig.build.json"
   },
   "peerDependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
@@ -44,6 +45,7 @@
     "@miragon/mcp-toolkit-core": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@types/node": "25.6.0",
-    "typescript": "6.0.2"
+    "typescript": "6.0.2",
+    "vitest": "4.1.5"
   }
 }
