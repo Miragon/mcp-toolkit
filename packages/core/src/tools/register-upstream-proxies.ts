@@ -63,7 +63,7 @@ export async function registerUpstreamProxies(
   return plugins
 }
 
-function resolveAuthConfig(
+export function resolveAuthConfig(
   entry: ProxyConfigEntry,
   resolveSecret: (name: string) => string | undefined,
 ): UpstreamAuthConfig {
@@ -101,7 +101,7 @@ function requireSecret(
   return value
 }
 
-function requireCallbackBaseUrl(
+export function requireCallbackBaseUrl(
   entries: ProxyConfigEntry[],
   provided: string | undefined,
 ): string | undefined {
