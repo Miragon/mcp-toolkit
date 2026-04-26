@@ -10,3 +10,4 @@ dist
 .dashboards/
 .env
 .env.local
+.claude/logs/
