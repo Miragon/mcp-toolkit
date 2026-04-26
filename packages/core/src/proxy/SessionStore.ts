@@ -48,7 +48,13 @@ export class InMemorySessionStore implements SessionStore {
   }
 
   getPending(oauthState: string): PendingAuth | undefined {
-    return this.pending.get(oauthState)
+    const entry = this.pending.get(oauthState)
+    if (!entry) return undefined
+    if (Date.now() > entry.expiresAt) {
+      this.pending.delete(oauthState)
+      return undefined
+    }
+    return entry
   }
 
   deletePending(oauthState: string): void {

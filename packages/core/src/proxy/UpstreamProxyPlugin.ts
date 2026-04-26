@@ -158,6 +158,7 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
     this.toolsRegistered = true
 
     if (this.authConfig.mode === "oauth2") {
+      this.mountOAuthInitiate(server)
       this.mountOAuthCallback(server)
       this.registerAuthenticateTool(server)
       this.installToolsListFilter(server)
@@ -292,6 +293,23 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
 
   // --- OAuth2 wiring --------------------------------------------------------
 
+  private mountOAuthInitiate(server: MCPServer): void {
+    const app = (server as unknown as { app: HonoLike }).app
+    app.get(`/oauth/initiate/${this.name}`, async (c: HonoContext): Promise<HonoResponse> => {
+      const state = c.req.query("state")
+      if (!state) return c.text("Missing state", 400)
+      const pending = await this.sessionStore.getPending(state)
+      if (!pending || pending.serverName !== this.name) {
+        return c.text("Unknown or expired OAuth state", 400)
+      }
+      c.header(
+        "Set-Cookie",
+        `oauth_nonce=${pending.nonce}; HttpOnly; SameSite=Lax; Max-Age=600; Path=/`,
+      )
+      return c.redirect(pending.authorizationUrl, 302)
+    })
+  }
+
   private mountOAuthCallback(server: MCPServer): void {
     // `server.app` is the underlying Hono app on mcp-use.
     const app = (server as unknown as { app: HonoLike }).app
@@ -304,6 +322,11 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
       const pending = await this.sessionStore.getPending(state)
       if (!pending || pending.serverName !== this.name) {
         return c.text("Unknown or expired OAuth state", 400)
+      }
+
+      const cookieNonce = parseNonceCookie(c.req.header("cookie") ?? "")
+      if (!cookieNonce || cookieNonce !== pending.nonce) {
+        return c.text("Nonce mismatch — possible callback hijack attempt", 403)
       }
 
       try {
@@ -370,15 +393,23 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
         }
 
         const sdkState = authUrl.searchParams.get("state") ?? randomUUID()
+        const nonce = randomUUID()
         await this.sessionStore.setPending(sdkState, {
           userId,
           serverName: this.name,
           provider,
           inboundSessionId: inboundSessionId ?? "",
+          expiresAt: Date.now() + 10 * 60 * 1000,
+          nonce,
+          authorizationUrl: authUrl.toString(),
         })
 
+        const initiateUrl = new URL(this.callbackBaseUrl!)
+        initiateUrl.pathname = `/oauth/initiate/${this.name}`
+        initiateUrl.searchParams.set("state", sdkState)
+
         return toolText(
-          `Please open this URL to authenticate with ${this.name}:\n\n${authUrl.toString()}`,
+          `Please open this URL to authenticate with ${this.name}:\n\n${initiateUrl.toString()}`,
         )
       },
     )
@@ -500,9 +531,15 @@ interface HonoLike {
 }
 
 interface HonoContext {
-  req: { query(key: string): string | undefined; param(key: string): string }
+  req: {
+    query(key: string): string | undefined
+    param(key: string): string
+    header(key: string): string | undefined
+  }
   text(body: string, status?: number): HonoResponse
   html(body: string): HonoResponse
+  header(key: string, value: string): void
+  redirect(url: string, status?: number): HonoResponse
 }
 
 interface HonoResponse {
@@ -517,4 +554,12 @@ function toolText(text: string) {
 
 function toolError(text: string) {
   return { content: [{ type: "text" as const, text }], isError: true }
+}
+
+/** Exported for testing. Extracts the `oauth_nonce` value from a raw Cookie header string. */
+export function parseNonceCookie(cookieHeader: string): string | undefined {
+  return cookieHeader
+    .split(";")
+    .map((p) => p.trim().split("="))
+    .find(([k]) => k === "oauth_nonce")?.[1]
 }

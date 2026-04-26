@@ -37,4 +37,10 @@ export interface PendingAuth {
   provider: ServerSideOAuthProvider
   /** Inbound transport session id — used to push tools/list_changed. */
   inboundSessionId: string
+  /** Unix ms timestamp after which this entry is considered expired. */
+  expiresAt: number
+  /** Random UUID set in a cookie on the initiate redirect; verified on callback. */
+  nonce: string
+  /** Real OAuth provider URL; the initiate endpoint redirects here. */
+  authorizationUrl: string
 }
