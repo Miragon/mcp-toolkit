@@ -106,12 +106,15 @@ createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widg
 | Symbol                            | Signature                                                                                                                                                                                                                                    |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `McpToolkitApp`                   | `(props: McpAppViewProps) → JSX.Element`. `<McpUseProvider><McpAppView {...props} /></McpUseProvider>`.                                                                                                                                      |
-| `McpAppView`                      | `(props: McpAppViewProps) → JSX.Element`. Top-level view. Use directly only if you already own the `McpUseProvider` wiring.                                                                                                                  |
+| `McpAppView`                      | `(props: McpAppViewProps) → JSX.Element`. Top-level view. Branches on `structuredContent.mode === "builder"` into `LayoutBuilder`; otherwise renders `WidgetRenderer`. Use directly only if you already own the `McpUseProvider` wiring.     |
 | `McpAppViewProps`                 | `{ widgets, widgetLoader?, refreshToolName?, remoteBundleToolName?, labels? }`. See table below.                                                                                                                                             |
 | `McpAppViewLabels`                | Override strings: `loading`, `refresh`, `refreshing`, `enterFullscreen`, `exitFullscreen`. Defaults: English.                                                                                                                                |
 | `WidgetRenderer`                  | Lower-level component — renders a normalised layout given the widgets map. Used internally by `McpAppView`.                                                                                                                                  |
 | `WidgetRendererProps`             | `{ layout, keys, stepData?, errors, widgets }`.                                                                                                                                                                                              |
 | `WidgetComponent`                 | `ComponentType<WidgetProps>`.                                                                                                                                                                                                                |
+| `LayoutBuilder`                   | `(props: LayoutBuilderProps) → JSX.Element`. Interactive composer (palette + WYSIWYG canvas + tabs + save dialog). Auto-mounted by `McpAppView` when `mode === "builder"`; exported so you can embed it directly in a custom shell.          |
+| `LayoutBuilderProps`              | `{ initialLayout?, title?, initialKeys?, initialSteps?, context, reachableWidgets, widgets, callTool, refreshToolName?, renderToolName?, saveToolName?, dashboardId?, labels?, onRendered?, onSaved? }`.                                     |
+| `LayoutBuilderLabels`             | Override strings for every user-facing caption in the builder (palette header, buttons, save dialog, …). Defaults: English.                                                                                                                  |
 | `createRemoteWidgetLoader`        | `(opts: CreateRemoteWidgetLoaderOptions) → WidgetLoader`. Builds a loader that fetches widget JS through `fetchResource`, evaluates via Blob URL + dynamic `import()`, returns `default`. Asserts `React.version` major matches the toolkit. |
 | `WidgetLoader`                    | `(id: string, uri: string) => Promise<WidgetComponent>`.                                                                                                                                                                                     |
 | `FetchResourceText`               | `(id: string, uri: string) => Promise<string>`. Transport the loader uses to read the bundle's JS source.                                                                                                                                    |
@@ -135,7 +138,7 @@ packages/ui/src/
 ├── components/          composed components (DataTable, StatusBadge, …)
 ├── hooks/               use-tool-query, use-mobile
 ├── providers/           AppQueryProvider + useCallTool
-├── app/                 McpToolkitApp + McpAppView + WidgetRenderer
+├── app/                 McpToolkitApp + McpAppView + WidgetRenderer + LayoutBuilder
 │                        + remote-widget-loader (subpath export)
 └── lib/utils.ts         cn()
 ```
@@ -143,4 +146,6 @@ packages/ui/src/
 ## See also
 
 - [Widgets concept](../concepts/widgets.md)
+- [View builder concept](../concepts/view-builder.md)
 - [Building a UI-only module](../guides/building-a-ui-only-module.md)
+- [Building dashboards end-to-end](../guides/building-dashboards.md)

@@ -7,4 +7,7 @@ dist
 .mcp-use/
 .gstack/
 .playwright-mcp/
+.dashboards/
+.env
+.env.local
 .claude/logs/

@@ -24,9 +24,9 @@ deployment concerns.
 ## Map
 
 - **Concepts** — how the framework thinks. Read once.
-  - [architecture](concepts/architecture.md) · [app-plugins](concepts/app-plugins.md) · [pipelines-and-steps](concepts/pipelines-and-steps.md) · [widgets](concepts/widgets.md) · [upstream-proxies](concepts/upstream-proxies.md) · [middleware](concepts/middleware.md)
+  - [architecture](concepts/architecture.md) · [app-plugins](concepts/app-plugins.md) · [pipelines-and-steps](concepts/pipelines-and-steps.md) · [widgets](concepts/widgets.md) · [view-builder](concepts/view-builder.md) · [upstream-proxies](concepts/upstream-proxies.md) · [middleware](concepts/middleware.md)
 - **Guides** — do a thing end-to-end.
-  - [building-a-full-module](guides/building-a-full-module.md) · [building-a-ui-only-module](guides/building-a-ui-only-module.md) · [using-tool-codegen](guides/using-tool-codegen.md) · [typed-call-tool-in-steps](guides/typed-call-tool-in-steps.md) · [registering-upstream-proxies](guides/registering-upstream-proxies.md) · [middleware-and-auth](guides/middleware-and-auth.md) · [layout-and-rendering](guides/layout-and-rendering.md) · [testing-with-examples](guides/testing-with-examples.md)
+  - [building-a-full-module](guides/building-a-full-module.md) · [building-a-ui-only-module](guides/building-a-ui-only-module.md) · [building-dashboards](guides/building-dashboards.md) · [using-tool-codegen](guides/using-tool-codegen.md) · [typed-call-tool-in-steps](guides/typed-call-tool-in-steps.md) · [registering-upstream-proxies](guides/registering-upstream-proxies.md) · [middleware-and-auth](guides/middleware-and-auth.md) · [layout-and-rendering](guides/layout-and-rendering.md) · [testing-with-examples](guides/testing-with-examples.md)
 - **Reference** — every public export.
   - [api-core](reference/api-core.md) · [api-ui](reference/api-ui.md) · [api-proxy-contract](reference/api-proxy-contract.md) · [api-tool-codegen](reference/api-tool-codegen.md) · [env-vars](reference/env-vars.md)
 - **Recipes** — small focused how-tos.

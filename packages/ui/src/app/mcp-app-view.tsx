@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect, useMemo } from "react"
 import { useWidget } from "mcp-use/react"
-import type { LayoutConfig, RowDef } from "@miragon/mcp-toolkit-core"
+import { Pencil } from "lucide-react"
+import type { LayoutConfig, PipelineStepRef, RowDef } from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
+import { LayoutBuilder } from "./layout-builder.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
 import { createRemoteWidgetLoader, type WidgetLoader } from "./remote-widget-loader.js"
 
@@ -13,6 +15,7 @@ export interface McpAppViewLabels {
   refreshing?: string
   enterFullscreen?: string
   exitFullscreen?: string
+  build?: string
 }
 
 const DEFAULT_LABELS: Required<McpAppViewLabels> = {
@@ -21,6 +24,7 @@ const DEFAULT_LABELS: Required<McpAppViewLabels> = {
   refreshing: "Loading...",
   enterFullscreen: "Fullscreen",
   exitFullscreen: "Collapse",
+  build: "Build",
 }
 
 function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
@@ -88,8 +92,8 @@ function CollapseIcon() {
 
 interface RefreshParams {
   keys?: Record<string, unknown>
-  steps?: { id: string; step: string; optional?: boolean }[]
-  layout: LayoutConfig
+  steps?: PipelineStepRef[]
+  layout?: LayoutConfig
   title?: string
 }
 
@@ -110,7 +114,7 @@ interface ViewData {
     >
     errors: { stepId: string; reason: string }[]
   }
-  layout: LayoutConfig
+  layout?: LayoutConfig
   remoteWidgets?: Record<string, RemoteWidgetInfo>
 }
 
@@ -144,7 +148,7 @@ export interface McpAppViewProps {
    */
   remoteBundleToolName?: string
   /**
-   * Override UI strings (loading, refresh button, fullscreen toggle).
+   * Override UI strings (loading, refresh, fullscreen, build).
    * Defaults to English.
    */
   labels?: McpAppViewLabels
@@ -172,13 +176,18 @@ export function McpAppView({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [remoteWidgets, setRemoteWidgets] = useState<Record<string, WidgetComponent>>({})
 
+  // In-iframe build mode is purely a UI state — the LLM never sees the
+  // catalogue, the user toggles into build by clicking the toolbar button.
+  const [buildMode, setBuildMode] = useState(false)
+
   useEffect(() => {
     if (isPending) return
     if (!initialViewData) return
     // Guard against the host transiently clearing toolOutput (observed when
-    // the displayMode toggles): widgetProps would then become an empty merge
-    // (no layout/context) and clobber a valid viewData, blanking the UI.
-    if (!initialViewData.layout || !initialViewData.context) return
+    // the displayMode toggles): widgetProps would then become an empty
+    // merge (no layout/context) and clobber a valid viewData, blanking
+    // the UI. Require both `context` and `layout`.
+    if (!initialViewData.context || !initialViewData.layout) return
     setViewData(initialViewData)
   }, [isPending, initialViewData])
 
@@ -188,17 +197,25 @@ export function McpAppView({
 
   // Lazy-load any remote widgets referenced by the current layout that the
   // consumer didn't pre-wire. The server advertises bundle URIs via
-  // `viewData.remoteWidgets` (populated by `renderView` from the host's
-  // WidgetRegistry); the loader fetches + evaluates each bundle exactly
-  // once and memoises the component in local state.
+  // `viewData.remoteWidgets`; the loader fetches + evaluates each bundle
+  // exactly once and memoises the component in local state.
+  //
+  // Build mode preloads *every* upstream-hosted widget so the palette can
+  // render real widgets immediately when the user drops them onto the
+  // canvas — without a per-click fetch delay.
   const widgetIdsInLayout = useMemo<string[]>(() => {
-    if (!viewData?.layout) return []
-    return collectLayoutWidgetIds(viewData.layout)
-  }, [viewData])
+    const ids = new Set<string>()
+    if (viewData?.layout) {
+      for (const id of collectLayoutWidgetIds(viewData.layout)) ids.add(id)
+    }
+    if (buildMode && viewData?.remoteWidgets) {
+      for (const id of Object.keys(viewData.remoteWidgets)) ids.add(id)
+    }
+    return [...ids]
+  }, [viewData, buildMode])
 
   // Default to the toolkit's built-in `read-widget-bundle` tool so consumers
   // don't have to hand-wire a loader for standard upstream-hosted modules.
-  // An explicit `widgetLoader` prop wins when supplied.
   const effectiveWidgetLoader = useMemo<WidgetLoader>(() => {
     if (widgetLoader) return widgetLoader
     return createRemoteWidgetLoader({
@@ -279,6 +296,40 @@ export function McpAppView({
     }
   }, [callTool, refreshToolName, viewData?._refreshParams])
 
+  // Called by LayoutBuilder when the user clicks Done. Commits the draft
+  // layout (and any keys/steps edits) into the parent viewData so the
+  // WidgetRenderer takes over showing the just-built layout.
+  const exitBuildMode = useCallback(
+    (commit?: {
+      layout: LayoutConfig
+      keys?: Record<string, unknown>
+      steps?: PipelineStepRef[]
+      title?: string
+      context?: ViewData["context"]
+    }) => {
+      if (commit) {
+        setViewData((prev) =>
+          prev
+            ? {
+                ...prev,
+                layout: commit.layout,
+                title: commit.title ?? prev.title,
+                context: commit.context ?? prev.context,
+                _refreshParams: {
+                  keys: commit.keys,
+                  steps: commit.steps,
+                  layout: commit.layout,
+                  title: commit.title ?? prev.title,
+                },
+              }
+            : prev,
+        )
+      }
+      setBuildMode(false)
+    },
+    [],
+  )
+
   if (isPending || !viewData) {
     return (
       <div className="flex flex-col gap-4 p-4">
@@ -288,6 +339,8 @@ export function McpAppView({
       </div>
     )
   }
+
+  const showHeader = !buildMode
 
   return (
     <main
@@ -307,36 +360,47 @@ export function McpAppView({
         paddingLeft: safeArea?.insets?.left,
       }}
     >
-      <div className="mb-4 flex items-center justify-between">
-        {viewData.title && <h2 className="text-xl font-bold">{viewData.title}</h2>}
-        <div className="flex items-center gap-2">
-          {viewData._refreshParams && (
+      {showHeader && (
+        <div className="mb-4 flex items-center justify-between">
+          {viewData.title && <h2 className="text-xl font-bold">{viewData.title}</h2>}
+          <div className="ml-auto flex items-center gap-2">
+            {viewData._refreshParams && viewData.layout && (
+              <button
+                onClick={() => {
+                  void refreshView()
+                }}
+                disabled={isRefreshing}
+                className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                <RefreshIcon spinning={isRefreshing} />
+                {isRefreshing ? effectiveLabels.refreshing : effectiveLabels.refresh}
+              </button>
+            )}
+            {viewData._refreshParams && (
+              <button
+                onClick={() => setBuildMode(true)}
+                className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+              >
+                <Pencil className="h-4 w-4" />
+                {effectiveLabels.build}
+              </button>
+            )}
             <button
               onClick={() => {
-                void refreshView()
+                void toggleFullscreen()
               }}
-              disabled={isRefreshing}
-              className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+              className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
             >
-              <RefreshIcon spinning={isRefreshing} />
-              {isRefreshing ? effectiveLabels.refreshing : effectiveLabels.refresh}
+              {displayMode === "fullscreen" ? <CollapseIcon /> : <ExpandIcon />}
+              {displayMode === "fullscreen"
+                ? effectiveLabels.exitFullscreen
+                : effectiveLabels.enterFullscreen}
             </button>
-          )}
-          <button
-            onClick={() => {
-              void toggleFullscreen()
-            }}
-            className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-          >
-            {displayMode === "fullscreen" ? <CollapseIcon /> : <ExpandIcon />}
-            {displayMode === "fullscreen"
-              ? effectiveLabels.exitFullscreen
-              : effectiveLabels.enterFullscreen}
-          </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {viewData.context.errors.length > 0 && (
+      {!buildMode && viewData.context.errors.length > 0 && (
         <div className="mb-4 flex flex-col gap-2">
           {viewData.context.errors.map((err) => (
             <div
@@ -350,13 +414,25 @@ export function McpAppView({
       )}
 
       <AppQueryProvider callTool={callToolFn}>
-        <WidgetRenderer
-          layout={viewData.layout}
-          keys={viewData.context.keys}
-          stepData={viewData.context.stepData}
-          errors={viewData.context.errors}
-          widgets={mergedWidgets}
-        />
+        {buildMode ? (
+          <LayoutBuilder
+            initialLayout={viewData.layout}
+            title={viewData.title}
+            initialKeys={viewData._refreshParams?.keys}
+            initialSteps={viewData._refreshParams?.steps}
+            widgets={mergedWidgets}
+            callTool={callToolFn}
+            onExit={exitBuildMode}
+          />
+        ) : viewData.layout ? (
+          <WidgetRenderer
+            layout={viewData.layout}
+            keys={viewData.context.keys}
+            stepData={viewData.context.stepData}
+            errors={viewData.context.errors}
+            widgets={mergedWidgets}
+          />
+        ) : null}
       </AppQueryProvider>
     </main>
   )

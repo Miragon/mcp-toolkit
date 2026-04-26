@@ -8,8 +8,11 @@ import { createOrgGateMiddleware } from "../middleware/org-gate.js"
 import { createRoleFilterMiddleware } from "../middleware/role-filter.js"
 import { discoverUpstreamModules, DEFAULT_HOST_REACT_MAJOR } from "../module-loader/discover.js"
 import { synthesizeModulePlugin } from "../module-loader/synthesize-plugin.js"
+import { createInMemoryDashboardStore, type DashboardStore } from "../framework/dashboard-store.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
 import { registerFrameworkTools } from "./register-framework-tools.js"
+import { registerCatalogueTool } from "./register-catalogue-tool.js"
+import { registerDashboardTools } from "./register-dashboard-tools.js"
 import { registerUpstreamProxies } from "./register-upstream-proxies.js"
 
 export interface CreateFrameworkAppOptionsBase {
@@ -44,6 +47,19 @@ export interface CreateFrameworkAppOptionsBase {
     htmlPath: string
     /** Override the refresh tool name (default: `refresh-view`). */
     refreshToolName?: string
+    /**
+     * Override the catalogue tool name (default: `get-builder-catalogue`).
+     * The catalogue tool is app-only — it powers the in-iframe builder
+     * and never appears in the LLM's tool surface.
+     */
+    catalogueToolName?: string
+    /**
+     * Persistence backing for `save-dashboard` / `list-dashboards` /
+     * `load-dashboard` / `delete-dashboard`. Defaults to an in-memory store
+     * (process-local, lost on restart). Inject a filesystem or DB-backed
+     * store for real deployments.
+     */
+    dashboardStore?: DashboardStore
   }
   /** Supplies the non-empty set of apps each plugin represents. */
   appConfig?: AppConfig
@@ -162,6 +178,16 @@ export async function createFrameworkApp(
     htmlPath: options.app.htmlPath,
     refreshToolName: options.app.refreshToolName,
   })
+
+  registerCatalogueTool(server, {
+    stepRegistry,
+    widgetRegistry,
+    appConfigs,
+    toolName: options.app.catalogueToolName,
+  })
+
+  const dashboardStore = options.app.dashboardStore ?? createInMemoryDashboardStore()
+  registerDashboardTools(server, { store: dashboardStore })
 
   return server
 }

@@ -38,16 +38,35 @@ widget bundles or browser code.
 
 ### Framework helpers
 
-| Symbol                       | Signature                                                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `renderView`                 | `(input: RenderViewInput, stepRegistry, appConfigs?, ctx?) → Promise<{ content, structuredContent?, isError? }>` |
-| `RenderViewInput`            | `{ keys?, steps?, layout, title? }`.                                                                             |
-| `getFrameworkManifest`       | `(stepRegistry, widgetRegistry, config) → FrameworkManifest`                                                     |
-| `FrameworkManifest`          | `{ activeApps, steps, widgets, pipelines, keyContracts }`.                                                       |
-| `normalizeLayout`            | `(layout) → { rows?, tabs? }`.                                                                                   |
-| `LayoutConfig` / `RowDef`    | Static types for the layout shape.                                                                               |
-| `layoutSchema` / `rowSchema` | Zod schemas validated by `render-view`.                                                                          |
-| `resolveActiveModules`       | `(envValue?, known: string[]) → string[]`.                                                                       |
+| Symbol                       | Signature                                                                                                                                                                                                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderView`                 | `(input: RenderViewInput, stepRegistry, appConfigs?, ctx?, widgetRegistry?) → Promise<{ content, structuredContent?, isError? }>`                                                                                                                                            |
+| `RenderViewInput`            | `{ keys?, steps?, layout, title? }`.                                                                                                                                                                                                                                         |
+| `RemoteWidgetInfo`           | `{ bundle, moduleId }`.                                                                                                                                                                                                                                                      |
+| `getBuilderCatalogue`        | `(input: CatalogueInput, stepRegistry, widgetRegistry, appConfigs?, ctx?) → Promise<{ content, structuredContent: CataloguePayload }>`. Backs the app-only `get-builder-catalogue` tool used by the iframe builder. See [view-builder concept](../concepts/view-builder.md). |
+| `CatalogueInput`             | `{ keys?, steps? }` — what the builder is currently working with.                                                                                                                                                                                                            |
+| `CataloguePayload`           | `{ context, reachableWidgets, unreachableWidgets, availableSteps, keyCatalog, remoteWidgets }`.                                                                                                                                                                              |
+| `ReachableWidget`            | `{ id, app, requires, size }` — palette entry for the builder UI.                                                                                                                                                                                                            |
+| `UnreachableWidget`          | `{ id, app, requires, size, missingKeys }` — registered widget not satisfied by the current key set.                                                                                                                                                                         |
+| `AvailableStep`              | `{ id, app, dataType, requires, produces }` — step picker entry.                                                                                                                                                                                                             |
+| `KeyCatalogEntry`            | `{ key, producedBySteps, consumedBySteps, consumedByWidgets, inContext }`.                                                                                                                                                                                                   |
+| `getFrameworkManifest`       | `(stepRegistry, widgetRegistry, config) → FrameworkManifest`                                                                                                                                                                                                                 |
+| `FrameworkManifest`          | `{ activeApps, steps, widgets, pipelines, keyContracts }`.                                                                                                                                                                                                                   |
+| `normalizeLayout`            | `(layout) → { rows?, tabs? }`.                                                                                                                                                                                                                                               |
+| `LayoutConfig` / `RowDef`    | Static types for the layout shape.                                                                                                                                                                                                                                           |
+| `layoutSchema` / `rowSchema` | Zod schemas validated by `render-view`.                                                                                                                                                                                                                                      |
+| `resolveActiveModules`       | `(envValue?, known: string[]) → string[]`.                                                                                                                                                                                                                                   |
+
+### Dashboard types (types only — impls in `/tools`)
+
+| Symbol                            | Shape                                                                                                                                                                                   |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DashboardStore`                  | `{ save(input), list(filter), get(id, filter), delete(id, filter) }`. Pluggable persistence for `save-/list-/load-/delete-dashboard`.                                                   |
+| `DashboardRecord`                 | `{ id, name, description?, userId?, keys?, steps?, layout, title?, createdAt, updatedAt }`. The `{ keys, steps, layout, title }` slice is directly assignable to `render-view`'s input. |
+| `DashboardSaveInput`              | `{ id?, name, description?, userId?, keys?, steps?, layout, title? }`.                                                                                                                  |
+| `DashboardSummary`                | `{ id, name, description?, title?, updatedAt }`. Returned by `list`.                                                                                                                    |
+| `DashboardListFilter`             | `{ userId? }`.                                                                                                                                                                          |
+| `FileSystemDashboardStoreOptions` | `{ dir }`. Directory for per-record `<id>.json` files.                                                                                                                                  |
 
 ### Middleware
 
@@ -68,16 +87,22 @@ widget bundles or browser code.
 
 Server-side registrars — imports `mcp-use/server`. Keep out of browser bundles.
 
-| Symbol                           | Signature                                                                                                                        |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `createFrameworkApp`             | `(opts: CreateFrameworkAppOptions) → Promise<MCPServer>`                                                                         |
-| `CreateFrameworkAppOptions`      | `{ name, version?, baseUrl?, host?, oauth?, plugins, proxies, callbackBaseUrl?, middleware?, app, appConfig?, secretResolver? }` |
-| `registerFrameworkTools`         | `(server, opts: RegisterFrameworkToolsOptions) → void`.                                                                          |
-| `RegisterFrameworkToolsOptions`  | `{ stepRegistry, widgetRegistry, config, appConfigs, plugins, resourceUri, htmlPath, refreshToolName? }`.                        |
-| `registerUpstreamProxies`        | `(server, opts: RegisterUpstreamProxiesOptions) → Promise<UpstreamProxyPlugin[]>`.                                               |
-| `RegisterUpstreamProxiesOptions` | `{ entries, callbackBaseUrl?, secretResolver? }`.                                                                                |
-| `createToolRegistrar`            | `(ToolConfig) → RegisteredToolMeta`. Helper for scripts.                                                                         |
-| `createWidgetToolRegistrar`      | `(WidgetToolConfig) → …`.                                                                                                        |
+| Symbol                           | Signature                                                                                                                                                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createFrameworkApp`             | `(opts: CreateFrameworkAppOptions) → Promise<MCPServer>`. Wires framework tools + `get-builder-catalogue` + the four dashboard CRUD tools in one call.                                                                              |
+| `CreateFrameworkAppOptions`      | `{ name, version?, baseUrl?, host?, oauth?, plugins, proxies, callbackBaseUrl?, middleware?, app, appConfig?, secretResolver? }`. `app` accepts `{ resourceUri, htmlPath, refreshToolName?, catalogueToolName?, dashboardStore? }`. |
+| `registerFrameworkTools`         | `(server, opts: RegisterFrameworkToolsOptions) → void`.                                                                                                                                                                             |
+| `RegisterFrameworkToolsOptions`  | `{ stepRegistry, widgetRegistry, config, appConfigs, plugins, proxies?, resourceUri, htmlPath, refreshToolName? }`.                                                                                                                 |
+| `registerCatalogueTool`          | `(server, opts: RegisterCatalogueToolOptions) → void`. Registers `get-builder-catalogue` with `visibility: ["app"]` — the iframe builder's data source. Never appears in the LLM's tools/list.                                      |
+| `RegisterCatalogueToolOptions`   | `{ stepRegistry, widgetRegistry, appConfigs, toolName? }`.                                                                                                                                                                          |
+| `registerDashboardTools`         | `(server, opts: RegisterDashboardToolsOptions) → void`. Registers `save-/list-/load-/delete-dashboard`.                                                                                                                             |
+| `RegisterDashboardToolsOptions`  | `{ store: DashboardStore }`.                                                                                                                                                                                                        |
+| `createInMemoryDashboardStore`   | `() → DashboardStore`. Process-local, lost on restart. Default when `app.dashboardStore` is omitted.                                                                                                                                |
+| `createFileSystemDashboardStore` | `(opts: FileSystemDashboardStoreOptions) → DashboardStore`. JSON-per-record under `opts.dir`.                                                                                                                                       |
+| `registerUpstreamProxies`        | `(server, opts: RegisterUpstreamProxiesOptions) → Promise<UpstreamProxyPlugin[]>`.                                                                                                                                                  |
+| `RegisterUpstreamProxiesOptions` | `{ entries, callbackBaseUrl?, secretResolver? }`.                                                                                                                                                                                   |
+| `createToolRegistrar`            | `(ToolConfig) → RegisteredToolMeta`. Helper for scripts.                                                                                                                                                                            |
+| `createWidgetToolRegistrar`      | `(WidgetToolConfig) → …`.                                                                                                                                                                                                           |
 
 ## `@miragon/mcp-toolkit-core/proxy`
 
@@ -105,8 +130,13 @@ packages/core/src/
 ├── types/            runtime-safe types
 ├── engine/           pipeline-executor, context-builder
 ├── registry/         step-registry, widget-registry, app-loader
-├── framework/        render-view, manifest, layout-*, active-modules
+├── framework/        render-view, catalogue, manifest, layout-*, dashboard-store, active-modules
 ├── middleware/       org-gate, role-filter
 ├── proxy/            UpstreamProxyPlugin + SessionStore + ServerSideOAuthProvider
 └── tools/            registrars — import mcp-use/server
 ```
+
+## See also
+
+- [View builder concept](../concepts/view-builder.md)
+- [Building dashboards end-to-end](../guides/building-dashboards.md)
