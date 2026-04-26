@@ -1,7 +1,7 @@
 # Building dashboards end-to-end
 
-This guide walks through the full builder → save → reload loop against
-the example host in `examples/host`.
+This guide walks through the full render → build → save → reload loop
+against the example host in `examples/host`.
 
 ## 1. Wire the dashboard store
 
@@ -21,49 +21,54 @@ const app = await createFrameworkApp({
 })
 ```
 
-The toolkit registers `save-dashboard`, `list-dashboards`, `load-dashboard`,
-and `delete-dashboard` against the store.
+The toolkit registers `save-dashboard`, `list-dashboards`,
+`load-dashboard`, and `delete-dashboard` against the store. It also
+auto-registers the app-only `get-builder-catalogue` tool that powers
+the in-iframe builder.
 
-## 2. Open the builder
+## 2. Render a view (LLM)
 
-The LLM calls `open-view-builder` with the same shape as `render-view`:
+The LLM calls plain `render-view`:
 
 ```jsonc
 {
   "keys": { "sales:customerId": "C-1" },
   "steps": [{ "id": "customer", "step": "sales:load-customer" }],
+  "layout": { "rows": [{ "row": [{ "widget": "sales:customer-card", "span": 6 }] }] },
   "title": "Customer overview",
 }
 ```
 
-The response's `structuredContent.mode` is `"builder"` and
-`structuredContent.reachableWidgets` lists widgets whose `requires` are
-satisfied by the keys the pipeline will expose. `McpAppView` branches on
-`mode` and renders `<LayoutBuilder>` instead of `<WidgetRenderer>`.
+The response is small — just the rendered context plus the layout. The
+catalogue is **not** included; the LLM doesn't need it.
 
-## 3. Compose in the UI
+## 3. Switch into Build (user)
 
-In the builder:
+In the iframe toolbar there's a **Build** button (pencil icon). Click
+it and the renderer flips into the LayoutBuilder. The builder fetches
+its own catalogue via the app-only `get-builder-catalogue` tool — the
+LLM never sees this round-trip.
 
-- Click a widget in the palette (left) to drop it into the focused row.
-- Adjust each cell's **span** (1–12) with the ± buttons.
-- Use **Add row** to append rows; reorder with the row-level arrows.
-- Use **Add tab** to switch into tabs mode; the existing rows become the
-  first tab.
-- Use **Remove tab** to drop a tab; removing down to one tab collapses
-  back into flat-rows mode automatically.
+In Build mode you have three tabs:
 
-The canvas is WYSIWYG — each cell renders the actual widget with the
-live pipeline data, so what you assemble matches what `render-view`
-will produce.
+- **Layout** — palette + canvas. Click or drag widgets, set span per
+  cell, add/remove/reorder rows, manage tabs.
+- **Pipeline** — keys + steps editor. Auto-applies on edit (debounced).
+- **Preview** — pure rendered output, no chrome.
+
+A right-side **Catalogue** sheet (toolbar button) shows all keys with
+producer/consumer attribution and lists widgets that aren't reachable
+yet, with one-click "Add producing step" actions.
 
 ## 4. Finish
 
-- **Render view** — calls `render-view` with the current draft and swaps
-  the iframe into the rendered view (same experience as if the LLM had
-  picked the layout itself).
+- **Done** — exits Build mode, swaps back to the rendered view with the
+  layout you just built.
 - **Save dashboard** — prompts for a name + optional description, then
   calls `save-dashboard`. Returns `{ id, createdAt, updatedAt }`.
+
+The user's draft layout is local until they click Done or Save —
+nothing leaks back to the LLM mid-edit.
 
 ## 5. Recall
 
@@ -83,8 +88,8 @@ From a later session, the LLM (or an admin UI) can:
 }
 ```
 
-Because `load-dashboard` returns exactly the shape `render-view` accepts,
-steps 2 and 3 need no translation.
+Because `load-dashboard` returns exactly the shape `render-view`
+accepts, steps 2 and 3 need no translation.
 
 ## Testing locally
 
@@ -93,18 +98,21 @@ steps 2 and 3 need no translation.
 # customers-upstream, and the host with startup gating.
 pnpm --filter @miragon/mcp-toolkit-examples start
 
-# In another shell — open the builder
+# In another shell — render a view (LLM-style call)
 curl -sX POST http://localhost:3010/mcp \
   -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
-       "params":{"name":"open-view-builder",
-                 "arguments":{"keys":{"articles:articleId":"1"},
-                              "steps":[{"id":"article","step":"articles:resolve-article"}]}}}' | jq
+       "params":{"name":"render-view",
+                 "arguments":{
+                   "keys":{"articles:articleId":"1"},
+                   "steps":[{"id":"article","step":"articles:resolve-article"}],
+                   "layout":{"rows":[{"row":[{"widget":"articles:article-card","span":6}]}]}
+                 }}}' | jq
 ```
 
-`structuredContent.reachableWidgets` should list `articles:article-card`
-once the step has run. Open the MCP UI in an MCP-capable host to
-interact with the builder visually.
+Open the resulting MCP UI in an MCP-capable host. You'll see the
+rendered widget; click **Build** in the toolbar to enter Build mode
+and edit the layout interactively.
 
 ## See also
 

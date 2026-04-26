@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowDownToLine,
   ArrowRightToLine,
+  Check,
   ChevronDown,
   ChevronUp,
   CircleDot,
@@ -70,6 +71,7 @@ export interface LayoutBuilderLabels {
   previewBadge?: string
   catalogue?: string
   save?: string
+  done?: string
   viewLayoutTab?: string
   viewPipelineTab?: string
   viewPreviewTab?: string
@@ -123,6 +125,7 @@ const DEFAULT_LABELS: Required<LayoutBuilderLabels> = {
   previewBadge: "Preview",
   catalogue: "Catalogue",
   save: "Save",
+  done: "Done",
   viewLayoutTab: "Layout",
   viewPipelineTab: "Pipeline",
   viewPreviewTab: "Preview",
@@ -190,18 +193,34 @@ export interface LayoutBuilderProps {
   title?: string
   initialKeys?: Record<string, unknown>
   initialSteps?: PipelineStepRef[]
-  context: PipelineContext
-  reachableWidgets: ReachableWidget[]
-  unreachableWidgets?: UnreachableWidget[]
-  availableSteps: AvailableStep[]
-  keyCatalog?: KeyCatalogEntry[]
   widgets: Record<string, WidgetComponent>
   callTool: (name: string, args: object) => Promise<unknown>
-  builderToolName?: string
+  /** App-only catalogue tool name. Default: `get-builder-catalogue`. */
+  catalogueToolName?: string
   saveToolName?: string
   dashboardId?: string
   labels?: LayoutBuilderLabels
   onSaved?: (result: { id: string; name: string }) => void
+  /**
+   * Called when the user clicks "Done" / exits the builder. Receives
+   * the final draft so the parent can swap into the rendered view with
+   * the just-built layout. Omit `commit` to leave parent state untouched.
+   */
+  onExit?: (commit?: {
+    layout: LayoutConfig
+    keys?: Record<string, unknown>
+    steps?: PipelineStepRef[]
+    title?: string
+    context?: {
+      keys: Record<string, unknown>
+      stepIds: string[]
+      stepData: Record<
+        string,
+        { data: unknown; keys: Record<string, unknown>; _app: string; _dataType: string }
+      >
+      errors: { stepId: string; reason: string }[]
+    }
+  }) => void
 }
 
 // -------------------------------------------------------------------------- //
@@ -350,27 +369,46 @@ function defaultStepIdFor(stepId: string, takenIds: Set<string>): string {
   return `${base}-${i}`
 }
 
+/**
+ * Inflates the wire-shape `context` (which carries `stepIds` and
+ * keyed `stepData`) into the runtime `PipelineContext` shape that
+ * `WidgetRenderer` expects.
+ */
+function toPipelineContext(ctx: {
+  keys: Record<string, unknown>
+  stepIds: string[]
+  stepData: Record<
+    string,
+    { data: unknown; keys: Record<string, unknown>; _app: string; _dataType: string }
+  >
+  errors: { stepId: string; reason: string }[]
+}): PipelineContext {
+  const steps: PipelineContext["steps"] = {}
+  for (const [id, result] of Object.entries(ctx.stepData)) {
+    steps[id] = { ...result, _step: id }
+  }
+  return { steps, keys: ctx.keys, errors: ctx.errors }
+}
+
 // -------------------------------------------------------------------------- //
 // Main component
 // -------------------------------------------------------------------------- //
+
+const EMPTY_CONTEXT: PipelineContext = { steps: {}, keys: {}, errors: [] }
 
 export function LayoutBuilder({
   initialLayout,
   title,
   initialKeys,
   initialSteps,
-  context,
-  reachableWidgets,
-  unreachableWidgets,
-  availableSteps,
-  keyCatalog,
   widgets,
   callTool,
-  builderToolName = "open-view-builder",
+  catalogueToolName = "get-builder-catalogue",
   saveToolName = "save-dashboard",
   dashboardId,
   labels,
   onSaved,
+  onExit,
 }: LayoutBuilderProps) {
   const L = { ...DEFAULT_LABELS, ...labels }
 
@@ -385,19 +423,13 @@ export function LayoutBuilder({
   const [keyEntries, setKeyEntries] = useState<KeyEntry[]>(() => keysToEntries(initialKeys))
   const [stepEntries, setStepEntries] = useState<PipelineStepRef[]>(() => initialSteps ?? [])
 
-  // ── Live snapshots from open-view-builder responses ─────────────────────
-  const [liveReachable, setLiveReachable] = useState<ReachableWidget[]>(reachableWidgets)
-  const [liveUnreachable, setLiveUnreachable] = useState<UnreachableWidget[]>(
-    unreachableWidgets ?? [],
-  )
-  const [liveCatalog, setLiveCatalog] = useState<KeyCatalogEntry[]>(keyCatalog ?? [])
-  const [liveSteps, setLiveSteps] = useState<AvailableStep[]>(availableSteps)
-  const [liveContext, setLiveContext] = useState<PipelineContext>(context)
-  useEffect(() => setLiveReachable(reachableWidgets), [reachableWidgets])
-  useEffect(() => setLiveUnreachable(unreachableWidgets ?? []), [unreachableWidgets])
-  useEffect(() => setLiveCatalog(keyCatalog ?? []), [keyCatalog])
-  useEffect(() => setLiveSteps(availableSteps), [availableSteps])
-  useEffect(() => setLiveContext(context), [context])
+  // ── Live snapshots from get-builder-catalogue responses ─────────────────
+  // Start empty — the first effect below fetches the catalogue on mount.
+  const [liveReachable, setLiveReachable] = useState<ReachableWidget[]>([])
+  const [liveUnreachable, setLiveUnreachable] = useState<UnreachableWidget[]>([])
+  const [liveCatalog, setLiveCatalog] = useState<KeyCatalogEntry[]>([])
+  const [liveSteps, setLiveSteps] = useState<AvailableStep[]>([])
+  const [liveContext, setLiveContext] = useState<PipelineContext>(EMPTY_CONTEXT)
 
   // ── Refresh status (for the auto-apply chip) ────────────────────────────
   type RefreshStatus = "idle" | "pending" | "refreshing"
@@ -601,22 +633,30 @@ export function LayoutBuilder({
     setStepEntries((prev) => prev.filter((_, i) => i !== idx))
   }, [])
 
-  // ── Refresh + auto-apply ────────────────────────────────────────────────
+  // ── Catalogue fetch (mount + on key/step edits) ─────────────────────────
+  // The builder fetches its own catalogue from the app-only
+  // `get-builder-catalogue` tool; the LLM never sees this data.
   const refreshBuilder = useCallback(async () => {
     setStatus("refreshing")
     try {
-      const result = (await callTool(builderToolName, {
+      const result = (await callTool(catalogueToolName, {
         keys: entriesToKeys(keyEntries),
         steps: stepEntries.filter((s) => s.step.trim().length > 0),
-        layout: draftToLayout(draft),
-        title,
       })) as {
         structuredContent?: {
           reachableWidgets?: ReachableWidget[]
           unreachableWidgets?: UnreachableWidget[]
           availableSteps?: AvailableStep[]
           keyCatalog?: KeyCatalogEntry[]
-          context?: PipelineContext
+          context?: {
+            keys: Record<string, unknown>
+            stepIds: string[]
+            stepData: Record<
+              string,
+              { data: unknown; keys: Record<string, unknown>; _app: string; _dataType: string }
+            >
+            errors: { stepId: string; reason: string }[]
+          }
         }
       }
       const sc = result.structuredContent
@@ -624,25 +664,25 @@ export function LayoutBuilder({
       if (sc?.unreachableWidgets) setLiveUnreachable(sc.unreachableWidgets)
       if (sc?.availableSteps) setLiveSteps(sc.availableSteps)
       if (sc?.keyCatalog) setLiveCatalog(sc.keyCatalog)
-      if (sc?.context) setLiveContext(sc.context)
+      if (sc?.context) setLiveContext(toPipelineContext(sc.context))
     } finally {
       setStatus("idle")
     }
-  }, [builderToolName, callTool, draft, keyEntries, stepEntries, title])
+  }, [catalogueToolName, callTool, keyEntries, stepEntries])
 
-  // Auto-apply on key/step edits, debounced. Skip the very first render (we
-  // already have fresh server-side state from the props). The ref pattern
-  // keeps the effect dependent on only `keyEntries` / `stepEntries` — without
-  // it, every layout edit would also retrigger the apply because
-  // `refreshBuilder`'s identity depends on `draft` etc.
+  // Fetch the catalogue on mount (no debounce) so the builder is ready
+  // immediately. Then on every keys/steps edit, debounce 600ms before
+  // re-fetching. The ref pattern keeps the effect dependent on only
+  // keyEntries / stepEntries.
   const refreshRef = useRef(refreshBuilder)
   useEffect(() => {
     refreshRef.current = refreshBuilder
   }, [refreshBuilder])
-  const skipFirstAutoApply = useRef(true)
+  const isFirstRun = useRef(true)
   useEffect(() => {
-    if (skipFirstAutoApply.current) {
-      skipFirstAutoApply.current = false
+    if (isFirstRun.current) {
+      isFirstRun.current = false
+      void refreshRef.current()
       return
     }
     setStatus("pending")
@@ -807,6 +847,33 @@ export function LayoutBuilder({
         unreachableCount={liveUnreachable.length}
         onOpenCatalogue={() => setCatalogueOpen(true)}
         onOpenSave={() => setSaveOpen(true)}
+        onDone={
+          onExit
+            ? () =>
+                onExit({
+                  layout: draftToLayout(draft),
+                  keys: entriesToKeys(keyEntries),
+                  steps: stepEntries.filter((s) => s.step.trim().length > 0),
+                  title,
+                  context: {
+                    keys: liveContext.keys,
+                    stepIds: Object.keys(liveContext.steps),
+                    stepData: Object.fromEntries(
+                      Object.entries(liveContext.steps).map(([id, result]) => [
+                        id,
+                        {
+                          data: result.data,
+                          keys: result.keys,
+                          _app: result._app,
+                          _dataType: result._dataType,
+                        },
+                      ]),
+                    ),
+                    errors: liveContext.errors,
+                  },
+                })
+            : undefined
+        }
         hasAnyCell={hasAnyCell}
       />
 
@@ -939,6 +1006,7 @@ function Toolbar({
   unreachableCount,
   onOpenCatalogue,
   onOpenSave,
+  onDone,
   hasAnyCell,
 }: {
   L: Required<LayoutBuilderLabels>
@@ -950,6 +1018,7 @@ function Toolbar({
   unreachableCount: number
   onOpenCatalogue: () => void
   onOpenSave: () => void
+  onDone?: () => void
   hasAnyCell: boolean
 }) {
   return (
@@ -999,6 +1068,11 @@ function Toolbar({
         <Button size="sm" onClick={onOpenSave} disabled={isBusy || !hasAnyCell}>
           <Save /> {L.save}
         </Button>
+        {onDone && (
+          <Button variant="outline" size="sm" onClick={onDone}>
+            <Check /> {L.done}
+          </Button>
+        )}
       </div>
     </header>
   )

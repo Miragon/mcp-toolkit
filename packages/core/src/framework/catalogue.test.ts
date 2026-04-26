@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { StepRegistry } from "../registry/step-registry.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
-import { buildView } from "./builder.js"
+import { getBuilderCatalogue } from "./catalogue.js"
 
-describe("buildView", () => {
+describe("getBuilderCatalogue", () => {
   it("surfaces widgets reachable from the initial keys alone", async () => {
     const stepRegistry = new StepRegistry()
     const widgetRegistry = new WidgetRegistry()
@@ -18,14 +18,13 @@ describe("buildView", () => {
       size: "half",
     })
 
-    const result = await buildView(
+    const result = await getBuilderCatalogue(
       { keys: { "sales:orderId": "ORD-1" } },
       stepRegistry,
       widgetRegistry,
     )
 
     const payload = result.structuredContent
-    expect(payload.mode).toBe("builder")
     expect(payload.reachableWidgets.map((w) => w.id)).toEqual(["sales:order-card"])
     expect(payload.context.errors).toEqual([])
   })
@@ -59,7 +58,7 @@ describe("buildView", () => {
       size: "half",
     })
 
-    const result = await buildView(
+    const result = await getBuilderCatalogue(
       {
         keys: { "sales:customerId": "C-1" },
         steps: [{ id: "customer", step: "sales:load-customer" }],
@@ -83,8 +82,6 @@ describe("buildView", () => {
         produces: ["sales:customer"],
       },
     ])
-    // Catalogue surfaces keys from step contracts *and* widget requires,
-    // with the live-context flag set for resolved entries.
     const contract = Object.fromEntries(payload.keyCatalog.map((e) => [e.key, e]))
     expect(contract["sales:customer"]).toMatchObject({
       producedBySteps: ["sales:load-customer"],
@@ -116,19 +113,16 @@ describe("buildView", () => {
     })
     const widgetRegistry = new WidgetRegistry()
 
-    const result = await buildView(
+    const result = await getBuilderCatalogue(
       {
-        // No initial keys, so `sales:customerId` is missing — validation fails.
         steps: [{ id: "customer", step: "sales:load-customer" }],
       },
       stepRegistry,
       widgetRegistry,
     )
 
-    // Validation issue is surfaced in the text summary but the response is
-    // still a valid builder payload (no `isError`).
     expect(result.content[0].text).toMatch(/Pipeline issues:/)
-    expect(result.structuredContent.mode).toBe("builder")
+    expect(result.structuredContent.reachableWidgets).toEqual([])
   })
 
   it("advertises upstream-hosted widgets via remoteWidgets", async () => {
@@ -142,7 +136,7 @@ describe("buildView", () => {
       moduleId: "items",
     })
 
-    const result = await buildView(
+    const result = await getBuilderCatalogue(
       { keys: { "items:item": { id: 1 } } },
       stepRegistry,
       widgetRegistry,

@@ -4,12 +4,13 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 
 1. **Upstream proxies** — federate external MCPs under a `<proxy>_` prefix.
 2. **App plugins** — register domain tools, widget tools, pipeline steps, widgets.
-3. **Framework tools** — `get-framework-manifest`, `render-view`,
-   `refresh-view`, `read-widget-bundle` (streams upstream-hosted widget
-   JS to the browser), `open-view-builder` (interactive composer entry
-   point), and the `save-/list-/load-/delete-dashboard` CRUD quartet
-   backed by a pluggable `DashboardStore`, plus the `mcp-app-html`
-   widget bundle resource.
+3. **Framework tools** — LLM-facing: `get-framework-manifest`,
+   `render-view`, plus the `save-/list-/load-/delete-dashboard` CRUD
+   quartet backed by a pluggable `DashboardStore`. App-only (iframe
+   internal, never in LLM `tools/list`): `refresh-view`,
+   `read-widget-bundle` (streams upstream-hosted widget JS to the
+   browser), `get-builder-catalogue` (powers the in-iframe builder).
+   Plus the `mcp-app-html` widget bundle resource.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -21,9 +22,10 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 │  ┌──────────────┐  ┌──────────────────────────────────────────────┐  │
 │  │ middleware   │  │ tools                                        │  │
 │  │  org-gate    │  │  get-framework-manifest · render-view        │  │
-│  │  role-filter │  │  refresh-view · open-view-builder            │  │
-│  └──────────────┘  │  save-/list-/load-/delete-dashboard          │  │
-│                    │  <plugin>_* · <proxy>_*                      │  │
+│  │  role-filter │  │  save-/list-/load-/delete-dashboard          │  │
+│  └──────────────┘  │  <plugin>_* · <proxy>_*                      │  │
+│                    │  (app-only) refresh-view · read-widget-      │  │
+│                    │  bundle · get-builder-catalogue              │  │
 │                    └──────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────────┐    │
 │  │ resources: ui://<app>/mcp-app.html (widget bundle)           │    │
@@ -83,15 +85,16 @@ add an explicit check in the step.
 
 ## Where the parts live
 
-| Concern              | File                                                   |
-| -------------------- | ------------------------------------------------------ |
-| Server boot + wiring | `packages/core/src/tools/create-framework-app.ts`      |
-| Framework tools      | `packages/core/src/tools/register-framework-tools.ts`  |
-| View builder tool    | `packages/core/src/tools/register-builder-tool.ts`     |
-| Dashboard CRUD tools | `packages/core/src/tools/register-dashboard-tools.ts`  |
-| Dashboard store      | `packages/core/src/framework/dashboard-store.ts`       |
-| Proxy mounting       | `packages/core/src/tools/register-upstream-proxies.ts` |
-| Proxy runtime        | `packages/core/src/proxy/UpstreamProxyPlugin.ts`       |
-| Pipeline executor    | `packages/core/src/engine/pipeline-executor.ts`        |
-| View rendering       | `packages/core/src/framework/render-view.ts`           |
-| Manifest             | `packages/core/src/framework/manifest.ts`              |
+| Concern              | File                                                            |
+| -------------------- | --------------------------------------------------------------- |
+| Server boot + wiring | `packages/core/src/tools/create-framework-app.ts`               |
+| Framework tools      | `packages/core/src/tools/register-framework-tools.ts`           |
+| Builder catalogue    | `packages/core/src/tools/register-catalogue-tool.ts` (app-only) |
+| Catalogue helper     | `packages/core/src/framework/catalogue.ts`                      |
+| Dashboard CRUD tools | `packages/core/src/tools/register-dashboard-tools.ts`           |
+| Dashboard store      | `packages/core/src/framework/dashboard-store.ts`                |
+| Proxy mounting       | `packages/core/src/tools/register-upstream-proxies.ts`          |
+| Proxy runtime        | `packages/core/src/proxy/UpstreamProxyPlugin.ts`                |
+| Pipeline executor    | `packages/core/src/engine/pipeline-executor.ts`                 |
+| View rendering       | `packages/core/src/framework/render-view.ts`                    |
+| Manifest             | `packages/core/src/framework/manifest.ts`                       |

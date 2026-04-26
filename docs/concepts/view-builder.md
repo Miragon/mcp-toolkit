@@ -1,49 +1,56 @@
 # View builder & persisted dashboards
 
-`render-view` is the one-shot path — the LLM picks keys, steps, and a layout
-up-front and the UI is materialised. The **view builder** adds an
-interactive path: the user (or the LLM) seeds keys + steps, the server
-returns the catalogue of widgets whose `requires` are satisfiable against
-that key set, and the user assembles a layout by dropping widgets onto
-rows and tabs. The finished layout feeds back into `render-view` or gets
-persisted as a **dashboard** for later recall.
+`render-view` is the LLM's only view-related tool. It takes
+`{ keys, steps, layout, title }`, runs the pipeline, and returns the
+rendered payload. The user — inside the iframe — can flip the same view
+into **build mode** with one click; the catalogue (palette, key
+contracts, available steps) is fetched on demand from an app-only tool
+and never lands in the LLM's context.
 
 ## The loop
 
 ```
-open-view-builder { keys, steps }                  ← LLM seeds context
+LLM:                                 UI / iframe:
+─────                                ─────────────
+render-view { keys, steps, layout }
    ↓
-structuredContent.mode = "builder"
-structuredContent.reachableWidgets = [ … ]          ← palette source
+structuredContent { context, layout, … }
    ↓
-McpAppView branches → <LayoutBuilder>               ← user composes
-   ↓
-Render view  ─► render-view { keys, steps, layout }  ← returns rendered payload
-Save          ─► save-dashboard { name, keys, steps, layout, title }
-                         ↓
-                 list-dashboards / load-dashboard  ← later recall
-                         ↓
-                 load-dashboard { id } ─► render-view { … }
+                                     <WidgetRenderer>      ← user sees rendered view
+                                     · click "Build" ↓
+                                     <LayoutBuilder>
+                                     · calls get-builder-catalogue
+                                       (app-only, not visible to LLM)
+                                     · drag widgets, edit keys/steps,
+                                       toggle Layout/Pipeline/Preview
+                                     · click "Done" ↑
+                                     <WidgetRenderer>      ← back to render with new layout
+
+                                     · click "Save dashboard"
+                                       → save-dashboard { name, … }
 ```
 
-Only `render-view` is part of the LLM's main prompting surface in the
-one-shot flow; `open-view-builder` is the entry point for the interactive
-flow. Both produce compatible layouts.
+The LLM only ever needs `render-view`. Build mode and the catalogue are
+the iframe's concern.
 
 ## Reachable widgets
 
 Given the initial `keys` plus the keys a step set would `produces`,
-`buildView` computes the key set the pipeline _could_ expose and returns
-every widget whose `requires` is a subset. Two helpers already shipped by
-the toolkit do the work:
+`getBuilderCatalogue` (server helper, app-only) computes the key set
+the pipeline _could_ expose and returns every widget whose `requires`
+is a subset. Two helpers already shipped by the toolkit do the work:
 
 - `validatePipeline(config, stepRegistry, initialKeys)` — statically returns
   `availableKeys` after the steps would execute.
 - `widgetRegistry.findByRequiredKeys(availableKeys)` — filter by contract.
 
-`buildView` unions the statically-predicted keys with the runtime-resolved
-keys from `executePipeline`, so the palette reflects the maximal set even
-when a single step errors during a session.
+`getBuilderCatalogue` unions the statically-predicted keys with the
+runtime-resolved keys from `executePipeline`, so the palette reflects
+the maximal set even when a single step errors during a session. The
+returned payload also includes the **unreachable** widgets (with the
+keys they're missing) and the **key catalogue** (every key the system
+references, with producer/consumer attribution and an `inContext`
+flag).
 
 ## Layout model (v1)
 
@@ -53,11 +60,23 @@ builder lets you:
 
 - Add / remove / reorder **rows**.
 - Add widgets to the focused row; set **span** per widget (1–12).
-- Switch between flat-rows and **tabs** mode (tabs start with the existing
-  rows as tab 1; collapsing back to one tab flips back to flat-rows).
+- Switch between flat-rows and **tabs** mode.
 
 Future extensions — optional `rowHeight`, 2D placement, shared live-state
 — are tracked in `docs/plans/`.
+
+## Tools
+
+| Tool                     | Visibility | Purpose                                                                      |
+| ------------------------ | ---------- | ---------------------------------------------------------------------------- |
+| `render-view`            | LLM        | Run the pipeline, return rendered payload. The LLM's primary view tool.      |
+| `refresh-view`           | app        | Re-run the pipeline with the stored params (refresh button).                 |
+| `read-widget-bundle`     | app        | Stream upstream-hosted widget JS to the iframe.                              |
+| `get-builder-catalogue`  | app        | Reachable + unreachable widgets, key catalogue, available steps. Build-mode. |
+| `get-framework-manifest` | LLM        | Discover what widgets / steps are registered (registry dump, no live keys).  |
+
+`get-builder-catalogue` is **app-only** (`visibility: ["app"]`) — it
+never appears in `tools/list` from the LLM's perspective. Token-free.
 
 ## Dashboards
 
@@ -79,9 +98,10 @@ in-memory (test-friendly); for real deployments pass
 
 ## Reference
 
-- `packages/core/src/framework/builder.ts` — `buildView` + payload types.
+- `packages/core/src/framework/catalogue.ts` — `getBuilderCatalogue` + payload types.
 - `packages/core/src/framework/dashboard-store.ts` — interface + impls.
-- `packages/core/src/tools/register-builder-tool.ts` — `open-view-builder`.
+- `packages/core/src/tools/register-catalogue-tool.ts` — `get-builder-catalogue`.
 - `packages/core/src/tools/register-dashboard-tools.ts` — CRUD tools.
+- `packages/ui/src/app/mcp-app-view.tsx` — Build toggle in the toolbar.
 - `packages/ui/src/app/layout-builder.tsx` — interactive composer.
 - [Guide: building dashboards](../guides/building-dashboards.md)

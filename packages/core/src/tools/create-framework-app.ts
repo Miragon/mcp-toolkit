@@ -11,7 +11,7 @@ import { synthesizeModulePlugin } from "../module-loader/synthesize-plugin.js"
 import { createInMemoryDashboardStore, type DashboardStore } from "../framework/dashboard-store.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
 import { registerFrameworkTools } from "./register-framework-tools.js"
-import { registerBuilderTool } from "./register-builder-tool.js"
+import { registerCatalogueTool } from "./register-catalogue-tool.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
 import { registerUpstreamProxies } from "./register-upstream-proxies.js"
 
@@ -47,8 +47,12 @@ export interface CreateFrameworkAppOptionsBase {
     htmlPath: string
     /** Override the refresh tool name (default: `refresh-view`). */
     refreshToolName?: string
-    /** Override the builder tool name (default: `open-view-builder`). */
-    builderToolName?: string
+    /**
+     * Override the catalogue tool name (default: `get-builder-catalogue`).
+     * The catalogue tool is app-only — it powers the in-iframe builder
+     * and never appears in the LLM's tool surface.
+     */
+    catalogueToolName?: string
     /**
      * Persistence backing for `save-dashboard` / `list-dashboards` /
      * `load-dashboard` / `delete-dashboard`. Defaults to an in-memory store
@@ -175,12 +179,11 @@ export async function createFrameworkApp(
     refreshToolName: options.app.refreshToolName,
   })
 
-  registerBuilderTool(server, {
+  registerCatalogueTool(server, {
     stepRegistry,
     widgetRegistry,
     appConfigs,
-    resourceUri: options.app.resourceUri,
-    toolName: options.app.builderToolName,
+    toolName: options.app.catalogueToolName,
   })
 
   const dashboardStore = options.app.dashboardStore ?? createInMemoryDashboardStore()

@@ -3,21 +3,16 @@ import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
-import type { LayoutConfig } from "./layout-types.js"
 import type { RemoteWidgetInfo } from "./render-view.js"
 
-export interface BuildViewInput {
+export interface CatalogueInput {
   keys?: Record<string, unknown>
   steps?: PipelineStepRef[]
-  /** Optional draft layout to resume editing. Empty when starting from scratch. */
-  layout?: LayoutConfig
-  title?: string
 }
 
 /**
- * Manifest entry for a widget whose `requires` are satisfied by the keys
- * available after the declared steps would execute. The builder UI uses
- * this list to render its palette.
+ * A widget whose `requires` are satisfied by the keys the pipeline
+ * exposes. The builder UI renders this as the palette.
  */
 export interface ReachableWidget {
   id: string
@@ -27,23 +22,9 @@ export interface ReachableWidget {
 }
 
 /**
- * Manifest entry for a registered pipeline step. The builder UI surfaces
- * the catalogue in a picker so users can compose pipelines interactively
- * without a separate `get-framework-manifest` round-trip.
- */
-export interface AvailableStep {
-  id: string
-  app: string
-  dataType: string
-  requires: string[]
-  produces: string[]
-}
-
-/**
- * A widget that is registered but whose `requires` aren't satisfied by
- * the current key set. Surfaces in the builder as "unreachable" with a
- * hint about which keys are still missing so users can decide whether to
- * add a seed, add a step, or mount another upstream.
+ * A widget that is registered but not currently satisfiable. Surfaces in
+ * the builder as "unreachable" with a hint about which keys are still
+ * missing so users know what to seed or which step to add.
  */
 export interface UnreachableWidget {
   id: string
@@ -54,10 +35,21 @@ export interface UnreachableWidget {
 }
 
 /**
- * Every key the framework *could* see, whether a step produces it, a
- * step requires it, or a widget consumes it. Lets the builder UI show a
- * full catalogue of wiring points — "this key exists in the system,
- * add it as a seed if you need it".
+ * Manifest entry for a registered pipeline step. The builder uses this
+ * for its step-picker dropdown.
+ */
+export interface AvailableStep {
+  id: string
+  app: string
+  dataType: string
+  requires: string[]
+  produces: string[]
+}
+
+/**
+ * Every key the framework could see — produced by a step, consumed by a
+ * step, or required by a widget — with attribution and a flag for
+ * whether it currently lives in the pipeline context.
  */
 export interface KeyCatalogEntry {
   key: string
@@ -67,16 +59,7 @@ export interface KeyCatalogEntry {
   inContext: boolean
 }
 
-/**
- * Shape of `open-view-builder`'s structuredContent. Symmetric to
- * `renderView`'s payload so the `McpAppView` can reuse the same pipeline
- * wiring for live preview, then branch on `mode === "builder"` to render
- * the interactive composer instead of the static widget grid.
- */
-export interface BuildViewPayload {
-  _refreshParams: BuildViewInput
-  mode: "builder"
-  title?: string
+export interface CataloguePayload {
   context: {
     keys: Record<string, unknown>
     stepIds: string[]
@@ -86,7 +69,6 @@ export interface BuildViewPayload {
     >
     errors: { stepId: string; reason: string }[]
   }
-  layout?: LayoutConfig
   reachableWidgets: ReachableWidget[]
   unreachableWidgets: UnreachableWidget[]
   availableSteps: AvailableStep[]
@@ -95,18 +77,24 @@ export interface BuildViewPayload {
 }
 
 /**
- * Companion to `renderView`: runs the pipeline to populate the live context,
- * then adds the catalogue of widgets whose `requires` are satisfied by the
- * pipeline's resolvable keys. The browser-side builder reads
- * `reachableWidgets` to populate its palette and uses `context.keys` to
- * render a WYSIWYG preview of the draft layout.
+ * Computes everything the in-iframe LayoutBuilder needs to know:
+ * the current pipeline context, the palette of reachable widgets, the
+ * list of unreachable widgets with the keys they're missing, the full
+ * step catalogue, and the key catalogue with producer/consumer
+ * attribution.
  *
- * Unlike `renderView`, a pipeline-validation failure does not abort the
- * response — the builder still needs the reachable-widget catalogue for
- * whatever keys _did_ resolve, plus the issue list for UI feedback.
+ * Intentionally NOT exposed to the LLM — the matching tool registrar
+ * tags this with `visibility: ["app"]` so it never lands in the LLM's
+ * tool-call surface. The LLM uses `render-view` for its work; the user
+ * (via the iframe) calls this tool whenever they switch into Build mode
+ * or edit keys/steps.
+ *
+ * Validation issues from `validatePipeline` are surfaced in the text
+ * summary but don't abort — the catalogue is still useful even when
+ * the pipeline can't fully resolve.
  */
-export async function buildView(
-  input: BuildViewInput,
+export async function getBuilderCatalogue(
+  input: CatalogueInput,
   stepRegistry: StepRegistry,
   widgetRegistry: WidgetRegistry,
   appConfigs?: Record<string, unknown>,
@@ -121,10 +109,6 @@ export async function buildView(
 
   const context = await executePipeline(pipelineConfig, initialKeys, stepRegistry, appConfigs, ctx)
 
-  // Union the statically-predicted keys (from validation) with what actually
-  // resolved at runtime — covers both "step errored this round" and "initial
-  // keys only, no steps" cases so the palette always reflects the maximal
-  // key set the user can build against.
   const availableKeys = new Set<string>([...validation.availableKeys, ...Object.keys(context.keys)])
 
   const allWidgets = widgetRegistry.getAll()
@@ -156,11 +140,6 @@ export async function buildView(
     produces: s.produces,
   }))
 
-  // Build a combined "every key the framework could see" catalogue.
-  // - step producers/consumers come from StepRegistry.getKeyContracts()
-  // - widget consumers are pulled directly since they don't appear in the
-  //   step-only contracts
-  // - availableKeys marks which entries are live in the current context.
   const stepContracts = stepRegistry.getKeyContracts()
   const keys = new Set<string>(availableKeys)
   for (const c of stepContracts) keys.add(c.key)
@@ -188,14 +167,13 @@ export async function buildView(
     })
 
   const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
-  for (const widget of widgetRegistry.getAll()) {
+  for (const widget of allWidgets) {
     if (widget.bundle && widget.moduleId) {
       remoteWidgets[widget.id] = { bundle: widget.bundle, moduleId: widget.moduleId }
     }
   }
 
   const textSummary = [
-    input.title ? `Builder: ${input.title}` : "Builder",
     `Reachable widgets: ${reachableWidgets.length}`,
     `Keys: ${[...availableKeys].join(", ") || "none"}`,
     validation.issues.length > 0 ? `Pipeline issues: ${validation.issues.join("; ")}` : "",
@@ -206,22 +184,9 @@ export async function buildView(
     .filter(Boolean)
     .join("\n")
 
-  // Intentionally return an inline object literal (not a `const payload:
-  // BuildViewPayload = …`) so TypeScript infers the structural shape and the
-  // result is directly assignable to the MCP SDK's `Record<string, unknown>`
-  // structuredContent contract. The `BuildViewPayload` type remains exported
-  // for consumers typing their own props.
   return {
     content: [{ type: "text" as const, text: textSummary }],
     structuredContent: {
-      _refreshParams: {
-        keys: input.keys,
-        steps: input.steps,
-        layout: input.layout,
-        title: input.title,
-      },
-      mode: "builder" as const,
-      title: input.title,
       context: {
         keys: context.keys,
         stepIds: Object.keys(context.steps),
@@ -238,7 +203,6 @@ export async function buildView(
         ),
         errors: context.errors,
       },
-      layout: input.layout,
       reachableWidgets,
       unreachableWidgets,
       availableSteps,
