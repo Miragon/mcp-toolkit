@@ -418,6 +418,7 @@ export function LayoutBuilder({
   const [focusedRowIndex, setFocusedRowIndex] = useState(0)
   const [view, setView] = useState<"layout" | "pipeline" | "preview">("layout")
   const [catalogueOpen, setCatalogueOpen] = useState(false)
+  const [editingTabIdx, setEditingTabIdx] = useState<number | null>(null)
 
   // ── Keys + steps editor state ───────────────────────────────────────────
   const [keyEntries, setKeyEntries] = useState<KeyEntry[]>(() => keysToEntries(initialKeys))
@@ -581,9 +582,18 @@ export function LayoutBuilder({
   }, [])
 
   const renameTab = useCallback((tabIdx: number, label: string) => {
+    const trimmed = label.trim()
+    if (!trimmed) return
     setDraft((prev) => {
       if (prev.kind !== "tabs") return prev
-      return { kind: "tabs", tabs: prev.tabs.map((t, i) => (i === tabIdx ? { ...t, label } : t)) }
+      // Reject duplicates — Tabs keys by label, collisions break the
+      // component. Silently keep the old label; the inline input UX
+      // means the user just sees their edit not stick.
+      if (prev.tabs.some((t, i) => i !== tabIdx && t.label === trimmed)) return prev
+      return {
+        kind: "tabs",
+        tabs: prev.tabs.map((t, i) => (i === tabIdx ? { ...t, label: trimmed } : t)),
+      }
     })
   }, [])
 
@@ -756,10 +766,55 @@ export function LayoutBuilder({
       >
         <div className="mb-3 flex items-center gap-1">
           <TabsList>
-            {draft.tabs.map((tab) => (
-              <TabsTrigger key={tab.label} value={tab.label}>
-                {tab.label}
-              </TabsTrigger>
+            {draft.tabs.map((tab, idx) => (
+              <div key={tab.label} className="group relative inline-flex">
+                <TabsTrigger
+                  value={tab.label}
+                  className="pr-7"
+                  onDoubleClick={() => setEditingTabIdx(idx)}
+                  title="Double-click to rename"
+                >
+                  {editingTabIdx === idx ? (
+                    <input
+                      autoFocus
+                      defaultValue={tab.label}
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          renameTab(idx, e.currentTarget.value)
+                          setEditingTabIdx(null)
+                        } else if (e.key === "Escape") {
+                          e.preventDefault()
+                          setEditingTabIdx(null)
+                        }
+                      }}
+                      onBlur={(e) => {
+                        renameTab(idx, e.currentTarget.value)
+                        setEditingTabIdx(null)
+                      }}
+                      className="w-24 border-none bg-transparent p-0 text-inherit outline-none focus:ring-0"
+                      size={Math.max(tab.label.length + 1, 6)}
+                    />
+                  ) : (
+                    <span>{tab.label}</span>
+                  )}
+                </TabsTrigger>
+                <button
+                  type="button"
+                  aria-label={L.removeTab}
+                  title={L.removeTab}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    removeTab(idx)
+                  }}
+                  className="text-muted-foreground/60 hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 data-[state=active]:opacity-100"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
             ))}
           </TabsList>
           <Button
@@ -771,21 +826,9 @@ export function LayoutBuilder({
           >
             <Plus />
           </Button>
-          <div className="ml-auto flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => {
-                const next = window.prompt(L.renameTab, draft.tabs[activeTabIndex]?.label ?? "")
-                if (next && next.trim()) renameTab(activeTabIndex, next.trim())
-              }}
-            >
-              {L.renameTab}
-            </Button>
-            <Button variant="ghost" size="xs" onClick={() => removeTab(activeTabIndex)}>
-              {L.removeTab}
-            </Button>
-          </div>
+          <span className="text-muted-foreground/70 ml-2 hidden text-[10px] sm:inline">
+            double-click a tab to rename
+          </span>
         </div>
         {draft.tabs.map((tab, idx) => (
           <TabsContent key={tab.label} value={tab.label} className="mt-0">
