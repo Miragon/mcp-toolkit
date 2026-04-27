@@ -131,6 +131,21 @@ describe("ModuleManifestSchema", () => {
     expect(result.success).toBe(false)
   })
 
+  it("accepts an optional widget propsSchema", () => {
+    const propsSchema = {
+      type: "object",
+      properties: { processDefinitionKey: { type: "string" } },
+    }
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      widgets: [{ ...validManifest.widgets[0], propsSchema }],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.widgets[0].propsSchema).toEqual(propsSchema)
+    }
+  })
+
   it("exports the canonical manifest tool name", () => {
     expect(GET_MODULE_MANIFEST_TOOL).toBe("get-module-manifest")
   })

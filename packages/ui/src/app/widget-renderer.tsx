@@ -62,13 +62,16 @@ function RowsRenderer({
     <div className="flex flex-col gap-4">
       {rows.map((row, rowIdx) => (
         <GridLayout key={rowIdx}>
-          {row.row.map((cell) => {
+          {row.row.map((cell, cellIdx) => {
             const WidgetComponent = widgets[cell.widget]
             if (!WidgetComponent) return null
+            // Use a composite key so the same widget can appear in multiple
+            // cells of one row (e.g. side-by-side scoped dashboards) without
+            // colliding on React's reconciliation key.
             return (
-              <GridItem key={cell.widget} span={cell.span ?? 12}>
+              <GridItem key={`${cell.widget}-${cellIdx}`} span={cell.span ?? 12}>
                 <WidgetErrorBoundary widgetId={cell.widget}>
-                  <WidgetComponent {...props} />
+                  <WidgetComponent {...props} widgetProps={cell.props} />
                 </WidgetErrorBoundary>
               </GridItem>
             )

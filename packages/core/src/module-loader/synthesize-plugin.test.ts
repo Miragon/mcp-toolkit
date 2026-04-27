@@ -67,4 +67,19 @@ describe("synthesizeModulePlugin", () => {
       },
     ])
   })
+
+  it("preserves propsSchema on remote widgets that advertise one", () => {
+    const propsSchema = {
+      type: "object",
+      properties: { itemId: { type: "string" } },
+    }
+    const plugin = synthesizeModulePlugin({
+      manifest: {
+        ...manifest,
+        widgets: [{ ...manifest.widgets[0], propsSchema }],
+      },
+      proxy,
+    })
+    expect(plugin.definition.widgets[0].propsSchema).toEqual(propsSchema)
+  })
 })

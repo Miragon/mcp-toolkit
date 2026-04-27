@@ -1,5 +1,5 @@
 export interface RowDef {
-  row: { widget: string; span?: number }[]
+  row: { widget: string; span?: number; props?: Record<string, unknown> }[]
 }
 
 export type LayoutConfig =

@@ -16,6 +16,14 @@ export interface FrameworkManifest {
     app: string
     requires: string[]
     size: string
+    /**
+     * JSON Schema for the per-instance props the widget accepts via a
+     * layout cell's `props` field. Omitted for widgets that take no
+     * per-instance props. Same JSON-Schema contract the LLM already
+     * understands from MCP tool input schemas, so it can construct scoped
+     * views (e.g. one tab per `processDefinitionKey`) without guessing.
+     */
+    propsSchema?: Record<string, unknown>
   }[]
   pipelines: {
     id: string
@@ -56,6 +64,7 @@ export function getFrameworkManifest(
       app: widget.id.split(":")[0],
       requires: widget.requires,
       size: widget.size,
+      ...(widget.propsSchema ? { propsSchema: widget.propsSchema } : {}),
     })),
 
     pipelines: Object.entries(config.pipelines).map(([id, pipeline]) => ({

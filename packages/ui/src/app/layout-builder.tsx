@@ -31,6 +31,7 @@ import type {
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { GridLayout, GridItem } from "../components/GridLayout.js"
 import { cn } from "../lib/utils.js"
+import { WidgetPropsSheet } from "./widget-props-sheet.js"
 import { Badge } from "../primitives/badge.js"
 import { Button } from "../primitives/button.js"
 import {
@@ -445,12 +446,37 @@ export function LayoutBuilder({
   // ── DnD ──────────────────────────────────────────────────────────────────
   const [dragOverRow, setDragOverRow] = useState<number | null>(null)
 
+  // Which cell (if any) is having its props configured. The
+  // WidgetPropsSheet is mounted once at the LayoutBuilder root so that
+  // exactly one editor can be open at a time across the entire workspace
+  // — including across tabs. Stored as `{ rowIdx, cellIdx }` against the
+  // currently active draft surface (rows or active tab's rows).
+  const [configuringCell, setConfiguringCell] = useState<{
+    rowIdx: number
+    cellIdx: number
+  } | null>(null)
+
   // ── Derived ─────────────────────────────────────────────────────────────
   const widgetById = useMemo(() => {
     const map = new Map<string, ReachableWidget>()
     for (const w of liveReachable) map.set(w.id, w)
     return map
   }, [liveReachable])
+
+  // Per-widget propsSchema lookup. Merged from both reachable and
+  // unreachable lists because a saved layout can reference a widget whose
+  // `requires` aren't currently satisfied — we still want the user to be
+  // able to edit its props.
+  const propsSchemaByWidgetId = useMemo(() => {
+    const map = new Map<string, Record<string, unknown>>()
+    for (const w of liveReachable) {
+      if (w.propsSchema) map.set(w.id, w.propsSchema)
+    }
+    for (const w of liveUnreachable) {
+      if (w.propsSchema) map.set(w.id, w.propsSchema)
+    }
+    return map
+  }, [liveReachable, liveUnreachable])
 
   const paletteByApp = useMemo(() => {
     const groups = new Map<string, ReachableWidget[]>()
@@ -558,6 +584,34 @@ export function LayoutBuilder({
     (rowIdx: number, cellIdx: number) => {
       mutateActiveRows((rows) =>
         rows.map((r, i) => (i === rowIdx ? { row: r.row.filter((_, j) => j !== cellIdx) } : r)),
+      )
+    },
+    [mutateActiveRows],
+  )
+
+  // Sets (or clears, when `next` is undefined) the per-instance `props` on
+  // a cell. Triggered by the WidgetPropsSheet's Apply button. Storing
+  // `undefined` rather than `{}` keeps the saved layout's wire format
+  // identical to one a hand-coded LLM call would produce — the field is
+  // simply absent.
+  const setCellProps = useCallback(
+    (rowIdx: number, cellIdx: number, next: Record<string, unknown> | undefined) => {
+      mutateActiveRows((rows) =>
+        rows.map((r, i) =>
+          i === rowIdx
+            ? {
+                row: r.row.map((c, j) => {
+                  if (j !== cellIdx) return c
+                  if (next === undefined) {
+                    const rest: typeof c = { widget: c.widget }
+                    if (c.span !== undefined) rest.span = c.span
+                    return rest
+                  }
+                  return { ...c, props: next }
+                }),
+              }
+            : r,
+        ),
       )
     },
     [mutateActiveRows],
@@ -848,6 +902,8 @@ export function LayoutBuilder({
                 onSetCellSpan={setCellSpan}
                 onRemoveCell={removeCell}
                 onAddWidget={addWidgetToRow}
+                onConfigureCell={(rowIdx, cellIdx) => setConfiguringCell({ rowIdx, cellIdx })}
+                propsSchemaByWidgetId={propsSchemaByWidgetId}
                 widgets={widgets}
                 widgetProps={widgetProps}
               />
@@ -871,6 +927,8 @@ export function LayoutBuilder({
         onSetCellSpan={setCellSpan}
         onRemoveCell={removeCell}
         onAddWidget={addWidgetToRow}
+        onConfigureCell={(rowIdx, cellIdx) => setConfiguringCell({ rowIdx, cellIdx })}
+        propsSchemaByWidgetId={propsSchemaByWidgetId}
         widgets={widgets}
         widgetProps={widgetProps}
         showAddTabButton
@@ -1009,6 +1067,28 @@ export function LayoutBuilder({
         onSubmit={saveDraft}
         busy={isBusy}
       />
+
+      {(() => {
+        if (!configuringCell) return null
+        const cell = activeRows[configuringCell.rowIdx]?.row[configuringCell.cellIdx]
+        if (!cell) return null
+        const schema = propsSchemaByWidgetId.get(cell.widget)
+        return (
+          <WidgetPropsSheet
+            open
+            onOpenChange={(open) => {
+              if (!open) setConfiguringCell(null)
+            }}
+            widgetId={cell.widget}
+            schema={schema}
+            value={cell.props}
+            onApply={(next) => {
+              setCellProps(configuringCell.rowIdx, configuringCell.cellIdx, next)
+              setConfiguringCell(null)
+            }}
+          />
+        )
+      })()}
     </div>
   )
 }
@@ -1413,6 +1493,8 @@ function Workspace({
   onSetCellSpan,
   onRemoveCell,
   onAddWidget,
+  onConfigureCell,
+  propsSchemaByWidgetId,
   widgets,
   widgetProps,
   showAddTabButton,
@@ -1432,6 +1514,8 @@ function Workspace({
   onSetCellSpan: (rowIdx: number, cellIdx: number, span: number) => void
   onRemoveCell: (rowIdx: number, cellIdx: number) => void
   onAddWidget: (widgetId: string, targetRowIdx?: number) => void
+  onConfigureCell: (rowIdx: number, cellIdx: number) => void
+  propsSchemaByWidgetId: Map<string, Record<string, unknown>>
   widgets: Record<string, WidgetComponent>
   widgetProps: WidgetProps
   showAddTabButton?: boolean
@@ -1499,6 +1583,8 @@ function Workspace({
               onSetCellSpan={onSetCellSpan}
               onRemoveCell={onRemoveCell}
               onAddWidget={onAddWidget}
+              onConfigureCell={onConfigureCell}
+              propsSchemaByWidgetId={propsSchemaByWidgetId}
               widgets={widgets}
               widgetProps={widgetProps}
             />
@@ -1556,6 +1642,8 @@ function CanvasRow({
   onSetCellSpan,
   onRemoveCell,
   onAddWidget,
+  onConfigureCell,
+  propsSchemaByWidgetId,
   widgets,
   widgetProps,
 }: {
@@ -1573,6 +1661,8 @@ function CanvasRow({
   onSetCellSpan: (rowIdx: number, cellIdx: number, span: number) => void
   onRemoveCell: (rowIdx: number, cellIdx: number) => void
   onAddWidget: (widgetId: string, targetRowIdx?: number) => void
+  onConfigureCell: (rowIdx: number, cellIdx: number) => void
+  propsSchemaByWidgetId: Map<string, Record<string, unknown>>
   widgets: Record<string, WidgetComponent>
   widgetProps: WidgetProps
 }) {
@@ -1669,6 +1759,8 @@ function CanvasRow({
             {row.row.map((cell, cellIdx) => {
               const span = cell.span ?? 12
               const Widget = widgets[cell.widget]
+              const hasPropsSchema = propsSchemaByWidgetId.has(cell.widget)
+              const propCount = cell.props ? Object.keys(cell.props).length : 0
               return (
                 <GridItem key={`${cell.widget}-${cellIdx}`} span={span}>
                   <div className="border-border bg-card relative overflow-hidden rounded-md border shadow-sm">
@@ -1676,6 +1768,25 @@ function CanvasRow({
                       <span className="truncate font-mono">{cell.widget}</span>
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="text-muted-foreground/80 font-mono">{span}/12</span>
+                        {hasPropsSchema && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onConfigureCell(rowIdx, cellIdx)
+                            }}
+                            aria-label="Configure widget props"
+                            title={
+                              propCount > 0
+                                ? `Configure widget props (${propCount} set)`
+                                : "Configure widget props"
+                            }
+                            className={cn(propCount > 0 && "text-primary")}
+                          >
+                            <SlidersHorizontal />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon-xs"
@@ -1691,7 +1802,7 @@ function CanvasRow({
                     </div>
                     <div className="p-2">
                       {Widget ? (
-                        <Widget {...widgetProps} />
+                        <Widget {...widgetProps} widgetProps={cell.props} />
                       ) : (
                         <div className="text-muted-foreground rounded border border-dashed p-3 text-center text-[11px]">
                           Widget "{cell.widget}" not bundled.
@@ -2079,7 +2190,7 @@ function PreviewPane({
             return (
               <GridItem key={`${cell.widget}-${cellIdx}`} span={cell.span ?? 12}>
                 {Widget ? (
-                  <Widget {...widgetProps} />
+                  <Widget {...widgetProps} widgetProps={cell.props} />
                 ) : (
                   <div className="text-muted-foreground rounded border border-dashed p-4 text-center text-xs">
                     Widget "{cell.widget}" not bundled.

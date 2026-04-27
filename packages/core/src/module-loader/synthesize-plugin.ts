@@ -28,6 +28,7 @@ export function synthesizeModulePlugin(discovered: DiscoveredModule): AppPlugin 
     id: w.id,
     requires: [...w.requires],
     size: w.size ?? "full",
+    ...(w.propsSchema ? { propsSchema: w.propsSchema } : {}),
     bundle: w.bundle,
     moduleId: manifest.moduleId,
   }))

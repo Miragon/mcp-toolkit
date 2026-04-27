@@ -125,6 +125,37 @@ describe("getBuilderCatalogue", () => {
     expect(result.structuredContent.reachableWidgets).toEqual([])
   })
 
+  it("propagates a widget's propsSchema onto reachable + unreachable entries", async () => {
+    const stepRegistry = new StepRegistry()
+    const widgetRegistry = new WidgetRegistry()
+    const propsSchema = {
+      type: "object",
+      properties: { processDefinitionKey: { type: "string" } },
+    }
+    widgetRegistry.register({
+      id: "sales:reachable",
+      requires: ["sales:order"],
+      size: "half",
+      propsSchema,
+    })
+    widgetRegistry.register({
+      id: "sales:unreachable",
+      requires: ["sales:missing"],
+      size: "half",
+      propsSchema,
+    })
+
+    const result = await getBuilderCatalogue(
+      { keys: { "sales:order": { id: 1 } } },
+      stepRegistry,
+      widgetRegistry,
+    )
+
+    const payload = result.structuredContent
+    expect(payload.reachableWidgets[0]).toMatchObject({ id: "sales:reachable", propsSchema })
+    expect(payload.unreachableWidgets[0]).toMatchObject({ id: "sales:unreachable", propsSchema })
+  })
+
   it("advertises upstream-hosted widgets via remoteWidgets", async () => {
     const stepRegistry = new StepRegistry()
     const widgetRegistry = new WidgetRegistry()

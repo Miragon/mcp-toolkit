@@ -19,6 +19,13 @@ export interface ReachableWidget {
   app: string
   requires: string[]
   size: string
+  /**
+   * JSON Schema mirrored from `WidgetDefinition.propsSchema`. Drives the
+   * builder's per-cell "Configure" form so a user can author scoped
+   * widget instances (e.g. one tab per `processDefinitionKey`) without
+   * dropping into raw JSON. Absent when the widget takes no props.
+   */
+  propsSchema?: Record<string, unknown>
 }
 
 /**
@@ -32,6 +39,7 @@ export interface UnreachableWidget {
   requires: string[]
   size: string
   missingKeys: string[]
+  propsSchema?: Record<string, unknown>
 }
 
 /**
@@ -120,6 +128,7 @@ export async function getBuilderCatalogue(
     app: w.id.split(":")[0],
     requires: w.requires,
     size: w.size,
+    ...(w.propsSchema ? { propsSchema: w.propsSchema } : {}),
   }))
 
   const unreachableWidgets: UnreachableWidget[] = allWidgets
@@ -130,6 +139,7 @@ export async function getBuilderCatalogue(
       requires: w.requires,
       size: w.size,
       missingKeys: w.requires.filter((k) => !availableKeys.has(k)),
+      ...(w.propsSchema ? { propsSchema: w.propsSchema } : {}),
     }))
 
   const availableSteps: AvailableStep[] = stepRegistry.getAll().map((s) => ({
