@@ -14,6 +14,12 @@ export const rowSchema = z.object({
     z.object({
       widget: z.string().describe("Widget ID from the framework manifest. Must be registered."),
       span: z.number().optional().describe("Grid columns (1-12)"),
+      props: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe(
+          "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+        ),
     }),
   ),
 })

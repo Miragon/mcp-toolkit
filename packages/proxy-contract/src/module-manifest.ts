@@ -115,6 +115,14 @@ export const RemoteWidgetSchema = z.object({
    * haven't set it still register with a sensible default.
    */
   size: WidgetSizeSchema.optional(),
+  /**
+   * Optional JSON Schema describing per-instance props the widget accepts
+   * via the layout cell's `props` field. Mirrors `WidgetDefinition.propsSchema`
+   * from `@miragon/mcp-toolkit-core` and is surfaced verbatim in the host's
+   * `get-framework-manifest` so an LLM can construct scoped views without
+   * guessing prop names.
+   */
+  propsSchema: z.record(z.string(), z.unknown()).optional(),
 })
 
 export type RemoteWidget = z.infer<typeof RemoteWidgetSchema>

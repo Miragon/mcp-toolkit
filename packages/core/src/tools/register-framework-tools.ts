@@ -95,7 +95,7 @@ export function registerFrameworkTools(
     {
       name: "get-framework-manifest",
       description:
-        "Returns all active apps, available pipeline steps, widgets, and their key contracts. Call this first to discover which step-ids and widget-ids exist before building a view.",
+        "Returns all active apps, available pipeline steps, widgets, and their key contracts. Call this first to discover which step-ids and widget-ids exist — and which `props` each widget accepts (see each widget's `propsSchema`) — before building a view.",
       annotations: { readOnlyHint: true },
     },
     // eslint-disable-next-line @typescript-eslint/require-await
@@ -125,7 +125,7 @@ export function registerFrameworkTools(
       name: "render-view",
       title: "Render View",
       description:
-        "Builds a UI from pipeline steps and widgets. IMPORTANT: call get-framework-manifest first to learn which step-ids and widget-ids are available — only use ids listed there.",
+        "Builds a UI from pipeline steps and widgets. IMPORTANT: call get-framework-manifest first to learn which step-ids and widget-ids are available — only use ids listed there. Each widget entry's optional `propsSchema` (JSON Schema) describes the per-instance `props` you can set on a layout cell to scope or configure that widget (e.g. one tab per `processDefinitionKey`).",
       schema: renderViewSchema,
       _meta: { ui: { resourceUri } },
     },
