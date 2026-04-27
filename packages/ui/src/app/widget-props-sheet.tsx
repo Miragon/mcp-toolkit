@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { Button } from "../primitives/button.js"
 import { Input } from "../primitives/input.js"
 import {
@@ -93,12 +93,15 @@ export function WidgetPropsSheet({
   const obj = (schema ?? {}) as JsonSchemaObject
   const [draft, setDraft] = useState<Record<string, unknown>>(value ?? {})
 
-  // Reset the form to the saved value whenever the sheet (re)opens. A
-  // user who closes the sheet without applying expects their unsaved
-  // edits to be discarded.
-  useEffect(() => {
+  // Reset the form to the saved value on the open→true transition so a
+  // user who closes the sheet without applying gets their unsaved edits
+  // discarded next time. Render-time state update with a "prev" tracker
+  // is the React-recommended alternative to a setState-in-effect.
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
     if (open) setDraft(value ?? {})
-  }, [open, value])
+  }
 
   const properties = obj.properties ?? {}
   const propEntries = Object.entries(properties)
