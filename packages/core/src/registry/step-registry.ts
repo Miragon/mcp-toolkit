@@ -51,11 +51,7 @@ export class StepRegistry {
       }
     }
 
-    const allKeys = new Set([
-      ...producers.keys(),
-      ...consumers.keys(),
-      ...optionalConsumers.keys(),
-    ])
+    const allKeys = new Set([...producers.keys(), ...consumers.keys(), ...optionalConsumers.keys()])
     return [...allKeys].map((key) => ({
       key,
       producedBy: producers.get(key) ?? [],
