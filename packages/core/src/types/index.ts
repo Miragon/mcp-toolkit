@@ -1,5 +1,5 @@
 export type { StepOutput, StepResult, PipelineContext } from "./context.js"
-export type { PipelineStepDefinition } from "./step.js"
+export type { PipelineStepDefinition, OptionalKeyDeclaration } from "./step.js"
 export type { WidgetProps, WidgetSize, WidgetDefinition } from "./widget.js"
 export type { AppDefinition, AppPlugin } from "./app.js"
 export type { PipelineConfig, PipelineStepRef } from "./pipeline.js"

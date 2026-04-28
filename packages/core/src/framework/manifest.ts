@@ -1,5 +1,6 @@
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
+import type { OptionalKeyDeclaration } from "../types/step.js"
 import type { AppConfig } from "../types/config.js"
 
 export interface FrameworkManifest {
@@ -7,14 +8,28 @@ export interface FrameworkManifest {
   steps: {
     id: string
     app: string
+    /** One-line description of what the step does. */
+    description?: string
     dataType: string
     requires: string[]
+    /**
+     * Keys the step reads opportunistically (scoping/filter inputs) but does
+     * not strictly need. Mirrors `PipelineStepDefinition.optionalKeys`.
+     */
+    optionalKeys?: OptionalKeyDeclaration[]
     produces: string[]
   }[]
   widgets: {
     id: string
     app: string
+    /** One-line description of what the widget shows. */
+    description?: string
     requires: string[]
+    /**
+     * Step `dataType`s the widget can render. Pair with `steps[].dataType`
+     * to find which step populates this widget.
+     */
+    consumes?: string[]
     size: string
     /**
      * JSON Schema for the per-instance props the widget accepts via a
@@ -33,6 +48,7 @@ export interface FrameworkManifest {
     key: string
     producedBy: string[]
     consumedBy: string[]
+    optionallyConsumedBy: string[]
   }[]
 }
 
@@ -54,15 +70,21 @@ export function getFrameworkManifest(
     steps: stepRegistry.getAll().map((step) => ({
       id: step.id,
       app: step.id.split(":")[0],
+      ...(step.description ? { description: step.description } : {}),
       dataType: step.dataType,
       requires: step.requires,
+      ...(step.optionalKeys && step.optionalKeys.length > 0
+        ? { optionalKeys: step.optionalKeys }
+        : {}),
       produces: step.produces,
     })),
 
     widgets: widgetRegistry.getAll().map((widget) => ({
       id: widget.id,
       app: widget.id.split(":")[0],
+      ...(widget.description ? { description: widget.description } : {}),
       requires: widget.requires,
+      ...(widget.consumes && widget.consumes.length > 0 ? { consumes: widget.consumes } : {}),
       size: widget.size,
       ...(widget.propsSchema ? { propsSchema: widget.propsSchema } : {}),
     })),
