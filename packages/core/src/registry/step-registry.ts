@@ -3,7 +3,14 @@ import type { PipelineStepDefinition } from "../types/step.js"
 export interface KeyContract {
   key: string
   producedBy: string[]
+  /** Steps that hard-require this key (gate execution on it). */
   consumedBy: string[]
+  /**
+   * Steps that read this key from `context.keys` opportunistically — e.g. for
+   * scoping or filtering — but still run without it. Mirrors
+   * `PipelineStepDefinition.optionalKeys`.
+   */
+  optionallyConsumedBy: string[]
 }
 
 export class StepRegistry {
@@ -27,6 +34,7 @@ export class StepRegistry {
   getKeyContracts(): KeyContract[] {
     const producers = new Map<string, string[]>()
     const consumers = new Map<string, string[]>()
+    const optionalConsumers = new Map<string, string[]>()
 
     for (const step of this.steps.values()) {
       for (const key of step.produces) {
@@ -37,13 +45,22 @@ export class StepRegistry {
         if (!consumers.has(key)) consumers.set(key, [])
         consumers.get(key)!.push(step.id)
       }
+      for (const decl of step.optionalKeys ?? []) {
+        if (!optionalConsumers.has(decl.key)) optionalConsumers.set(decl.key, [])
+        optionalConsumers.get(decl.key)!.push(step.id)
+      }
     }
 
-    const allKeys = new Set([...producers.keys(), ...consumers.keys()])
+    const allKeys = new Set([
+      ...producers.keys(),
+      ...consumers.keys(),
+      ...optionalConsumers.keys(),
+    ])
     return [...allKeys].map((key) => ({
       key,
       producedBy: producers.get(key) ?? [],
       consumedBy: consumers.get(key) ?? [],
+      optionallyConsumedBy: optionalConsumers.get(key) ?? [],
     }))
   }
 }

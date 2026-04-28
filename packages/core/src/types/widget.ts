@@ -18,11 +18,25 @@ export type WidgetSize = "quarter" | "third" | "half" | "full" | "header"
 export interface WidgetDefinition {
   id: string
   /**
+   * One-line human description of what the widget shows. Surfaced verbatim in
+   * `getFrameworkManifest` so an LLM constructing a `render-view` knows what
+   * to put in which slot without inferring intent from the widget id.
+   */
+  description?: string
+  /**
    * Keys that must be present in the pipeline context for this widget to render.
    * e.g. ["lexoffice:invoice"] or ["camunda7:instance", "camunda7:activityTree"]
    * Widgets read their data from the keys map passed via WidgetProps.
    */
   requires: string[]
+  /**
+   * Step `dataType`s the widget can consume. Surfaces the widget→step binding
+   * (which lives implicitly inside `adaptDataWidget(Widget, dataType)`) so the
+   * manifest tells an LLM exactly which steps populate this widget. Empty or
+   * omitted for widgets that don't read pipeline data (e.g. interactive
+   * controls that drive their own fetches via `useToolQuery`).
+   */
+  consumes?: string[]
   size: WidgetSize
   /**
    * Optional JSON Schema describing the per-instance props the widget accepts

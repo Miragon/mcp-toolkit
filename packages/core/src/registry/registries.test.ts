@@ -66,6 +66,7 @@ describe("StepRegistry", () => {
     expect(k).toBeDefined()
     expect(k!.producedBy).toEqual(["producer"])
     expect(k!.consumedBy.sort()).toEqual(["consumer1", "consumer2"])
+    expect(k!.optionallyConsumedBy).toEqual([])
   })
 
   it("getKeyContracts includes keys produced but never consumed (and vice versa)", () => {
@@ -78,12 +79,40 @@ describe("StepRegistry", () => {
       key: "produced-only",
       producedBy: ["p"],
       consumedBy: [],
+      optionallyConsumedBy: [],
     })
     expect(contracts.find((c) => c.key === "consumed-only")).toEqual({
       key: "consumed-only",
       producedBy: [],
       consumedBy: ["c"],
+      optionallyConsumedBy: [],
     })
+  })
+
+  it("getKeyContracts surfaces optionalKeys under optionallyConsumedBy", () => {
+    const reg = new StepRegistry()
+    reg.register({
+      ...step("scoper", [], ["x"]),
+      optionalKeys: [
+        { key: "scope:processKey", description: "Scope to one process." },
+        { key: "scope:period", enum: ["1d", "7d"] },
+      ],
+    })
+    reg.register({
+      ...step("other", [], ["y"]),
+      optionalKeys: [{ key: "scope:processKey" }],
+    })
+
+    const contracts = reg.getKeyContracts()
+    const k = contracts.find((c) => c.key === "scope:processKey")
+    expect(k).toEqual({
+      key: "scope:processKey",
+      producedBy: [],
+      consumedBy: [],
+      optionallyConsumedBy: ["scoper", "other"],
+    })
+    const period = contracts.find((c) => c.key === "scope:period")
+    expect(period?.optionallyConsumedBy).toEqual(["scoper"])
   })
 })
 
