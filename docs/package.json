@@ -1,0 +1,15 @@
+{
+  "name": "@miragon/mcp-toolkit-docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "VitePress site that hosts the mcp-toolkit documentation. Source files live alongside this package.json under concepts/, guides/, reference/, and recipes/.",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}

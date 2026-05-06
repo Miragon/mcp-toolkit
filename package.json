@@ -13,6 +13,9 @@
     "lint:fix": "pnpm -r run lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "docs:dev": "pnpm --filter @miragon/mcp-toolkit-docs run dev",
+    "docs:build": "pnpm --filter @miragon/mcp-toolkit-docs run build",
+    "docs:preview": "pnpm --filter @miragon/mcp-toolkit-docs run preview",
     "prepare": "husky"
   },
   "devDependencies": {
