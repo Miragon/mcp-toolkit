@@ -9,8 +9,10 @@ render from the final key map.
 ```ts
 interface PipelineStepDefinition<TConfig = unknown> {
   id: string // "<app>:<slug>", e.g. "lexoffice:load-invoice"
+  description?: string // one-line; surfaced in get-framework-manifest
   dataType: string // what this step emits, e.g. "lexoffice:invoice"
   requires: string[] // keys that must exist before running
+  optionalKeys?: OptionalKeyDeclaration[] // soft inputs (scoping/filter keys)
   produces: string[] // keys this step writes into context
   execute: (context: PipelineContext, appConfig: TConfig) => Promise<StepOutput>
 }
@@ -24,6 +26,26 @@ interface StepOutput {
 ```
 
 The executor appends `_dataType` to produce the stored `StepResult`.
+
+## Optional inputs (scoping keys)
+
+Keys a step _reads_ from `ctx.keys` if present but does not strictly
+need are declared via `optionalKeys`, separately from the hard `requires`
+contract. The step still runs without them (typically with a default or
+aggregated scope), so they don't gate execution — but they show up in
+`get-framework-manifest` so an LLM constructing a `render-view` knows
+which scoping keys are accepted.
+
+```ts
+interface OptionalKeyDeclaration {
+  key: string // namespaced key, e.g. "analytics:processDefinitionKey"
+  description?: string // one-line; what does this scoping key control
+  enum?: readonly (string | number)[] // restrict to a fixed set, e.g. period: 1d|7d|30d|90d
+}
+```
+
+Use `enum` when the input is a closed set so the LLM can construct valid
+inputs without guessing.
 
 ## Executor contract
 

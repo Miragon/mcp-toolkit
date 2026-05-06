@@ -29,7 +29,7 @@ Source: `packages/core/src/proxy/build-proxy-app-configs.ts`,
 
 ## Declaring the step's type
 
-Pull in the generated `<Proxy>CallTool` type:
+Pull in the generated proxy-specific `CallTool` type (e.g. `LexofficeCallTool`):
 
 ```ts
 import type { PipelineStepDefinition } from "@miragon/mcp-toolkit-core"
@@ -55,8 +55,9 @@ export const step: PipelineStepDefinition<{ callTool: LexofficeCallTool }> = {
 }
 ```
 
-`TypedCallTool<LexofficeToolMap>` is a 2-arg signature — the pipeline
-executor pre-binds `userId` so steps don't touch it.
+`TypedCallTool` (with `LexofficeToolMap` as its generic argument) collapses
+to a 2-arg signature — the pipeline executor pre-binds `userId` so steps
+don't touch it.
 
 ## Plugin-side wiring
 
@@ -76,10 +77,9 @@ exist in `proxies`, `buildProxyAppConfigs` logs a warning and skips the
 injection. The step will then find `appConfig.callTool === undefined` and
 crash on first use — fix the mismatch and restart.
 
-**oauth2 without a user session.** `callUpstream` throws:
-`no active session for user "<userId>". User must complete
-<name>_authenticate first.` Catch it in the step if you want a nicer
-user-facing error.
+**oauth2 without a user session.** `callUpstream` throws an error like
+`no active session for user "$userId". User must complete $name_authenticate first.`
+Catch it in the step if you want a nicer user-facing error.
 
 **Static modes before `init`.** `callUpstream` also throws if `init(server)`
 never ran. `createFrameworkApp` awaits init for you, so this is only a
@@ -109,6 +109,6 @@ const step: PipelineStepDefinition<{ callTool: TypedCallTool<MyToolMap> }> = { .
 
 ## Reference
 
-- `TypedCallTool<TMap>` → `packages/tool-codegen/src/runtime.ts`
+- `TypedCallTool` → `packages/tool-codegen/src/runtime.ts`
 - `buildProxyAppConfigs` → `packages/core/src/proxy/build-proxy-app-configs.ts`
 - `bindAppConfig` → `packages/core/src/engine/pipeline-executor.ts`

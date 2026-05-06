@@ -9,20 +9,21 @@ widget bundles or browser code.
 
 ### Types
 
-| Symbol                            | Purpose                                                                            |
-| --------------------------------- | ---------------------------------------------------------------------------------- |
-| `AppDefinition`                   | `{ name, steps, widgets }`.                                                        |
-| `AppPlugin<TServer>`              | `{ definition, appConfig?, proxyBinding?, registerTools?, registerWidgetTools? }`. |
-| `PipelineStepDefinition<TConfig>` | `{ id, dataType, requires, produces, execute(ctx, appConfig) }`.                   |
-| `PipelineContext`                 | `{ steps, keys, errors }`.                                                         |
-| `StepOutput` / `StepResult`       | Step return value; `StepResult` adds `_dataType`.                                  |
-| `WidgetDefinition`                | `{ id, requires, size }`.                                                          |
-| `WidgetSize`                      | `"quarter"` \| `"third"` \| `"half"` \| `"full"` \| `"header"`.                    |
-| `WidgetProps`                     | `{ keys, context }`.                                                               |
-| `PipelineConfig`                  | `{ steps?: PipelineStepRef[] }`.                                                   |
-| `PipelineStepRef`                 | `{ id, step, optional? }`.                                                         |
-| `AppConfig`                       | `{ activeApps: AppConfigEntry[], pipelines: Record<id, PipelineConfig> }`.         |
-| `ValidationResult`                | `{ valid, issues, availableKeys }`.                                                |
+| Symbol                            | Purpose                                                                                                                                                                                                         |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppDefinition`                   | `{ name, steps, widgets }`.                                                                                                                                                                                     |
+| `AppPlugin<TServer>`              | `{ definition, appConfig?, proxyBinding?, registerTools?, registerWidgetTools? }`.                                                                                                                              |
+| `PipelineStepDefinition<TConfig>` | `{ id, description?, dataType, requires, optionalKeys?, produces, execute(ctx, appConfig) }`.                                                                                                                   |
+| `OptionalKeyDeclaration`          | `{ key, description?, enum? }`. Soft inputs surfaced in `getFrameworkManifest`. (Re-exported from `./types/index.js`; if you need it from the main barrel today, file a follow-up to add it to `src/index.ts`.) |
+| `PipelineContext`                 | `{ steps, keys, errors }`.                                                                                                                                                                                      |
+| `StepOutput` / `StepResult`       | Step return value; `StepResult` adds `_dataType`.                                                                                                                                                               |
+| `WidgetDefinition`                | `{ id, description?, requires, consumes?, size, propsSchema?, bundle?, moduleId? }`. `bundle` / `moduleId` are set only on widgets registered from an upstream module manifest.                                 |
+| `WidgetSize`                      | `"quarter"` \| `"third"` \| `"half"` \| `"full"` \| `"header"`.                                                                                                                                                 |
+| `WidgetProps`                     | `{ keys, context, widgetProps? }`. `widgetProps` carries the layout cell's per-instance `props`.                                                                                                                |
+| `PipelineConfig`                  | `{ steps?: PipelineStepRef[] }`.                                                                                                                                                                                |
+| `PipelineStepRef`                 | `{ id, step, optional? }`.                                                                                                                                                                                      |
+| `AppConfig`                       | `{ activeApps: AppConfigEntry[], pipelines: Record<id, PipelineConfig> }`.                                                                                                                                      |
+| `ValidationResult`                | `{ valid, issues, availableKeys }`.                                                                                                                                                                             |
 
 ### Runtime
 
@@ -38,24 +39,24 @@ widget bundles or browser code.
 
 ### Framework helpers
 
-| Symbol                       | Signature                                                                                                                                                                                                                                                                    |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `renderView`                 | `(input: RenderViewInput, stepRegistry, appConfigs?, ctx?, widgetRegistry?) → Promise<{ content, structuredContent?, isError? }>`                                                                                                                                            |
-| `RenderViewInput`            | `{ keys?, steps?, layout, title? }`.                                                                                                                                                                                                                                         |
-| `RemoteWidgetInfo`           | `{ bundle, moduleId }`.                                                                                                                                                                                                                                                      |
-| `getBuilderCatalogue`        | `(input: CatalogueInput, stepRegistry, widgetRegistry, appConfigs?, ctx?) → Promise<{ content, structuredContent: CataloguePayload }>`. Backs the app-only `get-builder-catalogue` tool used by the iframe builder. See [view-builder concept](../concepts/view-builder.md). |
-| `CatalogueInput`             | `{ keys?, steps? }` — what the builder is currently working with.                                                                                                                                                                                                            |
-| `CataloguePayload`           | `{ context, reachableWidgets, unreachableWidgets, availableSteps, keyCatalog, remoteWidgets }`.                                                                                                                                                                              |
-| `ReachableWidget`            | `{ id, app, requires, size }` — palette entry for the builder UI.                                                                                                                                                                                                            |
-| `UnreachableWidget`          | `{ id, app, requires, size, missingKeys }` — registered widget not satisfied by the current key set.                                                                                                                                                                         |
-| `AvailableStep`              | `{ id, app, dataType, requires, produces }` — step picker entry.                                                                                                                                                                                                             |
-| `KeyCatalogEntry`            | `{ key, producedBySteps, consumedBySteps, consumedByWidgets, inContext }`.                                                                                                                                                                                                   |
-| `getFrameworkManifest`       | `(stepRegistry, widgetRegistry, config) → FrameworkManifest`                                                                                                                                                                                                                 |
-| `FrameworkManifest`          | `{ activeApps, steps, widgets, pipelines, keyContracts }`.                                                                                                                                                                                                                   |
-| `normalizeLayout`            | `(layout) → { rows?, tabs? }`.                                                                                                                                                                                                                                               |
-| `LayoutConfig` / `RowDef`    | Static types for the layout shape.                                                                                                                                                                                                                                           |
-| `layoutSchema` / `rowSchema` | Zod schemas validated by `render-view`.                                                                                                                                                                                                                                      |
-| `resolveActiveModules`       | `(envValue?, known: string[]) → string[]`.                                                                                                                                                                                                                                   |
+| Symbol                       | Signature                                                                                                                                                                                                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderView`                 | `(input: RenderViewInput, stepRegistry, appConfigs?, ctx?, widgetRegistry?) → Promise<{ content, structuredContent?, isError? }>`                                                                                                                                                     |
+| `RenderViewInput`            | `{ keys?, steps?, layout, title? }`.                                                                                                                                                                                                                                                  |
+| `RemoteWidgetInfo`           | `{ bundle, moduleId }`.                                                                                                                                                                                                                                                               |
+| `getBuilderCatalogue`        | `(input: CatalogueInput, stepRegistry, widgetRegistry, appConfigs?, ctx?) → Promise<{ content, structuredContent: CataloguePayload }>`. Backs the app-only `get-builder-catalogue` tool used by the iframe builder. See [view-builder concept](../concepts/view-builder.md).          |
+| `CatalogueInput`             | `{ keys?, steps? }` — what the builder is currently working with.                                                                                                                                                                                                                     |
+| `CataloguePayload`           | `{ context, reachableWidgets, unreachableWidgets, availableSteps, keyCatalog, remoteWidgets }`.                                                                                                                                                                                       |
+| `ReachableWidget`            | `{ id, app, requires, size }` — palette entry for the builder UI.                                                                                                                                                                                                                     |
+| `UnreachableWidget`          | `{ id, app, requires, size, missingKeys }` — registered widget not satisfied by the current key set.                                                                                                                                                                                  |
+| `AvailableStep`              | `{ id, app, dataType, requires, produces }` — step picker entry.                                                                                                                                                                                                                      |
+| `KeyCatalogEntry`            | `{ key, producedBySteps, consumedBySteps, consumedByWidgets, inContext }`.                                                                                                                                                                                                            |
+| `getFrameworkManifest`       | `(stepRegistry, widgetRegistry, config) → FrameworkManifest`                                                                                                                                                                                                                          |
+| `FrameworkManifest`          | `{ activeApps, steps[], widgets[], pipelines[], keyContracts[] }`. Each step entry exposes `description?` + `optionalKeys?`; each widget entry exposes `description?`, `consumes?`, `propsSchema?`. Each `keyContracts` entry has `producedBy`, `consumedBy`, `optionallyConsumedBy`. |
+| `normalizeLayout`            | `(layout) → { rows?, tabs? }`.                                                                                                                                                                                                                                                        |
+| `LayoutConfig` / `RowDef`    | Static types for the layout shape.                                                                                                                                                                                                                                                    |
+| `layoutSchema` / `rowSchema` | Zod schemas validated by `render-view`.                                                                                                                                                                                                                                               |
+| `resolveActiveModules`       | `(envValue?, known: string[]) → string[]`.                                                                                                                                                                                                                                            |
 
 ### Dashboard types (types only — impls in `/tools`)
 
@@ -123,6 +124,27 @@ Upstream-proxy runtime.
 | `PROXY_NAME_PATTERN`             | `RegExp` — `/^[a-z][a-z0-9-]*$/`.                                                                                                                             |
 | `buildProxyAppConfigs`           | Re-exported from the main entry for convenience.                                                                                                              |
 
+## `@miragon/mcp-toolkit-core/rest`
+
+A small REST client + tool helper for plugins that wrap a plain HTTP API
+(no separate upstream MCP). Pair `createRestClient` with the standard
+`createToolRegistrar` so REST tools share the same registration path,
+error mapping, and result formatting as hand-written tools.
+
+| Symbol               | Signature                                                                                                                                                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `createRestClient`   | `(config: RestClientConfig) → RestClient`. Builds a `fetch`-backed client with URL-template expansion, query encoding, auth header stamping, JSON serialization, and `RestError` mapping for non-2xx responses.                                              |
+| `createRestTool`     | `(config: RestToolConfig) → ToolConfig<RestClient>`. Produces a tool config the standard `createToolRegistrar` can register. Default `buildRequest` puts path placeholders into `pathParams`, the rest into `query` (GET/DELETE) or `body` (POST/PUT/PATCH). |
+| `RestError`          | Class. `{ status, statusText, body }`. Thrown by `request()` on non-2xx; `createToolRegistrar`'s error handler renders it as `[<status>] <message>` in the MCP tool response.                                                                                |
+| `RestClientConfig`   | `{ baseUrl, auth?, defaultHeaders?, fetch? }`.                                                                                                                                                                                                               |
+| `RestRequestOptions` | `{ method, path, pathParams?, query?, body?, headers? }`.                                                                                                                                                                                                    |
+| `RestClient`         | `{ request<T>(options), baseUrl }`.                                                                                                                                                                                                                          |
+| `RestAuthConfig`     | Discriminated union: `none` / `bearer` / `header`. Mirrors `UpstreamProxyPlugin` minus oauth2 (per-user flow not yet plumbed for REST tools).                                                                                                                |
+| `HttpMethod`         | `"GET" \| "POST" \| "PUT" \| "PATCH" \| "DELETE"`.                                                                                                                                                                                                           |
+| `QueryValue`         | `string \| number \| boolean \| null \| undefined`. Arrays of these are also accepted on `query`.                                                                                                                                                            |
+| `RestToolConfig`     | `{ name, description, category?, method, path, inputSchema?, buildRequest?, projection?, annotations?, formatResult? }`. `projection` is the main context-hygiene lever — trim raw response shape before handing it to the LLM.                              |
+| `RequestParts`       | `Pick<RestRequestOptions, "pathParams" \| "query" \| "body" \| "headers">`. Return type of `buildRequest`.                                                                                                                                                   |
+
 ## Source map
 
 ```
@@ -133,6 +155,7 @@ packages/core/src/
 ├── framework/        render-view, catalogue, manifest, layout-*, dashboard-store, active-modules
 ├── middleware/       org-gate, role-filter
 ├── proxy/            UpstreamProxyPlugin + SessionStore + ServerSideOAuthProvider
+├── rest/             createRestClient + createRestTool + RestError
 └── tools/            registrars — import mcp-use/server
 ```
 

@@ -11,3 +11,5 @@ dist
 .env
 .env.local
 .claude/logs/
+docs/.vitepress/dist
+docs/.vitepress/cache

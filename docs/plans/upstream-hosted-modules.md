@@ -43,7 +43,7 @@ host-side code changes when a new module is added upstream.
 - Widgets: baked into the app-bundle at build time
   (`examples/app-bundle/main.tsx` statically imports each host-bundled
   component and passes the map to
-  `<McpToolkitApp widgets={{...}} />` — the toolkit root wraps
+  `<McpToolkitApp widgets={widgetMap} />` — the toolkit root wraps
   `McpAppView` in `McpUseProvider` for host auto-sizing).
 - Manifest: `get-framework-manifest` returns local plugin metadata only.
 
@@ -240,10 +240,10 @@ not one. Reality notes below.
 - `examples/host/index.ts`: imports only the host-bundled `articles`
   plugin. The `customers` proxy config sets `upstreamModules: true`, so
   `createFrameworkApp` synthesises its `AppPlugin` from the manifest.
-- `examples/app-bundle/main.tsx`: `createRoot(root).render(<McpToolkitApp
-widgets={{ "articles:article-card": ArticleCard }} />)` — relies on
-  the default widget loader for upstream-hosted widgets, so no explicit
-  `widgetLoader` wiring appears in consumer code.
+- `examples/app-bundle/main.tsx`: mounts `<McpToolkitApp>` with a single
+  host-bundled widget (the map `{ "articles:article-card": ArticleCard }`)
+  — relies on the default widget loader for upstream-hosted widgets, so
+  no explicit `widgetLoader` wiring appears in consumer code.
 
 ## Phases
 

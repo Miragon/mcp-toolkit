@@ -9,18 +9,46 @@ components themselves. The two are matched by widget id at render time.
 ```ts
 interface WidgetDefinition {
   id: string // "<app>:<slug>", e.g. "lexoffice:invoice-header"
+  description?: string // one-line; surfaced in get-framework-manifest for LLM picking
   requires: string[] // keys that must be in context for rendering
+  consumes?: string[] // step `dataType`s this widget renders (LLM hint)
   size: WidgetSize // "quarter" | "third" | "half" | "full" | "header"
+  propsSchema?: Record<string, unknown> // JSON Schema for per-instance `props`
+  bundle?: string // upstream-hosted widgets only (resource URI)
+  moduleId?: string // upstream-hosted widgets only (originating module)
 }
 
 interface WidgetProps {
   keys: Record<string, unknown>
   context: PipelineContext
+  widgetProps?: Record<string, unknown> // per-instance props from `row[].props`
 }
 ```
 
 A widget runs only if all `requires` keys exist in `context.keys` — the
 `WidgetRenderer` in `@miragon/mcp-toolkit-ui` filters missing ones out.
+
+## Per-instance props
+
+A layout cell can pass per-instance props via the `props` field — the
+same widget can appear multiple times in one view with different scoping
+(e.g. one tab per `processDefinitionKey`). Declare the accepted shape on
+the widget via `propsSchema` (a JSON Schema; generate with
+`z.toJSONSchema(...)` from a Zod object so the contract lives next to
+the code) and the host surfaces it verbatim in `get-framework-manifest`,
+so the LLM knows which props to set without guessing.
+
+```jsonc
+// layout cell
+{
+  "widget": "analytics:kpi-grid",
+  "span": 6,
+  "props": { "processDefinitionKey": "miraveloLeasing" },
+}
+```
+
+`adaptDataWidget` (see `packages/ui/src/components/`) forwards these
+into named props on the wrapped single-data widget.
 
 ## Component
 

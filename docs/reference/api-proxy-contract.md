@@ -84,6 +84,51 @@ registers the declared declarative steps + widgets as a synthetic
 Validates against `ProxyConfigSchema`; duplicate names or malformed URLs
 fail at boot.
 
+## Module manifest
+
+When a proxy entry sets `upstreamModules: true`, the host calls the
+upstream's `get-module-manifest` tool at boot and registers the returned
+widgets + declarative steps as a synthetic `AppPlugin`. The manifest
+contract lives in this package so admin tooling and module authors
+share one validator.
+
+### Schemas
+
+| Symbol                     | Shape                                                                                                                                                                                                                                                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ModuleManifestSchema`     | `{ moduleId, runtime, steps[], widgets[] }`. `superRefine` rejects duplicate step/widget IDs and any ID that doesn't start with `<moduleId>:`.                                                                                                                                                                       |
+| `RuntimeRequirementSchema` | `{ react: string }`. Semver range the module's widget bundles need (e.g. `"^19.0.0"`). Host fail-soft skips modules whose range doesn't satisfy `TOOLKIT_REACT_MAJOR`.                                                                                                                                               |
+| `DeclarativeStepSchema`    | `{ id, dataType, requires, produces, tool, inputMapping, outputMapping }`. `tool` is unprefixed — host prepends the originating proxy name. `inputMapping` reads dot-paths into the pipeline context (e.g. `keys.<ns>:itemId`); `outputMapping` writes dot-paths from the tool response into produced keys.          |
+| `RemoteWidgetSchema`       | `{ id, requires, bundle, size?, propsSchema? }`. `bundle` is an MCP resource URI (typically `ui://<moduleId>/widgets/<name>.js`). `size` defaults to `"full"` when omitted; `propsSchema` mirrors `WidgetDefinition.propsSchema` from `@miragon/mcp-toolkit-core` and surfaces verbatim in `get-framework-manifest`. |
+| `WidgetSizeSchema`         | `z.enum(["quarter", "third", "half", "full", "header"])`. Mirrors `WidgetSize` from core so the manifest contract stays standalone.                                                                                                                                                                                  |
+
+### Patterns
+
+| Symbol                  | Value                                            | Purpose                                                                                                                                                       |
+| ----------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MODULE_ID_PATTERN`     | `/^[a-z][a-z0-9-]*$/`                            | Module IDs are URL-safe + MCP-tool-name-safe; same character class as proxy names so the two spaces interoperate.                                             |
+| `NAMESPACED_ID_PATTERN` | `/^[a-z][a-z0-9-]*:[A-Za-z0-9][A-Za-z0-9._-]*$/` | Every step ID, widget ID, dataType, and key in `produces`/`requires` must be `<namespace>:<local>`. Local part allows camelCase, kebab-case, and dotted keys. |
+
+### Constants
+
+| Symbol                     | Value                   | Purpose                                                                                             |
+| -------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `GET_MODULE_MANIFEST_TOOL` | `"get-module-manifest"` | Canonical tool name an upstream exposes to advertise its manifest. Use this constant on both sides. |
+
+### Types
+
+| Type                 | Origin                                      |
+| -------------------- | ------------------------------------------- |
+| `ModuleManifest`     | `z.infer<typeof ModuleManifestSchema>`.     |
+| `RuntimeRequirement` | `z.infer<typeof RuntimeRequirementSchema>`. |
+| `DeclarativeStep`    | `z.infer<typeof DeclarativeStepSchema>`.    |
+| `RemoteWidget`       | `z.infer<typeof RemoteWidgetSchema>`.       |
+| `WidgetSizeHint`     | `z.infer<typeof WidgetSizeSchema>`.         |
+
+See [`packages/proxy-contract/src/module-manifest.ts`](../../packages/proxy-contract/src/module-manifest.ts)
+and [the upstream-hosted modules plan](../plans/upstream-hosted-modules.md)
+for the full design.
+
 ## See also
 
 - [Upstream proxies concept](../concepts/upstream-proxies.md)
