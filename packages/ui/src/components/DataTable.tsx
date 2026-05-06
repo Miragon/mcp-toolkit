@@ -48,7 +48,7 @@ const DEFAULT_LABELS: Required<DataTableLabels> = {
 /** Converts an unknown cell value to a display string. Objects are JSON-serialized. */
 function safeString(value: unknown): string {
   if (typeof value === "object" && value !== null) return JSON.stringify(value)
-  return String(value as string | number | boolean | bigint | symbol)
+  return String(value)
 }
 
 function formatValue(

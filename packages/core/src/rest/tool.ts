@@ -87,8 +87,8 @@ export function createRestTool<TArgs extends ToolArgs = ToolArgs, TRaw = unknown
         body: parts.body,
         headers: parts.headers,
       })
-      if (raw === undefined) return undefined as TOut
-      return config.projection ? config.projection(raw, typedArgs) : (raw as unknown as TOut)
+      if (raw === undefined) return undefined
+      return config.projection ? config.projection(raw, typedArgs) : raw
     },
     formatResult: config.formatResult
       ? (result, args) => config.formatResult!(result as TOut, args as TArgs)

@@ -495,13 +495,13 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
       if (!session) {
         return toolError(
           `Not authenticated with ${this.name}. Please call ${this.name}_authenticate first.`,
-        ) as unknown as ToolResult
+        )
       }
       try {
         return (await session.callTool(tool.name, params)) as ToolResult
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        return toolError(`Error calling ${tool.name}: ${message}`) as unknown as ToolResult
+        return toolError(`Error calling ${tool.name}: ${message}`)
       }
     }
     server.tool(toolDef, handler)

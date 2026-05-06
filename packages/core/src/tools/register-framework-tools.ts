@@ -4,7 +4,6 @@ import { z } from "zod"
 import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
 import { renderView } from "../framework/render-view.js"
-import type { LayoutConfig } from "../framework/layout-types.js"
 import type { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
@@ -110,7 +109,7 @@ export function registerFrameworkTools(
       {
         keys: params.keys,
         steps: params.steps,
-        layout: params.layout as LayoutConfig,
+        layout: params.layout,
         title: params.title,
       },
       stepRegistry,

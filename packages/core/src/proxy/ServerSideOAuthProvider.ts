@@ -43,7 +43,7 @@ export class ServerSideOAuthProvider implements OAuthClientProvider {
     return {
       // SDK types expect a tuple, but the underlying OAuth spec accepts any
       // non-empty array of redirect URIs.
-      redirect_uris: [this.callbackUrl] as unknown as OAuthClientMetadata["redirect_uris"],
+      redirect_uris: [this.callbackUrl],
       token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
