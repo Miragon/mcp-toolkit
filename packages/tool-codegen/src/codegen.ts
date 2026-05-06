@@ -125,7 +125,7 @@ async function schemaToType(schema: Record<string, unknown>, name: string): Prom
     // json-schema-to-typescript treats the top-level title as the type name,
     // and `title` beats the `name` arg to `compile()`. Spread first so an
     // upstream-supplied title can't override the codegen's chosen name.
-    { ...schema, title: name } as Parameters<typeof compileJsonSchema>[0],
+    { ...schema, title: name },
     name,
     json2tsOptions,
   )

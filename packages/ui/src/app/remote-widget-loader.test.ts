@@ -20,9 +20,7 @@ describe("createRemoteWidgetLoader", () => {
 
   it("throws when the bundle has no default export function", async () => {
     const fetchResource = vi.fn().mockResolvedValue("// bundle source")
-    const evaluateBundle = vi.fn().mockResolvedValue({ default: "not-a-component" } as unknown as {
-      default: WidgetComponent
-    })
+    const evaluateBundle = vi.fn().mockResolvedValue({ default: "not-a-component" })
     const loader = createRemoteWidgetLoader({ fetchResource, evaluateBundle })
 
     await expect(loader("items-ui:item-card", "ui://items-ui/item-card.js")).rejects.toThrow(

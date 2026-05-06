@@ -2,8 +2,6 @@ import { type MCPServer } from "mcp-use/server"
 import { z } from "zod"
 import type { DashboardStore } from "../framework/dashboard-store.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
-import type { LayoutConfig } from "../framework/layout-types.js"
-import type { PipelineStepRef } from "../types/pipeline.js"
 
 export interface RegisterDashboardToolsOptions {
   store: DashboardStore
@@ -68,8 +66,8 @@ export function registerDashboardTools(
         description: params.description,
         userId: extractUserId(ctx),
         keys: params.keys,
-        steps: params.steps as PipelineStepRef[] | undefined,
-        layout: params.layout as LayoutConfig,
+        steps: params.steps,
+        layout: params.layout,
         title: params.title,
       })
       return {

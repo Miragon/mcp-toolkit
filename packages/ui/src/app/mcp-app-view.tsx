@@ -172,7 +172,12 @@ export function McpAppView({
   } = useWidget<ViewData>()
 
   const [viewData, setViewData] = useState<ViewData | null>(null)
-  const [displayMode, setDisplayMode] = useState<string>("inline")
+  const [displayMode, setDisplayMode] = useState<string>(currentDisplayMode ?? "inline")
+  const [prevCurrentDisplayMode, setPrevCurrentDisplayMode] = useState(currentDisplayMode)
+  if (currentDisplayMode !== prevCurrentDisplayMode) {
+    setPrevCurrentDisplayMode(currentDisplayMode)
+    if (currentDisplayMode) setDisplayMode(currentDisplayMode)
+  }
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [remoteWidgets, setRemoteWidgets] = useState<Record<string, WidgetComponent>>({})
 
@@ -180,20 +185,18 @@ export function McpAppView({
   // catalogue, the user toggles into build by clicking the toolbar button.
   const [buildMode, setBuildMode] = useState(false)
 
-  useEffect(() => {
-    if (isPending) return
-    if (!initialViewData) return
-    // Guard against the host transiently clearing toolOutput (observed when
-    // the displayMode toggles): widgetProps would then become an empty
-    // merge (no layout/context) and clobber a valid viewData, blanking
-    // the UI. Require both `context` and `layout`.
-    if (!initialViewData.context || !initialViewData.layout) return
-    setViewData(initialViewData)
-  }, [isPending, initialViewData])
-
-  useEffect(() => {
-    if (currentDisplayMode) setDisplayMode(currentDisplayMode)
-  }, [currentDisplayMode])
+  // Sync host-provided initialViewData → local viewData via render-phase
+  // setState (rather than an effect) so the React Compiler doesn't flag a
+  // cascading render. The guard against transient empty toolOutput stays:
+  // widgetProps may briefly drop `context`/`layout` when displayMode toggles,
+  // and we don't want that to clobber a valid viewData.
+  const [prevInitialViewData, setPrevInitialViewData] = useState(initialViewData)
+  if (initialViewData !== prevInitialViewData) {
+    setPrevInitialViewData(initialViewData)
+    if (!isPending && initialViewData?.context && initialViewData?.layout) {
+      setViewData(initialViewData)
+    }
+  }
 
   // Lazy-load any remote widgets referenced by the current layout that the
   // consumer didn't pre-wire. The server advertises bundle URIs via
@@ -294,7 +297,7 @@ export function McpAppView({
     } finally {
       setIsRefreshing(false)
     }
-  }, [callTool, refreshToolName, viewData?._refreshParams])
+  }, [callTool, refreshToolName, viewData])
 
   // Called by LayoutBuilder when the user clicks Done. Commits the draft
   // layout (and any keys/steps edits) into the parent viewData so the

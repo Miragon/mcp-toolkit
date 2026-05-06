@@ -56,8 +56,8 @@ export async function fetchUpstreamTools(
       name: t.name,
       description: t.description,
       title: t.title,
-      inputSchema: t.inputSchema as Record<string, unknown>,
-      outputSchema: t.outputSchema as Record<string, unknown> | undefined,
+      inputSchema: t.inputSchema,
+      outputSchema: t.outputSchema,
     }))
   } finally {
     await client.close().catch(() => {})
