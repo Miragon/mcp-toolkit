@@ -17,8 +17,23 @@ alongside an MCP UI resource.
 }
 ```
 
+A layout cell carries `widget`, optional `span` (1–12), and optional
+per-instance `props` forwarded into the widget's `WidgetProps.widgetProps`.
+Validate accepted prop shapes on the widget via `WidgetDefinition.propsSchema`
+so the LLM constructing a layout has the contract upfront.
+
+```jsonc
+// layout cell
+{
+  "widget": "analytics:kpi-grid",
+  "span": 6,
+  "props": { "processDefinitionKey": "miraveloLeasing" },
+}
+```
+
 See `packages/core/src/tools/register-framework-tools.ts` for the exact Zod
-schema.
+schema and `packages/core/src/framework/layout-schemas.ts` for the cell
+definition.
 
 ## Layout shapes
 

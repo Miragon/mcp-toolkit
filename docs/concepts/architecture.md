@@ -85,16 +85,17 @@ add an explicit check in the step.
 
 ## Where the parts live
 
-| Concern              | File                                                            |
-| -------------------- | --------------------------------------------------------------- |
-| Server boot + wiring | `packages/core/src/tools/create-framework-app.ts`               |
-| Framework tools      | `packages/core/src/tools/register-framework-tools.ts`           |
-| Builder catalogue    | `packages/core/src/tools/register-catalogue-tool.ts` (app-only) |
-| Catalogue helper     | `packages/core/src/framework/catalogue.ts`                      |
-| Dashboard CRUD tools | `packages/core/src/tools/register-dashboard-tools.ts`           |
-| Dashboard store      | `packages/core/src/framework/dashboard-store.ts`                |
-| Proxy mounting       | `packages/core/src/tools/register-upstream-proxies.ts`          |
-| Proxy runtime        | `packages/core/src/proxy/UpstreamProxyPlugin.ts`                |
-| Pipeline executor    | `packages/core/src/engine/pipeline-executor.ts`                 |
-| View rendering       | `packages/core/src/framework/render-view.ts`                    |
-| Manifest             | `packages/core/src/framework/manifest.ts`                       |
+| Concern              | File                                                              |
+| -------------------- | ----------------------------------------------------------------- |
+| Server boot + wiring | `packages/core/src/tools/create-framework-app.ts`                 |
+| Framework tools      | `packages/core/src/tools/register-framework-tools.ts`             |
+| Builder catalogue    | `packages/core/src/tools/register-catalogue-tool.ts` (app-only)   |
+| Catalogue helper     | `packages/core/src/framework/catalogue.ts`                        |
+| Dashboard CRUD tools | `packages/core/src/tools/register-dashboard-tools.ts`             |
+| Dashboard store      | `packages/core/src/framework/dashboard-store.ts`                  |
+| Proxy mounting       | `packages/core/src/tools/register-upstream-proxies.ts`            |
+| Proxy runtime        | `packages/core/src/proxy/UpstreamProxyPlugin.ts`                  |
+| Pipeline executor    | `packages/core/src/engine/pipeline-executor.ts`                   |
+| View rendering       | `packages/core/src/framework/render-view.ts`                      |
+| Manifest             | `packages/core/src/framework/manifest.ts`                         |
+| REST helper          | `packages/core/src/rest/` (`createRestClient` + `createRestTool`) |
