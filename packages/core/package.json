@@ -34,7 +34,12 @@
     "test": "vitest run",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "prepare": "tsc -p tsconfig.build.json"
+    "prepare": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   },
   "peerDependencies": {
     "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
