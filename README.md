@@ -2,35 +2,42 @@
 
 Shared framework runtime and UI primitives for MCP servers built on top of [mcp-use](https://github.com/mcp-use/mcp-use).
 
-This monorepo ships two packages that are consumed by multiple MCP server projects (currently `miranum-ai` and `automation-mcp`):
+This monorepo ships four packages that are consumed by multiple MCP server projects (currently `miranum-ai` and `automation-mcp`):
 
-| Package                                        | Description                                                                                                                                                                                                                                                           |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@miragon/mcp-toolkit-core`](./packages/core) | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM.                                                                                      |
-| [`@miragon/mcp-toolkit-ui`](./packages/ui)     | React UI: shadcn primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing and a default upstream-widget loader) for bundling widgets into an `mcp-app.html` resource. |
+| Package                                                            | Description                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@miragon/mcp-toolkit-proxy-contract`](./packages/proxy-contract) | Shared upstream-proxy contract: Zod schemas, env-var helpers, and the canonical JSON shape written by admin portals and consumed by `core`. No React, no DOM.                                                                                                         |
+| [`@miragon/mcp-toolkit-core`](./packages/core)                     | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM.                                                                                      |
+| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen)     | Build-time codegen + runtime glue for type-safe MCP tool calls: `TypedCallTool`, `buildProxyAppConfigs`, and a CLI (`mcp-tool-codegen`) that generates TypeScript types and React Query hooks from an upstream MCP's `tools/list`.                                    |
+| [`@miragon/mcp-toolkit-ui`](./packages/ui)                         | React UI: shadcn primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing and a default upstream-widget loader) for bundling widgets into an `mcp-app.html` resource. |
 
 ## Usage
 
-During early development, consume the packages via a relative `pnpm` workspace glob in the consumer's `pnpm-workspace.yaml`:
+The packages are published to [GitHub Packages](https://github.com/orgs/Miragon/packages?repo_name=mcp-toolkit) (the `@miragon` scope is restricted, so consumers need to authenticate).
 
-```yaml
-packages:
-  - "server"
-  - "../mcp-toolkit/packages/*"
+In the consuming project, add an `.npmrc` that points the `@miragon` scope at GitHub Packages and supplies a token:
+
+```
+@miragon:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
-Once the toolkit API is stable, switch to git dependencies:
+Then export a [Personal Access Token](https://github.com/settings/tokens) with the `read:packages` scope as `GITHUB_TOKEN` (in CI, the default `secrets.GITHUB_TOKEN` works as long as the workflow has `permissions: { packages: read }`).
 
-```json
-{
-  "dependencies": {
-    "@miragon/mcp-toolkit-core": "github:miragon/mcp-toolkit#core-v0.1.0&path:/packages/core",
-    "@miragon/mcp-toolkit-ui": "github:miragon/mcp-toolkit#ui-v0.1.0&path:/packages/ui"
-  }
-}
+Install only what you need:
+
+```sh
+# Server-only consumer
+pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-proxy-contract
+
+# Server + frontend shell
+pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-proxy-contract @miragon/mcp-toolkit-ui
+
+# Plus type-safe tool-call codegen (CLI)
+pnpm add -D @miragon/mcp-toolkit-tool-codegen
 ```
 
-Each package carries a `prepare` script that compiles `src/` to `dist/` on install, so git dependencies work without committing build output.
+`@miragon/mcp-toolkit-core` peer-deps `proxy-contract`, so it must be installed alongside `core`.
 
 ## Build
 
