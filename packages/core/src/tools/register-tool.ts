@@ -1,4 +1,4 @@
-import { type MCPServer, text, error } from "mcp-use/server"
+import { type MCPServer, array, error, object, text } from "mcp-use/server"
 import { z } from "zod"
 
 type ZodRawShape = Record<string, z.ZodTypeAny>
@@ -11,6 +11,17 @@ export interface ToolConfig<TClient> {
   description: string
   category?: string
   inputSchema?: ZodRawShape
+  /**
+   * Zod schema describing the tool's structured output. Mirrored into the
+   * MCP `outputSchema` advertised to clients and used to populate
+   * `structuredContent` on each response.
+   *
+   * If you pass a `z.array(...)`, the schema is auto-wrapped to
+   * `z.object({ data: <array> })` because MCP requires `structuredContent`
+   * to be an object. The runtime wrapping happens automatically too — your
+   * handler can return either the bare array or `{ data: [...] }`.
+   */
+  outputSchema?: z.ZodTypeAny
   annotations?: {
     readOnlyHint?: boolean
     destructiveHint?: boolean
@@ -26,6 +37,11 @@ export interface RegisteredToolMeta {
   category?: string
 }
 
+function wrapArraySchema(schema: z.ZodTypeAny | undefined): z.ZodTypeAny | undefined {
+  if (!schema) return undefined
+  return schema instanceof z.ZodArray ? z.object({ data: schema }) : schema
+}
+
 export function createToolRegistrar<TClient>(server: MCPServer, client: TClient) {
   const registeredTools: RegisteredToolMeta[] = []
 
@@ -36,6 +52,7 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
         name: config.name,
         description: config.description,
         schema: config.inputSchema ? z.object(config.inputSchema) : undefined,
+        outputSchema: wrapArraySchema(config.outputSchema),
         annotations: config.annotations,
       },
       async (args) => {
@@ -43,6 +60,12 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
           const result = await config.handler(client, args)
           if (config.formatResult) {
             return text(config.formatResult(result, args))
+          }
+          if (Array.isArray(result)) {
+            return array(result)
+          }
+          if (result !== null && typeof result === "object") {
+            return object(result as Record<string, unknown>)
           }
           if (result !== null && result !== undefined) {
             return text(JSON.stringify(result, null, 2))
