@@ -1,6 +1,6 @@
 {
   "name": "@miragon/mcp-toolkit-core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Framework runtime for MCP servers: plugin contract, step/widget registries, pipeline executor, render-view helpers.",
   "type": "module",
   "sideEffects": false,
@@ -44,14 +44,14 @@
   "peerDependencies": {
     "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "mcp-use": "1.26.0",
+    "mcp-use": "1.27.1",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@types/node": "25.6.0",
-    "mcp-use": "1.26.0",
+    "mcp-use": "1.27.1",
     "typescript": "6.0.3",
     "vitest": "4.1.5",
     "zod": "4.4.3"
