@@ -44,16 +44,16 @@
   "peerDependencies": {
     "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "mcp-use": "1.27.1",
+    "mcp-use": "1.28.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "@types/node": "25.6.0",
-    "mcp-use": "1.27.1",
+    "@types/node": "25.9.1",
+    "mcp-use": "1.28.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.5",
+    "vitest": "4.1.6",
     "zod": "4.4.3"
   }
 }
