@@ -1,6 +1,6 @@
 {
   "name": "@miragon/mcp-toolkit-core",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Framework runtime for MCP servers: plugin contract, step/widget registries, pipeline executor, render-view helpers.",
   "type": "module",
   "sideEffects": false,
