@@ -125,13 +125,45 @@ async function runGenerate(args: ParsedArgs): Promise<void> {
 
 async function assertMatches(committed: string, generated: string): Promise<void> {
   const committedAbs = path.resolve(process.cwd(), committed)
+  let drifted = false
   for (const file of ["tools.ts", "hooks.tsx"]) {
     const a = await fs.readFile(path.join(committedAbs, file), "utf-8").catch(() => null)
     const b = await fs.readFile(path.join(generated, file), "utf-8")
-    if (a === null || a !== b) {
-      console.error(`drift: ${file} differs from committed output`)
-      process.exit(1)
+    if (a === null) {
+      console.error(`drift: ${file} missing from committed output (${committedAbs})`)
+      drifted = true
+      continue
     }
+    if (a !== b) {
+      console.error(`drift: ${file} differs from committed output`)
+      printLineDiff(a, b)
+      drifted = true
+    }
+  }
+  if (drifted) process.exit(1)
+}
+
+/**
+ * Prints the first N differing lines between two strings. Cheap line-level
+ * diff (no LCS) — sufficient to tell the user where regeneration would
+ * change the file without pulling in a diff library.
+ */
+function printLineDiff(committed: string, generated: string, maxLines = 20): void {
+  const aLines = committed.split("\n")
+  const bLines = generated.split("\n")
+  const max = Math.max(aLines.length, bLines.length)
+  let shown = 0
+  for (let i = 0; i < max && shown < maxLines; i++) {
+    const a = aLines[i]
+    const b = bLines[i]
+    if (a !== b) {
+      if (a !== undefined) console.error(`  - ${i + 1}: ${a}`)
+      if (b !== undefined) console.error(`  + ${i + 1}: ${b}`)
+      shown++
+    }
+  }
+  if (shown >= maxLines) {
+    console.error(`  ... (truncated; more differences not shown)`)
   }
 }
 

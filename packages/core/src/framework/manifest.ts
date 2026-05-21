@@ -69,7 +69,7 @@ export function getFrameworkManifest(
 
     steps: stepRegistry.getAll().map((step) => ({
       id: step.id,
-      app: step.id.split(":")[0],
+      app: appOf(step.id),
       ...(step.description ? { description: step.description } : {}),
       dataType: step.dataType,
       requires: step.requires,
@@ -81,7 +81,7 @@ export function getFrameworkManifest(
 
     widgets: widgetRegistry.getAll().map((widget) => ({
       id: widget.id,
-      app: widget.id.split(":")[0],
+      app: appOf(widget.id),
       ...(widget.description ? { description: widget.description } : {}),
       requires: widget.requires,
       ...(widget.consumes && widget.consumes.length > 0 ? { consumes: widget.consumes } : {}),
@@ -96,4 +96,14 @@ export function getFrameworkManifest(
 
     keyContracts: stepRegistry.getKeyContracts(),
   }
+}
+
+/**
+ * Splits a namespaced id like `"lexoffice:load-invoice"` into the
+ * leading namespace. Falls back to the full id if no colon is present
+ * (i.e. a malformed id) so callers always get a non-empty string.
+ */
+function appOf(id: string): string {
+  const colon = id.indexOf(":")
+  return colon >= 0 ? id.slice(0, colon) : id
 }

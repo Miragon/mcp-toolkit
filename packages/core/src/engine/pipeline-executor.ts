@@ -35,13 +35,16 @@ function bindAppConfig(appConfig: unknown, ctx: PipelineExecutionContext | undef
   }
 }
 
-export async function executePipeline(
-  config: PipelineConfig,
-  initialKeys: Record<string, unknown>,
-  registry: StepRegistry,
-  appConfigs?: Record<string, unknown>,
-  ctx?: PipelineExecutionContext,
-): Promise<PipelineContext> {
+export interface ExecutePipelineOptions {
+  config: PipelineConfig
+  initialKeys: Record<string, unknown>
+  registry: StepRegistry
+  appConfigs?: Record<string, unknown>
+  ctx?: PipelineExecutionContext
+}
+
+export async function executePipeline(options: ExecutePipelineOptions): Promise<PipelineContext> {
+  const { config, initialKeys, registry, appConfigs, ctx } = options
   const context: PipelineContext = {
     steps: {},
     keys: { ...initialKeys },
@@ -68,7 +71,8 @@ export async function executePipeline(
     }
 
     try {
-      const appName = ref.step.split(":")[0]
+      const colon = ref.step.indexOf(":")
+      const appName = colon >= 0 ? ref.step.slice(0, colon) : ref.step
       const rawConfig = appConfigs?.[appName] ?? {}
       const appConfig = bindAppConfig(rawConfig, ctx)
       const output = await stepDef.execute(context, appConfig)

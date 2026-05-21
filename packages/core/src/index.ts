@@ -3,9 +3,12 @@ export type {
   StepResult,
   PipelineContext,
   PipelineStepDefinition,
+  OptionalKeyDeclaration,
   WidgetProps,
   WidgetSize,
   WidgetDefinition,
+  LocalWidgetDefinition,
+  RemoteWidgetDefinition,
   AppDefinition,
   AppPlugin,
   PipelineConfig,
@@ -14,9 +17,13 @@ export type {
   AppConfigEntry,
   ValidationResult,
 } from "./types/index.js"
+export { isRemoteWidget } from "./types/index.js"
 
 export { executePipeline } from "./engine/pipeline-executor.js"
-export type { PipelineExecutionContext } from "./engine/pipeline-executor.js"
+export type {
+  PipelineExecutionContext,
+  ExecutePipelineOptions,
+} from "./engine/pipeline-executor.js"
 export { validatePipeline } from "./engine/context-builder.js"
 export { StepRegistry } from "./registry/step-registry.js"
 export type { KeyContract } from "./registry/step-registry.js"
@@ -24,10 +31,15 @@ export { WidgetRegistry } from "./registry/widget-registry.js"
 export { loadApps } from "./registry/app-loader.js"
 
 export { renderView } from "./framework/render-view.js"
-export type { RenderViewInput, RemoteWidgetInfo } from "./framework/render-view.js"
+export type {
+  RenderViewInput,
+  RenderViewOptions,
+  RemoteWidgetInfo,
+} from "./framework/render-view.js"
 export { getBuilderCatalogue } from "./framework/catalogue.js"
 export type {
   CatalogueInput,
+  CatalogueOptions,
   CataloguePayload,
   ReachableWidget,
   UnreachableWidget,

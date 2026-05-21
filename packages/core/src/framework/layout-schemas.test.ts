@@ -4,8 +4,8 @@ import { layoutSchema, rowSchema } from "./layout-schemas.js"
 describe("rowSchema", () => {
   it("accepts a minimal cell with just `widget`", () => {
     const parsed = rowSchema.parse({ row: [{ widget: "analytics:dashboard" }] })
-    expect(parsed.row[0].widget).toBe("analytics:dashboard")
-    expect(parsed.row[0].props).toBeUndefined()
+    expect(parsed.row[0]?.widget).toBe("analytics:dashboard")
+    expect(parsed.row[0]?.props).toBeUndefined()
   })
 
   it("accepts a cell with `span` and `props`", () => {
@@ -18,7 +18,7 @@ describe("rowSchema", () => {
         },
       ],
     })
-    expect(parsed.row[0].props).toEqual({
+    expect(parsed.row[0]?.props).toEqual({
       processDefinitionKey: "miraveloLeasing",
       period: "30d",
     })

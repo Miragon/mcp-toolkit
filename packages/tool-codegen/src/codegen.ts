@@ -46,10 +46,13 @@ export interface CodegenResult {
  * so consumers can wire it into custom build pipelines or tests.
  */
 export async function generateTools(config: CodegenConfig): Promise<CodegenResult> {
-  const tools = await fetchUpstreamTools({
+  const fetched = await fetchUpstreamTools({
     upstreamUrl: config.upstreamUrl,
     auth: config.auth,
   })
+  // Sort by tool name so two regenerations against the same upstream produce
+  // byte-identical output regardless of the upstream's tools/list order.
+  const tools = [...fetched].sort((a, b) => a.name.localeCompare(b.name))
 
   const proxyPascal = toPascalCase(config.proxyName)
   const toolMapName = `${proxyPascal}ToolMap`

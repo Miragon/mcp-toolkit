@@ -46,7 +46,7 @@ export function createRoleFilterMiddleware(
     const roles = Array.isArray(user?.roles) ? (user.roles as string[]) : []
     const restrictedRoles = roles.filter((r) => r in roleToModules)
     if (restrictedRoles.length === 0) return null
-    return [...new Set(restrictedRoles.flatMap((r) => roleToModules[r]))]
+    return [...new Set(restrictedRoles.flatMap((r) => roleToModules[r] ?? []))]
   }
 
   const toolsList: RoleFilterMiddleware = async (ctx, next) => {
@@ -56,7 +56,7 @@ export function createRoleFilterMiddleware(
     if (allowed === null) return tools
     return tools.filter((t) => {
       if (!t.name.includes("_")) return true
-      return allowed.includes(t.name.split("_")[0])
+      return allowed.includes(t.name.split("_")[0] ?? "")
     })
   }
 
@@ -66,7 +66,7 @@ export function createRoleFilterMiddleware(
     if (!toolName || !toolName.includes("_")) return next()
     const allowed = allowedModulesFor(ctx.auth?.user)
     if (allowed === null) return next()
-    const modulePrefix = toolName.split("_")[0]
+    const modulePrefix = toolName.split("_")[0] ?? ""
     if (!allowed.includes(modulePrefix)) {
       const userRoles = (ctx.auth?.user as { roles?: string[] } | undefined)?.roles ?? []
       throw new Error(

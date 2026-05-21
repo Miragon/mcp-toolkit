@@ -3,6 +3,7 @@ import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
+import { isRemoteWidget } from "../types/widget.js"
 import type { RemoteWidgetInfo } from "./render-view.js"
 
 export interface CatalogueInput {
@@ -84,6 +85,18 @@ export interface CataloguePayload {
   remoteWidgets: Record<string, RemoteWidgetInfo>
 }
 
+export interface CatalogueOptions {
+  input: CatalogueInput
+  stepRegistry: StepRegistry
+  widgetRegistry: WidgetRegistry
+  appConfigs?: Record<string, unknown>
+  /**
+   * Per-request context (currently: the calling userId). Mirrors
+   * {@link RenderViewOptions.ctx}.
+   */
+  ctx?: PipelineExecutionContext
+}
+
 /**
  * Computes everything the in-iframe LayoutBuilder needs to know:
  * the current pipeline context, the palette of reachable widgets, the
@@ -101,13 +114,8 @@ export interface CataloguePayload {
  * summary but don't abort — the catalogue is still useful even when
  * the pipeline can't fully resolve.
  */
-export async function getBuilderCatalogue(
-  input: CatalogueInput,
-  stepRegistry: StepRegistry,
-  widgetRegistry: WidgetRegistry,
-  appConfigs?: Record<string, unknown>,
-  ctx?: PipelineExecutionContext,
-) {
+export async function getBuilderCatalogue(options: CatalogueOptions) {
+  const { input, stepRegistry, widgetRegistry, appConfigs, ctx } = options
   const initialKeys = input.keys ?? {}
   const pipelineConfig = { steps: input.steps }
 
@@ -115,7 +123,13 @@ export async function getBuilderCatalogue(
     ? validatePipeline(pipelineConfig, stepRegistry, Object.keys(initialKeys))
     : { valid: true, issues: [], availableKeys: Object.keys(initialKeys) }
 
-  const context = await executePipeline(pipelineConfig, initialKeys, stepRegistry, appConfigs, ctx)
+  const context = await executePipeline({
+    config: pipelineConfig,
+    initialKeys,
+    registry: stepRegistry,
+    appConfigs,
+    ctx,
+  })
 
   const availableKeys = new Set<string>([...validation.availableKeys, ...Object.keys(context.keys)])
 
@@ -125,7 +139,7 @@ export async function getBuilderCatalogue(
 
   const reachableWidgets: ReachableWidget[] = reachableDefs.map((w) => ({
     id: w.id,
-    app: w.id.split(":")[0],
+    app: appOf(w.id),
     requires: w.requires,
     size: w.size,
     ...(w.propsSchema ? { propsSchema: w.propsSchema } : {}),
@@ -135,7 +149,7 @@ export async function getBuilderCatalogue(
     .filter((w) => !reachableIds.has(w.id))
     .map((w) => ({
       id: w.id,
-      app: w.id.split(":")[0],
+      app: appOf(w.id),
       requires: w.requires,
       size: w.size,
       missingKeys: w.requires.filter((k) => !availableKeys.has(k)),
@@ -144,7 +158,7 @@ export async function getBuilderCatalogue(
 
   const availableSteps: AvailableStep[] = stepRegistry.getAll().map((s) => ({
     id: s.id,
-    app: s.id.split(":")[0],
+    app: appOf(s.id),
     dataType: s.dataType,
     requires: s.requires,
     produces: s.produces,
@@ -178,7 +192,7 @@ export async function getBuilderCatalogue(
 
   const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
   for (const widget of allWidgets) {
-    if (widget.bundle && widget.moduleId) {
+    if (isRemoteWidget(widget)) {
       remoteWidgets[widget.id] = { bundle: widget.bundle, moduleId: widget.moduleId }
     }
   }
@@ -220,4 +234,13 @@ export async function getBuilderCatalogue(
       remoteWidgets,
     },
   }
+}
+
+/**
+ * Splits a namespaced id like `"lexoffice:load-invoice"` into the
+ * leading namespace. Falls back to the full id when no colon is present.
+ */
+function appOf(id: string): string {
+  const colon = id.indexOf(":")
+  return colon >= 0 ? id.slice(0, colon) : id
 }

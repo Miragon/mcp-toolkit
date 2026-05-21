@@ -8,12 +8,13 @@ import type { PipelineStepDefinition } from "../types/step.js"
 
 const emptyConfig: AppConfig = { activeApps: [], pipelines: {} }
 
-const widget = (overrides: Partial<WidgetDefinition>): WidgetDefinition => ({
-  id: "demo:widget",
-  requires: [],
-  size: "full",
-  ...overrides,
-})
+const widget = (overrides: Partial<WidgetDefinition>): WidgetDefinition =>
+  ({
+    id: "demo:widget",
+    requires: [],
+    size: "full",
+    ...overrides,
+  }) as WidgetDefinition
 
 const step = (overrides: Partial<PipelineStepDefinition>): PipelineStepDefinition => ({
   id: "demo:load",
@@ -39,7 +40,7 @@ describe("getFrameworkManifest", () => {
     expect(manifest.widgets).toEqual([
       { id: "demo:plain", app: "demo", requires: ["demo:data"], size: "half" },
     ])
-    expect(manifest.widgets[0].propsSchema).toBeUndefined()
+    expect(manifest.widgets[0]?.propsSchema).toBeUndefined()
   })
 
   it("surfaces propsSchema verbatim when the widget declares one", () => {
@@ -51,7 +52,7 @@ describe("getFrameworkManifest", () => {
     const widgetRegistry = new WidgetRegistry()
     widgetRegistry.register(widget({ id: "demo:scoped", propsSchema }))
     const manifest = getFrameworkManifest(new StepRegistry(), widgetRegistry, emptyConfig)
-    expect(manifest.widgets[0].propsSchema).toEqual(propsSchema)
+    expect(manifest.widgets[0]?.propsSchema).toEqual(propsSchema)
   })
 
   it("surfaces widget description and consumes when present, omits when absent", () => {

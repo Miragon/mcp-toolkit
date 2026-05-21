@@ -15,7 +15,11 @@ export interface WidgetProps {
 
 export type WidgetSize = "quarter" | "third" | "half" | "full" | "header"
 
-export interface WidgetDefinition {
+/**
+ * Fields shared by every widget regardless of where its code lives. Internal
+ * helper — consumers always work with the {@link WidgetDefinition} union.
+ */
+interface WidgetDefinitionBase {
   id: string
   /**
    * One-line human description of what the widget shows. Surfaced verbatim in
@@ -49,18 +53,46 @@ export interface WidgetDefinition {
    * documentation lives next to the widget code.
    */
   propsSchema?: Record<string, unknown>
-  /**
-   * Optional MCP resource URI the widget's compiled ESM bundle can be
-   * fetched from. Present only on widgets registered via an upstream
-   * module manifest (Phase 3 remote loading); local widgets leave it
-   * unset and stay baked into the app-bundle at build time.
-   */
-  bundle?: string
+}
+
+/**
+ * Widget whose React component is baked into the host's app-bundle at build
+ * time. The framework looks the component up in the `widgets` map passed to
+ * `McpAppView` — no resource read at render time.
+ */
+export interface LocalWidgetDefinition extends WidgetDefinitionBase {
+  bundle?: undefined
+  moduleId?: undefined
+}
+
+/**
+ * Widget served as a compiled ESM bundle by an upstream MCP server. At
+ * render time the browser-side widget loader reads `bundle` via the
+ * upstream identified by `moduleId` and dynamically imports it.
+ */
+export interface RemoteWidgetDefinition extends WidgetDefinitionBase {
+  /** MCP resource URI the upstream serves the widget's ESM bundle under. */
+  bundle: string
   /**
    * Module ID that contributed this widget. Mirrors the namespace prefix
-   * on `id`. Used by render-view to tell the app-bundle which upstream
-   * the bundle lives on so the browser-side loader can route the resource
-   * read to the right proxy.
+   * on `id`. Used by render-view to route the bundle fetch to the right
+   * upstream proxy.
    */
-  moduleId?: string
+  moduleId: string
+}
+
+/**
+ * Either a {@link LocalWidgetDefinition} or a {@link RemoteWidgetDefinition}.
+ * Use the {@link isRemoteWidget} type guard to narrow when iterating.
+ */
+export type WidgetDefinition = LocalWidgetDefinition | RemoteWidgetDefinition
+
+/**
+ * Type-guard: true iff the widget's code lives on an upstream MCP server and
+ * must be loaded through `read-widget-bundle` at render time. Checks both
+ * fields the type contract claims so downstream code (`render-view`,
+ * `read-widget-bundle`) can safely read `widget.moduleId` after the narrow.
+ */
+export function isRemoteWidget(widget: WidgetDefinition): widget is RemoteWidgetDefinition {
+  return typeof widget.bundle === "string" && typeof widget.moduleId === "string"
 }

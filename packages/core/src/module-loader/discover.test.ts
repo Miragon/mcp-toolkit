@@ -71,8 +71,8 @@ describe("discoverUpstreamModules", () => {
       hostReactMajor: 19,
     })
     expect(result).toHaveLength(1)
-    expect(result[0].manifest).toEqual(validManifest)
-    expect(result[0].proxy).toBe(proxy)
+    expect(result[0]?.manifest).toEqual(validManifest)
+    expect(result[0]?.proxy).toBe(proxy)
   })
 
   it("discovers a manifest delivered as JSON inside a text content block", async () => {
@@ -85,7 +85,7 @@ describe("discoverUpstreamModules", () => {
       hostReactMajor: 19,
     })
     expect(result).toHaveLength(1)
-    expect(result[0].manifest.moduleId).toBe("items-ui")
+    expect(result[0]?.manifest.moduleId).toBe("items-ui")
   })
 
   it("fails soft when callUpstream throws", async () => {

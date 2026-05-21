@@ -41,7 +41,7 @@ describe("createRestClient", () => {
 
     expect(result).toEqual({ id: "o-1", total: 42 })
     expect(calls).toHaveLength(1)
-    expect(calls[0].url).toBe("https://api.example.com/v2/orders/o-1")
+    expect(calls[0]?.url).toBe("https://api.example.com/v2/orders/o-1")
   })
 
   it("encodes query parameters including arrays and skips null/undefined", async () => {
@@ -54,7 +54,7 @@ describe("createRestClient", () => {
       query: { q: "foo bar", tag: ["a", "b"], page: 1, hidden: null, empty: undefined },
     })
 
-    expect(calls[0].url).toBe("https://api.example.com/search?q=foo%20bar&tag=a&tag=b&page=1")
+    expect(calls[0]?.url).toBe("https://api.example.com/search?q=foo%20bar&tag=a&tag=b&page=1")
   })
 
   it("stamps bearer auth header", async () => {
@@ -67,7 +67,7 @@ describe("createRestClient", () => {
 
     await client.request({ method: "GET", path: "/ping" })
 
-    const headers = calls[0].init.headers as Record<string, string>
+    const headers = calls[0]?.init.headers as Record<string, string>
     expect(headers.authorization).toBe("Bearer abc123")
   })
 
@@ -81,7 +81,7 @@ describe("createRestClient", () => {
 
     await client.request({ method: "GET", path: "/ping" })
 
-    const headers = calls[0].init.headers as Record<string, string>
+    const headers = calls[0]?.init.headers as Record<string, string>
     expect(headers["x-api-key"]).toBe("secret")
   })
 
@@ -95,9 +95,9 @@ describe("createRestClient", () => {
       body: { customer: "c-1", total: 99 },
     })
 
-    const headers = calls[0].init.headers as Record<string, string>
+    const headers = calls[0]?.init.headers as Record<string, string>
     expect(headers["content-type"]).toBe("application/json")
-    expect(calls[0].init.body).toBe(JSON.stringify({ customer: "c-1", total: 99 }))
+    expect(calls[0]?.init.body).toBe(JSON.stringify({ customer: "c-1", total: 99 }))
   })
 
   it("throws RestError with status on non-2xx responses", async () => {
@@ -135,7 +135,7 @@ describe("createRestClient", () => {
     const client = createRestClient({ baseUrl: "https://api.example.com/v2/", fetch })
 
     await client.request({ method: "GET", path: "/ping" })
-    expect(calls[0].url).toBe("https://api.example.com/v2/ping")
+    expect(calls[0]?.url).toBe("https://api.example.com/v2/ping")
   })
 
   it("merges default headers, auth headers, and per-request headers (later wins)", async () => {
@@ -153,7 +153,7 @@ describe("createRestClient", () => {
       headers: { "x-trace": "per-request" },
     })
 
-    const headers = calls[0].init.headers as Record<string, string>
+    const headers = calls[0]?.init.headers as Record<string, string>
     expect(headers["x-client"]).toBe("sdk-1")
     expect(headers.authorization).toBe("Bearer t")
     expect(headers["x-trace"]).toBe("per-request")

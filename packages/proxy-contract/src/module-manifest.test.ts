@@ -119,7 +119,7 @@ describe("ModuleManifestSchema", () => {
     })
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.data.widgets[0].size).toBe("half")
+      expect(result.data.widgets[0]?.size).toBe("half")
     }
   })
 
@@ -142,7 +142,7 @@ describe("ModuleManifestSchema", () => {
     })
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.data.widgets[0].propsSchema).toEqual(propsSchema)
+      expect(result.data.widgets[0]?.propsSchema).toEqual(propsSchema)
     }
   })
 

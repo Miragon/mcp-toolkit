@@ -28,8 +28,14 @@ function createStubServer(): { server: MCPServer; tools: CapturedTool[] } {
 
 function firstTextBlock(result: CallToolResult): string {
   const block = result.content[0]
-  if (block.type !== "text") throw new Error("expected text content block")
+  if (!block || block.type !== "text") throw new Error("expected text content block")
   return block.text
+}
+
+function firstTool(tools: CapturedTool[]): CapturedTool {
+  const tool = tools[0]
+  if (!tool) throw new Error("test fixture invariant: no tool registered")
+  return tool
 }
 
 describe("createToolRegistrar", () => {
@@ -42,7 +48,7 @@ describe("createToolRegistrar", () => {
       outputSchema: z.object({ id: z.string(), name: z.string() }),
       handler: () => Promise.resolve({ id: "1", name: "Foo" }),
     })
-    const result = await tools[0].cb({})
+    const result = await firstTool(tools).cb({})
     expect(result.structuredContent).toEqual({ id: "1", name: "Foo" })
     expect(JSON.parse(firstTextBlock(result))).toEqual({ id: "1", name: "Foo" })
   })
@@ -57,11 +63,11 @@ describe("createToolRegistrar", () => {
       outputSchema: z.array(itemSchema),
       handler: () => Promise.resolve([{ id: "1" }, { id: "2" }]),
     })
-    const declared = tools[0].definition.outputSchema
+    const declared = firstTool(tools).definition.outputSchema
     expect(declared).toBeDefined()
     expect(declared!.parse({ data: [{ id: "1" }] })).toEqual({ data: [{ id: "1" }] })
 
-    const result = await tools[0].cb({})
+    const result = await firstTool(tools).cb({})
     expect(result.structuredContent).toEqual({ data: [{ id: "1" }, { id: "2" }] })
   })
 
@@ -74,7 +80,7 @@ describe("createToolRegistrar", () => {
       handler: () => Promise.resolve({ count: 42 }),
       formatResult: (raw) => `Count: ${(raw as { count: number }).count}`,
     })
-    const result = await tools[0].cb({})
+    const result = await firstTool(tools).cb({})
     expect(result.structuredContent).toBeUndefined()
     expect(firstTextBlock(result)).toBe("Count: 42")
   })
@@ -87,7 +93,7 @@ describe("createToolRegistrar", () => {
       description: "",
       handler: () => Promise.resolve("1.2.3"),
     })
-    const result = await tools[0].cb({})
+    const result = await firstTool(tools).cb({})
     expect(result.structuredContent).toBeUndefined()
     expect(firstTextBlock(result)).toBe('"1.2.3"')
   })
@@ -100,7 +106,7 @@ describe("createToolRegistrar", () => {
       description: "",
       handler: () => Promise.resolve(null),
     })
-    const result = await tools[0].cb({})
+    const result = await firstTool(tools).cb({})
     expect(result.structuredContent).toBeUndefined()
     expect(firstTextBlock(result)).toBe("Success (no content returned)")
   })
@@ -113,7 +119,7 @@ describe("createToolRegistrar", () => {
       description: "",
       handler: () => Promise.reject(new Error("boom")),
     })
-    const result = await tools[0].cb({})
+    const result = await firstTool(tools).cb({})
     expect(result.isError).toBe(true)
   })
 })
