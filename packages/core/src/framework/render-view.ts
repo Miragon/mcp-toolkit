@@ -3,6 +3,7 @@ import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
+import { isRemoteWidget } from "../types/widget.js"
 import type { LayoutConfig } from "./layout-types.js"
 
 export interface RenderViewInput {
@@ -22,22 +23,27 @@ export interface RemoteWidgetInfo {
   moduleId: string
 }
 
+export interface RenderViewOptions {
+  input: RenderViewInput
+  stepRegistry: StepRegistry
+  widgetRegistry?: WidgetRegistry
+  appConfigs?: Record<string, Record<string, unknown>>
+  /**
+   * Per-request context (currently: the calling userId) that the pipeline
+   * executor uses to pre-bind user-scoped `callTool` closures on step
+   * `appConfig`s. Pass it through from the tool handler's
+   * `ctx.auth?.user?.userId`.
+   */
+  ctx?: PipelineExecutionContext
+}
+
 /**
  * Executes a pipeline of steps to populate the keys map and returns a payload
  * ready to be embedded into an MCP App widget. The resulting `structuredContent`
  * is consumed by the `McpAppView` component in `@miragon/mcp-toolkit-ui`.
- *
- * `ctx` carries per-request info (currently: the calling userId) that the
- * pipeline executor uses to pre-bind user-scoped `callTool` closures on step
- * `appConfig`s. Pass it through from the tool handler's `ctx.auth?.user?.userId`.
  */
-export async function renderView(
-  input: RenderViewInput,
-  stepRegistry: StepRegistry,
-  appConfigs?: Record<string, Record<string, unknown>>,
-  ctx?: PipelineExecutionContext,
-  widgetRegistry?: WidgetRegistry,
-) {
+export async function renderView(options: RenderViewOptions) {
+  const { input, stepRegistry, widgetRegistry, appConfigs, ctx } = options
   const initialKeys = input.keys ?? {}
   const pipelineConfig = { steps: input.steps }
 
@@ -56,7 +62,13 @@ export async function renderView(
     }
   }
 
-  const context = await executePipeline(pipelineConfig, initialKeys, stepRegistry, appConfigs, ctx)
+  const context = await executePipeline({
+    config: pipelineConfig,
+    initialKeys,
+    registry: stepRegistry,
+    appConfigs,
+    ctx,
+  })
 
   const textSummary = [
     input.title ?? "View",
@@ -72,7 +84,7 @@ export async function renderView(
   const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
   if (widgetRegistry) {
     for (const widget of widgetRegistry.getAll()) {
-      if (widget.bundle && widget.moduleId) {
+      if (isRemoteWidget(widget)) {
         remoteWidgets[widget.id] = { bundle: widget.bundle, moduleId: widget.moduleId }
       }
     }

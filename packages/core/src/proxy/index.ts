@@ -8,6 +8,8 @@ export { jsonSchemaToZod } from "./jsonSchemaToZod.js"
 export {
   PROXY_NAME_PATTERN,
   type PendingAuth,
+  type ToolHandlerContext,
   type UpstreamAuthConfig,
+  type UpstreamSession,
   type UserUpstreamSession,
 } from "./types.js"

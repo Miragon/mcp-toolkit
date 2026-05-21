@@ -7,7 +7,12 @@ import type { AppDefinition, AppPlugin } from "../types/app.js"
 import { jsonSchemaToZod } from "./jsonSchemaToZod.js"
 import { ServerSideOAuthProvider } from "./ServerSideOAuthProvider.js"
 import { InMemorySessionStore, type SessionStore } from "./SessionStore.js"
-import { PROXY_NAME_PATTERN, type UpstreamAuthConfig } from "./types.js"
+import {
+  PROXY_NAME_PATTERN,
+  type ToolHandlerContext,
+  type UpstreamAuthConfig,
+  type UpstreamSession,
+} from "./types.js"
 
 export interface UpstreamProxyPluginOptions {
   /** Short identifier; used as tool-name prefix. Must match `[a-z][a-z0-9-]*`. */
@@ -31,38 +36,10 @@ export interface UpstreamProxyPluginOptions {
   callbackBaseUrl?: string
 }
 
-interface UpstreamTool {
-  name: string
-  description?: string
-  inputSchema?: unknown
-}
-
-/**
- * Minimal shape of an mcp-use session that we actually use.
- *
- * mcp-use exposes concrete types for sessions, but they carry a wide surface
- * (prompts, resources, notifications). The proxy only needs list+call, so
- * we keep our dependency narrow.
- */
-interface UpstreamSession {
-  listTools(): Promise<UpstreamTool[]>
-  callTool(name: string, args: unknown): Promise<unknown>
-  readResource(uri: string): Promise<{
-    contents: Array<
-      | { uri: string; text: string; mimeType?: string }
-      | { uri: string; blob: string; mimeType?: string }
-    >
-  }>
-}
-
-/** Shape of the `ctx` the mcp-use tool handler receives. */
-interface ToolContext {
-  auth?: { user?: { userId?: string } }
-  session?: { sessionId?: string }
-}
+type UpstreamTool = Awaited<ReturnType<UpstreamSession["listTools"]>>[number]
 
 /** Shape of the `ctx` the mcp-use middleware receives. */
-interface MiddlewareContext extends ToolContext {
+interface MiddlewareContext extends ToolHandlerContext {
   method?: string
 }
 
@@ -201,7 +178,7 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
         )
       }
       const stored = await this.sessionStore.getSession(userId, this.name)
-      const session = stored?.session as UpstreamSession | undefined
+      const session = stored?.session
       if (!session) {
         throw new Error(
           `UpstreamProxyPlugin(${this.name}).callUpstream: no active session for user "${userId}". User must complete ${this.name}_authenticate first.`,
@@ -236,7 +213,7 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
         )
       }
       const stored = await this.sessionStore.getSession(userId, this.name)
-      session = stored?.session as UpstreamSession | undefined
+      session = stored?.session
       if (!session) {
         throw new Error(
           `UpstreamProxyPlugin(${this.name}).readUpstreamResourceText: no active session for user "${userId}".`,
@@ -367,7 +344,7 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
           `up the upstream tools and pushes a tools/list_changed notification.`,
       },
       async (_params, ctx) => {
-        const typedCtx = ctx as ToolContext
+        const typedCtx = ctx as ToolHandlerContext
         const userId = typedCtx.auth?.user?.userId
         const inboundSessionId = typedCtx.session?.sessionId
         if (!userId) {
@@ -458,10 +435,10 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
     for (const tool of tools) {
       this.registerForwardedTool(server, tool, {
         resolveSession: async (ctx) => {
-          const callerUserId = (ctx as ToolContext).auth?.user?.userId
+          const callerUserId = (ctx as ToolHandlerContext).auth?.user?.userId
           if (!callerUserId) return undefined
           const stored = await this.sessionStore.getSession(callerUserId, this.name)
-          return stored?.session as UpstreamSession | undefined
+          return stored?.session
         },
       })
     }

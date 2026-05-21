@@ -18,16 +18,42 @@ export type UpstreamAuthConfig =
 /** Pattern for valid proxy names — used as tool-name prefix. */
 export const PROXY_NAME_PATTERN = /^[a-z][a-z0-9-]*$/
 
+/**
+ * Minimal shape of an mcp-use session the proxy actually uses.
+ *
+ * The concrete `MCPSession` type from mcp-use carries a wider surface
+ * (prompts, resources, notifications). The proxy only forwards list+call
+ * and reads widget bundles, so we narrow to that here. Kept structural so
+ * the toolkit barrel does not pull session internals into consumers that
+ * only need the type.
+ */
+export interface UpstreamSession {
+  listTools(): Promise<{ name: string; description?: string; inputSchema?: unknown }[]>
+  callTool(name: string, args: unknown): Promise<unknown>
+  readResource(uri: string): Promise<{
+    contents: Array<
+      | { uri: string; text: string; mimeType?: string }
+      | { uri: string; blob: string; mimeType?: string }
+    >
+  }>
+}
+
+/**
+ * Subset of the mcp-use tool-handler `ctx` argument that the toolkit reads.
+ *
+ * mcp-use's full ctx surface is wider (transport metadata, session info,
+ * the McpServer instance itself); shared across the proxy and framework
+ * tool registrars so the user-id extraction stays consistent.
+ */
+export interface ToolHandlerContext {
+  auth?: { user?: { userId?: string } }
+  session?: { sessionId?: string }
+}
+
 /** A completed per-user upstream session (oauth2 mode). */
 export interface UserUpstreamSession {
   client: MCPClient
-  /**
-   * Concrete type is `MCPSession` from mcp-use, but we keep it loose so the
-   * toolkit barrel does not pull session internals into consumers that only
-   * need the types.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  session: any
+  session: UpstreamSession
 }
 
 /** In-flight OAuth dance awaiting the browser redirect (oauth2 mode). */

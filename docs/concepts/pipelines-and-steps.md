@@ -49,7 +49,7 @@ inputs without guessing.
 
 ## Executor contract
 
-`executePipeline(config, initialKeys, registry, appConfigs?, ctx?)`:
+`executePipeline({ config, initialKeys, registry, appConfigs?, ctx? })`:
 
 - Runs each step in declaration order.
 - Skips a step if `ref.optional` is true and either the step isn't registered

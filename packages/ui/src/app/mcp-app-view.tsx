@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react"
 import { useWidget } from "mcp-use/react"
-import { Pencil } from "lucide-react"
+import { Maximize2, Minimize2, Pencil, RefreshCw } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef, RowDef } from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
@@ -25,69 +25,6 @@ const DEFAULT_LABELS: Required<McpAppViewLabels> = {
   enterFullscreen: "Fullscreen",
   exitFullscreen: "Collapse",
   build: "Build",
-}
-
-function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={`h-4 w-4 ${spinning ? "animate-spin" : ""}`}
-    >
-      <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
-      <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
-      <path d="M21 3v5h-5" />
-      <path d="M3 21v-5h5" />
-    </svg>
-  )
-}
-
-function ExpandIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="h-4 w-4"
-    >
-      <path d="M15 3h6v6" />
-      <path d="M9 21H3v-6" />
-      <path d="M21 3l-7 7" />
-      <path d="M3 21l7-7" />
-    </svg>
-  )
-}
-
-function CollapseIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="h-4 w-4"
-    >
-      <path d="M4 14h6v6" />
-      <path d="M20 10h-6V4" />
-      <path d="M14 10l7-7" />
-      <path d="M3 21l7-7" />
-    </svg>
-  )
 }
 
 interface RefreshParams {
@@ -245,6 +182,7 @@ export function McpAppView({
     let cancelled = false
     for (const id of missing) {
       const info = manifest[id]
+      if (!info) continue
       effectiveWidgetLoader(id, info.bundle)
         .then((component) => {
           if (cancelled) return
@@ -375,7 +313,10 @@ export function McpAppView({
                 disabled={isRefreshing}
                 className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
               >
-                <RefreshIcon spinning={isRefreshing} />
+                <RefreshCw
+                  aria-hidden="true"
+                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
                 {isRefreshing ? effectiveLabels.refreshing : effectiveLabels.refresh}
               </button>
             )}
@@ -394,7 +335,11 @@ export function McpAppView({
               }}
               className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
             >
-              {displayMode === "fullscreen" ? <CollapseIcon /> : <ExpandIcon />}
+              {displayMode === "fullscreen" ? (
+                <Minimize2 aria-hidden="true" className="h-4 w-4" />
+              ) : (
+                <Maximize2 aria-hidden="true" className="h-4 w-4" />
+              )}
               {displayMode === "fullscreen"
                 ? effectiveLabels.exitFullscreen
                 : effectiveLabels.enterFullscreen}

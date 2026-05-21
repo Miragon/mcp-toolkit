@@ -99,7 +99,8 @@ export function createRestTool<TArgs extends ToolArgs = ToolArgs, TRaw = unknown
 function extractPathPlaceholders(path: string): Set<string> {
   const out = new Set<string>()
   for (const match of path.matchAll(/\{([^}]+)\}/g)) {
-    out.add(match[1])
+    const name = match[1]
+    if (name) out.add(name)
   }
   return out
 }

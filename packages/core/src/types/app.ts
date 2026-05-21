@@ -3,6 +3,10 @@ import type { WidgetDefinition } from "./widget.js"
 
 export interface AppDefinition {
   name: string
+  // Each step is generic in its own appConfig shape and the array is
+  // heterogeneous, so `any` is the pragmatic escape from TS's invariant
+  // treatment of `PipelineStepDefinition<TConfig>`. The executor narrows back
+  // to `unknown` at the call site via `bindAppConfig`.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   steps: PipelineStepDefinition<any>[]
   widgets: WidgetDefinition[]
@@ -23,8 +27,7 @@ export interface AppDefinition {
  * Each app exports a `createPlugin(config)` factory that returns an
  * `AppPlugin<MCPServer>`.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface AppPlugin<TServer = any> {
+export interface AppPlugin<TServer = unknown> {
   definition: AppDefinition
   appConfig?: Record<string, unknown>
   /**

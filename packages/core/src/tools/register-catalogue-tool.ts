@@ -50,13 +50,13 @@ export function registerCatalogueTool(
       _meta: { ui: { visibility: ["app"] } },
     },
     async (params, ctx) => {
-      return getBuilderCatalogue(
-        { keys: params.keys, steps: params.steps },
+      return getBuilderCatalogue({
+        input: { keys: params.keys, steps: params.steps },
         stepRegistry,
         widgetRegistry,
         appConfigs,
-        { userId: extractUserId(ctx) },
-      )
+        ctx: { userId: extractUserId(ctx) },
+      })
     },
   )
 }

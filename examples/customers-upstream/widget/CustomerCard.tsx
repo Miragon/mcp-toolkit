@@ -25,10 +25,11 @@ interface Keys {
   "customers:customer"?: unknown
 }
 
+const tierBronze = { border: "#a16207", text: "#854d0e", bg: "#fefce8" }
 const tierColor: Record<string, { border: string; text: string; bg: string }> = {
   gold: { border: "#b45309", text: "#92400e", bg: "#fffbeb" },
   silver: { border: "#475569", text: "#334155", bg: "#f1f5f9" },
-  bronze: { border: "#a16207", text: "#854d0e", bg: "#fefce8" },
+  bronze: tierBronze,
 }
 
 function str(value: unknown): string {
@@ -42,7 +43,7 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
   const tier = str(customer.tier) || "bronze"
   const since = str(customer.since)
   const [expanded, setExpanded] = useState(false)
-  const tierStyle = tierColor[tier] ?? tierColor.bronze
+  const tierStyle = tierColor[tier] ?? tierBronze
 
   return (
     <div

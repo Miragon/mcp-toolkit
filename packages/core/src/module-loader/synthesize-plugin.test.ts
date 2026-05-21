@@ -44,8 +44,8 @@ describe("synthesizeModulePlugin", () => {
   it("compiles each declarative step into a PipelineStepDefinition", () => {
     const plugin = synthesizeModulePlugin({ manifest, proxy })
     expect(plugin.definition.steps).toHaveLength(1)
-    expect(plugin.definition.steps[0].id).toBe("items-ui:resolve-item")
-    expect(plugin.definition.steps[0].requires).toEqual(["items-ui:itemId"])
+    expect(plugin.definition.steps[0]?.id).toBe("items-ui:resolve-item")
+    expect(plugin.definition.steps[0]?.requires).toEqual(["items-ui:itemId"])
   })
 
   it("projects remote widgets with bundle + moduleId, defaulting size to 'full'", () => {
@@ -73,13 +73,15 @@ describe("synthesizeModulePlugin", () => {
       type: "object",
       properties: { itemId: { type: "string" } },
     }
+    const firstWidget = manifest.widgets[0]
+    if (!firstWidget) throw new Error("test fixture invariant: manifest must declare a widget")
     const plugin = synthesizeModulePlugin({
       manifest: {
         ...manifest,
-        widgets: [{ ...manifest.widgets[0], propsSchema }],
+        widgets: [{ ...firstWidget, propsSchema }],
       },
       proxy,
     })
-    expect(plugin.definition.widgets[0].propsSchema).toEqual(propsSchema)
+    expect(plugin.definition.widgets[0]?.propsSchema).toEqual(propsSchema)
   })
 })

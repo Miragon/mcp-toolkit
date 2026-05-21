@@ -558,6 +558,7 @@ export function LayoutBuilder({
         if (target < 0 || target >= rows.length) return rows
         const next = [...rows]
         const [moved] = next.splice(rowIdx, 1)
+        if (!moved) return rows
         next.splice(target, 0, moved)
         setFocusedRowIndex(target)
         return next
@@ -657,7 +658,7 @@ export function LayoutBuilder({
       const tabs = prev.tabs.filter((_, i) => i !== tabIdx)
       setActiveTabIndex((idx) => Math.max(0, Math.min(idx, tabs.length - 1)))
       if (tabs.length === 0) return { kind: "rows", rows: emptyRows() }
-      if (tabs.length === 1) return { kind: "rows", rows: tabs[0].rows }
+      if (tabs.length === 1 && tabs[0]) return { kind: "rows", rows: tabs[0].rows }
       return { kind: "tabs", tabs }
     })
   }, [])

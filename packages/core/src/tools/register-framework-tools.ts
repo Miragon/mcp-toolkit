@@ -5,9 +5,11 @@ import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
 import { renderView } from "../framework/render-view.js"
 import type { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
+import type { ToolHandlerContext } from "../proxy/types.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
+import { isRemoteWidget } from "../types/widget.js"
 
 export interface RegisterFrameworkToolsOptions {
   stepRegistry: StepRegistry
@@ -61,7 +63,7 @@ const renderViewSchema = z.object({
 type RenderViewParams = z.infer<typeof renderViewSchema>
 
 function extractUserId(ctx: unknown): string | undefined {
-  const user = (ctx as { auth?: { user?: { userId?: unknown } } } | undefined)?.auth?.user
+  const user = (ctx as ToolHandlerContext | undefined)?.auth?.user
   return typeof user?.userId === "string" ? user.userId : undefined
 }
 
@@ -105,18 +107,18 @@ export function registerFrameworkTools(
   )
 
   const renderHandler = async (params: RenderViewParams, ctx: unknown) => {
-    return renderView(
-      {
+    return renderView({
+      input: {
         keys: params.keys,
         steps: params.steps,
         layout: params.layout,
         title: params.title,
       },
       stepRegistry,
-      appConfigs,
-      { userId: extractUserId(ctx) },
       widgetRegistry,
-    )
+      appConfigs,
+      ctx: { userId: extractUserId(ctx) },
+    })
   }
 
   server.tool(
@@ -207,7 +209,7 @@ function registerReadWidgetBundleTool(
     },
     async ({ id }, ctx) => {
       const widget = widgetRegistry.get(id)
-      if (!widget?.bundle || !widget.moduleId) {
+      if (!widget || !isRemoteWidget(widget)) {
         return {
           content: [{ type: "text" as const, text: `Widget "${id}" is not upstream-hosted.` }],
           isError: true,

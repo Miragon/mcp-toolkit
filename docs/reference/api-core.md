@@ -9,42 +9,48 @@ widget bundles or browser code.
 
 ### Types
 
-| Symbol                            | Purpose                                                                                                                                                                                                         |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AppDefinition`                   | `{ name, steps, widgets }`.                                                                                                                                                                                     |
-| `AppPlugin<TServer>`              | `{ definition, appConfig?, proxyBinding?, registerTools?, registerWidgetTools? }`.                                                                                                                              |
-| `PipelineStepDefinition<TConfig>` | `{ id, description?, dataType, requires, optionalKeys?, produces, execute(ctx, appConfig) }`.                                                                                                                   |
-| `OptionalKeyDeclaration`          | `{ key, description?, enum? }`. Soft inputs surfaced in `getFrameworkManifest`. (Re-exported from `./types/index.js`; if you need it from the main barrel today, file a follow-up to add it to `src/index.ts`.) |
-| `PipelineContext`                 | `{ steps, keys, errors }`.                                                                                                                                                                                      |
-| `StepOutput` / `StepResult`       | Step return value; `StepResult` adds `_dataType`.                                                                                                                                                               |
-| `WidgetDefinition`                | `{ id, description?, requires, consumes?, size, propsSchema?, bundle?, moduleId? }`. `bundle` / `moduleId` are set only on widgets registered from an upstream module manifest.                                 |
-| `WidgetSize`                      | `"quarter"` \| `"third"` \| `"half"` \| `"full"` \| `"header"`.                                                                                                                                                 |
-| `WidgetProps`                     | `{ keys, context, widgetProps? }`. `widgetProps` carries the layout cell's per-instance `props`.                                                                                                                |
-| `PipelineConfig`                  | `{ steps?: PipelineStepRef[] }`.                                                                                                                                                                                |
-| `PipelineStepRef`                 | `{ id, step, optional? }`.                                                                                                                                                                                      |
-| `AppConfig`                       | `{ activeApps: AppConfigEntry[], pipelines: Record<id, PipelineConfig> }`.                                                                                                                                      |
-| `ValidationResult`                | `{ valid, issues, availableKeys }`.                                                                                                                                                                             |
+| Symbol                            | Purpose                                                                                                                       |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `AppDefinition`                   | `{ name, steps, widgets }`.                                                                                                   |
+| `AppPlugin<TServer>`              | `{ definition, appConfig?, proxyBinding?, registerTools?, registerWidgetTools? }`.                                            |
+| `PipelineStepDefinition<TConfig>` | `{ id, description?, dataType, requires, optionalKeys?, produces, execute(ctx, appConfig) }`.                                 |
+| `OptionalKeyDeclaration`          | `{ key, description?, enum? }`. Soft inputs surfaced in `getFrameworkManifest`.                                               |
+| `PipelineContext`                 | `{ steps, keys, errors }`.                                                                                                    |
+| `StepOutput` / `StepResult`       | Step return value; `StepResult` adds `_dataType`.                                                                             |
+| `WidgetDefinition`                | Discriminated union `LocalWidgetDefinition \| RemoteWidgetDefinition`. Narrow with `isRemoteWidget`.                          |
+| `LocalWidgetDefinition`           | `{ id, description?, requires, consumes?, size, propsSchema? }` — code lives in the host's app-bundle.                        |
+| `RemoteWidgetDefinition`          | `LocalWidgetDefinition` + `{ bundle: string, moduleId: string }` — bundle is fetched via `read-widget-bundle` at render time. |
+| `isRemoteWidget`                  | `(widget) → widget is RemoteWidgetDefinition`. Type guard.                                                                    |
+| `WidgetSize`                      | `"quarter"` \| `"third"` \| `"half"` \| `"full"` \| `"header"`.                                                               |
+| `WidgetProps`                     | `{ keys, context, widgetProps? }`. `widgetProps` carries the layout cell's per-instance `props`.                              |
+| `PipelineConfig`                  | `{ steps?: PipelineStepRef[] }`.                                                                                              |
+| `PipelineStepRef`                 | `{ id, step, optional? }`.                                                                                                    |
+| `AppConfig`                       | `{ activeApps: AppConfigEntry[], pipelines: Record<id, PipelineConfig> }`.                                                    |
+| `ValidationResult`                | `{ valid, issues, availableKeys }`.                                                                                           |
 
 ### Runtime
 
-| Symbol                     | Signature                                                                       |
-| -------------------------- | ------------------------------------------------------------------------------- |
-| `executePipeline`          | `(config, initialKeys, registry, appConfigs?, ctx?) → Promise<PipelineContext>` |
-| `validatePipeline`         | `(config, registry, availableKeys) → ValidationResult`                          |
-| `StepRegistry`             | Class. `register(step)`, `get(id)`, `getAll()`, `getKeyContracts()`.            |
-| `WidgetRegistry`           | Class. `register(w)`, `get(id)`, `getAll()`.                                    |
-| `loadApps`                 | `(defs, stepRegistry, widgetRegistry) → void`.                                  |
-| `PipelineExecutionContext` | `{ userId? }`.                                                                  |
-| `KeyContract`              | `{ key, producedBy[], consumedBy[] }`.                                          |
+| Symbol                     | Signature                                                            |
+| -------------------------- | -------------------------------------------------------------------- |
+| `executePipeline`          | `(options: ExecutePipelineOptions) → Promise<PipelineContext>`       |
+| `ExecutePipelineOptions`   | `{ config, initialKeys, registry, appConfigs?, ctx? }`.              |
+| `validatePipeline`         | `(config, registry, availableKeys) → ValidationResult`               |
+| `StepRegistry`             | Class. `register(step)`, `get(id)`, `getAll()`, `getKeyContracts()`. |
+| `WidgetRegistry`           | Class. `register(w)`, `get(id)`, `getAll()`.                         |
+| `loadApps`                 | `(defs, stepRegistry, widgetRegistry) → void`.                       |
+| `PipelineExecutionContext` | `{ userId? }`.                                                       |
+| `KeyContract`              | `{ key, producedBy[], consumedBy[] }`.                               |
 
 ### Framework helpers
 
 | Symbol                       | Signature                                                                                                                                                                                                                                                                             |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `renderView`                 | `(input: RenderViewInput, stepRegistry, appConfigs?, ctx?, widgetRegistry?) → Promise<{ content, structuredContent?, isError? }>`                                                                                                                                                     |
+| `renderView`                 | `(options: RenderViewOptions) → Promise<{ content, structuredContent?, isError? }>`                                                                                                                                                                                                   |
+| `RenderViewOptions`          | `{ input, stepRegistry, widgetRegistry?, appConfigs?, ctx? }`.                                                                                                                                                                                                                        |
 | `RenderViewInput`            | `{ keys?, steps?, layout, title? }`.                                                                                                                                                                                                                                                  |
 | `RemoteWidgetInfo`           | `{ bundle, moduleId }`.                                                                                                                                                                                                                                                               |
-| `getBuilderCatalogue`        | `(input: CatalogueInput, stepRegistry, widgetRegistry, appConfigs?, ctx?) → Promise<{ content, structuredContent: CataloguePayload }>`. Backs the app-only `get-builder-catalogue` tool used by the iframe builder. See [view-builder concept](../concepts/view-builder.md).          |
+| `getBuilderCatalogue`        | `(options: CatalogueOptions) → Promise<{ content, structuredContent: CataloguePayload }>`. Backs the app-only `get-builder-catalogue` tool used by the iframe builder. See [view-builder concept](../concepts/view-builder.md).                                                       |
+| `CatalogueOptions`           | `{ input, stepRegistry, widgetRegistry, appConfigs?, ctx? }`.                                                                                                                                                                                                                         |
 | `CatalogueInput`             | `{ keys?, steps? }` — what the builder is currently working with.                                                                                                                                                                                                                     |
 | `CataloguePayload`           | `{ context, reachableWidgets, unreachableWidgets, availableSteps, keyCatalog, remoteWidgets }`.                                                                                                                                                                                       |
 | `ReachableWidget`            | `{ id, app, requires, size }` — palette entry for the builder UI.                                                                                                                                                                                                                     |
@@ -84,6 +90,19 @@ widget bundles or browser code.
 | ---------------------- | ------------------------------------------------------------ |
 | `buildProxyAppConfigs` | `(plugins, proxies) → Record<app, Record<string, unknown>>`. |
 
+### Module loader (upstream-hosted modules)
+
+| Symbol                           | Signature                                                                                                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `discoverUpstreamModules`        | `(opts: DiscoverUpstreamModulesOptions) → Promise<DiscoveredModule[]>`. Calls `get-module-manifest` on every proxy flagged `upstreamModules: true`, fail-soft.           |
+| `DiscoverUpstreamModulesOptions` | `{ entries: ProxyConfigEntry[], proxies: UpstreamProxyPlugin[], hostReactMajor: number }`.                                                                               |
+| `DiscoveredModule`               | `{ manifest: ModuleManifest, proxy: UpstreamProxyPlugin }`.                                                                                                              |
+| `DEFAULT_HOST_REACT_MAJOR`       | Constant `19`. Default React major used by `discoverUpstreamModules` when none is passed. Kept in lockstep with the UI package's React peer.                             |
+| `synthesizeModulePlugin`         | `(discovered: DiscoveredModule) → AppPlugin`. Turns a discovered manifest into an `AppPlugin` the toolkit's regular `loadApps` + `buildProxyAppConfigs` can ingest.      |
+| `buildStepFromDeclaration`       | `(step: DeclarativeStep, moduleId: string) → PipelineStepDefinition<DeclarativeAppConfig>`. Compiles one declarative step from a module manifest.                        |
+| `DeclarativeAppConfig`           | `{ callTool?: (name, args) => Promise<unknown> }`. `appConfig` shape an upstream-synthesised plugin's declarative steps see at runtime.                                  |
+| `dotPath`                        | `(root, path: string) → unknown`. Resolves a dot-separated path against an arbitrary value; bails to `undefined` on missing segments. Used by declarative-step mappings. |
+
 ## `@miragon/mcp-toolkit-core/tools`
 
 Server-side registrars — imports `mcp-use/server`. Keep out of browser bundles.
@@ -119,8 +138,10 @@ Upstream-proxy runtime.
 | `ServerSideOAuthProviderOptions` | `{ callbackUrl, clientName }`.                                                                                                                                |
 | `jsonSchemaToZod`                | `(schema) → ZodSchema`. Internal, exported for advanced users.                                                                                                |
 | `UpstreamAuthConfig`             | Discriminated union: `none` / `bearer` / `header` / `oauth2`.                                                                                                 |
-| `UserUpstreamSession`            | `{ client, session }`.                                                                                                                                        |
-| `PendingAuth`                    | `{ userId, serverName, provider, inboundSessionId }`.                                                                                                         |
+| `UpstreamSession`                | `{ listTools, callTool, readResource }`. Minimal mcp-use session shape the proxy uses; reused by `UserUpstreamSession`.                                       |
+| `UserUpstreamSession`            | `{ client, session: UpstreamSession }`.                                                                                                                       |
+| `ToolHandlerContext`             | `{ auth?: { user?: { userId? } }, session?: { sessionId? } }`. Subset of mcp-use's tool-handler `ctx` the toolkit reads.                                      |
+| `PendingAuth`                    | `{ userId, serverName, provider, inboundSessionId, expiresAt, nonce, authorizationUrl }`.                                                                     |
 | `PROXY_NAME_PATTERN`             | `RegExp` — `/^[a-z][a-z0-9-]*$/`.                                                                                                                             |
 | `buildProxyAppConfigs`           | Re-exported from the main entry for convenience.                                                                                                              |
 

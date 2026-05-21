@@ -103,7 +103,9 @@ describe("example orders module", () => {
       "delete_order",
     ])
 
-    const projected = await tools[0].handler(client, { orderId: "o-1" })
+    const firstTool = tools[0]
+    if (!firstTool) throw new Error("test fixture invariant: tools must be non-empty")
+    const projected = await firstTool.handler(client, { orderId: "o-1" })
     expect(projected).toEqual({ id: "o-1", total: 99, status: "paid" })
   })
 })

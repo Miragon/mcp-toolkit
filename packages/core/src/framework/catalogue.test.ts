@@ -18,11 +18,11 @@ describe("getBuilderCatalogue", () => {
       size: "half",
     })
 
-    const result = await getBuilderCatalogue(
-      { keys: { "sales:orderId": "ORD-1" } },
+    const result = await getBuilderCatalogue({
+      input: { keys: { "sales:orderId": "ORD-1" } },
       stepRegistry,
       widgetRegistry,
-    )
+    })
 
     const payload = result.structuredContent
     expect(payload.reachableWidgets.map((w) => w.id)).toEqual(["sales:order-card"])
@@ -58,14 +58,14 @@ describe("getBuilderCatalogue", () => {
       size: "half",
     })
 
-    const result = await getBuilderCatalogue(
-      {
+    const result = await getBuilderCatalogue({
+      input: {
         keys: { "sales:customerId": "C-1" },
         steps: [{ id: "customer", step: "sales:load-customer" }],
       },
       stepRegistry,
       widgetRegistry,
-    )
+    })
 
     const payload = result.structuredContent
     expect(payload.reachableWidgets.map((w) => w.id)).toEqual(["sales:customer-card"])
@@ -113,15 +113,15 @@ describe("getBuilderCatalogue", () => {
     })
     const widgetRegistry = new WidgetRegistry()
 
-    const result = await getBuilderCatalogue(
-      {
+    const result = await getBuilderCatalogue({
+      input: {
         steps: [{ id: "customer", step: "sales:load-customer" }],
       },
       stepRegistry,
       widgetRegistry,
-    )
+    })
 
-    expect(result.content[0].text).toMatch(/Pipeline issues:/)
+    expect(result.content[0]?.text).toMatch(/Pipeline issues:/)
     expect(result.structuredContent.reachableWidgets).toEqual([])
   })
 
@@ -145,11 +145,11 @@ describe("getBuilderCatalogue", () => {
       propsSchema,
     })
 
-    const result = await getBuilderCatalogue(
-      { keys: { "sales:order": { id: 1 } } },
+    const result = await getBuilderCatalogue({
+      input: { keys: { "sales:order": { id: 1 } } },
       stepRegistry,
       widgetRegistry,
-    )
+    })
 
     const payload = result.structuredContent
     expect(payload.reachableWidgets[0]).toMatchObject({ id: "sales:reachable", propsSchema })
@@ -167,11 +167,11 @@ describe("getBuilderCatalogue", () => {
       moduleId: "items",
     })
 
-    const result = await getBuilderCatalogue(
-      { keys: { "items:item": { id: 1 } } },
+    const result = await getBuilderCatalogue({
+      input: { keys: { "items:item": { id: 1 } } },
       stepRegistry,
       widgetRegistry,
-    )
+    })
 
     expect(result.structuredContent.remoteWidgets).toEqual({
       "items:item-card": {
