@@ -1,4 +1,4 @@
-import { type MCPServer } from "mcp-use/server"
+import { type MCPServer, object } from "mcp-use/server"
 import { z } from "zod"
 import type { DashboardStore } from "../framework/dashboard-store.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
@@ -41,9 +41,11 @@ function extractUserId(ctx: unknown): string | undefined {
  * `DashboardStore`; auth scoping is applied here (never in the store) via
  * the standard `ctx.auth.user.userId` extraction.
  *
- * `load-dashboard` returns a full record whose `{ keys, steps, layout,
- * title }` fields can be piped straight into `render-view` — the
- * "aufrufbares Dashboard" loop the plan targets.
+ * `load-dashboard` returns the full record as JSON in `content[0].text`
+ * (mirrored into `structuredContent`) so the model itself receives the
+ * bundle — `structuredContent` alone is "not added to model context" per
+ * MCP. The `{ keys, steps, layout, title }` fields can be piped straight
+ * into `render-view` — the "aufrufbares Dashboard" loop the plan targets.
  */
 export function registerDashboardTools(
   server: MCPServer,
@@ -70,20 +72,12 @@ export function registerDashboardTools(
         layout: params.layout,
         title: params.title,
       })
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Saved dashboard "${record.name}" (id=${record.id})`,
-          },
-        ],
-        structuredContent: {
-          id: record.id,
-          name: record.name,
-          createdAt: record.createdAt,
-          updatedAt: record.updatedAt,
-        },
-      }
+      return object({
+        id: record.id,
+        name: record.name,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      })
     },
   )
 
@@ -97,17 +91,7 @@ export function registerDashboardTools(
     },
     async (_params, ctx) => {
       const items = await store.list({ userId: extractUserId(ctx) })
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: items.length
-              ? items.map((i) => `${i.id}\t${i.name}\t${i.updatedAt}`).join("\n")
-              : "No dashboards saved yet.",
-          },
-        ],
-        structuredContent: { items },
-      }
+      return object({ items })
     },
   )
 
@@ -128,12 +112,7 @@ export function registerDashboardTools(
           isError: true,
         }
       }
-      return {
-        content: [
-          { type: "text" as const, text: `Loaded dashboard "${record.name}" (id=${record.id})` },
-        ],
-        structuredContent: record as unknown as Record<string, unknown>,
-      }
+      return object(record as unknown as Record<string, unknown>)
     },
   )
 
