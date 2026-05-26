@@ -1,0 +1,6 @@
+{
+  "packages/core": "0.3.1",
+  "packages/proxy-contract": "0.3.1",
+  "packages/tool-codegen": "0.3.1",
+  "packages/ui": "0.3.1"
+}
