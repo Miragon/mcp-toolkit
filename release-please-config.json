@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "separate-pull-requests": false,
+  "include-component-in-tag": false,
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "name": "mcp-toolkit",
+      "components": ["core", "proxy-contract", "tool-codegen", "ui"]
+    }
+  ],
+  "packages": {
+    "packages/core": {
+      "component": "core",
+      "package-name": "@miragon/mcp-toolkit-core"
+    },
+    "packages/proxy-contract": {
+      "component": "proxy-contract",
+      "package-name": "@miragon/mcp-toolkit-proxy-contract"
+    },
+    "packages/tool-codegen": {
+      "component": "tool-codegen",
+      "package-name": "@miragon/mcp-toolkit-tool-codegen"
+    },
+    "packages/ui": {
+      "component": "ui",
+      "package-name": "@miragon/mcp-toolkit-ui"
+    }
+  }
+}

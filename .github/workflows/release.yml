@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        type: boolean
+        default: false
+        description: "Pack tarballs and validate registry auth without uploading"
 
 jobs:
   publish:
@@ -42,4 +47,4 @@ jobs:
             --filter "@miragon/mcp-toolkit-core" \
             --filter "@miragon/mcp-toolkit-tool-codegen" \
             --filter "@miragon/mcp-toolkit-ui" \
-            --no-git-checks --access restricted
+            --no-git-checks --access restricted ${{ inputs.dry_run && '--dry-run' || '' }}
