@@ -8,7 +8,7 @@ on:
       dry_run:
         type: boolean
         default: false
-        description: "Preview the release PR diff without opening or updating it"
+        description: "Run release-please without opening a PR or creating a release"
 
 permissions:
   contents: write
@@ -23,4 +23,5 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          dry-run: ${{ inputs.dry_run || false }}
+          skip-github-pull-request: ${{ inputs.dry_run || false }}
+          skip-github-release: ${{ inputs.dry_run || false }}
