@@ -5,3 +5,6 @@ pnpm-lock.yaml
 *.hbs
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+
+# release-please manages CHANGELOG.md formatting
+CHANGELOG.md
