@@ -47,7 +47,7 @@
   "dependencies": {
     "@base-ui/react": "1.5.0",
     "@fontsource-variable/geist": "5.2.9",
-    "@tanstack/react-query": "5.100.11",
+    "@tanstack/react-query": "5.100.14",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "1.16.0",
@@ -64,6 +64,6 @@
     "react-dom": "19.2.6",
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.6"
+    "vitest": "4.1.7"
   }
 }
