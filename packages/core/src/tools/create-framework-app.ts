@@ -14,6 +14,7 @@ import { registerFrameworkTools } from "./register-framework-tools.js"
 import { registerCatalogueTool } from "./register-catalogue-tool.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
 import { registerUpstreamProxies } from "./register-upstream-proxies.js"
+import { installToolCallNameCapture } from "./tool-call-name.js"
 
 export interface CreateFrameworkAppOptionsBase {
   name: string
@@ -128,9 +129,16 @@ export async function createFrameworkApp(
     server.use("mcp:*", createOrgGateMiddleware(orgGateId))
   }
 
+  // Capture the `tools/call` tool name from the JSON-RPC envelope at the HTTP
+  // layer. mcp-use 1.28 populates `mcp:tools/call` middleware's `ctx.params`
+  // with the tool *arguments*, not `{ name, arguments }`, so the role filter
+  // can't read the name from there. The resolver is request-scoped via
+  // `getRequestContext()` and is safe to install unconditionally.
+  const resolveToolName = installToolCallNameCapture(server)
+
   const roleFilter = options.middleware?.roleFilter
   if (roleFilter && Object.keys(roleFilter).length > 0) {
-    const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter)
+    const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter, { resolveToolName })
     server.use("mcp:tools/list", toolsList)
     server.use("mcp:tools/call", toolsCall)
   }
