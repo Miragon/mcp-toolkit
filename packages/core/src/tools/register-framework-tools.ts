@@ -9,6 +9,7 @@ import type { ToolHandlerContext } from "../proxy/types.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
+import { APP_ONLY_META, uiMeta } from "../types/meta.js"
 import { isRemoteWidget } from "../types/widget.js"
 
 export interface RegisterFrameworkToolsOptions {
@@ -128,7 +129,7 @@ export function registerFrameworkTools(
       description:
         "Builds a UI from pipeline steps and widgets. IMPORTANT: call get-framework-manifest first to learn which step-ids and widget-ids are available — only use ids listed there. Each widget entry's optional `propsSchema` (JSON Schema) describes the per-instance `props` you can set on a layout cell to scope or configure that widget (e.g. one tab per `processDefinitionKey`).",
       schema: renderViewSchema,
-      _meta: { ui: { resourceUri } },
+      _meta: uiMeta({ resourceUri }),
     },
     renderHandler,
   )
@@ -143,7 +144,7 @@ export function registerFrameworkTools(
       title: "Refresh View",
       description: "Re-runs the pipeline with the stored parameters.",
       schema: renderViewSchema,
-      _meta: { ui: { resourceUri, visibility: ["app"] } },
+      _meta: uiMeta({ resourceUri, appOnly: true }),
     },
     renderHandler,
   )
@@ -205,7 +206,7 @@ function registerReadWidgetBundleTool(
       schema: z.object({
         id: z.string().describe("Namespaced widget id, e.g. 'items-ui:item-card'."),
       }),
-      _meta: { ui: { visibility: ["app"] } },
+      _meta: APP_ONLY_META,
     },
     async ({ id }, ctx) => {
       const widget = widgetRegistry.get(id)

@@ -3,6 +3,7 @@ import { z } from "zod"
 import { getBuilderCatalogue } from "../framework/catalogue.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
+import { APP_ONLY_META } from "../types/meta.js"
 
 export interface RegisterCatalogueToolOptions {
   stepRegistry: StepRegistry
@@ -47,7 +48,7 @@ export function registerCatalogueTool(
       description:
         "App-only. Returns the live pipeline context plus the reachable / unreachable widgets, available steps and key catalogue for the current keys + steps. Used by the in-iframe LayoutBuilder.",
       schema: catalogueSchema,
-      _meta: { ui: { visibility: ["app"] } },
+      _meta: APP_ONLY_META,
     },
     async (params, ctx) => {
       return getBuilderCatalogue({
