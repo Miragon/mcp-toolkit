@@ -11,9 +11,10 @@ pnpm monorepo (`pnpm-workspace.yaml`):
 ```
 packages/
 ├── core/             runtime + types + framework helpers + tool registrars
+│                       (incl. buildProxyAppConfigs in core/src/proxy/)
 ├── ui/               React primitives + composed components + McpAppView
 ├── proxy-contract/   Zod schemas + parser for MCP_PROXIES
-└── tool-codegen/     CLI + runtime types + buildProxyAppConfigs
+└── tool-codegen/     CLI + runtime types + TypedCallTool helper
 
 examples/             standalone playground (not published)
 docs/                 reference + concepts + guides + recipes
@@ -40,8 +41,10 @@ Node 20+ and pnpm 10.32.1 (pinned in `packageManager`).
 pnpm -r --parallel run dev          # if a package opts into a dev script
 
 # Check before pushing
+pnpm -r build
 pnpm -r typecheck
-pnpm -r lint
+pnpm test          # root alias for `pnpm -r --if-present run test`
+pnpm -r lint       # lint scripts run with --max-warnings 0 (matches lint-staged + CI)
 ```
 
 `prettier --write .` (or `pnpm format`) before commit; `lint-staged` runs
@@ -53,8 +56,9 @@ Working on a `core` or `tool-codegen` change? Add or adapt a tiny
 scenario in `examples/` and exercise it:
 
 ```sh
-pnpm --filter @miragon/mcp-toolkit-examples dev:upstream    # terminal 1
-pnpm --filter @miragon/mcp-toolkit-examples dev:host        # terminal 2
+pnpm --filter @miragon/mcp-toolkit-examples dev:articles-upstream    # terminal 1
+pnpm --filter @miragon/mcp-toolkit-examples dev:customers-upstream   # terminal 2
+pnpm --filter @miragon/mcp-toolkit-examples dev:host                 # terminal 3
 ```
 
 The `examples/` README documents the standard render-view flows. Adding
@@ -84,8 +88,12 @@ version from `pnpm-lock.yaml` into `package.json`. See
 
 - `core` may depend on `proxy-contract`. Other directions are forbidden.
 - `core/tools/*` may import `mcp-use/server`. Anything in `core/src/*`
-  outside `tools/` must stay browser-bundle-safe.
-- `ui` may depend on `core` for types only — never import `core/tools`.
+  outside `tools/` must stay browser-bundle-safe (no `mcp-use/server`,
+  no `node:*`).
+- `ui` may import browser-safe `core` runtime (anything in `core/src/*`
+  outside `tools/`) as well as `core` types — e.g. `normalizeLayout` from
+  `core/src/framework/layout-types.ts`. It must never import `core/tools`,
+  which pulls in `mcp-use/server`.
 - `tool-codegen` is a build-time tool. Don't import it from runtime
   code; widget bundles import from `tool-codegen/runtime` (types only).
 
@@ -107,8 +115,31 @@ example exercise + docs entry. Don't merge a feature without the docs.
 
 ## Releasing
 
-(Pending — currently not published. Once published, document the
-changeset workflow here.)
+The packages publish to GitHub Packages (`https://npm.pkg.github.com`,
+scope `@miragon`, restricted access). Current published version: `0.3.1`.
+Releases are automated via [release-please](https://github.com/googleapis/release-please)
+driven by Conventional Commits — no changeset workflow.
+
+The flow (`.github/workflows/release-please.yml`):
+
+1. Merging Conventional Commits to `main` runs `release-please`, which opens
+   or updates a release PR aggregating the changes and bumping versions.
+2. Merging that release PR makes `release-please` cut a GitHub release and
+   push a `v*` tag, setting its `release_created` output to `true`.
+3. The same workflow's `publish` job is gated on
+   `needs.release-please.outputs.release_created == 'true'` and publishes the
+   four packages. It chains off the action output rather than the `v*` tag
+   because tags pushed with the default `GITHUB_TOKEN` don't trigger a
+   follow-up `on: push` workflow.
+
+`.github/workflows/release.yml` is the **manual fallback**
+(`workflow_dispatch` only): dispatch it to re-publish `main` after a failed
+automatic run, or with `dry_run: true` to validate registry auth without
+uploading.
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
+additive changes → `feat`, bug fixes → `fix`, observable breaking changes →
+`feat!`/`fix!` with a `BREAKING CHANGE:` footer.
 
 ## See also
 

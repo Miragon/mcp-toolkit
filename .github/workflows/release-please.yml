@@ -18,10 +18,58 @@ jobs:
   release-please:
     name: Open or update Release PR
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
     steps:
-      - uses: googleapis/release-please-action@v5
+      - id: release
+        uses: googleapis/release-please-action@v5
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           skip-github-pull-request: ${{ inputs.dry_run || false }}
           skip-github-release: ${{ inputs.dry_run || false }}
+
+  publish:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    # Chain publishing off the release-please run, not the v* tag it pushes:
+    # tags created with the default GITHUB_TOKEN don't trigger a follow-up
+    # workflow, so a tag-`on:push` job would never fire. Gating on the action's
+    # own `release_created` output keeps publishing automatic without adding a
+    # second PAT secret. `release.yml` remains as a manual workflow_dispatch
+    # fallback for re-publishing.
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@miragon"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r run typecheck
+
+      - run: pnpm -r --if-present run test
+
+      - run: pnpm -r run build
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm publish -r \
+            --filter "@miragon/mcp-toolkit-proxy-contract" \
+            --filter "@miragon/mcp-toolkit-core" \
+            --filter "@miragon/mcp-toolkit-tool-codegen" \
+            --filter "@miragon/mcp-toolkit-ui" \
+            --no-git-checks --access restricted

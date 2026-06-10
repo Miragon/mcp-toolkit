@@ -1,7 +1,7 @@
 {
   "name": "@miragon/mcp-toolkit-tool-codegen",
   "version": "0.3.1",
-  "description": "Build-time codegen + runtime glue for type-safe MCP tool calls: TypedCallTool helper, buildProxyAppConfigs, and a CLI that generates TypeScript types + React Query hooks from an upstream MCP's tools/list.",
+  "description": "Build-time codegen + runtime glue for type-safe MCP tool calls: TypedCallTool helper and a CLI that generates TypeScript types + React Query hooks from an upstream MCP's tools/list. (buildProxyAppConfigs lives in @miragon/mcp-toolkit-core.)",
   "type": "module",
   "sideEffects": false,
   "main": "dist/index.js",
@@ -29,7 +29,7 @@
     "build": "tsc -p tsconfig.build.json && node scripts/make-cli-executable.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "eslint src",
+    "lint": "eslint src --max-warnings 0",
     "lint:fix": "eslint src --fix",
     "prepare": "tsc -p tsconfig.build.json",
     "prepublishOnly": "pnpm run build"

@@ -32,7 +32,7 @@ export interface AppPlugin<TServer = unknown> {
   appConfig?: Record<string, unknown>
   /**
    * Name of an `UpstreamProxyPlugin` this plugin is bound to. When set,
-   * `buildProxyAppConfigs()` (from `@miragon/mcp-toolkit-tool-codegen`)
+   * `buildProxyAppConfigs()` (from `@miragon/mcp-toolkit-core`)
    * injects a typed `callTool` closure into this plugin's `appConfig` at
    * boot, so pipeline steps can dispatch tool calls against the upstream
    * MCP without knowing about the proxy plumbing.

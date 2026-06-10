@@ -2,6 +2,25 @@
 
 Project-specific guidance for AI agents and humans working in this repo.
 
+## Module boundaries
+
+Kept in sync with the same rule in `CONTRIBUTING.md`:
+
+- `core` may depend on `proxy-contract`. Other directions are forbidden.
+- `core/tools/*` may import `mcp-use/server`. Anything in `core/src/*`
+  outside `tools/` must stay browser-bundle-safe (no `mcp-use/server`, no
+  `node:*`).
+- `ui` may import browser-safe `core` runtime (anything in `core/src/*`
+  outside `tools/`) as well as `core` types — e.g. `normalizeLayout` from
+  `core/src/framework/layout-types.ts`. It must never import `core/tools`,
+  which pulls in `mcp-use/server`.
+- The `ui` root barrel (`packages/ui/src/index.ts`) must stay free of
+  `mcp-use/react` value imports (they pull in a langchain transitive). Symbols
+  that import `mcp-use/react` as a value are exported from the `./app` /
+  `./hooks` subpaths, never the root.
+- `tool-codegen` is build-time. Don't import it from runtime code; widget
+  bundles import from `tool-codegen/runtime` (types only).
+
 ## Testing policy
 
 The repo moves fast. We test only what is supposed to be **stable** — the parts
