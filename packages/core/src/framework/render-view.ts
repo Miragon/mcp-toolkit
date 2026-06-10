@@ -3,6 +3,7 @@ import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
+import type { ViewStructuredContent } from "../types/view-data.js"
 import { isRemoteWidget } from "../types/widget.js"
 import type { LayoutConfig } from "./layout-types.js"
 
@@ -90,34 +91,36 @@ export async function renderView(options: RenderViewOptions) {
     }
   }
 
+  const structuredContent: ViewStructuredContent = {
+    _refreshParams: {
+      keys: input.keys,
+      steps: input.steps,
+      layout: input.layout,
+      title: input.title,
+    },
+    title: input.title,
+    context: {
+      keys: context.keys,
+      stepIds: Object.keys(context.steps),
+      stepData: Object.fromEntries(
+        Object.entries(context.steps).map(([id, result]) => [
+          id,
+          {
+            data: result.data,
+            keys: result.keys,
+            _app: result._app,
+            _dataType: result._dataType,
+          },
+        ]),
+      ),
+      errors: context.errors,
+    },
+    layout: input.layout,
+    remoteWidgets,
+  }
+
   return {
     content: [{ type: "text" as const, text: textSummary }],
-    structuredContent: {
-      _refreshParams: {
-        keys: input.keys,
-        steps: input.steps,
-        layout: input.layout,
-        title: input.title,
-      },
-      title: input.title,
-      context: {
-        keys: context.keys,
-        stepIds: Object.keys(context.steps),
-        stepData: Object.fromEntries(
-          Object.entries(context.steps).map(([id, result]) => [
-            id,
-            {
-              data: result.data,
-              keys: result.keys,
-              _app: result._app,
-              _dataType: result._dataType,
-            },
-          ]),
-        ),
-        errors: context.errors,
-      },
-      layout: input.layout,
-      remoteWidgets,
-    },
+    structuredContent,
   }
 }

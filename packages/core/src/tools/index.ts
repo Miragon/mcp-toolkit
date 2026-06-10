@@ -13,6 +13,21 @@ export { registerUpstreamProxies } from "./register-upstream-proxies.js"
 export type { RegisterUpstreamProxiesOptions } from "./register-upstream-proxies.js"
 export { createFrameworkApp } from "./create-framework-app.js"
 export type { CreateFrameworkAppOptions } from "./create-framework-app.js"
+export { deriveAppResourceUri } from "./app-resource-uri.js"
+export type { DeriveAppResourceUriInput } from "./app-resource-uri.js"
+export {
+  createBackendRegistry,
+  withBackend,
+  BackendNotSelectedError,
+  UnknownBackendError,
+  DEFAULT_BACKEND_SESSION_TTL_MS,
+} from "./backend-registry.js"
+export type {
+  BackendRegistry,
+  BackendEntry,
+  ResolvedBackend,
+  CreateBackendRegistryOptions,
+} from "./backend-registry.js"
 export { installToolCallNameCapture, extractToolCallName } from "./tool-call-name.js"
 export type { ToolNameResolver } from "./tool-call-name.js"
 
