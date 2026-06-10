@@ -12,6 +12,8 @@ export { registerUpstreamProxies } from "./register-upstream-proxies.js"
 export type { RegisterUpstreamProxiesOptions } from "./register-upstream-proxies.js"
 export { createFrameworkApp } from "./create-framework-app.js"
 export type { CreateFrameworkAppOptions } from "./create-framework-app.js"
+export { installToolCallNameCapture, extractToolCallName } from "./tool-call-name.js"
+export type { ToolNameResolver } from "./tool-call-name.js"
 
 // Dashboard-store implementations are server-side (the filesystem impl
 // imports `node:fs`). Consumers wire them through `createFrameworkApp`'s
@@ -19,6 +21,8 @@ export type { CreateFrameworkAppOptions } from "./create-framework-app.js"
 export {
   createInMemoryDashboardStore,
   createFileSystemDashboardStore,
+  DashboardOwnershipError,
+  resolveSavedRecord,
 } from "../framework/dashboard-store.js"
 export type {
   DashboardStore,

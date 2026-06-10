@@ -56,6 +56,12 @@ export interface DashboardSummary {
  * All methods accept an optional `userId` filter so implementations can
  * enforce ownership. Implementations that don't need ownership (global
  * scope) should simply ignore the filter.
+ *
+ * `save` carries the acting user as `input.userId`: updating an existing
+ * record owned by a different user is rejected with
+ * {@link DashboardOwnershipError}, and `input.userId` can never reassign an
+ * existing record's owner. Records persisted without a `userId` (global
+ * scope) stay writable by anyone, matching the read/delete convention.
  */
 export interface DashboardStore {
   save(input: DashboardSaveInput): Promise<DashboardRecord>
@@ -75,6 +81,57 @@ function ownedBy(record: DashboardRecord, userId: string | undefined): boolean {
 }
 
 /**
+ * Error thrown by `save()` when an update would touch a record the caller
+ * doesn't own, or would change a record's owner. Distinct from the
+ * fail-soft "not found" of `get`/`delete` (which return `undefined`/`false`)
+ * because `save` has no nullable return — a write that violates ownership is
+ * an explicit denial, not a silent no-op.
+ */
+export class DashboardOwnershipError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "DashboardOwnershipError"
+  }
+}
+
+/**
+ * Resolve the record to persist for a `save`, enforcing ownership on updates.
+ *
+ * - New record (no `existing`): returns `null`, signalling the caller to
+ *   create from `input`.
+ * - Update (`existing` present): throws {@link DashboardOwnershipError} when
+ *   `input.userId` doesn't own `existing`, otherwise returns the merged
+ *   record with `id`, `createdAt`, and — critically — `existing.userId`
+ *   preserved so `input.userId` can never reassign the owner.
+ *
+ * Records without a `userId` (global scope, e.g. a host booted without OAuth)
+ * are deliberately writable by anyone — same convention `ownedBy` uses for
+ * read/delete — so single-user and OAuth-less deployments keep working.
+ *
+ * Exported for unit testing; the store factories below are the public API.
+ */
+export function resolveSavedRecord(
+  existing: DashboardRecord | undefined,
+  input: DashboardSaveInput,
+  now: string,
+): DashboardRecord | null {
+  if (!existing) return null
+  if (!ownedBy(existing, input.userId)) {
+    throw new DashboardOwnershipError(
+      `Access denied: dashboard "${existing.id}" is owned by another user.`,
+    )
+  }
+  return {
+    ...existing,
+    ...stripUndefined(input),
+    id: existing.id,
+    userId: existing.userId,
+    createdAt: existing.createdAt,
+    updatedAt: now,
+  }
+}
+
+/**
  * Process-local in-memory store. Fine for tests and throwaway demos; loses
  * everything on restart. Default when `createFrameworkApp` is called
  * without an explicit `dashboardStore`.
@@ -84,24 +141,27 @@ export function createInMemoryDashboardStore(): DashboardStore {
 
   return {
     save(input) {
-      const now = nowIso()
-      const existing = input.id ? byId.get(input.id) : undefined
-      const record: DashboardRecord = existing
-        ? { ...existing, ...stripUndefined(input), id: existing.id, updatedAt: now }
-        : {
-            id: input.id ?? randomUUID(),
-            name: input.name,
-            description: input.description,
-            userId: input.userId,
-            keys: input.keys,
-            steps: input.steps,
-            layout: input.layout,
-            title: input.title,
-            createdAt: now,
-            updatedAt: now,
-          }
-      byId.set(record.id, record)
-      return Promise.resolve(record)
+      // Resolve-then-compute so a synchronous ownership violation surfaces as
+      // a rejected promise (matching the `Promise<DashboardRecord>` contract
+      // and the filesystem store), not a throw escaping the call site.
+      return Promise.resolve().then(() => {
+        const now = nowIso()
+        const existing = input.id ? byId.get(input.id) : undefined
+        const record: DashboardRecord = resolveSavedRecord(existing, input, now) ?? {
+          id: input.id ?? randomUUID(),
+          name: input.name,
+          description: input.description,
+          userId: input.userId,
+          keys: input.keys,
+          steps: input.steps,
+          layout: input.layout,
+          title: input.title,
+          createdAt: now,
+          updatedAt: now,
+        }
+        byId.set(record.id, record)
+        return record
+      })
     },
     list(filter) {
       const all = [...byId.values()].filter((r) => ownedBy(r, filter.userId))
@@ -174,20 +234,18 @@ export function createFileSystemDashboardStore(
     async save(input) {
       const now = nowIso()
       const existing = input.id ? await readRecord(input.id) : undefined
-      const record: DashboardRecord = existing
-        ? { ...existing, ...stripUndefined(input), id: existing.id, updatedAt: now }
-        : {
-            id: input.id ?? randomUUID(),
-            name: input.name,
-            description: input.description,
-            userId: input.userId,
-            keys: input.keys,
-            steps: input.steps,
-            layout: input.layout,
-            title: input.title,
-            createdAt: now,
-            updatedAt: now,
-          }
+      const record: DashboardRecord = resolveSavedRecord(existing, input, now) ?? {
+        id: input.id ?? randomUUID(),
+        name: input.name,
+        description: input.description,
+        userId: input.userId,
+        keys: input.keys,
+        steps: input.steps,
+        layout: input.layout,
+        title: input.title,
+        createdAt: now,
+        updatedAt: now,
+      }
       await writeRecord(record)
       return record
     },
