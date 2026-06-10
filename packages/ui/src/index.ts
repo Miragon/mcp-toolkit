@@ -108,6 +108,8 @@ export {
 export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./primitives/collapsible.js"
 
 // Hooks
+// NOTE: the view-tool hooks (`useViewToolQuery`, `useViewData`) are exported
+// from the `./hooks` subpath only — see `packages/ui/src/hooks/index.ts`.
 export { useIsMobile } from "./hooks/use-mobile.js"
 export { useToolQuery, useToolMutation } from "./hooks/use-tool-query.js"
 export type { UseToolQueryOptions } from "./hooks/use-tool-query.js"
@@ -133,6 +135,8 @@ export { AppQueryProvider, useCallTool, queryClient } from "./providers/query-pr
 
 // Utils
 export { cn } from "./lib/utils.js"
+export { parseToolResult, parseViewToolResult } from "./lib/parse-tool-result.js"
+export type { ParseToolResultOptions } from "./lib/parse-tool-result.js"
 
 /**
  * Major React version this toolkit ships against. Exported so the host's

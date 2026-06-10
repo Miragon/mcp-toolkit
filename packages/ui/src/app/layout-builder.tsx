@@ -31,6 +31,7 @@ import type {
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { GridLayout, GridItem } from "../components/GridLayout.js"
 import { cn } from "../lib/utils.js"
+import { parseToolResult } from "../lib/parse-tool-result.js"
 import { WidgetPropsSheet } from "./widget-props-sheet.js"
 import { Badge } from "../primitives/badge.js"
 import { Button } from "../primitives/button.js"
@@ -704,27 +705,25 @@ export function LayoutBuilder({
   const refreshBuilder = useCallback(async () => {
     setStatus("refreshing")
     try {
-      const result = (await callTool(catalogueToolName, {
+      const result = await callTool(catalogueToolName, {
         keys: entriesToKeys(keyEntries),
         steps: stepEntries.filter((s) => s.step.trim().length > 0),
-      })) as {
-        structuredContent?: {
-          reachableWidgets?: ReachableWidget[]
-          unreachableWidgets?: UnreachableWidget[]
-          availableSteps?: AvailableStep[]
-          keyCatalog?: KeyCatalogEntry[]
-          context?: {
-            keys: Record<string, unknown>
-            stepIds: string[]
-            stepData: Record<
-              string,
-              { data: unknown; keys: Record<string, unknown>; _app: string; _dataType: string }
-            >
-            errors: { stepId: string; reason: string }[]
-          }
+      })
+      const sc = parseToolResult<{
+        reachableWidgets?: ReachableWidget[]
+        unreachableWidgets?: UnreachableWidget[]
+        availableSteps?: AvailableStep[]
+        keyCatalog?: KeyCatalogEntry[]
+        context?: {
+          keys: Record<string, unknown>
+          stepIds: string[]
+          stepData: Record<
+            string,
+            { data: unknown; keys: Record<string, unknown>; _app: string; _dataType: string }
+          >
+          errors: { stepId: string; reason: string }[]
         }
-      }
-      const sc = result.structuredContent
+      } | null>(result)
       if (sc?.reachableWidgets) setLiveReachable(sc.reachableWidgets)
       if (sc?.unreachableWidgets) setLiveUnreachable(sc.unreachableWidgets)
       if (sc?.availableSteps) setLiveSteps(sc.availableSteps)
@@ -764,7 +763,7 @@ export function LayoutBuilder({
     if (!saveName.trim()) return
     setBusy(true)
     try {
-      const result = (await callTool(saveToolName, {
+      const result = await callTool(saveToolName, {
         id: dashboardId,
         name: saveName.trim(),
         description: saveDescription.trim() || undefined,
@@ -772,12 +771,13 @@ export function LayoutBuilder({
         steps: stepEntries.filter((s) => s.step.trim().length > 0),
         layout: draftToLayout(draft),
         title,
-      })) as { structuredContent?: { id?: string; name?: string } }
+      })
+      const saved = parseToolResult<{ id?: string; name?: string } | null>(result)
       setSaveOpen(false)
-      if (result.structuredContent?.id && onSaved) {
+      if (saved?.id && onSaved) {
         onSaved({
-          id: result.structuredContent.id,
-          name: result.structuredContent.name ?? saveName.trim(),
+          id: saved.id,
+          name: saved.name ?? saveName.trim(),
         })
       }
     } finally {

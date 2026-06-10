@@ -47,8 +47,8 @@ so the LLM knows which props to set without guessing.
 }
 ```
 
-`adaptDataWidget` (see `packages/ui/src/components/`) forwards these
-into named props on the wrapped single-data widget.
+`adaptDataWidget` (see `packages/ui/src/app/adapt-data-widget.tsx`) forwards
+these into named props on the wrapped single-data widget.
 
 ## Component
 
