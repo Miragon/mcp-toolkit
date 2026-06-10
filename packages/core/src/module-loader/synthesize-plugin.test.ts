@@ -4,6 +4,7 @@ import { synthesizeModulePlugin } from "./synthesize-plugin.js"
 import type { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
 
 const manifest: ModuleManifest = {
+  schemaVersion: 1,
   moduleId: "items-ui",
   runtime: { react: "^19.0.0" },
   steps: [

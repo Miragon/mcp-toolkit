@@ -92,6 +92,7 @@ server.tool(
 )
 
 const manifest: ModuleManifest = {
+  schemaVersion: 1,
   moduleId: "customers",
   runtime: { react: "^19.0.0" },
   steps: [

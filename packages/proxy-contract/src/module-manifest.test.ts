@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest"
 import {
   ModuleManifestSchema,
+  MODULE_MANIFEST_SCHEMA_VERSION,
   type ModuleManifest,
   GET_MODULE_MANIFEST_TOOL,
 } from "./module-manifest.js"
 
 const validManifest: ModuleManifest = {
+  schemaVersion: 1,
   moduleId: "items-ui",
   runtime: { react: "^19.0.0" },
   steps: [
@@ -34,6 +36,50 @@ describe("ModuleManifestSchema", () => {
     expect(parsed).toEqual(validManifest)
     const reparsed = ModuleManifestSchema.parse(JSON.parse(JSON.stringify(parsed)))
     expect(reparsed).toEqual(validManifest)
+  })
+
+  it("defaults schemaVersion to 1 when omitted", () => {
+    const withoutVersion: Omit<ModuleManifest, "schemaVersion"> & { schemaVersion?: number } = {
+      ...validManifest,
+    }
+    delete withoutVersion.schemaVersion
+    const result = ModuleManifestSchema.safeParse(withoutVersion)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.schemaVersion).toBe(1)
+      expect(result.data.schemaVersion).toBe(MODULE_MANIFEST_SCHEMA_VERSION)
+    }
+  })
+
+  it("accepts an explicit current schemaVersion", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      schemaVersion: MODULE_MANIFEST_SCHEMA_VERSION,
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.schemaVersion).toBe(MODULE_MANIFEST_SCHEMA_VERSION)
+    }
+  })
+
+  it("preserves a future schemaVersion through parse so the host can gate on it", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      schemaVersion: MODULE_MANIFEST_SCHEMA_VERSION + 1,
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.schemaVersion).toBe(MODULE_MANIFEST_SCHEMA_VERSION + 1)
+    }
+  })
+
+  it("rejects a non-integer or below-minimum schemaVersion", () => {
+    expect(ModuleManifestSchema.safeParse({ ...validManifest, schemaVersion: 1.5 }).success).toBe(
+      false,
+    )
+    expect(ModuleManifestSchema.safeParse({ ...validManifest, schemaVersion: 0 }).success).toBe(
+      false,
+    )
   })
 
   it("requires a non-empty runtime.react string", () => {
