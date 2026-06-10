@@ -14,7 +14,7 @@ export interface PipelineExecutionContext {
 
 /**
  * If the step's appConfig contains a `callTool` function (injected by
- * `buildProxyAppConfigs` from the tool-codegen package), rewrap it so the
+ * `buildProxyAppConfigs` from this package's `proxy/`), rewrap it so the
  * step-facing call signature is `(name, args)` while the underlying
  * closure receives the current `{ userId }` via a hidden 3rd argument.
  * All other keys pass through untouched.

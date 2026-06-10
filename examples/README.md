@@ -37,7 +37,7 @@ examples/
 
 ## Scripts
 
-Run from the toolkit root (`vendor/mcp-toolkit/`) or this directory:
+Run from the repository root or this directory:
 
 ```sh
 pnpm -w install
@@ -60,8 +60,12 @@ pnpm --filter @miragon/mcp-toolkit-examples build:all
 # regenerate articles/generated/ from the running articles-upstream
 pnpm --filter @miragon/mcp-toolkit-examples generate
 
-# CI drift check — fails if committed generated/ is stale
+# drift check — fails if committed generated/ is stale. Needs a running
+# articles-upstream, so it is run by hand, not in CI.
 pnpm --filter @miragon/mcp-toolkit-examples generate:check
+
+# in-process smoke test (no servers, no browser) — runs in CI via `pnpm -r test`
+pnpm --filter @miragon/mcp-toolkit-examples test
 ```
 
 Defaults: articles-upstream on `:4000`, customers-upstream on `:4001`, host on
@@ -86,7 +90,19 @@ Defaults: articles-upstream on `:4000`, customers-upstream on `:4001`, host on
 - `render-view` runs the pipeline, resolves widget requirements, returns
   `structuredContent` with per-widget data ready for an iframe bundle.
 
-## Smoke test (no browser needed)
+## Automated smoke test
+
+`test/smoke.test.ts` boots a host in-process via `createFrameworkApp` (no
+external upstreams), drives it with an MCP client, and asserts `tools/list`
+exposes the framework tool trio and that a `render-view` call returns the
+expected `structuredContent` envelope. It runs in CI through the root
+`pnpm -r --if-present run test` (see `.github/workflows/ci.yml`):
+
+```sh
+pnpm --filter @miragon/mcp-toolkit-examples test
+```
+
+## Manual smoke test against the running playground (no browser needed)
 
 With all three servers running:
 
