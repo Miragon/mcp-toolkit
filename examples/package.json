@@ -26,7 +26,7 @@
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "mcp-use": "1.28.0",
+    "mcp-use": "1.30.2",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "yaml": "2.9.0",
