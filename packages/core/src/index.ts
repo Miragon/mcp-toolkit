@@ -18,6 +18,8 @@ export type {
   ValidationResult,
 } from "./types/index.js"
 export { isRemoteWidget } from "./types/index.js"
+export { APP_ONLY_META, uiMeta } from "./types/index.js"
+export type { UiMetaOptions } from "./types/index.js"
 
 export { executePipeline } from "./engine/pipeline-executor.js"
 export type {

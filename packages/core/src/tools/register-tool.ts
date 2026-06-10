@@ -1,5 +1,6 @@
-import { type MCPServer, array, error, object, text } from "mcp-use/server"
+import { type MCPServer, array, object, text } from "mcp-use/server"
 import { z } from "zod"
+import { withToolErrors } from "./with-tool-errors.js"
 
 type ZodRawShape = Record<string, z.ZodTypeAny>
 
@@ -42,6 +43,18 @@ function wrapArraySchema(schema: z.ZodTypeAny | undefined): z.ZodTypeAny | undef
   return schema instanceof z.ZodArray ? z.object({ data: schema }) : schema
 }
 
+/**
+ * Coerces a handler result into the `structuredContent` object shape MCP
+ * requires, mirroring {@link wrapArraySchema}: bare arrays become `{ data }`,
+ * objects pass through. Used to populate `structuredContent` on the
+ * `formatResult` path when an `outputSchema` is declared, so the human-readable
+ * text and the machine-readable payload are both emitted.
+ */
+function asStructuredContent(result: unknown): Record<string, unknown> {
+  if (Array.isArray(result)) return { data: result }
+  return result as Record<string, unknown>
+}
+
 export function createToolRegistrar<TClient>(server: MCPServer, client: TClient) {
   const registeredTools: RegisteredToolMeta[] = []
 
@@ -55,28 +68,30 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
         outputSchema: wrapArraySchema(config.outputSchema),
         annotations: config.annotations,
       },
-      async (args) => {
-        try {
-          const result = await config.handler(client, args)
-          if (config.formatResult) {
-            return text(config.formatResult(result, args))
+      withToolErrors(async (args: ToolArgs) => {
+        const result = await config.handler(client, args)
+        if (config.formatResult) {
+          const formatted = text(config.formatResult(result, args))
+          // When an outputSchema is declared the tool promised structured
+          // output, so mirror the raw result into structuredContent alongside
+          // the human-readable text instead of dropping it. Without an
+          // outputSchema the formatResult path stays text-only as before.
+          if (config.outputSchema) {
+            return { ...formatted, structuredContent: asStructuredContent(result) }
           }
-          if (Array.isArray(result)) {
-            return array(result)
-          }
-          if (result !== null && typeof result === "object") {
-            return object(result as Record<string, unknown>)
-          }
-          if (result !== null && result !== undefined) {
-            return text(JSON.stringify(result, null, 2))
-          }
-          return text("Success (no content returned)")
-        } catch (e) {
-          const message = e instanceof Error ? e.message : String(e)
-          const code = (e as { status?: number }).status ?? (e as { code?: string }).code
-          return error(code ? `[${code}] ${message}` : message)
+          return formatted
         }
-      },
+        if (Array.isArray(result)) {
+          return array(result)
+        }
+        if (result !== null && typeof result === "object") {
+          return object(result as Record<string, unknown>)
+        }
+        if (result !== null && result !== undefined) {
+          return text(JSON.stringify(result, null, 2))
+        }
+        return text("Success (no content returned)")
+      }),
     )
   }
 
