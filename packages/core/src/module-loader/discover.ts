@@ -1,5 +1,6 @@
 import {
   GET_MODULE_MANIFEST_TOOL,
+  MODULE_MANIFEST_SCHEMA_VERSION,
   ModuleManifestSchema,
   type ModuleManifest,
   type ProxyConfigEntry,
@@ -55,8 +56,9 @@ interface ToolResponse {
  * Discovers module manifests from every proxy flagged with
  * `upstreamModules: true`. Skips entries that aren't flagged, entries with
  * no matching registered proxy, and entries whose manifest fails
- * validation or React-major check — each failure logs a warning but does
- * not abort discovery, so one broken upstream cannot brick the host.
+ * validation, declares a future schema version, or fails the React-major
+ * check — each failure logs a warning but does not abort discovery, so one
+ * broken upstream cannot brick the host.
  */
 export async function discoverUpstreamModules(
   options: DiscoverUpstreamModulesOptions,
@@ -101,6 +103,13 @@ export async function discoverUpstreamModules(
         `[mcp-toolkit] invalid module manifest from "${entry.name}": ${parsed.error.issues
           .map((i) => `${i.path.join(".")}: ${i.message}`)
           .join("; ")} — skipping.`,
+      )
+      continue
+    }
+
+    if (parsed.data.schemaVersion > MODULE_MANIFEST_SCHEMA_VERSION) {
+      console.warn(
+        `[mcp-toolkit] module "${parsed.data.moduleId}" from "${entry.name}" declares manifest schemaVersion ${parsed.data.schemaVersion}, host understands up to ${MODULE_MANIFEST_SCHEMA_VERSION} — skipping.`,
       )
       continue
     }

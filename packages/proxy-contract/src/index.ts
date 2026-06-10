@@ -13,6 +13,7 @@ import { z } from "zod"
 export {
   MODULE_ID_PATTERN,
   NAMESPACED_ID_PATTERN,
+  MODULE_MANIFEST_SCHEMA_VERSION,
   RuntimeRequirementSchema,
   DeclarativeStepSchema,
   RemoteWidgetSchema,

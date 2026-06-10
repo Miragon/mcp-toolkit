@@ -20,6 +20,15 @@ import { z } from "zod"
 export const MODULE_ID_PATTERN = /^[a-z][a-z0-9-]*$/
 
 /**
+ * Current version of the module-manifest contract. Bumped whenever a change
+ * to {@link ModuleManifestSchema} is not understood by older hosts. A host
+ * skips any manifest whose `schemaVersion` exceeds the version it was built
+ * against (fail-soft), so a newer upstream can advertise additional fields
+ * without bricking an older host.
+ */
+export const MODULE_MANIFEST_SCHEMA_VERSION = 1 as const
+
+/**
  * Declarative step `id`, widget `id`, step `dataType`, and every entry in
  * `produces`/`requires` must be `<namespace>:<local>`. The namespace portion
  * matches `MODULE_ID_PATTERN` (lowercase kebab-case). The local portion is
@@ -134,6 +143,14 @@ export type RemoteWidget = z.infer<typeof RemoteWidgetSchema>
  */
 export const ModuleManifestSchema = z
   .object({
+    /**
+     * Version of the manifest contract this payload conforms to. Optional and
+     * defaulting to `1` so manifests written against the pre-versioning
+     * contract stay valid. A host compares this against
+     * {@link MODULE_MANIFEST_SCHEMA_VERSION} and skips manifests from the
+     * future rather than mis-parsing fields it doesn't know about.
+     */
+    schemaVersion: z.number().int().min(1).optional().default(1),
     moduleId: z.string().regex(MODULE_ID_PATTERN),
     runtime: RuntimeRequirementSchema,
     steps: z.array(DeclarativeStepSchema),
