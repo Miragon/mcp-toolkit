@@ -5,6 +5,7 @@ import type { LayoutConfig, PipelineStepRef, RowDef } from "@miragon/mcp-toolkit
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
+import { parseToolResult } from "../lib/parse-tool-result.js"
 import { LayoutBuilder } from "./layout-builder.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
 import { createRemoteWidgetLoader, type WidgetLoader } from "./remote-widget-loader.js"
@@ -226,8 +227,11 @@ export function McpAppView({
         refreshToolName,
         viewData._refreshParams as unknown as Record<string, unknown>,
       )
-      if (result.structuredContent) {
-        setViewData(result.structuredContent as unknown as ViewData)
+      // Decode through the shared structured-first parser (one convention with
+      // `useToolQuery`); a refresh returns the view envelope as `structuredContent`.
+      const refreshed = parseToolResult<ViewData | null>(result)
+      if (refreshed?.context && refreshed?.layout) {
+        setViewData(refreshed)
       }
       void queryClient.invalidateQueries()
     } catch (e) {

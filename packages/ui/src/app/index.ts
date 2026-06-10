@@ -11,3 +11,10 @@ export type {
   FetchResourceText,
   CreateRemoteWidgetLoaderOptions,
 } from "./remote-widget-loader.js"
+
+// App-level value modules that import `mcp-use/react` (ModelContext, useWidget)
+// — exported from this subpath only, never the root barrel.
+export { adaptDataWidget } from "./adapt-data-widget.js"
+export type { DescribeForModel } from "./adapt-data-widget.js"
+export { useHostActions, buildShowWidgetIntent } from "./use-host-actions.js"
+export type { HostActions } from "./use-host-actions.js"
