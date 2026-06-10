@@ -15,6 +15,7 @@ import { registerCatalogueTool } from "./register-catalogue-tool.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
 import { registerUpstreamProxies } from "./register-upstream-proxies.js"
 import { installToolCallNameCapture } from "./tool-call-name.js"
+import { deriveAppResourceUri } from "./app-resource-uri.js"
 
 export interface CreateFrameworkAppOptionsBase {
   name: string
@@ -25,7 +26,15 @@ export interface CreateFrameworkAppOptionsBase {
   plugins: AppPlugin[]
   /** Parsed proxy config (use `parseProxyConfigEnv` or hand-build). */
   proxies: ProxyConfig
-  /** Required when any proxy entry uses `auth.mode === "oauth2"`. */
+  /**
+   * Public base URL the OAuth callback routes of `auth.mode === "oauth2"`
+   * proxies mount under. Defaults to {@link baseUrl} when omitted — the
+   * common single-origin deployment where the server advertises and receives
+   * callbacks on the same URL. Set it explicitly only when callbacks arrive on
+   * a different origin than the one the server advertises. When neither this
+   * nor `baseUrl` is set and an oauth2 proxy is configured, boot still fails
+   * fast with the "callbackBaseUrl is required" error.
+   */
   callbackBaseUrl?: string
   /**
    * Major React version the host ships. Controls whether an upstream-hosted
@@ -42,8 +51,14 @@ export interface CreateFrameworkAppOptionsBase {
     roleFilter?: Record<string, string[]>
   }
   app: {
-    /** MCP UI resource URI that hosts the widget bundle. */
-    resourceUri: string
+    /**
+     * MCP UI resource URI that hosts the widget bundle. Optional — when
+     * omitted it is derived as `ui://<name>/mcp-app.<hash>.html`, content-
+     * hashing the file at {@link htmlPath} so each build yields a distinct,
+     * cache-busting URI (see `deriveAppResourceUri`). Pass an explicit value
+     * only to pin the URI.
+     */
+    resourceUri?: string
     /** Absolute path to the bundled `mcp-app.html` served under `resourceUri`. */
     htmlPath: string
     /** Override the refresh tool name (default: `refresh-view`). */
@@ -145,7 +160,11 @@ export async function createFrameworkApp(
 
   const proxies = await registerUpstreamProxies(server, {
     entries: options.proxies,
-    callbackBaseUrl: options.callbackBaseUrl,
+    // Default to the advertised base URL — the common single-origin
+    // deployment where the server receives OAuth callbacks on the same URL it
+    // advertises. An explicit `callbackBaseUrl` still wins when callbacks
+    // arrive on a different origin.
+    callbackBaseUrl: options.callbackBaseUrl ?? options.baseUrl,
     secretResolver: options.secretResolver,
   })
 
@@ -175,6 +194,14 @@ export async function createFrameworkApp(
     pipelines: {},
   }
 
+  // Derive a content-hashed resource URI when one isn't pinned, so each build
+  // busts the host's widget-bundle cache (a fixed URI would keep serving a
+  // stale bundle across restarts). `deriveAppResourceUri` warns and falls back
+  // to a stable dev URI when the bundle file is missing.
+  const resourceUri =
+    options.app.resourceUri ??
+    deriveAppResourceUri({ appName: options.name, htmlPath: options.app.htmlPath })
+
   registerFrameworkTools(server, {
     stepRegistry,
     widgetRegistry,
@@ -182,7 +209,7 @@ export async function createFrameworkApp(
     appConfigs,
     plugins: allPlugins,
     proxies,
-    resourceUri: options.app.resourceUri,
+    resourceUri,
     htmlPath: options.app.htmlPath,
     refreshToolName: options.app.refreshToolName,
   })

@@ -16,6 +16,9 @@ export type {
   AppConfig,
   AppConfigEntry,
   ValidationResult,
+  ViewStructuredContent,
+  StepDataEntry,
+  RefreshParams,
 } from "./types/index.js"
 export { isRemoteWidget } from "./types/index.js"
 export { APP_ONLY_META, uiMeta } from "./types/index.js"
@@ -38,6 +41,19 @@ export type {
   RenderViewOptions,
   RemoteWidgetInfo,
 } from "./framework/render-view.js"
+export {
+  buildSingleWidgetView,
+  buildComposedView,
+  deriveItemCount,
+  defaultSummary,
+  collectLayoutWidgets,
+} from "./framework/view-builders.js"
+export type {
+  SingleWidgetViewInput,
+  ComposedViewInput,
+  ComposedViewEntry,
+  ViewToolResult,
+} from "./framework/view-builders.js"
 export { getBuilderCatalogue } from "./framework/catalogue.js"
 export type {
   CatalogueInput,
@@ -68,7 +84,8 @@ export { normalizeLayout } from "./framework/layout-types.js"
 export type { LayoutConfig, RowDef } from "./framework/layout-types.js"
 export { layoutSchema, rowSchema } from "./framework/layout-schemas.js"
 
-export { resolveActiveModules } from "./framework/active-modules.js"
+export { resolveActiveModules, parseActiveModules } from "./framework/active-modules.js"
+export type { ActiveModuleSelection } from "./framework/active-modules.js"
 export { buildProxyAppConfigs } from "./proxy/build-proxy-app-configs.js"
 
 export { buildStepFromDeclaration, dotPath } from "./pipeline/declarative-step.js"
