@@ -4,6 +4,7 @@ import { discoverUpstreamModules } from "./discover.js"
 import type { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
 
 const validManifest: ModuleManifest = {
+  schemaVersion: 1,
   moduleId: "items-ui",
   runtime: { react: "^19.0.0" },
   steps: [
@@ -108,6 +109,33 @@ describe("discoverUpstreamModules", () => {
     })
     expect(result).toEqual([])
     expect(warn).toHaveBeenCalled()
+  })
+
+  it("skips a manifest declaring a future schemaVersion", async () => {
+    const manifest = { ...validManifest, schemaVersion: 999 }
+    const { proxy } = stubProxy("items", { structuredContent: manifest })
+    const result = await discoverUpstreamModules({
+      entries: [flaggedEntry("items")],
+      proxies: [proxy],
+      hostReactMajor: 19,
+    })
+    expect(result).toEqual([])
+    expect(warn).toHaveBeenCalled()
+  })
+
+  it("discovers a manifest with no schemaVersion (defaults to 1)", async () => {
+    const withoutVersion: Omit<ModuleManifest, "schemaVersion"> & { schemaVersion?: number } = {
+      ...validManifest,
+    }
+    delete withoutVersion.schemaVersion
+    const { proxy } = stubProxy("items", { structuredContent: withoutVersion })
+    const result = await discoverUpstreamModules({
+      entries: [flaggedEntry("items")],
+      proxies: [proxy],
+      hostReactMajor: 19,
+    })
+    expect(result).toHaveLength(1)
+    expect(result[0]?.manifest.schemaVersion).toBe(1)
   })
 
   it("fails soft on React major mismatch", async () => {

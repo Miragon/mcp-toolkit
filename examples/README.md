@@ -18,12 +18,16 @@ examples/
 │   └── widget/                   CustomerCard.tsx (built by Vite, externalised React)
 ├── host/                       createFrameworkApp wiring, proxies both upstreams
 ├── modules/
-│   └── articles/               host-bundled UI module (proxyBinding: "articles")
+│   ├── articles/               host-bundled UI module (proxyBinding: "articles")
+│   ├── tasks/                  self-owned module — its OWN tools + a widget
+│   └── orders/                 self-owned — BOTH composition paths (eager + pipeline)
 ├── app-bundle/                 host's widget-bundle Vite project
+├── widget-playground/         Storybook-style harness — develop widgets in isolation
+├── host-portability/          one widget, three hosts (mcp-use / ChatGPT / standalone)
 └── layouts/                    YAML inputs for render-view smoke tests
 ```
 
-## Two example flows
+## Example flows
 
 1. **Host-bundled UI + codegen** (`articles`): upstream exposes `get-article`,
    host ships the `ArticleCard` widget code and calls the tool through
@@ -35,9 +39,47 @@ examples/
    widget bundle at render time through `read-widget-bundle`. See
    `customers-upstream/`.
 
+3. **Self-owned server with its own tools** (`tasks`): the module registers its
+   **own** tools with `createToolRegistrar` (`list_tasks`, `create_task`,
+   `complete_task`) backed by an in-memory store, plus a `show_tasks_board`
+   widget tool and a hand-built `TasksBoard` widget — no upstream, no proxy. This
+   is the common "build my own MCP server with tools + UI" case. See
+   `modules/tasks/` (and its `README.md`).
+
+4. **Two ways to compose a view** (`orders`): one self-owned module showing **both**
+   composition paths against one in-memory domain — an **eager multi-widget
+   dashboard** (`show_orders_dashboard` composes a KPI strip + an orders table with
+   `buildComposedView`, the recommended default) **and** a real **two-step pipeline**
+   (`resolve-customer` → `list-customer-orders`, where step B consumes step A's
+   output key) driven by `render-view` + `layouts/orders-dashboard.yaml`. See
+   `modules/orders/` (and its `README.md`) and the
+   [`compose-a-view` skill](../.claude/skills/compose-a-view/SKILL.md).
+
+## Two UI-building examples (no host needed)
+
+Standalone Vite apps for building hand-made widgets fast — neither boots an MCP
+server.
+
+1. **Widget playground** (`widget-playground/`): a "Storybook for MCP widgets".
+   Renders a widget through `WidgetFixtureHost` with fixture data, a live JSON
+   editor, the serialized model-context view, and a host-activity log — develop
+   and polish a widget in isolation.
+
+   ```sh
+   pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
+   ```
+
+2. **Host portability** (`host-portability/`): the same `OrderStatusCard` widget
+   rendered under all three `HostBridge` adapters (mcp-use host, ChatGPT Apps
+   SDK, standalone against an existing server) with a shared bridge-activity log.
+
+   ```sh
+   pnpm --filter @miragon/mcp-toolkit-examples dev:host-portability
+   ```
+
 ## Scripts
 
-Run from the toolkit root (`vendor/mcp-toolkit/`) or this directory:
+Run from the repository root or this directory:
 
 ```sh
 pnpm -w install
@@ -54,14 +96,23 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:articles-upstream
 pnpm --filter @miragon/mcp-toolkit-examples dev:customers-upstream
 pnpm --filter @miragon/mcp-toolkit-examples dev:host
 
-# build the widget bundles without starting any server
+# build every Vite bundle without starting a server (host app-bundle, the
+# customers widget, and the widget-playground + host-portability demos)
 pnpm --filter @miragon/mcp-toolkit-examples build:all
+
+# the two standalone UI demos (Vite — no MCP server)
+pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
+pnpm --filter @miragon/mcp-toolkit-examples dev:host-portability
 
 # regenerate articles/generated/ from the running articles-upstream
 pnpm --filter @miragon/mcp-toolkit-examples generate
 
-# CI drift check — fails if committed generated/ is stale
+# drift check — fails if committed generated/ is stale. Needs a running
+# articles-upstream, so it is run by hand, not in CI.
 pnpm --filter @miragon/mcp-toolkit-examples generate:check
+
+# in-process smoke test (no servers, no browser) — runs in CI via `pnpm -r test`
+pnpm --filter @miragon/mcp-toolkit-examples test
 ```
 
 Defaults: articles-upstream on `:4000`, customers-upstream on `:4001`, host on
@@ -86,7 +137,19 @@ Defaults: articles-upstream on `:4000`, customers-upstream on `:4001`, host on
 - `render-view` runs the pipeline, resolves widget requirements, returns
   `structuredContent` with per-widget data ready for an iframe bundle.
 
-## Smoke test (no browser needed)
+## Automated smoke test
+
+`test/smoke.test.ts` boots a host in-process via `createFrameworkApp` (no
+external upstreams), drives it with an MCP client, and asserts `tools/list`
+exposes the framework tool trio and that a `render-view` call returns the
+expected `structuredContent` envelope. It runs in CI through the root
+`pnpm -r --if-present run test` (see `.github/workflows/ci.yml`):
+
+```sh
+pnpm --filter @miragon/mcp-toolkit-examples test
+```
+
+## Manual smoke test against the running playground (no browser needed)
 
 With all three servers running:
 

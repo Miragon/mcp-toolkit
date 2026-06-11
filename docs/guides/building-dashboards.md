@@ -3,9 +3,12 @@
 This guide walks through the full render → build → save → reload loop
 against the example host in `examples/host`.
 
-## 1. Wire the dashboard store
+## 1. Enable the builder and wire the dashboard store
 
-`createFrameworkApp` installs an in-memory store by default. For real
+The visual builder + dashboard persistence are **opt-in** — pass
+`app: { builder: true }`. Without it, only the always-on core
+(`render-view` / widgets) is registered. With `builder` on,
+`createFrameworkApp` installs an in-memory store by default; for real
 persistence, pass a filesystem (or custom) store:
 
 ```ts
@@ -16,15 +19,17 @@ const app = await createFrameworkApp({
   app: {
     resourceUri: "ui://example/mcp-app.html",
     htmlPath: "/abs/path/to/mcp-app.html",
+    builder: true, // opt into the builder + dashboard CRUD (off by default)
     dashboardStore: createFileSystemDashboardStore({ dir: ".dashboards" }),
   },
 })
 ```
 
-The toolkit registers `save-dashboard`, `list-dashboards`,
-`load-dashboard`, and `delete-dashboard` against the store. It also
-auto-registers the app-only `get-builder-catalogue` tool that powers
-the in-iframe builder.
+When `builder` is `true` the toolkit registers `save-dashboard`,
+`list-dashboards`, `load-dashboard`, and `delete-dashboard` against the
+store, plus the app-only `get-builder-catalogue` tool that powers the
+in-iframe builder. With `builder` off (the default) none of these are
+registered and `dashboardStore` is ignored.
 
 ## 2. Render a view (LLM)
 
@@ -65,7 +70,10 @@ yet, with one-click "Add producing step" actions.
 - **Done** — exits Build mode, swaps back to the rendered view with the
   layout you just built.
 - **Save dashboard** — prompts for a name + optional description, then
-  calls `save-dashboard`. Returns `{ id, createdAt, updatedAt }`.
+  calls `save-dashboard`. Returns `{ id, name, createdAt, updatedAt }`
+  (plus `unknownWidgets` when the layout references widget ids the server
+  doesn't know — a non-fatal warning, since remote widgets may live
+  upstream).
 
 The user's draft layout is local until they click Done or Save —
 nothing leaks back to the LLM mid-edit.

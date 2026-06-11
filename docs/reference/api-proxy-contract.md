@@ -94,13 +94,13 @@ share one validator.
 
 ### Schemas
 
-| Symbol                     | Shape                                                                                                                                                                                                                                                                                                                |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ModuleManifestSchema`     | `{ moduleId, runtime, steps[], widgets[] }`. `superRefine` rejects duplicate step/widget IDs and any ID that doesn't start with `<moduleId>:`.                                                                                                                                                                       |
-| `RuntimeRequirementSchema` | `{ react: string }`. Semver range the module's widget bundles need (e.g. `"^19.0.0"`). Host fail-soft skips modules whose range doesn't satisfy `TOOLKIT_REACT_MAJOR`.                                                                                                                                               |
-| `DeclarativeStepSchema`    | `{ id, dataType, requires, produces, tool, inputMapping, outputMapping }`. `tool` is unprefixed — host prepends the originating proxy name. `inputMapping` reads dot-paths into the pipeline context (e.g. `keys.<ns>:itemId`); `outputMapping` writes dot-paths from the tool response into produced keys.          |
-| `RemoteWidgetSchema`       | `{ id, requires, bundle, size?, propsSchema? }`. `bundle` is an MCP resource URI (typically `ui://<moduleId>/widgets/<name>.js`). `size` defaults to `"full"` when omitted; `propsSchema` mirrors `WidgetDefinition.propsSchema` from `@miragon/mcp-toolkit-core` and surfaces verbatim in `get-framework-manifest`. |
-| `WidgetSizeSchema`         | `z.enum(["quarter", "third", "half", "full", "header"])`. Mirrors `WidgetSize` from core so the manifest contract stays standalone.                                                                                                                                                                                  |
+| Symbol                     | Shape                                                                                                                                                                                                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ModuleManifestSchema`     | `{ schemaVersion?, moduleId, runtime, steps[], widgets[] }`. `schemaVersion` is optional and defaults to `1`; a host skips any manifest whose `schemaVersion` exceeds the version it was built against (fail-soft). `superRefine` rejects duplicate step/widget IDs and any ID that doesn't start with `<moduleId>:`. |
+| `RuntimeRequirementSchema` | `{ react: string }`. Semver range the module's widget bundles need (e.g. `"^19.0.0"`). Host fail-soft skips modules whose range doesn't satisfy `TOOLKIT_REACT_MAJOR`.                                                                                                                                                |
+| `DeclarativeStepSchema`    | `{ id, dataType, requires, produces, tool, inputMapping, outputMapping }`. `tool` is unprefixed — host prepends the originating proxy name. `inputMapping` reads dot-paths into the pipeline context (e.g. `keys.<ns>:itemId`); `outputMapping` writes dot-paths from the tool response into produced keys.           |
+| `RemoteWidgetSchema`       | `{ id, requires, bundle, size?, propsSchema? }`. `bundle` is an MCP resource URI (typically `ui://<moduleId>/widgets/<name>.js`). `size` defaults to `"full"` when omitted; `propsSchema` mirrors `WidgetDefinition.propsSchema` from `@miragon/mcp-toolkit-core` and surfaces verbatim in `get-framework-manifest`.  |
+| `WidgetSizeSchema`         | `z.enum(["quarter", "third", "half", "full", "header"])`. Mirrors `WidgetSize` from core so the manifest contract stays standalone.                                                                                                                                                                                   |
 
 ### Patterns
 
@@ -111,9 +111,10 @@ share one validator.
 
 ### Constants
 
-| Symbol                     | Value                   | Purpose                                                                                             |
-| -------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------- |
-| `GET_MODULE_MANIFEST_TOOL` | `"get-module-manifest"` | Canonical tool name an upstream exposes to advertise its manifest. Use this constant on both sides. |
+| Symbol                           | Value                   | Purpose                                                                                                                                                                                     |
+| -------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET_MODULE_MANIFEST_TOOL`       | `"get-module-manifest"` | Canonical tool name an upstream exposes to advertise its manifest. Use this constant on both sides.                                                                                         |
+| `MODULE_MANIFEST_SCHEMA_VERSION` | `1`                     | Current version of the module-manifest contract. Stamped as the default `schemaVersion`; a host skips manifests whose `schemaVersion` exceeds the version it was built against (fail-soft). |
 
 ### Types
 

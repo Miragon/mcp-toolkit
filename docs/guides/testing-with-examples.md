@@ -34,7 +34,7 @@ Two flows are demonstrated:
 ## Running
 
 ```sh
-cd vendor/mcp-toolkit
+# from the repository root
 pnpm -w install
 cp examples/env.example examples/.env   # first time only
 

@@ -78,6 +78,62 @@ describe("executePipeline", () => {
     expect(ctx.steps.b?._dataType).toBe("demo:data")
   })
 
+  it("does not merge undefined produced keys, so a dependent step sees them as missing", async () => {
+    // A step that "produces" a key but resolves it to `undefined` (e.g. a
+    // declarative `outputMapping` dot-path that missed because the upstream
+    // tool returned an unexpected shape) must NOT satisfy a later step's
+    // `requires` gate — otherwise the dependent step runs against missing data.
+    const registry = new StepRegistry()
+    registry.register(
+      step({
+        id: "demo:a",
+        produces: ["demo:x"],
+        execute: () =>
+          Promise.resolve({
+            data: null,
+            keys: { "demo:x": undefined },
+            _app: "demo",
+            _step: "a",
+            _dataType: "demo:data",
+          }),
+      }),
+    )
+    const bRan = vi.fn()
+    registry.register(
+      step({
+        id: "demo:b",
+        requires: ["demo:x"],
+        produces: ["demo:y"],
+        execute: () => {
+          bRan()
+          return Promise.resolve({
+            data: null,
+            keys: { "demo:y": "from-b" },
+            _app: "demo",
+            _step: "b",
+            _dataType: "demo:data",
+          })
+        },
+      }),
+    )
+
+    const ctx = await executePipeline({
+      config: {
+        steps: [
+          { id: "a", step: "demo:a" },
+          { id: "b", step: "demo:b" },
+        ],
+      },
+      initialKeys: {},
+      registry,
+    })
+
+    expect(bRan).not.toHaveBeenCalled()
+    expect("demo:x" in ctx.keys).toBe(false)
+    expect(ctx.keys).toEqual({})
+    expect(ctx.errors).toEqual([{ stepId: "b", reason: "Missing required keys: demo:x" }])
+  })
+
   it("records an error and continues when a referenced step is not registered", async () => {
     const ctx = await executePipeline({
       config: {

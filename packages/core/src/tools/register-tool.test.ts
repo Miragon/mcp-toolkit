@@ -85,6 +85,36 @@ describe("createToolRegistrar", () => {
     expect(firstTextBlock(result)).toBe("Count: 42")
   })
 
+  it("mirrors structuredContent on the formatResult path when an outputSchema is set", async () => {
+    const { server, tools } = createStubServer()
+    const register = createToolRegistrar(server, {})
+    register({
+      name: "report_with_schema",
+      description: "",
+      outputSchema: z.object({ count: z.number() }),
+      handler: () => Promise.resolve({ count: 42 }),
+      formatResult: (raw) => `Count: ${(raw as { count: number }).count}`,
+    })
+    const result = await firstTool(tools).cb({})
+    expect(firstTextBlock(result)).toBe("Count: 42")
+    expect(result.structuredContent).toEqual({ count: 42 })
+  })
+
+  it("wraps an array result as { data } in structuredContent on the formatResult path", async () => {
+    const { server, tools } = createStubServer()
+    const register = createToolRegistrar(server, {})
+    register({
+      name: "list_with_schema",
+      description: "",
+      outputSchema: z.array(z.object({ id: z.string() })),
+      handler: () => Promise.resolve([{ id: "1" }, { id: "2" }]),
+      formatResult: (raw) => `Count: ${(raw as unknown[]).length}`,
+    })
+    const result = await firstTool(tools).cb({})
+    expect(firstTextBlock(result)).toBe("Count: 2")
+    expect(result.structuredContent).toEqual({ data: [{ id: "1" }, { id: "2" }] })
+  })
+
   it("falls back to legacy text for primitive results", async () => {
     const { server, tools } = createStubServer()
     const register = createToolRegistrar(server, {})

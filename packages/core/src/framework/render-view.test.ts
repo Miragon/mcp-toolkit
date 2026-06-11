@@ -58,6 +58,7 @@ interface RenderOk {
     }
     layout: LayoutConfig
     remoteWidgets: Record<string, { bundle: string; moduleId: string }>
+    builderAvailable: boolean
   }
 }
 
@@ -195,9 +196,20 @@ describe("renderView", () => {
     expect(ok.content[0]?.text).toContain("Errors: boom: kaboom")
   })
 
-  it("populates remoteWidgets only when widgetRegistry is supplied and widget has bundle + moduleId", async () => {
+  it("advertises remoteWidgets only for upstream widgets the layout references", async () => {
+    // render-view filters the advertised remoteWidgets down to the bundles the
+    // *layout* uses — the browser-side loader fetches every advertised bundle,
+    // so shipping the whole registry would make a single-widget view pull
+    // unused upstream bundles. (The in-iframe builder gets its full remote
+    // palette from `get-builder-catalogue` instead.)
     const stepRegistry = new StepRegistry()
     const widgetRegistry = new WidgetRegistry()
+    // `trivialLayout` references `demo:card`. Register it as a remote widget so
+    // it is advertised, plus an unrelated remote widget that must be filtered
+    // out, plus a local (non-remote) widget that is never advertised.
+    widgetRegistry.register(
+      widget({ id: "demo:card", bundle: "ui://demo/card.js", moduleId: "demo" }),
+    )
     widgetRegistry.register(
       widget({ id: "items:card", bundle: "ui://items/card.js", moduleId: "items" }),
     )
@@ -211,13 +223,30 @@ describe("renderView", () => {
       }),
     )
     expect(okWith.structuredContent.remoteWidgets).toEqual({
-      "items:card": { bundle: "ui://items/card.js", moduleId: "items" },
+      "demo:card": { bundle: "ui://demo/card.js", moduleId: "demo" },
     })
 
     const okWithout = expectOk(
       await renderView({ input: { keys: {}, layout: trivialLayout }, stepRegistry }),
     )
     expect(okWithout.structuredContent.remoteWidgets).toEqual({})
+  })
+
+  it("defaults builderAvailable to false and echoes an explicit flag", async () => {
+    const stepRegistry = new StepRegistry()
+    const off = expectOk(
+      await renderView({ input: { keys: {}, layout: trivialLayout }, stepRegistry }),
+    )
+    expect(off.structuredContent.builderAvailable).toBe(false)
+
+    const on = expectOk(
+      await renderView({
+        input: { keys: {}, layout: trivialLayout },
+        stepRegistry,
+        builderAvailable: true,
+      }),
+    )
+    expect(on.structuredContent.builderAvailable).toBe(true)
   })
 
   it("preserves the input as _refreshParams for the UI's refresh button", async () => {

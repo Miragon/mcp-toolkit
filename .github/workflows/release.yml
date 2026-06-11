@@ -1,9 +1,12 @@
-name: Release
+name: Release (manual fallback)
 
+# Automatic publishing runs from `release-please.yml`'s `publish` job, gated on
+# `release_created`. This workflow is the manual fallback: dispatch it to
+# re-publish the current `main` (e.g. after a failed automatic run) or to
+# validate registry auth with `dry_run`. It is no longer triggered by the v*
+# tags release-please pushes — those tags never fired a workflow because the
+# default GITHUB_TOKEN suppresses follow-up runs.
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       dry_run:

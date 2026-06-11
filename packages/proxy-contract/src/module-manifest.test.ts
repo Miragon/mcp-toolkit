@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest"
 import {
   ModuleManifestSchema,
+  MODULE_MANIFEST_SCHEMA_VERSION,
   type ModuleManifest,
   GET_MODULE_MANIFEST_TOOL,
 } from "./module-manifest.js"
 
 const validManifest: ModuleManifest = {
+  schemaVersion: 1,
   moduleId: "items-ui",
   runtime: { react: "^19.0.0" },
   steps: [
@@ -34,6 +36,50 @@ describe("ModuleManifestSchema", () => {
     expect(parsed).toEqual(validManifest)
     const reparsed = ModuleManifestSchema.parse(JSON.parse(JSON.stringify(parsed)))
     expect(reparsed).toEqual(validManifest)
+  })
+
+  it("defaults schemaVersion to 1 when omitted", () => {
+    const withoutVersion: Omit<ModuleManifest, "schemaVersion"> & { schemaVersion?: number } = {
+      ...validManifest,
+    }
+    delete withoutVersion.schemaVersion
+    const result = ModuleManifestSchema.safeParse(withoutVersion)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.schemaVersion).toBe(1)
+      expect(result.data.schemaVersion).toBe(MODULE_MANIFEST_SCHEMA_VERSION)
+    }
+  })
+
+  it("accepts an explicit current schemaVersion", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      schemaVersion: MODULE_MANIFEST_SCHEMA_VERSION,
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.schemaVersion).toBe(MODULE_MANIFEST_SCHEMA_VERSION)
+    }
+  })
+
+  it("preserves a future schemaVersion through parse so the host can gate on it", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      schemaVersion: MODULE_MANIFEST_SCHEMA_VERSION + 1,
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.schemaVersion).toBe(MODULE_MANIFEST_SCHEMA_VERSION + 1)
+    }
+  })
+
+  it("rejects a non-integer or below-minimum schemaVersion", () => {
+    expect(ModuleManifestSchema.safeParse({ ...validManifest, schemaVersion: 1.5 }).success).toBe(
+      false,
+    )
+    expect(ModuleManifestSchema.safeParse({ ...validManifest, schemaVersion: 0 }).success).toBe(
+      false,
+    )
   })
 
   it("requires a non-empty runtime.react string", () => {
@@ -110,6 +156,80 @@ describe("ModuleManifestSchema", () => {
       ],
     })
     expect(result.success).toBe(false)
+  })
+
+  it("rejects an outputMapping key that is not declared in produces", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      steps: [
+        {
+          ...validManifest.steps[0],
+          // `produces` only lists `items-ui:item`; the mapping writes a key the
+          // step never declared — a typo the contract must catch.
+          outputMapping: { "items-ui:itme": "result" },
+        },
+      ],
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) => issue.path.join(".") === "steps.0.outputMapping.items-ui:itme",
+        ),
+      ).toBe(true)
+    }
+  })
+
+  it("rejects an empty inputMapping dot-path", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      steps: [
+        {
+          ...validManifest.steps[0],
+          inputMapping: { id: "" },
+        },
+      ],
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path.join(".") === "steps.0.inputMapping.id"),
+      ).toBe(true)
+    }
+  })
+
+  it("rejects an empty outputMapping dot-path", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      steps: [
+        {
+          ...validManifest.steps[0],
+          outputMapping: { "items-ui:item": "" },
+        },
+      ],
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) => issue.path.join(".") === "steps.0.outputMapping.items-ui:item",
+        ),
+      ).toBe(true)
+    }
+  })
+
+  it("accepts a step whose outputMapping keys all live in produces", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      steps: [
+        {
+          ...validManifest.steps[0],
+          produces: ["items-ui:item", "items-ui:itemMeta"],
+          outputMapping: { "items-ui:item": "result", "items-ui:itemMeta": "meta" },
+        },
+      ],
+    })
+    expect(result.success).toBe(true)
   })
 
   it("accepts an optional widget size hint", () => {

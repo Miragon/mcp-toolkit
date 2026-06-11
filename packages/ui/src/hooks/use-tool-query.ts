@@ -1,20 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useCallTool } from "../providers/query-provider.js"
-
-function parseToolResult(result: unknown): unknown {
-  const r = result as Record<string, unknown> | undefined
-  const content = r?.content as { text?: string }[] | undefined
-  if (r?.isError) throw new Error(content?.[0]?.text ?? "Tool call failed")
-  const text = content?.[0]?.text
-  if (text) {
-    try {
-      return JSON.parse(text)
-    } catch {
-      return text
-    }
-  }
-  return r?.structuredContent ?? r
-}
+import { parseToolResult } from "../lib/parse-tool-result.js"
 
 export interface UseToolQueryOptions<TData = unknown, TSelected = TData> {
   enabled?: boolean
@@ -43,7 +29,7 @@ export function useToolQuery<TData = unknown, TSelected = TData>(
     queryFn: async () => {
       if (!callTool) throw new Error("callTool not available")
       const result = await callTool(toolName, args)
-      return parseToolResult(result) as TData
+      return parseToolResult<TData>(result)
     },
     select: opts?.select,
     enabled: !!callTool && (opts?.enabled ?? true),
@@ -64,7 +50,7 @@ export function useToolMutation<TData = unknown>(
     mutationFn: async (args: Record<string, unknown>) => {
       if (!callTool) throw new Error("callTool not available")
       const result = await callTool(toolName, args)
-      return parseToolResult(result) as TData
+      return parseToolResult<TData>(result)
     },
     onSuccess: async () => {
       if (opts?.invalidateKeys) {

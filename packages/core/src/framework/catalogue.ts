@@ -83,6 +83,15 @@ export interface CataloguePayload {
   availableSteps: AvailableStep[]
   keyCatalog: KeyCatalogEntry[]
   remoteWidgets: Record<string, RemoteWidgetInfo>
+  /**
+   * Pipeline validation issues from `validatePipeline`. The catalogue is
+   * fail-soft (it still returns a usable palette even when the pipeline can't
+   * fully resolve), so these are surfaced here structurally — not just in the
+   * text summary — for the builder to show before the user commits. The same
+   * pipeline would fail *hard* in `render-view`, so seeing these issues in the
+   * builder warns the user the render path wouldn't run as configured.
+   */
+  validationIssues: string[]
 }
 
 export interface CatalogueOptions {
@@ -232,6 +241,7 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
       availableSteps,
       keyCatalog,
       remoteWidgets,
+      validationIssues: validation.issues,
     },
   }
 }

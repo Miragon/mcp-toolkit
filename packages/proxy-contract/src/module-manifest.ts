@@ -20,6 +20,15 @@ import { z } from "zod"
 export const MODULE_ID_PATTERN = /^[a-z][a-z0-9-]*$/
 
 /**
+ * Current version of the module-manifest contract. Bumped whenever a change
+ * to {@link ModuleManifestSchema} is not understood by older hosts. A host
+ * skips any manifest whose `schemaVersion` exceeds the version it was built
+ * against (fail-soft), so a newer upstream can advertise additional fields
+ * without bricking an older host.
+ */
+export const MODULE_MANIFEST_SCHEMA_VERSION = 1 as const
+
+/**
  * Declarative step `id`, widget `id`, step `dataType`, and every entry in
  * `produces`/`requires` must be `<namespace>:<local>`. The namespace portion
  * matches `MODULE_ID_PATTERN` (lowercase kebab-case). The local portion is
@@ -55,29 +64,75 @@ export type RuntimeRequirement = z.infer<typeof RuntimeRequirementSchema>
  * originating module's `callTool` closure at registration time — a step
  * from module A can only invoke tools on upstream A.
  */
-export const DeclarativeStepSchema = z.object({
-  id: namespacedId,
-  dataType: namespacedId,
-  requires: z.array(namespacedId),
-  produces: z.array(namespacedId).min(1),
-  /**
-   * Upstream tool name the step invokes. Unprefixed — the host prepends the
-   * originating proxy's name when routing (`items_get-item`, etc.).
-   */
-  tool: z.string().min(1),
-  /**
-   * Maps tool argument names to dot-paths into the pipeline context.
-   * Example: `{ id: "keys.items-ui:itemId" }` reads `ctx.keys["items-ui:itemId"]`
-   * and passes it as the tool's `id` argument.
-   */
-  inputMapping: z.record(z.string(), z.string()),
-  /**
-   * Maps produced key names to dot-paths into the tool call's response.
-   * Example: `{ "items-ui:item": "result" }` assigns the whole response's
-   * `result` field to `ctx.keys["items-ui:item"]` after a successful call.
-   */
-  outputMapping: z.record(z.string(), z.string()),
-})
+export const DeclarativeStepSchema = z
+  .object({
+    id: namespacedId,
+    dataType: namespacedId,
+    requires: z.array(namespacedId),
+    produces: z.array(namespacedId).min(1),
+    /**
+     * Upstream tool name the step invokes. Unprefixed — the host prepends the
+     * originating proxy's name when routing (`items_get-item`, etc.).
+     */
+    tool: z.string().min(1),
+    /**
+     * Maps tool argument names to dot-paths into the pipeline context.
+     * Example: `{ id: "keys.items-ui:itemId" }` reads `ctx.keys["items-ui:itemId"]`
+     * and passes it as the tool's `id` argument.
+     */
+    inputMapping: z.record(z.string(), z.string()),
+    /**
+     * Maps produced key names to dot-paths into the tool call's response.
+     * Example: `{ "items-ui:item": "result" }` assigns the whole response's
+     * `result` field to `ctx.keys["items-ui:item"]` after a successful call.
+     */
+    outputMapping: z.record(z.string(), z.string()),
+  })
+  .superRefine((step, ctx) => {
+    // The mappings are stringly-typed (`z.record(string, string)`), so a typo
+    // would otherwise pass schema validation and surface only as a silently
+    // empty widget at render time. These checks turn the common mistakes into
+    // a discovery-time schema error instead.
+
+    // Every `outputMapping` KEY is a key the step claims to `produce`. The
+    // executor writes `keys[<outputMapping-key>] = dotPath(response, <path>)`,
+    // so a key absent from `produces` is dead: the pipeline validator can't
+    // see it, no downstream `requires` can depend on it, and the contract
+    // (`produces`) lies about what the step emits.
+    const produced = new Set(step.produces)
+    for (const producedKey of Object.keys(step.outputMapping)) {
+      if (!produced.has(producedKey)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["outputMapping", producedKey],
+          message: `outputMapping key "${producedKey}" is not declared in produces [${step.produces.join(", ")}]`,
+        })
+      }
+    }
+
+    // A blank dot-path (e.g. a `""` left by templating) is almost always a
+    // mistake: on the input side it passes the whole `{ keys, steps }` root as
+    // a tool argument; on the output side it binds the entire raw tool response
+    // to a produced key. Reject both so the author fixes the path.
+    for (const [argName, path] of Object.entries(step.inputMapping)) {
+      if (path.trim() === "") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputMapping", argName],
+          message: `inputMapping for argument "${argName}" has an empty dot-path`,
+        })
+      }
+    }
+    for (const [producedKey, path] of Object.entries(step.outputMapping)) {
+      if (path.trim() === "") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["outputMapping", producedKey],
+          message: `outputMapping for key "${producedKey}" has an empty dot-path`,
+        })
+      }
+    }
+  })
 
 export type DeclarativeStep = z.infer<typeof DeclarativeStepSchema>
 
@@ -134,6 +189,14 @@ export type RemoteWidget = z.infer<typeof RemoteWidgetSchema>
  */
 export const ModuleManifestSchema = z
   .object({
+    /**
+     * Version of the manifest contract this payload conforms to. Optional and
+     * defaulting to `1` so manifests written against the pre-versioning
+     * contract stay valid. A host compares this against
+     * {@link MODULE_MANIFEST_SCHEMA_VERSION} and skips manifests from the
+     * future rather than mis-parsing fields it doesn't know about.
+     */
+    schemaVersion: z.number().int().min(1).optional().default(1),
     moduleId: z.string().regex(MODULE_ID_PATTERN),
     runtime: RuntimeRequirementSchema,
     steps: z.array(DeclarativeStepSchema),

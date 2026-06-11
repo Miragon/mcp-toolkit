@@ -28,6 +28,27 @@ interface WidgetProps {
 A widget runs only if all `requires` keys exist in `context.keys` — the
 `WidgetRenderer` in `@miragon/mcp-toolkit-ui` filters missing ones out.
 
+## `requires` vs `consumes` — two distinct contracts
+
+These two fields look similar but answer different questions; keep them
+separate:
+
+- **`requires`** — _Builder reachability only._ The keys that must be in
+  `context.keys` before the widget will render. The in-iframe builder uses
+  it to split the palette into reachable vs unreachable widgets, and
+  `WidgetRenderer` filters a widget out when a required key is missing. It is
+  **not** the data binding.
+- **`consumes`** (the step `dataType`, also written `_dataType` on a step
+  result) — _the actual data binding._ It names the step `dataType`s the
+  widget reads through `adaptDataWidget(Widget, dataType)`. This is how the
+  rendered data slice reaches the component.
+
+A **self-fetching widget** (one that drives its own `useToolQuery` and owns
+its data) declares `requires: []` and reads from an app-only `*_data` feed —
+it has no pipeline data binding at all, so it leaves `consumes` empty. Setting
+`requires` on such a widget would only hide it from the builder until some
+unrelated key happens to be present.
+
 ## Per-instance props
 
 A layout cell can pass per-instance props via the `props` field — the
@@ -47,8 +68,8 @@ so the LLM knows which props to set without guessing.
 }
 ```
 
-`adaptDataWidget` (see `packages/ui/src/components/`) forwards these
-into named props on the wrapped single-data widget.
+`adaptDataWidget` (see `packages/ui/src/app/adapt-data-widget.tsx`) forwards
+these into named props on the wrapped single-data widget.
 
 ## Component
 

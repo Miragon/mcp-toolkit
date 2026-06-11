@@ -14,6 +14,8 @@ import { registerFrameworkTools } from "./register-framework-tools.js"
 import { registerCatalogueTool } from "./register-catalogue-tool.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
 import { registerUpstreamProxies } from "./register-upstream-proxies.js"
+import { installToolCallNameCapture } from "./tool-call-name.js"
+import { deriveAppResourceUri } from "./app-resource-uri.js"
 
 export interface CreateFrameworkAppOptionsBase {
   name: string
@@ -24,7 +26,15 @@ export interface CreateFrameworkAppOptionsBase {
   plugins: AppPlugin[]
   /** Parsed proxy config (use `parseProxyConfigEnv` or hand-build). */
   proxies: ProxyConfig
-  /** Required when any proxy entry uses `auth.mode === "oauth2"`. */
+  /**
+   * Public base URL the OAuth callback routes of `auth.mode === "oauth2"`
+   * proxies mount under. Defaults to {@link baseUrl} when omitted — the
+   * common single-origin deployment where the server advertises and receives
+   * callbacks on the same URL. Set it explicitly only when callbacks arrive on
+   * a different origin than the one the server advertises. When neither this
+   * nor `baseUrl` is set and an oauth2 proxy is configured, boot still fails
+   * fast with the "callbackBaseUrl is required" error.
+   */
   callbackBaseUrl?: string
   /**
    * Major React version the host ships. Controls whether an upstream-hosted
@@ -41,23 +51,55 @@ export interface CreateFrameworkAppOptionsBase {
     roleFilter?: Record<string, string[]>
   }
   app: {
-    /** MCP UI resource URI that hosts the widget bundle. */
-    resourceUri: string
+    /**
+     * MCP UI resource URI that hosts the widget bundle. Optional — when
+     * omitted it is derived as `ui://<name>/mcp-app.<hash>.html`, content-
+     * hashing the file at {@link htmlPath} so each build yields a distinct,
+     * cache-busting URI (see `deriveAppResourceUri`). Pass an explicit value
+     * only to pin the URI.
+     */
+    resourceUri?: string
     /** Absolute path to the bundled `mcp-app.html` served under `resourceUri`. */
     htmlPath: string
     /** Override the refresh tool name (default: `refresh-view`). */
     refreshToolName?: string
     /**
+     * Opt-in switch for the visual in-iframe builder platform and dashboard
+     * persistence. **Defaults to `false` (lean by default).**
+     *
+     * Widget rendering always works regardless of this flag:
+     * `get-framework-manifest`, `render-view`, and `refresh-view` (plus the
+     * `mcp-app.html` resource) are registered unconditionally — that is the
+     * core surface every MCP server gets.
+     *
+     * Setting `builder: true` additionally registers:
+     *   - `get-builder-catalogue` — the app-only data source the in-iframe
+     *     LayoutBuilder calls to populate its palette / key catalogue, and
+     *   - `save-dashboard` / `list-dashboards` / `load-dashboard` /
+     *     `delete-dashboard` — dashboard CRUD persistence.
+     *
+     * These belong together: the visual builder reads the catalogue and saves
+     * its results as dashboards. Most lean MCP servers don't need either and
+     * should leave this off so the builder/dashboard tools never get forced
+     * onto their tool surface. The `McpAppView`'s Build/edit affordance hides
+     * itself when the catalogue tool isn't present, so the iframe UI degrades
+     * gracefully when `builder` is `false`.
+     */
+    builder?: boolean
+    /**
      * Override the catalogue tool name (default: `get-builder-catalogue`).
      * The catalogue tool is app-only — it powers the in-iframe builder
-     * and never appears in the LLM's tool surface.
+     * and never appears in the LLM's tool surface. Only relevant when
+     * {@link builder} is `true`; ignored otherwise.
      */
     catalogueToolName?: string
     /**
      * Persistence backing for `save-dashboard` / `list-dashboards` /
      * `load-dashboard` / `delete-dashboard`. Defaults to an in-memory store
      * (process-local, lost on restart). Inject a filesystem or DB-backed
-     * store for real deployments.
+     * store for real deployments. Only relevant when {@link builder} is
+     * `true` — with `builder` off the dashboard tools aren't registered, so
+     * this option has no effect.
      */
     dashboardStore?: DashboardStore
   }
@@ -128,16 +170,27 @@ export async function createFrameworkApp(
     server.use("mcp:*", createOrgGateMiddleware(orgGateId))
   }
 
+  // Capture the `tools/call` tool name from the JSON-RPC envelope at the HTTP
+  // layer. mcp-use 1.28 populates `mcp:tools/call` middleware's `ctx.params`
+  // with the tool *arguments*, not `{ name, arguments }`, so the role filter
+  // can't read the name from there. The resolver is request-scoped via
+  // `getRequestContext()` and is safe to install unconditionally.
+  const resolveToolName = installToolCallNameCapture(server)
+
   const roleFilter = options.middleware?.roleFilter
   if (roleFilter && Object.keys(roleFilter).length > 0) {
-    const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter)
+    const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter, { resolveToolName })
     server.use("mcp:tools/list", toolsList)
     server.use("mcp:tools/call", toolsCall)
   }
 
   const proxies = await registerUpstreamProxies(server, {
     entries: options.proxies,
-    callbackBaseUrl: options.callbackBaseUrl,
+    // Default to the advertised base URL — the common single-origin
+    // deployment where the server receives OAuth callbacks on the same URL it
+    // advertises. An explicit `callbackBaseUrl` still wins when callbacks
+    // arrive on a different origin.
+    callbackBaseUrl: options.callbackBaseUrl ?? options.baseUrl,
     secretResolver: options.secretResolver,
   })
 
@@ -167,6 +220,14 @@ export async function createFrameworkApp(
     pipelines: {},
   }
 
+  // Derive a content-hashed resource URI when one isn't pinned, so each build
+  // busts the host's widget-bundle cache (a fixed URI would keep serving a
+  // stale bundle across restarts). `deriveAppResourceUri` warns and falls back
+  // to a stable dev URI when the bundle file is missing.
+  const resourceUri =
+    options.app.resourceUri ??
+    deriveAppResourceUri({ appName: options.name, htmlPath: options.app.htmlPath })
+
   registerFrameworkTools(server, {
     stepRegistry,
     widgetRegistry,
@@ -174,20 +235,30 @@ export async function createFrameworkApp(
     appConfigs,
     plugins: allPlugins,
     proxies,
-    resourceUri: options.app.resourceUri,
+    resourceUri,
     htmlPath: options.app.htmlPath,
     refreshToolName: options.app.refreshToolName,
+    // Advertise builder availability in the view payload so the iframe shell
+    // shows its Build affordance only when the catalogue/dashboard tools below
+    // are actually registered.
+    builderAvailable: options.app.builder ?? false,
   })
 
-  registerCatalogueTool(server, {
-    stepRegistry,
-    widgetRegistry,
-    appConfigs,
-    toolName: options.app.catalogueToolName,
-  })
+  // The visual builder platform is opt-in: the catalogue (its data source)
+  // and the dashboard CRUD tools (its persistence) are registered together
+  // only when `app.builder` is true. Lean servers leave it off so render-view
+  // / the widget core stay the entire surface. See the `app.builder` TSDoc.
+  if (options.app.builder) {
+    registerCatalogueTool(server, {
+      stepRegistry,
+      widgetRegistry,
+      appConfigs,
+      toolName: options.app.catalogueToolName,
+    })
 
-  const dashboardStore = options.app.dashboardStore ?? createInMemoryDashboardStore()
-  registerDashboardTools(server, { store: dashboardStore })
+    const dashboardStore = options.app.dashboardStore ?? createInMemoryDashboardStore()
+    registerDashboardTools(server, { store: dashboardStore, widgetRegistry })
+  }
 
   return server
 }

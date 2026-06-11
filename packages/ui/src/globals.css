@@ -40,6 +40,18 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  /* Semantic status tones — the token surface behind ToneVariant/TONE_* maps.
+     Each tone exposes a readable foreground (`text-danger`) and a tinted
+     surface (`bg-danger-soft`); both carry light + dark values so tone-based
+     components (Pills, KpiGrid, WidgetHeader, FilterBar) re-theme automatically. */
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -82,6 +94,17 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Semantic status tones (light). Foreground = readable on a card; *-soft =
+     a tinted surface for badges/dots/icon tiles. Neutral tone reuses the
+     muted ramp and needs no dedicated token. */
+  --danger: oklch(0.55 0.21 27.3);
+  --danger-soft: oklch(0.95 0.04 27.3);
+  --warning: oklch(0.62 0.16 70);
+  --warning-soft: oklch(0.95 0.05 80);
+  --success: oklch(0.58 0.15 152);
+  --success-soft: oklch(0.95 0.05 152);
+  --info: oklch(0.55 0.2 255);
+  --info-soft: oklch(0.95 0.04 255);
 }
 
 .dark {
@@ -116,6 +139,16 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* Semantic status tones (dark). Brighter foregrounds for contrast on the
+     dark surface; *-soft is a low-alpha tint of the same hue. */
+  --danger: oklch(0.7 0.19 22.2);
+  --danger-soft: oklch(0.7 0.19 22.2 / 18%);
+  --warning: oklch(0.78 0.15 75);
+  --warning-soft: oklch(0.78 0.15 75 / 18%);
+  --success: oklch(0.72 0.17 152);
+  --success-soft: oklch(0.72 0.17 152 / 18%);
+  --info: oklch(0.7 0.16 255);
+  --info-soft: oklch(0.7 0.16 255 / 18%);
 }
 
 * {

@@ -4,13 +4,16 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 
 1. **Upstream proxies** — federate external MCPs under a `<proxy>_` prefix.
 2. **App plugins** — register domain tools, widget tools, pipeline steps, widgets.
-3. **Framework tools** — LLM-facing: `get-framework-manifest`,
-   `render-view`, plus the `save-/list-/load-/delete-dashboard` CRUD
-   quartet backed by a pluggable `DashboardStore`. App-only (iframe
-   internal, never in LLM `tools/list`): `refresh-view`,
-   `read-widget-bundle` (streams upstream-hosted widget JS to the
-   browser), `get-builder-catalogue` (powers the in-iframe builder).
-   Plus the `mcp-app-html` widget bundle resource.
+3. **Framework tools** — always-on: LLM-facing `get-framework-manifest`
+   and `render-view`; app-only (iframe internal, never in LLM
+   `tools/list`) `refresh-view` and `read-widget-bundle` (streams
+   upstream-hosted widget JS to the browser). Plus the `mcp-app-html`
+   widget bundle resource. **Opt-in** (only when `app.builder === true`,
+   default off): the `save-/list-/load-/delete-dashboard` CRUD quartet
+   backed by a pluggable `DashboardStore`, plus the app-only
+   `get-builder-catalogue` that powers the in-iframe builder. Lean
+   servers leave the builder off so `render-view` + the widget core stay
+   the entire framework surface.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -22,10 +25,12 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 │  ┌──────────────┐  ┌──────────────────────────────────────────────┐  │
 │  │ middleware   │  │ tools                                        │  │
 │  │  org-gate    │  │  get-framework-manifest · render-view        │  │
-│  │  role-filter │  │  save-/list-/load-/delete-dashboard          │  │
-│  └──────────────┘  │  <plugin>_* · <proxy>_*                      │  │
-│                    │  (app-only) refresh-view · read-widget-      │  │
-│                    │  bundle · get-builder-catalogue              │  │
+│  │  role-filter │  │  <plugin>_* · <proxy>_*                      │  │
+│  └──────────────┘  │  (app-only) refresh-view · read-widget-      │  │
+│                    │  bundle                                      │  │
+│                    │  (opt-in, app.builder) save-/list-/load-/    │  │
+│                    │  delete-dashboard · (app-only) get-builder-  │  │
+│                    │  catalogue                                   │  │
 │                    └──────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────────┐    │
 │  │ resources: ui://<app>/mcp-app.html (widget bundle)           │    │

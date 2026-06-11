@@ -7,7 +7,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../primitives/tabs.js"
 
 export type WidgetComponent = ComponentType<WidgetProps>
 
-class WidgetErrorBoundary extends Component<
+/**
+ * Catches render-time crashes from a single widget so one broken widget
+ * can't take down the entire iframe view (or the builder canvas/preview).
+ *
+ * Exported so the visual builder's canvas + preview render sites reuse the
+ * same isolation the rendered `WidgetRenderer` already had — every place a
+ * widget component is rendered goes through {@link RenderedWidget}, which
+ * wraps the component in this boundary.
+ */
+export class WidgetErrorBoundary extends Component<
   { widgetId: string; children: ReactNode },
   { error: Error | null }
 > {
@@ -30,6 +39,70 @@ class WidgetErrorBoundary extends Component<
     }
     return this.props.children
   }
+}
+
+/**
+ * True when the pipeline context carries no widget data at all — no step
+ * results and no keys. A widget rendered against an empty context typically
+ * paints an empty shell (Finding [4]); callers use this to swap in a
+ * "data appears after refresh" hint instead.
+ *
+ * Intentionally coarse (per-view, not per-widget): the toolkit can't know
+ * which slice each widget reads without running its adapter, so it only
+ * degrades when there is provably nothing for any widget to show.
+ */
+export function contextHasNoData(context: PipelineContext): boolean {
+  return Object.keys(context.steps).length === 0 && Object.keys(context.keys).length === 0
+}
+
+/**
+ * The single render site for a layout cell's widget, shared across the
+ * rendered view (`RowsRenderer`), the builder canvas, and the builder
+ * preview so all three isolate crashes identically:
+ *   - missing component → "not bundled" fallback,
+ *   - render crash → caught by {@link WidgetErrorBoundary} (Finding [1]),
+ *   - (builder only, opt-in) empty pipeline context → a dezent
+ *     "no data yet" hint (Finding [4]).
+ *
+ * The empty-state hint is gated behind `showEmptyHint` and defaults off so
+ * the shipped rendered view is unchanged: self-fetching control widgets
+ * there render correctly against an empty key-only context. The builder's
+ * canvas/preview opt in because their live context is empty until the first
+ * catalogue refresh resolves, and an empty widget shell reads as broken.
+ *
+ * `notBundledClassName` lets each surface match its own chrome (the builder
+ * uses denser padding/text than the rendered view).
+ */
+export function RenderedWidget({
+  widget: Widget,
+  widgetId,
+  props,
+  cellProps,
+  showEmptyHint = false,
+  notBundledClassName = "text-muted-foreground rounded border border-dashed p-4 text-center text-xs",
+}: {
+  widget: WidgetComponent | undefined
+  widgetId: string
+  props: WidgetProps
+  cellProps?: Record<string, unknown>
+  showEmptyHint?: boolean
+  notBundledClassName?: string
+}) {
+  if (!Widget) {
+    return <div className={notBundledClassName}>Widget "{widgetId}" not bundled.</div>
+  }
+  if (showEmptyHint && contextHasNoData(props.context)) {
+    return (
+      <div className={notBundledClassName}>
+        No data for this widget yet — it appears after a refresh.
+      </div>
+    )
+  }
+  return (
+    <WidgetErrorBoundary widgetId={widgetId}>
+      <Widget {...props} widgetProps={cellProps} />
+    </WidgetErrorBoundary>
+  )
 }
 
 export interface WidgetRendererProps {
@@ -64,15 +137,22 @@ function RowsRenderer({
         <GridLayout key={rowIdx}>
           {row.row.map((cell, cellIdx) => {
             const WidgetComponent = widgets[cell.widget]
+            // Keep the rendered view's original behaviour of skipping cells
+            // whose component isn't bundled (no placeholder in the shipped
+            // view), while still routing the resolvable ones through the
+            // shared `RenderedWidget` for error-boundary + empty-state.
             if (!WidgetComponent) return null
             // Use a composite key so the same widget can appear in multiple
             // cells of one row (e.g. side-by-side scoped dashboards) without
             // colliding on React's reconciliation key.
             return (
               <GridItem key={`${cell.widget}-${cellIdx}`} span={cell.span ?? 12}>
-                <WidgetErrorBoundary widgetId={cell.widget}>
-                  <WidgetComponent {...props} widgetProps={cell.props} />
-                </WidgetErrorBoundary>
+                <RenderedWidget
+                  widget={WidgetComponent}
+                  widgetId={cell.widget}
+                  props={props}
+                  cellProps={cell.props}
+                />
               </GridItem>
             )
           })}

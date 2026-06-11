@@ -16,8 +16,13 @@ export type {
   AppConfig,
   AppConfigEntry,
   ValidationResult,
+  ViewStructuredContent,
+  StepDataEntry,
+  RefreshParams,
 } from "./types/index.js"
 export { isRemoteWidget } from "./types/index.js"
+export { APP_ONLY_META, uiMeta } from "./types/index.js"
+export type { UiMetaOptions } from "./types/index.js"
 
 export { executePipeline } from "./engine/pipeline-executor.js"
 export type {
@@ -36,6 +41,19 @@ export type {
   RenderViewOptions,
   RemoteWidgetInfo,
 } from "./framework/render-view.js"
+export {
+  buildSingleWidgetView,
+  buildComposedView,
+  deriveItemCount,
+  defaultSummary,
+  collectLayoutWidgets,
+} from "./framework/view-builders.js"
+export type {
+  SingleWidgetViewInput,
+  ComposedViewInput,
+  ComposedViewEntry,
+  ViewToolResult,
+} from "./framework/view-builders.js"
 export { getBuilderCatalogue } from "./framework/catalogue.js"
 export type {
   CatalogueInput,
@@ -48,7 +66,10 @@ export type {
 } from "./framework/catalogue.js"
 // Dashboard store *implementations* live in the `./tools` subpath because
 // the filesystem impl imports `node:fs`. Types are safe to re-export here
-// for consumers typing their own stores.
+// for consumers typing their own stores; runtime values
+// (`DashboardOwnershipError`, `resolveSavedRecord`) are NOT, since importing
+// them pulls the whole module — including its `node:fs` import — into the
+// browser graph. They're exported from the `./tools` subpath instead.
 export type {
   DashboardStore,
   DashboardRecord,
@@ -63,7 +84,8 @@ export { normalizeLayout } from "./framework/layout-types.js"
 export type { LayoutConfig, RowDef } from "./framework/layout-types.js"
 export { layoutSchema, rowSchema } from "./framework/layout-schemas.js"
 
-export { resolveActiveModules } from "./framework/active-modules.js"
+export { resolveActiveModules, parseActiveModules } from "./framework/active-modules.js"
+export type { ActiveModuleSelection } from "./framework/active-modules.js"
 export { buildProxyAppConfigs } from "./proxy/build-proxy-app-configs.js"
 
 export { buildStepFromDeclaration, dotPath } from "./pipeline/declarative-step.js"
@@ -75,7 +97,12 @@ export { synthesizeModulePlugin } from "./module-loader/synthesize-plugin.js"
 export { createOrgGateMiddleware } from "./middleware/org-gate.js"
 export type { OrgGateMiddleware } from "./middleware/org-gate.js"
 export { createRoleFilterMiddleware } from "./middleware/role-filter.js"
-export type { RoleFilterMiddleware, RoleFilterMiddlewares } from "./middleware/role-filter.js"
+export type {
+  RoleFilterMiddleware,
+  RoleFilterMiddlewares,
+  RoleFilterOptions,
+  RoleFilterContext,
+} from "./middleware/role-filter.js"
 
 // NOTE: Tool registrars (`createToolRegistrar`, `createWidgetToolRegistrar`)
 // live in the `./tools` subpath export because they import from

@@ -148,7 +148,7 @@ await createFrameworkApp({
 ## Verify end-to-end
 
 ```sh
-cd vendor/mcp-toolkit
+# from the repository root
 pnpm --filter @miragon/mcp-toolkit-examples dev:articles-upstream  # term 1
 pnpm --filter @miragon/mcp-toolkit-examples dev:host               # term 2
 # tools/call render-view with the shape in examples/layouts/articles-layout.yaml

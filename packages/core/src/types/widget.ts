@@ -7,8 +7,8 @@ export interface WidgetProps {
    * Per-instance props supplied by the layout cell (`row[].props`). Lets the
    * same widget render multiple times in one view with different scoping
    * (e.g. `{ processDefinitionKey: "miraveloLeasing" }` for a per-process tab).
-   * Adapters (see `adaptDataWidget`) forward these as named props onto the
-   * underlying single-data widget.
+   * Adapters (see `adaptDataWidget` in `packages/ui/src/app/adapt-data-widget.tsx`)
+   * forward these as named props onto the underlying single-data widget.
    */
   widgetProps?: Record<string, unknown>
 }
@@ -35,8 +35,9 @@ interface WidgetDefinitionBase {
   requires: string[]
   /**
    * Step `dataType`s the widget can consume. Surfaces the widget→step binding
-   * (which lives implicitly inside `adaptDataWidget(Widget, dataType)`) so the
-   * manifest tells an LLM exactly which steps populate this widget. Empty or
+   * (which lives implicitly inside `adaptDataWidget(Widget, dataType)` in
+   * `packages/ui/src/app/adapt-data-widget.tsx`) so the manifest tells an LLM
+   * exactly which steps populate this widget. Empty or
    * omitted for widgets that don't read pipeline data (e.g. interactive
    * controls that drive their own fetches via `useToolQuery`).
    */
