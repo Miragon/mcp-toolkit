@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: release-please-${{ github.ref }}
-  cancel-in-progress: false 
+  cancel-in-progress: false # never interrupt an in-flight release
 
 jobs:
   release-please:
