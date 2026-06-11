@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.5.0](https://github.com/Miragon/mcp-toolkit/compare/v0.4.0...v0.5.0) (2026-06-11)
+
+
+### Features
+
+* **core:** add BackendRegistry.getSelected() session-selection reader ([#60](https://github.com/Miragon/mcp-toolkit/issues/60)) ([8222cc3](https://github.com/Miragon/mcp-toolkit/commit/8222cc366dbffdaa11d385ac9e450ead581a9c3f))
+
+
+### Bug Fixes
+
+* **ci:** use org-wide RELEASE_PLEASE_APP_* var and secret names ([#61](https://github.com/Miragon/mcp-toolkit/issues/61)) ([4564ad0](https://github.com/Miragon/mcp-toolkit/commit/4564ad093bf4b210408007197a2086d9ab9f3165))
+
 ## [0.4.0](https://github.com/Miragon/mcp-toolkit/compare/v0.3.1...v0.4.0) (2026-06-11)
 
 
