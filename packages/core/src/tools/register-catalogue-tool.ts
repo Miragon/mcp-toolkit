@@ -34,6 +34,10 @@ function extractUserId(ctx: unknown): string | undefined {
  * source. App-only (`visibility: ["app"]`), so it never appears in the
  * LLM's `tools/list`. The LayoutBuilder calls it on mount and on each
  * keys/steps edit; the LLM uses `render-view` for its own work.
+ *
+ * Registered by `createFrameworkApp` only when `app.builder` is `true` —
+ * the visual builder platform is opt-in (lean by default). When the builder
+ * is off this tool is absent and the `McpAppView` hides its Build affordance.
  */
 export function registerCatalogueTool(
   server: MCPServer,

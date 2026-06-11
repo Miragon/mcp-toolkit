@@ -78,7 +78,17 @@ export async function executePipeline(options: ExecutePipelineOptions): Promise<
       const output = await stepDef.execute(context, appConfig)
       const result = { ...output, _dataType: stepDef.dataType }
       context.steps[ref.id] = result
-      Object.assign(context.keys, result.keys)
+      // Merge produced keys, but skip `undefined` values. The downstream
+      // `requires` gate below tests `key in context.keys`, so writing an
+      // `undefined` (e.g. an `outputMapping` dot-path that resolved to nothing
+      // because the upstream tool returned an unexpected shape) would make the
+      // key look "present" and let a dependent step run against missing data.
+      // Dropping undefineds keeps the gate honest — the dependent step is
+      // skipped (optional) or reported as missing-keys instead of silently
+      // executing with `undefined` inputs.
+      for (const [key, value] of Object.entries(result.keys)) {
+        if (value !== undefined) context.keys[key] = value
+      }
     } catch (err) {
       if (ref.optional) continue
       context.errors.push({

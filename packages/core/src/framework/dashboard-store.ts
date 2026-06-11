@@ -5,6 +5,14 @@ import type { PipelineStepRef } from "../types/pipeline.js"
 import type { LayoutConfig } from "./layout-types.js"
 
 /**
+ * Current on-disk schema version stamped onto every saved record. Bump this
+ * whenever the persisted shape changes in a way a loader would need to
+ * migrate. Records persisted before versioning carry no `schemaVersion`
+ * (treated as the implicit version 0).
+ */
+export const DASHBOARD_SCHEMA_VERSION = 1
+
+/**
  * Persisted dashboard = full `render-view` input plus identity and
  * ownership metadata. The server generates `id`, `createdAt`, `updatedAt`;
  * `userId` is copied from `ctx.auth.user.userId` on save when present.
@@ -19,6 +27,12 @@ export interface DashboardRecord {
   steps?: PipelineStepRef[]
   layout: LayoutConfig
   title?: string
+  /**
+   * On-disk schema version, set to {@link DASHBOARD_SCHEMA_VERSION} on every
+   * save. Optional so records written before versioning still type-check;
+   * loaders treat its absence as version 0.
+   */
+  schemaVersion?: number
   createdAt: string
   updatedAt: string
 }
@@ -126,6 +140,7 @@ export function resolveSavedRecord(
     ...stripUndefined(input),
     id: existing.id,
     userId: existing.userId,
+    schemaVersion: DASHBOARD_SCHEMA_VERSION,
     createdAt: existing.createdAt,
     updatedAt: now,
   }
@@ -156,6 +171,7 @@ export function createInMemoryDashboardStore(): DashboardStore {
           steps: input.steps,
           layout: input.layout,
           title: input.title,
+          schemaVersion: DASHBOARD_SCHEMA_VERSION,
           createdAt: now,
           updatedAt: now,
         }
@@ -243,6 +259,7 @@ export function createFileSystemDashboardStore(
         steps: input.steps,
         layout: input.layout,
         title: input.title,
+        schemaVersion: DASHBOARD_SCHEMA_VERSION,
         createdAt: now,
         updatedAt: now,
       }

@@ -59,4 +59,14 @@ export interface ViewStructuredContent {
   }
   layout: LayoutConfig
   remoteWidgets?: Record<string, { bundle: string; moduleId: string }>
+  /**
+   * Whether the in-iframe visual builder is actually usable on this server —
+   * i.e. `app.builder` is enabled and the app-only `get-builder-catalogue`
+   * tool is registered. `render-view` derives it from `createFrameworkApp`'s
+   * `app.builder` and the `McpAppView` shell gates its Build/edit affordance
+   * on it, so the button never appears against a server that can't service it.
+   * Absent on payloads from the eager view builders (which don't run the
+   * builder platform).
+   */
+  builderAvailable?: boolean
 }

@@ -54,6 +54,13 @@ interface ViewData {
   }
   layout?: LayoutConfig
   remoteWidgets?: Record<string, RemoteWidgetInfo>
+  /**
+   * Whether the server's in-iframe builder platform is usable (set by
+   * `render-view` from `createFrameworkApp`'s `app.builder`). The shell gates
+   * its Build affordance on this so the edit button never appears against a
+   * server whose `get-builder-catalogue` tool isn't registered.
+   */
+  builderAvailable?: boolean
 }
 
 export interface McpAppViewProps {
@@ -86,6 +93,18 @@ export interface McpAppViewProps {
    */
   remoteBundleToolName?: string
   /**
+   * Explicit override for the Build / edit (Pencil) affordance. Leave it
+   * `undefined` (the default) to let the shell follow the server's own
+   * signal — `render-view` reports `structuredContent.builderAvailable`,
+   * derived from `createFrameworkApp`'s `app.builder`, so the button appears
+   * only when the `get-builder-catalogue` tool is actually registered. Set it
+   * to `true` / `false` only to force the affordance on or off regardless of
+   * that signal (e.g. a custom server that registers the catalogue tool by
+   * hand). Even when forced on, the LayoutBuilder's catalogue fetch fails
+   * soft (no crash) if the tool is absent.
+   */
+  builderEnabled?: boolean
+  /**
    * Override UI strings (loading, refresh, fullscreen, build).
    * Defaults to English.
    */
@@ -97,6 +116,7 @@ export function McpAppView({
   widgetLoader,
   refreshToolName = "refresh-view",
   remoteBundleToolName = "read-widget-bundle",
+  builderEnabled,
   labels,
 }: McpAppViewProps) {
   const effectiveLabels = { ...DEFAULT_LABELS, ...labels }
@@ -123,6 +143,15 @@ export function McpAppView({
   // catalogue, the user toggles into build by clicking the toolbar button.
   const [buildMode, setBuildMode] = useState(false)
 
+  // Full remote-widget palette for build mode. `render-view` only advertises
+  // the upstream-hosted widgets the layout references (see
+  // `viewData.remoteWidgets`), so when the user enters build mode the
+  // LayoutBuilder reports the catalogue's complete palette via `onCatalogue`
+  // and we merge it in for pre-loading.
+  const [cataloguedRemoteWidgets, setCataloguedRemoteWidgets] = useState<
+    Record<string, RemoteWidgetInfo>
+  >({})
+
   // Sync host-provided initialViewData → local viewData via render-phase
   // setState (rather than an effect) so the React Compiler doesn't flag a
   // cascading render. The guard against transient empty toolOutput stays:
@@ -144,16 +173,24 @@ export function McpAppView({
   // Build mode preloads *every* upstream-hosted widget so the palette can
   // render real widgets immediately when the user drops them onto the
   // canvas — without a per-click fetch delay.
+  // The remote-widget manifest the loader resolves bundles against: the
+  // layout-referenced widgets from `render-view`, plus (in build mode) the
+  // full catalogue palette so dropping any upstream widget renders instantly.
+  const remoteWidgetManifest = useMemo<Record<string, RemoteWidgetInfo>>(() => {
+    if (!buildMode) return viewData?.remoteWidgets ?? {}
+    return { ...cataloguedRemoteWidgets, ...viewData?.remoteWidgets }
+  }, [buildMode, viewData, cataloguedRemoteWidgets])
+
   const widgetIdsInLayout = useMemo<string[]>(() => {
     const ids = new Set<string>()
     if (viewData?.layout) {
       for (const id of collectLayoutWidgetIds(viewData.layout)) ids.add(id)
     }
-    if (buildMode && viewData?.remoteWidgets) {
-      for (const id of Object.keys(viewData.remoteWidgets)) ids.add(id)
+    if (buildMode) {
+      for (const id of Object.keys(remoteWidgetManifest)) ids.add(id)
     }
     return [...ids]
-  }, [viewData, buildMode])
+  }, [viewData, buildMode, remoteWidgetManifest])
 
   // Default to the toolkit's built-in `read-widget-bundle` tool so consumers
   // don't have to hand-wire a loader for standard upstream-hosted modules.
@@ -174,8 +211,7 @@ export function McpAppView({
   }, [widgetLoader, callTool, remoteBundleToolName])
 
   useEffect(() => {
-    if (!viewData?.remoteWidgets) return
-    const manifest = viewData.remoteWidgets
+    const manifest = remoteWidgetManifest
     const missing = widgetIdsInLayout.filter(
       (id) => !widgets[id] && !remoteWidgets[id] && manifest[id],
     )
@@ -197,7 +233,7 @@ export function McpAppView({
     return () => {
       cancelled = true
     }
-  }, [effectiveWidgetLoader, viewData?.remoteWidgets, widgetIdsInLayout, widgets, remoteWidgets])
+  }, [effectiveWidgetLoader, remoteWidgetManifest, widgetIdsInLayout, widgets, remoteWidgets])
 
   const mergedWidgets = useMemo(() => ({ ...widgets, ...remoteWidgets }), [widgets, remoteWidgets])
 
@@ -287,6 +323,12 @@ export function McpAppView({
 
   const showHeader = !buildMode
 
+  // Follow the server's own signal by default: render-view reports
+  // `builderAvailable` (derived from `app.builder`), so the Build button only
+  // shows when the catalogue/dashboard tools are actually registered. An
+  // explicit `builderEnabled` prop forces the affordance on or off.
+  const builderAvailable = builderEnabled ?? viewData.builderAvailable ?? false
+
   return (
     <main
       style={{
@@ -324,7 +366,7 @@ export function McpAppView({
                 {isRefreshing ? effectiveLabels.refreshing : effectiveLabels.refresh}
               </button>
             )}
-            {viewData._refreshParams && (
+            {builderAvailable && viewData._refreshParams && (
               <button
                 onClick={() => setBuildMode(true)}
                 className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
@@ -374,6 +416,7 @@ export function McpAppView({
             initialSteps={viewData._refreshParams?.steps}
             widgets={mergedWidgets}
             callTool={callToolFn}
+            onCatalogue={setCataloguedRemoteWidgets}
             onExit={exitBuildMode}
           />
         ) : viewData.layout ? (

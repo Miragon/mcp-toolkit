@@ -9,12 +9,12 @@ export default defineConfig({
   lastUpdated: true,
 
   // Relative links inside the docs work fine.
-  // Links from docs into ../examples/... or ../../packages/... point at
-  // repo-local source files that aren't part of the VitePress routing tree
-  // (they exist on disk but the site doesn't render them). Tell VitePress to
+  // Links from docs into ../examples/..., ../../packages/..., or ../../.claude/...
+  // point at repo-local source files that aren't part of the VitePress routing
+  // tree (they exist on disk but the site doesn't render them). Tell VitePress to
   // leave them alone — they resolve correctly when the docs are read on
   // GitHub or via the file system.
-  ignoreDeadLinks: [/(?:^|\/)examples\//, /(?:^|\/)packages\//],
+  ignoreDeadLinks: [/(?:^|\/)examples\//, /(?:^|\/)packages\//, /(?:^|\/)\.claude\//],
 
   themeConfig: {
     siteTitle: "mcp-toolkit",
@@ -22,7 +22,7 @@ export default defineConfig({
       { text: "Getting Started", link: "/getting-started" },
       { text: "Concepts", link: "/concepts/architecture" },
       { text: "Guides", link: "/guides/building-a-ui-only-module" },
-      { text: "Reference", link: "/reference/api-core" },
+      { text: "Reference", link: "/reference/components" },
       { text: "Recipes", link: "/recipes/adding-an-oauth2-upstream" },
     ],
 
@@ -36,9 +36,11 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: "Architecture", link: "/concepts/architecture" },
+          { text: "Layered adoption", link: "/concepts/layered-adoption" },
           { text: "App plugins", link: "/concepts/app-plugins" },
           { text: "Pipelines & steps", link: "/concepts/pipelines-and-steps" },
           { text: "Widgets", link: "/concepts/widgets" },
+          { text: "Host portability", link: "/concepts/host-portability" },
           { text: "View builder", link: "/concepts/view-builder" },
           { text: "Upstream proxies", link: "/concepts/upstream-proxies" },
           { text: "Middleware", link: "/concepts/middleware" },
@@ -50,7 +52,12 @@ export default defineConfig({
         items: [
           { text: "Building a full module", link: "/guides/building-a-full-module" },
           { text: "Building a UI-only module", link: "/guides/building-a-ui-only-module" },
+          {
+            text: "Developing widgets in isolation",
+            link: "/guides/developing-widgets-in-isolation",
+          },
           { text: "Building dashboards", link: "/guides/building-dashboards" },
+          { text: "White-labeling", link: "/guides/white-labeling" },
           { text: "Layout & rendering", link: "/guides/layout-and-rendering" },
           { text: "Using tool-codegen", link: "/guides/using-tool-codegen" },
           { text: "Typed callTool in steps", link: "/guides/typed-call-tool-in-steps" },
@@ -63,6 +70,7 @@ export default defineConfig({
         text: "Reference",
         collapsed: false,
         items: [
+          { text: "Component reference", link: "/reference/components" },
           { text: "@miragon/mcp-toolkit-core", link: "/reference/api-core" },
           { text: "@miragon/mcp-toolkit-ui", link: "/reference/api-ui" },
           {

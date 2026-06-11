@@ -123,6 +123,24 @@ describe("getBuilderCatalogue", () => {
 
     expect(result.content[0]?.text).toMatch(/Pipeline issues:/)
     expect(result.structuredContent.reachableWidgets).toEqual([])
+    // The fail-soft issues are also exposed structurally so the builder can
+    // warn the user before they commit (render-view would fail hard on these).
+    expect(result.structuredContent.validationIssues.length).toBeGreaterThan(0)
+    expect(result.structuredContent.validationIssues.join(" ")).toContain("sales:customerId")
+  })
+
+  it("reports no validationIssues when the pipeline resolves cleanly", async () => {
+    const stepRegistry = new StepRegistry()
+    const widgetRegistry = new WidgetRegistry()
+    widgetRegistry.register({ id: "sales:order-card", requires: ["sales:orderId"], size: "half" })
+
+    const result = await getBuilderCatalogue({
+      input: { keys: { "sales:orderId": "ORD-1" } },
+      stepRegistry,
+      widgetRegistry,
+    })
+
+    expect(result.structuredContent.validationIssues).toEqual([])
   })
 
   it("propagates a widget's propsSchema onto reachable + unreachable entries", async () => {

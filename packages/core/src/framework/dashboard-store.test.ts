@@ -6,6 +6,7 @@ import {
   createFileSystemDashboardStore,
   createInMemoryDashboardStore,
   DashboardOwnershipError,
+  DASHBOARD_SCHEMA_VERSION,
   resolveSavedRecord,
   type DashboardRecord,
   type DashboardStore,
@@ -43,6 +44,16 @@ function runSharedStoreTests(
 
       const list = await store.list({})
       expect(list.map((i) => i.id)).toContain(saved.id)
+    })
+
+    it("stamps the current schemaVersion on create and on update", async () => {
+      const saved = await store.save({ name: "Versioned", layout: { rows: [] } })
+      expect(saved.schemaVersion).toBe(DASHBOARD_SCHEMA_VERSION)
+      const reloaded = await store.get(saved.id, {})
+      expect(reloaded?.schemaVersion).toBe(DASHBOARD_SCHEMA_VERSION)
+
+      const updated = await store.save({ id: saved.id, name: "Versioned v2", layout: { rows: [] } })
+      expect(updated.schemaVersion).toBe(DASHBOARD_SCHEMA_VERSION)
     })
 
     it("updates an existing record when an id is supplied", async () => {
@@ -179,6 +190,7 @@ describe("resolveSavedRecord", () => {
       id: "d1",
       name: "Updated",
       userId: "alice",
+      schemaVersion: DASHBOARD_SCHEMA_VERSION,
       createdAt: existing.createdAt,
       updatedAt: now,
     })

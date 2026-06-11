@@ -1,10 +1,20 @@
 import { type MCPServer, object } from "mcp-use/server"
 import { z } from "zod"
 import type { DashboardStore } from "../framework/dashboard-store.js"
+import { collectLayoutWidgets } from "../framework/view-builders.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
+import type { WidgetRegistry } from "../registry/widget-registry.js"
 
 export interface RegisterDashboardToolsOptions {
   store: DashboardStore
+  /**
+   * Optional widget registry used by `save-dashboard` to warn (never reject)
+   * when a layout references widget ids the server doesn't know about. Remote
+   * widgets contributed by upstream modules may legitimately be absent from
+   * this registry, so unknown ids are surfaced as a non-fatal warning rather
+   * than a hard validation failure. Omit to skip the check entirely.
+   */
+  widgetRegistry?: WidgetRegistry
 }
 
 const stepRefSchema = z.object({
@@ -46,12 +56,17 @@ function extractUserId(ctx: unknown): string | undefined {
  * bundle — `structuredContent` alone is "not added to model context" per
  * MCP. The `{ keys, steps, layout, title }` fields can be piped straight
  * into `render-view` — the "aufrufbares Dashboard" loop the plan targets.
+ *
+ * Registered by `createFrameworkApp` only when `app.builder` is `true` —
+ * dashboard persistence is part of the opt-in visual builder platform
+ * (lean by default). With the builder off, none of these tools exist and
+ * the `app.dashboardStore` option has no effect.
  */
 export function registerDashboardTools(
   server: MCPServer,
   options: RegisterDashboardToolsOptions,
 ): void {
-  const { store } = options
+  const { store, widgetRegistry } = options
 
   server.tool(
     {
@@ -62,6 +77,14 @@ export function registerDashboardTools(
       schema: saveSchema,
     },
     async (params, ctx) => {
+      // Warn (never reject) on unknown widget ids: a layout may reference a
+      // remote widget contributed by an upstream module that this registry
+      // doesn't list, so a hard rejection would block legitimate saves. The
+      // unknown ids surface in the text summary so the user can spot a typo.
+      const unknownWidgets = widgetRegistry
+        ? [...new Set(collectLayoutWidgets(params.layout))].filter((id) => !widgetRegistry.get(id))
+        : []
+
       const record = await store.save({
         id: params.id,
         name: params.name,
@@ -72,12 +95,22 @@ export function registerDashboardTools(
         layout: params.layout,
         title: params.title,
       })
-      return object({
-        id: record.id,
-        name: record.name,
-        createdAt: record.createdAt,
-        updatedAt: record.updatedAt,
-      })
+      const summaryLines = [
+        `Saved dashboard "${record.name}" (${record.id}).`,
+        unknownWidgets.length > 0
+          ? `Warning: layout references widget ids not registered on this server: ${unknownWidgets.join(", ")}. They will only render if served by an upstream module at view time.`
+          : "",
+      ].filter(Boolean)
+      return {
+        content: [{ type: "text" as const, text: summaryLines.join("\n") }],
+        structuredContent: {
+          id: record.id,
+          name: record.name,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+          ...(unknownWidgets.length > 0 ? { unknownWidgets } : {}),
+        },
+      }
     },
   )
 
@@ -109,6 +142,24 @@ export function registerDashboardTools(
       if (!record) {
         return {
           content: [{ type: "text" as const, text: `Dashboard "${id}" not found.` }],
+          isError: true,
+        }
+      }
+      // Validate the persisted layout before handing it back: a corrupted
+      // store file could otherwise feed a malformed layout straight into
+      // `render-view` (and the model). Surface a clear error instead of
+      // silently forwarding garbage.
+      const parsed = layoutSchema.safeParse(record.layout)
+      if (!parsed.success) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Dashboard "${id}" has an invalid layout and cannot be loaded: ${parsed.error.issues
+                .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
+                .join("; ")}`,
+            },
+          ],
           isError: true,
         }
       }

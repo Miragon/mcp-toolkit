@@ -64,16 +64,42 @@ export interface CreateFrameworkAppOptionsBase {
     /** Override the refresh tool name (default: `refresh-view`). */
     refreshToolName?: string
     /**
+     * Opt-in switch for the visual in-iframe builder platform and dashboard
+     * persistence. **Defaults to `false` (lean by default).**
+     *
+     * Widget rendering always works regardless of this flag:
+     * `get-framework-manifest`, `render-view`, and `refresh-view` (plus the
+     * `mcp-app.html` resource) are registered unconditionally — that is the
+     * core surface every MCP server gets.
+     *
+     * Setting `builder: true` additionally registers:
+     *   - `get-builder-catalogue` — the app-only data source the in-iframe
+     *     LayoutBuilder calls to populate its palette / key catalogue, and
+     *   - `save-dashboard` / `list-dashboards` / `load-dashboard` /
+     *     `delete-dashboard` — dashboard CRUD persistence.
+     *
+     * These belong together: the visual builder reads the catalogue and saves
+     * its results as dashboards. Most lean MCP servers don't need either and
+     * should leave this off so the builder/dashboard tools never get forced
+     * onto their tool surface. The `McpAppView`'s Build/edit affordance hides
+     * itself when the catalogue tool isn't present, so the iframe UI degrades
+     * gracefully when `builder` is `false`.
+     */
+    builder?: boolean
+    /**
      * Override the catalogue tool name (default: `get-builder-catalogue`).
      * The catalogue tool is app-only — it powers the in-iframe builder
-     * and never appears in the LLM's tool surface.
+     * and never appears in the LLM's tool surface. Only relevant when
+     * {@link builder} is `true`; ignored otherwise.
      */
     catalogueToolName?: string
     /**
      * Persistence backing for `save-dashboard` / `list-dashboards` /
      * `load-dashboard` / `delete-dashboard`. Defaults to an in-memory store
      * (process-local, lost on restart). Inject a filesystem or DB-backed
-     * store for real deployments.
+     * store for real deployments. Only relevant when {@link builder} is
+     * `true` — with `builder` off the dashboard tools aren't registered, so
+     * this option has no effect.
      */
     dashboardStore?: DashboardStore
   }
@@ -212,17 +238,27 @@ export async function createFrameworkApp(
     resourceUri,
     htmlPath: options.app.htmlPath,
     refreshToolName: options.app.refreshToolName,
+    // Advertise builder availability in the view payload so the iframe shell
+    // shows its Build affordance only when the catalogue/dashboard tools below
+    // are actually registered.
+    builderAvailable: options.app.builder ?? false,
   })
 
-  registerCatalogueTool(server, {
-    stepRegistry,
-    widgetRegistry,
-    appConfigs,
-    toolName: options.app.catalogueToolName,
-  })
+  // The visual builder platform is opt-in: the catalogue (its data source)
+  // and the dashboard CRUD tools (its persistence) are registered together
+  // only when `app.builder` is true. Lean servers leave it off so render-view
+  // / the widget core stay the entire surface. See the `app.builder` TSDoc.
+  if (options.app.builder) {
+    registerCatalogueTool(server, {
+      stepRegistry,
+      widgetRegistry,
+      appConfigs,
+      toolName: options.app.catalogueToolName,
+    })
 
-  const dashboardStore = options.app.dashboardStore ?? createInMemoryDashboardStore()
-  registerDashboardTools(server, { store: dashboardStore })
+    const dashboardStore = options.app.dashboardStore ?? createInMemoryDashboardStore()
+    registerDashboardTools(server, { store: dashboardStore, widgetRegistry })
+  }
 
   return server
 }

@@ -38,6 +38,15 @@ export interface RegisterFrameworkToolsOptions {
    * sync if you override.
    */
   refreshToolName?: string
+  /**
+   * Whether the in-iframe visual builder platform is enabled (i.e.
+   * `app.builder` is true and `get-builder-catalogue` is registered).
+   * Forwarded into every `render-view` / `refresh-view` payload as
+   * `structuredContent.builderAvailable` so the `McpAppView` shell only
+   * shows its Build affordance when the server can service it. Defaults to
+   * `false`.
+   */
+  builderAvailable?: boolean
 }
 
 const stepRefSchema = z.object({
@@ -91,6 +100,7 @@ export function registerFrameworkTools(
     resourceUri,
     htmlPath,
     refreshToolName = "refresh-view",
+    builderAvailable = false,
   } = options
 
   server.tool(
@@ -119,6 +129,7 @@ export function registerFrameworkTools(
       widgetRegistry,
       appConfigs,
       ctx: { userId: extractUserId(ctx) },
+      builderAvailable,
     })
   }
 

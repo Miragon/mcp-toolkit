@@ -158,6 +158,80 @@ describe("ModuleManifestSchema", () => {
     expect(result.success).toBe(false)
   })
 
+  it("rejects an outputMapping key that is not declared in produces", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      steps: [
+        {
+          ...validManifest.steps[0],
+          // `produces` only lists `items-ui:item`; the mapping writes a key the
+          // step never declared — a typo the contract must catch.
+          outputMapping: { "items-ui:itme": "result" },
+        },
+      ],
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) => issue.path.join(".") === "steps.0.outputMapping.items-ui:itme",
+        ),
+      ).toBe(true)
+    }
+  })
+
+  it("rejects an empty inputMapping dot-path", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      steps: [
+        {
+          ...validManifest.steps[0],
+          inputMapping: { id: "" },
+        },
+      ],
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path.join(".") === "steps.0.inputMapping.id"),
+      ).toBe(true)
+    }
+  })
+
+  it("rejects an empty outputMapping dot-path", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      steps: [
+        {
+          ...validManifest.steps[0],
+          outputMapping: { "items-ui:item": "" },
+        },
+      ],
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) => issue.path.join(".") === "steps.0.outputMapping.items-ui:item",
+        ),
+      ).toBe(true)
+    }
+  })
+
+  it("accepts a step whose outputMapping keys all live in produces", () => {
+    const result = ModuleManifestSchema.safeParse({
+      ...validManifest,
+      steps: [
+        {
+          ...validManifest.steps[0],
+          produces: ["items-ui:item", "items-ui:itemMeta"],
+          outputMapping: { "items-ui:item": "result", "items-ui:itemMeta": "meta" },
+        },
+      ],
+    })
+    expect(result.success).toBe(true)
+  })
+
   it("accepts an optional widget size hint", () => {
     const result = ModuleManifestSchema.safeParse({
       ...validManifest,

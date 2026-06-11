@@ -1,5 +1,5 @@
 import { useCallback } from "react"
-import { useWidget } from "mcp-use/react"
+import { useHostBridge } from "./host-bridge.js"
 
 export interface HostActions {
   /**
@@ -47,42 +47,41 @@ export function buildShowWidgetIntent(toolName: string, description: string): st
 }
 
 /**
- * Bridge-aware host actions for widgets. Replaces a raw `window.open`-based
- * helper (which was blocked in the MCP host iframe). Use `openLink` for
- * external URLs and `showWidget` to navigate to another tool's widget.
+ * Bridge-aware host actions for widgets. A thin, intent-named facade over
+ * {@link useHostBridge}: `openLink` → `bridge.openExternal`, and both
+ * `showWidget` and `askAi` → `bridge.sendFollowup` (kept as two affordances
+ * because they cross the UI→chat boundary for different reasons — see above).
+ *
+ * Relationship to {@link useHostBridge}: this hook resolves the active bridge
+ * through `useHostBridge()`, so it honours an explicit `HostBridgeProvider`
+ * (ChatGPT / standalone) when one is present, and otherwise falls back to the
+ * default `mcp-use` bridge — exactly the behaviour widgets had before the bridge
+ * abstraction existed, so no existing widget or test breaks. Prefer
+ * `useHostBridge` directly in new portable widgets; `useHostActions` stays for
+ * its named affordances and backward compatibility.
  */
 export function useHostActions(): HostActions {
-  const widget = useWidget()
-  const { openExternal, sendFollowUpMessage } = widget
+  const bridge = useHostBridge()
 
   const openLink = useCallback(
     (url: string) => {
-      try {
-        openExternal(url)
-      } catch {
-        // No host bridge (e.g. local dev preview) — fall back to window.open
-        window.open(url, "_blank", "noopener")
-      }
+      bridge.openExternal(url)
     },
-    [openExternal],
+    [bridge],
   )
 
   const showWidget = useCallback(
     (prompt: string) => {
-      void sendFollowUpMessage(prompt).catch((err: unknown) => {
-        console.warn("Failed to send follow-up message:", err)
-      })
+      bridge.sendFollowup(prompt)
     },
-    [sendFollowUpMessage],
+    [bridge],
   )
 
   const askAi = useCallback(
     (prompt: string) => {
-      void sendFollowUpMessage(prompt).catch((err: unknown) => {
-        console.warn("Failed to send follow-up message:", err)
-      })
+      bridge.sendFollowup(prompt)
     },
-    [sendFollowUpMessage],
+    [bridge],
   )
 
   return { openLink, showWidget, askAi }

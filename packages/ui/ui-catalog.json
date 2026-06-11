@@ -1,0 +1,1231 @@
+{
+  "$comment": "Machine-readable catalog of prompt-relevant @miragon/mcp-toolkit-ui building blocks. Hand-maintained, source of truth is packages/ui/src/. A Vitest drift-guard (src/ui-catalog.test.ts) asserts every `export` named here is actually exported from its `importPath` barrel, so this file cannot silently drift from the code. Consumed by the docs/reference/components.md page and the build-mcp-widget skill. `importPath` is one of: '@miragon/mcp-toolkit-ui' (root barrel, mcp-use/react-free), '@miragon/mcp-toolkit-ui/app' (MCP app shell, imports mcp-use/react), '@miragon/mcp-toolkit-ui/hooks' (view-tool hooks).",
+  "version": "0.3.1",
+  "importPaths": {
+    "root": "@miragon/mcp-toolkit-ui",
+    "app": "@miragon/mcp-toolkit-ui/app",
+    "hooks": "@miragon/mcp-toolkit-ui/hooks"
+  },
+  "components": [
+    {
+      "name": "Card",
+      "export": "Card",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "parts": [
+        "Card",
+        "CardHeader",
+        "CardFooter",
+        "CardTitle",
+        "CardAction",
+        "CardDescription",
+        "CardContent"
+      ],
+      "props": [
+        {
+          "name": "size",
+          "type": "\"default\" | \"sm\"",
+          "required": false,
+          "description": "Compact spacing when 'sm'. Default 'default'."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root div via cn()."
+        }
+      ],
+      "whenToUse": "The default container for any widget. Compose CardHeader/CardTitle/CardContent/CardFooter instead of building a bordered div by hand."
+    },
+    {
+      "name": "Badge",
+      "export": "Badge",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "props": [
+        {
+          "name": "variant",
+          "type": "\"default\" | \"secondary\" | \"destructive\" | \"outline\" | \"ghost\" | \"link\"",
+          "required": false,
+          "description": "Visual style. Default 'default'."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the badge."
+        }
+      ],
+      "whenToUse": "Inline status/label pill. For a tone-driven status dot or count, see LivePill/CountPill."
+    },
+    {
+      "name": "Button",
+      "export": "Button",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "props": [
+        {
+          "name": "variant",
+          "type": "\"default\" | \"destructive\" | \"outline\" | \"secondary\" | \"ghost\" | \"link\"",
+          "required": false,
+          "description": "Visual style. Default 'default'."
+        },
+        {
+          "name": "size",
+          "type": "\"default\" | \"xs\" | \"sm\" | \"lg\" | \"icon\" | \"icon-xs\" | \"icon-sm\" | \"icon-lg\"",
+          "required": false,
+          "description": "Size token. Default 'default'."
+        },
+        {
+          "name": "asChild",
+          "type": "boolean",
+          "required": false,
+          "description": "Render the single child as the button (Radix Slot) instead of a <button>."
+        },
+        {
+          "name": "...buttonProps",
+          "type": "React.ComponentProps<\"button\">",
+          "required": false,
+          "description": "onClick, disabled, aria-*, etc."
+        }
+      ],
+      "whenToUse": "Any clickable action. Wire onClick to a host action (useHostBridge / useHostActions) or a mutation."
+    },
+    {
+      "name": "Input",
+      "export": "Input",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "props": [
+        {
+          "name": "...inputProps",
+          "type": "React.ComponentProps<\"input\">",
+          "required": false,
+          "description": "value, onChange, placeholder, type, etc."
+        }
+      ],
+      "whenToUse": "Single-line text/number entry in interactive widgets."
+    },
+    {
+      "name": "Select",
+      "export": "Select",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "parts": [
+        "Select",
+        "SelectTrigger",
+        "SelectValue",
+        "SelectContent",
+        "SelectItem",
+        "SelectGroup",
+        "SelectLabel",
+        "SelectSeparator"
+      ],
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "description": "Controlled value."
+        },
+        {
+          "name": "onValueChange",
+          "type": "(value: string) => void",
+          "required": false,
+          "description": "Selection callback."
+        }
+      ],
+      "whenToUse": "Pick one option from a list (e.g. a scope/period filter that drives a self-fetch)."
+    },
+    {
+      "name": "Switch",
+      "export": "Switch",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "props": [
+        {
+          "name": "checked",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled on/off state."
+        },
+        {
+          "name": "onCheckedChange",
+          "type": "(checked: boolean) => void",
+          "required": false,
+          "description": "Toggle callback."
+        }
+      ],
+      "whenToUse": "Boolean toggle (e.g. include-resolved, live-refresh)."
+    },
+    {
+      "name": "Table",
+      "export": "Table",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "parts": [
+        "Table",
+        "TableHeader",
+        "TableBody",
+        "TableFooter",
+        "TableRow",
+        "TableHead",
+        "TableCell",
+        "TableCaption"
+      ],
+      "props": [],
+      "whenToUse": "Tabular markup. Compose the parts for a list/array tool result; add a ListFooter for pagination."
+    },
+    {
+      "name": "Tabs",
+      "export": "Tabs",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "parts": ["Tabs", "TabsList", "TabsTrigger", "TabsContent"],
+      "props": [
+        {
+          "name": "defaultValue",
+          "type": "string",
+          "required": false,
+          "description": "Initially active tab value."
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "description": "Controlled active tab."
+        },
+        {
+          "name": "onValueChange",
+          "type": "(value: string) => void",
+          "required": false,
+          "description": "Active-tab callback."
+        }
+      ],
+      "whenToUse": "Split a busy widget into sections (e.g. one tab per process key). The WidgetRenderer also uses Tabs for tabbed layouts."
+    },
+    {
+      "name": "Dialog",
+      "export": "Dialog",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "parts": [
+        "Dialog",
+        "DialogTrigger",
+        "DialogContent",
+        "DialogHeader",
+        "DialogTitle",
+        "DialogDescription",
+        "DialogFooter",
+        "DialogClose"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state."
+        },
+        {
+          "name": "onOpenChange",
+          "type": "(open: boolean) => void",
+          "required": false,
+          "description": "Open-state callback."
+        }
+      ],
+      "whenToUse": "Confirm a destructive action or show detail in a modal."
+    },
+    {
+      "name": "Sheet",
+      "export": "Sheet",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "parts": [
+        "Sheet",
+        "SheetTrigger",
+        "SheetContent",
+        "SheetHeader",
+        "SheetTitle",
+        "SheetDescription",
+        "SheetFooter",
+        "SheetClose"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state."
+        },
+        {
+          "name": "onOpenChange",
+          "type": "(open: boolean) => void",
+          "required": false,
+          "description": "Open-state callback."
+        }
+      ],
+      "whenToUse": "Slide-in side panel for detail/edit without leaving the widget."
+    },
+    {
+      "name": "Alert",
+      "export": "Alert",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "parts": ["Alert", "AlertTitle", "AlertDescription"],
+      "props": [
+        {
+          "name": "variant",
+          "type": "\"default\" | \"destructive\"",
+          "required": false,
+          "description": "Visual style."
+        }
+      ],
+      "whenToUse": "Inline notice or error message inside a widget body."
+    },
+    {
+      "name": "ScrollArea",
+      "export": "ScrollArea",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "parts": ["ScrollArea", "ScrollBar"],
+      "props": [],
+      "whenToUse": "Constrain a long list to a fixed height with a styled scrollbar."
+    },
+    {
+      "name": "Skeleton",
+      "export": "Skeleton",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "props": [
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Size the placeholder (e.g. 'h-20 w-full')."
+        }
+      ],
+      "whenToUse": "Loading placeholder while a self-fetch is in flight — avoids layout shift on first paint."
+    },
+    {
+      "name": "Separator",
+      "export": "Separator",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "primitive",
+      "group": "primitives",
+      "props": [
+        {
+          "name": "orientation",
+          "type": "\"horizontal\" | \"vertical\"",
+          "required": false,
+          "description": "Default 'horizontal'."
+        }
+      ],
+      "whenToUse": "Visual divider between sections of a card."
+    },
+    {
+      "name": "GridLayout",
+      "export": "GridLayout",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "parts": ["GridLayout", "GridItem"],
+      "props": [
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "GridItem children."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the grid container (e.g. to change the gap)."
+        }
+      ],
+      "whenToUse": "Lay out KPI tiles / sub-cards in a 12-column responsive grid. Wrap each cell in <GridItem span={n}>. Same grid WidgetRenderer uses internally."
+    },
+    {
+      "name": "GridItem",
+      "export": "GridItem",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "span",
+          "type": "number",
+          "required": false,
+          "description": "Column span 1–12. Default 12 (full width); out-of-range falls back to full width."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "Cell content."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the cell."
+        }
+      ],
+      "whenToUse": "A cell inside GridLayout. e.g. <GridItem span={4}> for a one-third-width tile."
+    },
+    {
+      "name": "KpiGrid",
+      "export": "KpiGrid",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "cells",
+          "type": "KpiCell[]",
+          "required": true,
+          "description": "Metric cells flowed as columns (1–6, clamped). Each: { label, value, fraction?, trend?, trendDirection?, tone?, onClick?, ariaLabel? }. A cell with onClick renders as a button (drill into a detail view)."
+        },
+        {
+          "name": "boxed",
+          "type": "boolean",
+          "required": false,
+          "description": "Wrap the strip in a bordered card with an optional header. Default false (lighter border-y strip)."
+        },
+        {
+          "name": "header",
+          "type": "KpiGridHeader",
+          "required": false,
+          "description": "Group header shown above the strip when boxed: { label, badge? }."
+        }
+      ],
+      "whenToUse": "Show a row of headline metrics in a widget (replaces the old single-metric KPICard). Pre-format values for locale/currency. Set a cell tone for emphasis (e.g. 'danger') and onClick to make a metric a drill target."
+    },
+    {
+      "name": "LivePill",
+      "export": "LivePill",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "tone",
+          "type": "ToneVariant",
+          "required": false,
+          "description": "Status tone driving the dot + tint ('neutral'|'info'|'success'|'warning'|'danger'). Default 'info'."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Pill label. Defaults to 'Live'."
+        }
+      ],
+      "whenToUse": "Signal live/real-time data in a widget header — a tinted pill with a pulsing dot."
+    },
+    {
+      "name": "CountPill",
+      "export": "CountPill",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "tone",
+          "type": "ToneVariant",
+          "required": false,
+          "description": "Status tone driving the tint. Default 'neutral'."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "The count/value (rendered with tabular numbers)."
+        }
+      ],
+      "whenToUse": "Right-aligned count indicator on a list/group row (e.g. a per-group item count)."
+    },
+    {
+      "name": "SectionHeading",
+      "export": "SectionHeading",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "title",
+          "type": "ReactNode",
+          "required": true,
+          "description": "The section title."
+        },
+        {
+          "name": "hint",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Muted hint shown on the right (e.g. a count)."
+        },
+        {
+          "name": "trailing",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Right-aligned slot that overrides hint when set (e.g. a control)."
+        }
+      ],
+      "whenToUse": "Label a block inside a widget body (a list or sub-table) without the weight of a full card header."
+    },
+    {
+      "name": "WidgetHeader",
+      "export": "WidgetHeader",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "title",
+          "type": "ReactNode",
+          "required": true,
+          "description": "The widget title."
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Icon/glyph rendered in a tinted tile above the title."
+        },
+        {
+          "name": "iconTone",
+          "type": "ToneVariant",
+          "required": false,
+          "description": "Tone for the icon tile. Default 'neutral'."
+        },
+        {
+          "name": "sub",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Subtitle/meta row under the title (e.g. a LivePill + counts)."
+        },
+        {
+          "name": "actions",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Right-aligned actions slot (buttons, drill controls)."
+        }
+      ],
+      "whenToUse": "Anchor the top of a dashboard widget surface: tinted icon tile, large title, meta row, and an actions slot. Use once per widget."
+    },
+    {
+      "name": "GroupCard",
+      "export": "GroupCard",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "expanded",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether the body is expanded."
+        },
+        {
+          "name": "onToggle",
+          "type": "() => void",
+          "required": true,
+          "description": "Toggle handler for the summary bar."
+        },
+        {
+          "name": "summary",
+          "type": "ReactNode",
+          "required": true,
+          "description": "Always-visible summary bar (may contain its own buttons/links; clicks on those don't toggle)."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Collapsible body, rendered only when expanded."
+        }
+      ],
+      "whenToUse": "Group related rows behind an expandable header (e.g. items grouped by a key). Replaces a hand-rolled Collapsible for list grouping."
+    },
+    {
+      "name": "FilterBar",
+      "export": "FilterBar",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "search",
+          "type": "string",
+          "required": true,
+          "description": "Current search text (controlled)."
+        },
+        {
+          "name": "onSearchChange",
+          "type": "(next: string) => void",
+          "required": true,
+          "description": "Called with the new search text on every keystroke."
+        },
+        {
+          "name": "chips",
+          "type": "FilterChip[]",
+          "required": true,
+          "description": "Toggleable filter chips: { id, label, count?, active? }."
+        },
+        {
+          "name": "onChipToggle",
+          "type": "(id: string) => void",
+          "required": true,
+          "description": "Called with a chip id when it is toggled."
+        },
+        {
+          "name": "searchPlaceholder",
+          "type": "string",
+          "required": false,
+          "description": "Placeholder for the search input. Default 'Filter…'."
+        }
+      ],
+      "whenToUse": "Filter a list/table of widget items with a search box + chip row. Pair with useDebouncedValue so a server-side filter only re-queries once typing pauses."
+    },
+    {
+      "name": "DrillButton",
+      "export": "DrillButton",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "Button label."
+        },
+        {
+          "name": "onDrill",
+          "type": "() => void",
+          "required": true,
+          "description": "Drill/navigation handler — wire to in-widget navigation (e.g. useHostActions().showWidget)."
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Optional leading glyph; the trailing → is always rendered."
+        },
+        {
+          "name": "size",
+          "type": "\"sm\" | \"md\"",
+          "required": false,
+          "description": "'sm' for table rows, 'md' for surface headers. Default 'sm'."
+        },
+        {
+          "name": "ariaLabel",
+          "type": "string",
+          "required": false,
+          "description": "Accessible label when the visible text is terse."
+        }
+      ],
+      "whenToUse": "The single neutral in-widget navigation control (drill into a detail/sub-view). Use it for every drill so they read identically and stay visually quieter than primary/agentic actions."
+    },
+    {
+      "name": "ListFooter",
+      "export": "ListFooter",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "shown",
+          "type": "number",
+          "required": true,
+          "description": "How many rows are currently rendered."
+        },
+        {
+          "name": "total",
+          "type": "number",
+          "required": true,
+          "description": "Total rows available. Renders nothing when 0."
+        },
+        {
+          "name": "hasMore",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether a 'Load more' button is shown."
+        },
+        {
+          "name": "onLoadMore",
+          "type": "() => void",
+          "required": true,
+          "description": "Called when the user asks for the next page."
+        },
+        {
+          "name": "loadingMore",
+          "type": "boolean",
+          "required": false,
+          "description": "Disables the button + shows a loading label while a fetch is in flight."
+        },
+        {
+          "name": "noun",
+          "type": "string",
+          "required": false,
+          "description": "Plural noun for the count, e.g. 'instances'. Default 'rows'."
+        }
+      ],
+      "whenToUse": "Footer for a paginated list: an honest 'Showing X of Y' total + an explicit 'Load more' (not infinite scroll)."
+    },
+    {
+      "name": "Tone tokens",
+      "export": "TONE_SOFT",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "object",
+      "group": "composed",
+      "parts": ["TONE_SOFT", "TONE_DOT", "TONE_TEXT"],
+      "props": [],
+      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings (TONE_SOFT = soft tint, TONE_DOT = dot colour, TONE_TEXT = text colour), backed by the semantic status tokens in globals.css and re-skinned by the theme. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, WidgetHeader) consume these internally."
+    },
+    {
+      "name": "useDebouncedValue",
+      "export": "useDebouncedValue",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "data-hooks",
+      "props": [
+        {
+          "name": "value",
+          "type": "T",
+          "required": true,
+          "description": "The value to debounce."
+        },
+        {
+          "name": "delayMs",
+          "type": "number",
+          "required": false,
+          "description": "Debounce delay in ms. Default 300."
+        }
+      ],
+      "whenToUse": "Debounce a search box (e.g. FilterBar's search) so a server-side filter only re-queries once the user pauses typing. Returns the value delayed by delayMs."
+    },
+    {
+      "name": "useToolQuery",
+      "export": "useToolQuery",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "data-hooks",
+      "props": [
+        {
+          "name": "queryKey",
+          "type": "unknown[]",
+          "required": true,
+          "description": "Cache key. args is appended automatically so callers with different args get separate cache entries."
+        },
+        {
+          "name": "toolName",
+          "type": "string",
+          "required": true,
+          "description": "MCP tool to call (e.g. a generated *_data feed)."
+        },
+        { "name": "args", "type": "object", "required": true, "description": "Tool arguments." },
+        {
+          "name": "opts",
+          "type": "{ enabled?: boolean; select?: (data) => selected }",
+          "required": false,
+          "description": "Gate the query / transform data on read."
+        }
+      ],
+      "whenToUse": "Self-fetch arbitrary data from a tool inside a cockpit-embedded widget. Result is decoded with parseToolResult (structured-first). Returns a TanStack UseQueryResult."
+    },
+    {
+      "name": "useToolMutation",
+      "export": "useToolMutation",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "data-hooks",
+      "props": [
+        {
+          "name": "toolName",
+          "type": "string",
+          "required": true,
+          "description": "MCP tool to invoke as the mutation."
+        },
+        {
+          "name": "opts",
+          "type": "{ invalidateKeys?: unknown[][] }",
+          "required": false,
+          "description": "Query keys to refetch on success."
+        }
+      ],
+      "whenToUse": "Run a write/action tool (e.g. retry-incident) and refetch dependent queries. Returns a TanStack UseMutationResult; call .mutate(args)."
+    },
+    {
+      "name": "useViewToolQuery",
+      "export": "useViewToolQuery",
+      "importPath": "@miragon/mcp-toolkit-ui/hooks",
+      "kind": "hook",
+      "group": "data-hooks",
+      "props": [
+        {
+          "name": "queryKey",
+          "type": "unknown[]",
+          "required": true,
+          "description": "Cache key; args appended automatically (sibling widgets dedupe)."
+        },
+        {
+          "name": "toolName",
+          "type": "string",
+          "required": true,
+          "description": "A *_show_* widget tool whose structuredContent is the full view envelope."
+        },
+        { "name": "args", "type": "object", "required": true, "description": "Tool arguments." },
+        {
+          "name": "opts",
+          "type": "{ enabled?: boolean }",
+          "required": false,
+          "description": "Gate the query."
+        }
+      ],
+      "whenToUse": "Self-fetch from a *_show_* widget tool. Unwraps the McpAppView view envelope via parseViewToolResult (single-step → flat data, multi-step → keyed by step id) — the envelope-aware sibling of useToolQuery."
+    },
+    {
+      "name": "useViewData",
+      "export": "useViewData",
+      "importPath": "@miragon/mcp-toolkit-ui/hooks",
+      "kind": "hook",
+      "group": "data-hooks",
+      "props": [
+        {
+          "name": "initialData",
+          "type": "T | null | undefined",
+          "required": true,
+          "description": "Host-pushed data (e.g. from adaptDataWidget). Returned verbatim when present."
+        },
+        {
+          "name": "key",
+          "type": "ReadonlyArray<unknown>",
+          "required": true,
+          "description": "Cache key for the fallback self-fetch."
+        },
+        {
+          "name": "tool",
+          "type": "string",
+          "required": true,
+          "description": "Tool to call when initialData is absent."
+        },
+        {
+          "name": "args",
+          "type": "Record<string, unknown>",
+          "required": true,
+          "description": "Tool arguments for the fallback fetch."
+        },
+        {
+          "name": "ready",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether the required id/key is present; fetch is disabled until ready and only when no initialData."
+        }
+      ],
+      "whenToUse": "The dual-mode seam: write ONE widget that renders host-pushed data when handed it (standalone *_show_* widget) AND self-fetches when embedded in a cockpit. Returns { data, loading, error }."
+    },
+    {
+      "name": "useIsMobile",
+      "export": "useIsMobile",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "data-hooks",
+      "props": [],
+      "whenToUse": "Switch a widget between compact and wide layouts below the 768px breakpoint. Returns boolean."
+    },
+    {
+      "name": "useHostBridge",
+      "export": "useHostBridge",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "hook",
+      "group": "host-hooks",
+      "props": [],
+      "whenToUse": "THE host seam for portable widgets. Returns a HostBridge { callTool, sendFollowup, openExternal, getWidgetData, setModelContext?, theme? }. Use this instead of mcp-use/react or window.openai directly so the same widget runs in the mcp-use host, ChatGPT, or standalone. Never returns null."
+    },
+    {
+      "name": "useHostActions",
+      "export": "useHostActions",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "hook",
+      "group": "host-hooks",
+      "props": [],
+      "whenToUse": "Named-affordance facade over useHostBridge: returns { openLink, showWidget, askAi }. Handy for in-widget navigation (showWidget) and handing open-ended tasks to the agent (askAi). New portable widgets can also use useHostBridge directly."
+    },
+    {
+      "name": "buildShowWidgetIntent",
+      "export": "buildShowWidgetIntent",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "function",
+      "group": "host-hooks",
+      "props": [
+        {
+          "name": "toolName",
+          "type": "string",
+          "required": true,
+          "description": "The *_show_* tool the agent should invoke."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "description": "Natural-language description of what to show."
+        }
+      ],
+      "whenToUse": "Build the intent string for host.showWidget(...) — appends a '(use <toolName>)' hint so the agent picks the right tool unambiguously."
+    },
+    {
+      "name": "HostBridgeProvider",
+      "export": "HostBridgeProvider",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "component",
+      "group": "host-hooks",
+      "props": [
+        {
+          "name": "bridge",
+          "type": "HostBridge",
+          "required": true,
+          "description": "The explicit bridge to provide (createChatGptHostBridge / createStandaloneHostBridge / createMcpUseHostBridge)."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "Subtree whose useHostBridge() resolves to this bridge."
+        }
+      ],
+      "whenToUse": "Wrap a portable widget in the bridge for the host it runs in. Omit it inside the toolkit's own host (useHostBridge falls back to the mcp-use bridge)."
+    },
+    {
+      "name": "createStandaloneHostBridge",
+      "export": "createStandaloneHostBridge",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "function",
+      "group": "host-hooks",
+      "props": [
+        {
+          "name": "options",
+          "type": "StandaloneHostBridgeOptions",
+          "required": true,
+          "description": "{ callTool (required), getData?, onFollowup?, onOpenExternal?, onModelContext?, theme? }."
+        }
+      ],
+      "whenToUse": "Build a HostBridge for a standalone web app against any MCP server (callTool usually wraps a @modelcontextprotocol/sdk client). The WidgetFixtureHost builds on this too."
+    },
+    {
+      "name": "createChatGptHostBridge",
+      "export": "createChatGptHostBridge",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "function",
+      "group": "host-hooks",
+      "props": [
+        {
+          "name": "sdk",
+          "type": "OpenAiAppsSdk | null",
+          "required": false,
+          "description": "Explicit window.openai for testing; defaults to the real one."
+        }
+      ],
+      "whenToUse": "Build a HostBridge mapping the bridge verbs onto the OpenAI Apps SDK (ChatGPT). Defensive — missing host methods degrade to logged no-ops."
+    },
+    {
+      "name": "adaptDataWidget",
+      "export": "adaptDataWidget",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "function",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "Widget",
+          "type": "ComponentType<{ data: T | null } & Record<string, unknown>>",
+          "required": true,
+          "description": "A single-data widget — write it as ({ data }) and it stays host-agnostic."
+        },
+        {
+          "name": "dataType",
+          "type": "string",
+          "required": true,
+          "description": "The step _dataType to pull data from in context.steps."
+        },
+        {
+          "name": "describeForModel",
+          "type": "DescribeForModel<T>",
+          "required": false,
+          "description": "(data, props) => string. Wraps the widget in <ModelContext> so the model knows what the user is looking at."
+        }
+      ],
+      "whenToUse": "Register a hand-built ({ data }) widget as a framework WidgetComponent. The adapter finds the matching step in context.steps[_dataType].data and forwards result.data as the data prop, and spreads per-cell layout props. Lets render-view and *_show_* tools share one widget."
+    },
+    {
+      "name": "DescribeForModel",
+      "export": "DescribeForModel",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "type",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "(type)",
+          "type": "(data: NonNullable<T>, props: Readonly<Record<string, unknown>>) => string",
+          "required": true,
+          "description": "The describeForModel callback signature for adaptDataWidget."
+        }
+      ],
+      "whenToUse": "Type the model-context line builder you pass to adaptDataWidget — report view identity, active filters, and headline numbers so the agent has context on the next turn."
+    },
+    {
+      "name": "parseToolResult",
+      "export": "parseToolResult",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "result",
+          "type": "unknown",
+          "required": true,
+          "description": "The raw MCP tool result."
+        },
+        {
+          "name": "opts",
+          "type": "{ prefer?: \"structured\" | \"text\" }",
+          "required": false,
+          "description": "Channel preference. Default 'structured' (structuredContent-first)."
+        }
+      ],
+      "whenToUse": "Decode a raw callTool result to its data payload. Structured-first: isError → throw, then structuredContent, then JSON-decoded text, then raw. useToolQuery decodes through this for you."
+    },
+    {
+      "name": "parseViewToolResult",
+      "export": "parseViewToolResult",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "result",
+          "type": "unknown",
+          "required": true,
+          "description": "The raw result of a *_show_* widget tool."
+        }
+      ],
+      "whenToUse": "Unwrap a *_show_* view envelope (context.stepData) to the flat widget data: single-step → that step's data; multi-step → object keyed by step id. Non-envelope results pass through parseToolResult."
+    },
+    {
+      "name": "cn",
+      "export": "cn",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "...classes",
+          "type": "ClassValue[]",
+          "required": false,
+          "description": "clsx inputs."
+        }
+      ],
+      "whenToUse": "Merge Tailwind class strings (clsx + tailwind-merge). Use for conditional/override classes; later conflicting utilities win."
+    },
+    {
+      "name": "createTheme",
+      "export": "createTheme",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "theming",
+      "props": [
+        {
+          "name": "tokens",
+          "type": "ThemeTokens",
+          "required": true,
+          "description": "Curated brand tokens (all optional): primary, primaryForeground, accent, accentForeground, background, foreground, card, cardForeground, border, ring, radius, fontSans, fontHeading. Colors are any CSS color string (oklch/hex/hsl)."
+        },
+        {
+          "name": "opts",
+          "type": "{ dark?: ThemeTokens }",
+          "required": false,
+          "description": "Dark-mode token overrides, applied on top of the .dark defaults when the active mode is dark."
+        }
+      ],
+      "whenToUse": "Define a white-label theme from a single set of brand tokens. Maps the curated fields onto the real CSS variables (--primary, --radius, ...) and returns a serializable ThemeDefinition { vars, darkVars?, toStyle() }. Apply it with ThemeProvider so every primitive re-skins to the client's brand."
+    },
+    {
+      "name": "ThemeProvider",
+      "export": "ThemeProvider",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "theming",
+      "props": [
+        {
+          "name": "theme",
+          "type": "ThemeDefinition",
+          "required": false,
+          "description": "The theme from createTheme/themePresets to apply. Omit to manage only the light/dark mode against the toolkit defaults."
+        },
+        {
+          "name": "mode",
+          "type": "\"light\" | \"dark\" | \"system\"",
+          "required": false,
+          "description": "Color-scheme mode. Default 'light'. Pass HostBridge.theme to follow the host, or 'system' to track prefers-color-scheme (SSR-safe)."
+        },
+        {
+          "name": "as",
+          "type": "\"div\" | \"span\" | \"section\" | \"main\"",
+          "required": false,
+          "description": "Scope wrapper element. Default 'div'."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the scope wrapper."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "Subtree that inherits the theme's CSS variables and dark class."
+        }
+      ],
+      "whenToUse": "Wrap a widget (or a whole app) to apply a ThemeDefinition. Renders a wrapper carrying the theme's CSS variables inline (overriding :root) and toggles the .dark class on the scope per mode. React + DOM only — no host required."
+    },
+    {
+      "name": "useTheme",
+      "export": "useTheme",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "theming",
+      "props": [],
+      "whenToUse": "Read the active theme/mode from the nearest ThemeProvider. Returns { theme, mode, resolvedMode } where resolvedMode is 'system' resolved to 'light'|'dark'. Throws outside a ThemeProvider."
+    },
+    {
+      "name": "themePresets",
+      "export": "themePresets",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "object",
+      "group": "theming",
+      "props": [],
+      "whenToUse": "Ready-made white-label themes (themePresets.miragon, .violet, .emerald) — a demonstration of createTheme and a fork-able starting point. Pass one to ThemeProvider's theme prop."
+    },
+    {
+      "name": "McpToolkitApp",
+      "export": "McpToolkitApp",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "component",
+      "group": "app-shell",
+      "props": [
+        {
+          "name": "widgets",
+          "type": "Record<string, WidgetComponent>",
+          "required": true,
+          "description": "Host-bundled widget registry keyed by widget id."
+        },
+        {
+          "name": "widgetLoader",
+          "type": "WidgetLoader",
+          "required": false,
+          "description": "Loader for upstream-hosted widgets missing from `widgets`. Defaults to read-widget-bundle via the host bridge."
+        },
+        {
+          "name": "refreshToolName",
+          "type": "string",
+          "required": false,
+          "description": "Tool the refresh button invokes. Default 'refresh-view'."
+        },
+        {
+          "name": "labels",
+          "type": "McpAppViewLabels",
+          "required": false,
+          "description": "Override UI strings (loading, refresh, fullscreen)."
+        }
+      ],
+      "whenToUse": "The recommended consumer root for an mcp-app.html bundle. Wraps McpAppView in mcp-use's McpUseProvider (host auto-sizing, StrictMode, error boundary, theme). You usually do NOT write this when authoring a single widget — you write the widget and register it here."
+    },
+    {
+      "name": "WidgetFixtureHost",
+      "export": "WidgetFixtureHost",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "component",
+      "group": "dev",
+      "props": [
+        {
+          "name": "widget",
+          "type": "FixtureWidget",
+          "required": true,
+          "description": "The widget component under development."
+        },
+        {
+          "name": "data",
+          "type": "Record<string, unknown>",
+          "required": false,
+          "description": "Fixture data: keys map for ({ keys }) widgets, forwarded as data for ({ data }) widgets."
+        },
+        {
+          "name": "dataType",
+          "type": "string",
+          "required": false,
+          "description": "For adaptDataWidget components: seeds a pipeline step whose _dataType matches so the adapter resolves data."
+        },
+        {
+          "name": "tools",
+          "type": "Record<string, FixtureToolEntry>",
+          "required": false,
+          "description": "Tool fixtures keyed by tool name. A static value or a (args) => result handler. Drives useToolQuery and callTool."
+        },
+        {
+          "name": "globals",
+          "type": "Record<string, unknown>",
+          "required": false,
+          "description": "Host-context overrides (theme, displayMode, locale...)."
+        },
+        {
+          "name": "onModelContext",
+          "type": "(text: string) => void",
+          "required": false,
+          "description": "Receives the serialized <ModelContext> the widget reports — see what the model would see."
+        },
+        {
+          "name": "onHostAction",
+          "type": "(action: HostActionLog) => void",
+          "required": false,
+          "description": "Receives every host action (tool call, link, follow-up)."
+        }
+      ],
+      "whenToUse": "Storybook-style harness: render ONE widget with fixture data and a mocked host (no backend, no real host). This is the prompt → see → iterate loop; add a Story to examples/widget-playground/stories.ts."
+    },
+    {
+      "name": "buildFixtureWidgetProps",
+      "export": "buildFixtureWidgetProps",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "function",
+      "group": "dev",
+      "props": [
+        {
+          "name": "data",
+          "type": "Record<string, unknown>",
+          "required": true,
+          "description": "Fixture data used as keys map and (when dataType set) the seeded step's data."
+        },
+        {
+          "name": "dataType",
+          "type": "string",
+          "required": false,
+          "description": "Seed the single pipeline step under this _dataType for adaptDataWidget components."
+        }
+      ],
+      "whenToUse": "Build the WidgetProps envelope the fixture host passes to a widget — exported mainly for unit testing the envelope shape without rendering React."
+    }
+  ]
+}

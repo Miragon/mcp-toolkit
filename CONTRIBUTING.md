@@ -32,7 +32,8 @@ pnpm -r build         # run package build steps once
 pnpm -r typecheck
 ```
 
-Node 20+ and pnpm 10.32.1 (pinned in `packageManager`).
+Node 20+ (CI runs on 22 — `actions/setup-node@v6` with `node-version: 22`) and
+pnpm 10.32.1 (pinned in `packageManager`).
 
 ## Daily loop
 

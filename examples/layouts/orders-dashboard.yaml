@@ -1,0 +1,46 @@
+# Input layout for `render-view` against the `orders` module — the DECLARATIVE,
+# pipeline-driven path to the SAME multi-widget dashboard the eager
+# `show_orders_dashboard` tool composes with `buildComposedView`.
+#
+# This is the ADVANCED path: a real two-step pipeline where the second step
+# consumes the first step's output key. Use it (over the eager path) only when you
+# must thread one tool's output into the next.
+#
+#   tools/call render-view '{
+#     "keys":  { "orders:customerId": "c-1" },         ← initial key (step A's input)
+#     "steps": [
+#       { "id": "customer", "step": "orders:resolve-customer" },       ← STEP A
+#       { "id": "orders",   "step": "orders:list-customer-orders" }    ← STEP B
+#     ],
+#     "layout": <this document>
+#   }'
+#
+# Data flow (see modules/orders/steps/ for the fully-commented steps):
+#
+#   keys.orders:customerId = "c-1"
+#        │
+#        ▼  STEP A  orders:resolve-customer
+#        │   requires orders:customerId  ·  produces orders:customer
+#        │   → store.getCustomer("c-1")  → merges keys.orders:customer
+#        ▼
+#   keys.orders:customer = { id, name, tier }
+#        │
+#        ▼  STEP B  orders:list-customer-orders   ← CONSUMES step A's key
+#        │   requires orders:customer    ·  produces orders:orderList
+#        │   → store.dashboard(customer.id)
+#        │   → emits dataType "orders:dashboard" = { kpi, table }
+#        ▼
+#   the two widgets below each read the "orders:dashboard" step data
+#   via adaptDataWidget(Widget, "orders:dashboard"):
+#     · orders:kpi   renders the `.kpi`   slice
+#     · orders:table renders the `.table` slice
+#
+# The layout is identical in shape to the eager path's `DASHBOARD_LAYOUT`
+# (modules/orders/plugin.ts): one row, two cells, same spans — proving both paths
+# converge on one rendered view.
+rows:
+  - row:
+      - widget: orders:kpi
+        span: 5
+      - widget: orders:table
+        span: 7

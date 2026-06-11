@@ -1,0 +1,5 @@
+@import "@miragon/mcp-toolkit-ui/globals.css";
+
+/* The demo widget lives outside the UI package, so Tailwind must scan this
+   example's own components for class names. */
+@source "./**/*.{ts,tsx}";
