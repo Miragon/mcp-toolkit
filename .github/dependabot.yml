@@ -5,6 +5,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 5
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
     groups:
       npm-dependencies:
         patterns:
@@ -12,6 +17,10 @@ updates:
         update-types:
           - "patch"
           - "minor"
+      npm-major:
+        patterns:
+          - "*"
+        update-types:
           - "major"
 
   # Config for GitHub Actions
@@ -19,6 +28,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # github-actions supports only `default-days`; the granular semver-*-days
+    # keys are npm/package-manager-only per the Dependabot options reference.
+    cooldown:
+      default-days: 5
     groups:
       github-actions:
         patterns:
@@ -26,4 +39,8 @@ updates:
         update-types:
           - "patch"
           - "minor"
+      github-actions-major:
+        patterns:
+          - "*"
+        update-types:
           - "major"
