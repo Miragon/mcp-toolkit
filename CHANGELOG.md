@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.4.0](https://github.com/Miragon/mcp-toolkit/compare/v0.3.1...v0.4.0) (2026-06-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* `parseToolResult` (and therefore `useToolQuery`/`useToolMutation`) now reads `structuredContent` before the text channel. Tools that return BOTH a text summary and `structuredContent` previously yielded the parsed text and now yield the structured payload. Pass `{ prefer: "text" }` to restore the old order.
+
+### Features
+
+* mcp-toolkit — upstreaming, security & repo hardening + prompt-ready UI foundation ([#52](https://github.com/Miragon/mcp-toolkit/issues/52)) ([cae4a4a](https://github.com/Miragon/mcp-toolkit/commit/cae4a4a2bd17a7a9be836a541f5bccfa62b1eebb))
+
+
+### Bug Fixes
+
+* **ci:** use root-as-primary release-please config ([#44](https://github.com/Miragon/mcp-toolkit/issues/44)) ([5185f88](https://github.com/Miragon/mcp-toolkit/commit/5185f88e08f0e5e929a128609d4796b06234f32e))
+* **core:** surface dashboard bundles in content text, not just structuredContent ([#42](https://github.com/Miragon/mcp-toolkit/issues/42)) ([becb952](https://github.com/Miragon/mcp-toolkit/commit/becb9526afb9ae9ea1da24794807f032f279ac19))
+
 ## [0.3.1](https://github.com/Miragon/mcp-toolkit/compare/v0.3.0...v0.3.1) (2026-05-21)
 
 
