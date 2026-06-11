@@ -125,13 +125,18 @@ The flow (`.github/workflows/release-please.yml`):
 
 1. Merging Conventional Commits to `main` runs `release-please`, which opens
    or updates a release PR aggregating the changes and bumping versions.
+   `release-please` runs under a **GitHub App token**
+   (`vars.RELEASE_APP_ID` + `secrets.RELEASE_APP_PRIVATE_KEY`) rather than the
+   default `GITHUB_TOKEN`, so the Release PR and release commit it pushes
+   trigger CI — commits made with the default `GITHUB_TOKEN` do not start a
+   follow-up workflow run, which would leave the Release PR's required
+   `Typecheck + Build` check forever pending.
 2. Merging that release PR makes `release-please` cut a GitHub release and
    push a `v*` tag, setting its `release_created` output to `true`.
 3. The same workflow's `publish` job is gated on
    `needs.release-please.outputs.release_created == 'true'` and publishes the
-   four packages. It chains off the action output rather than the `v*` tag
-   because tags pushed with the default `GITHUB_TOKEN` don't trigger a
-   follow-up `on: push` workflow.
+   four packages. It chains off the action output rather than the `v*` tag for
+   a deterministic, single publish per release.
 
 `.github/workflows/release.yml` is the **manual fallback**
 (`workflow_dispatch` only): dispatch it to re-publish `main` after a failed
