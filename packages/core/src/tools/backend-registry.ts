@@ -116,6 +116,15 @@ export interface BackendRegistry<TClient, TMeta = undefined> {
   clear(sessionId: string): void
   /** List every registered backend (id + meta), in registration order. */
   list(): { id: string; meta: TMeta | undefined }[]
+  /**
+   * The id sticky-selected for the current session, or `undefined` when none
+   * is selected (or the selection has outlived the TTL). Unlike {@link resolve},
+   * it never falls back to a single configured default and never throws — it
+   * reports only an explicit sticky selection, which is what a "what is
+   * currently selected?" reader needs: a select-tool's `current` action, or
+   * surfacing the active pick alongside `list`.
+   */
+  getSelected(): string | undefined
 }
 
 interface SessionSelection {
@@ -209,6 +218,10 @@ export function createBackendRegistry<TClient, TMeta = undefined>(
 
     list(): { id: string; meta: TMeta | undefined }[] {
       return [...byId.values()].map((entry) => ({ id: entry.id, meta: entry.meta }))
+    },
+
+    getSelected(): string | undefined {
+      return stickySelection()
     },
   }
 }

@@ -179,6 +179,54 @@ describe("TTL eviction", () => {
   })
 })
 
+describe("getSelected", () => {
+  it("returns undefined when nothing is selected", () => {
+    const { registry, actAs } = harness(["alpha", "beta"])
+    actAs("s1")
+    expect(registry.getSelected()).toBeUndefined()
+  })
+
+  it("returns undefined when no session is in scope", () => {
+    const { registry, actAs } = harness(["alpha", "beta"])
+    actAs(undefined)
+    expect(registry.getSelected()).toBeUndefined()
+  })
+
+  it("returns the sticky selection after select()", () => {
+    const { registry, actAs } = harness(["alpha", "beta"])
+    actAs("s1")
+    registry.select("beta")
+    expect(registry.getSelected()).toBe("beta")
+  })
+
+  it("does NOT fall back to the single configured default (unlike resolve)", () => {
+    const { registry, actAs } = harness(["solo"])
+    actAs("s1")
+    // resolve() returns the lone backend, but getSelected() reports only an
+    // *explicit* selection — so a `current` reader correctly shows nothing pinned.
+    expect(registry.resolve().id).toBe("solo")
+    expect(registry.getSelected()).toBeUndefined()
+  })
+
+  it("expires lazily on read, like resolve()", () => {
+    const { registry, actAs, advance } = harness(["a", "b"], 1_000)
+    actAs("s1")
+    registry.select("a")
+    advance(1_001)
+    expect(registry.getSelected()).toBeUndefined()
+  })
+
+  it("isolates the selection per session", () => {
+    const { registry, actAs } = harness(["alpha", "beta"])
+    actAs("s1")
+    registry.select("alpha")
+    actAs("s2")
+    expect(registry.getSelected()).toBeUndefined()
+    actAs("s1")
+    expect(registry.getSelected()).toBe("alpha")
+  })
+})
+
 describe("withBackend", () => {
   it("reads the override from args[paramName] and resolves it", async () => {
     const { registry } = harness(["alpha", "beta"])
