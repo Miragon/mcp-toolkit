@@ -1,6 +1,6 @@
 {
   "name": "@miragon/mcp-toolkit-tool-codegen",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Build-time codegen + runtime glue for type-safe MCP tool calls: TypedCallTool helper and a CLI that generates TypeScript types + React Query hooks from an upstream MCP's tools/list. (buildProxyAppConfigs lives in @miragon/mcp-toolkit-core.)",
   "type": "module",
   "sideEffects": false,
