@@ -24,6 +24,20 @@ export { isRemoteWidget } from "./types/index.js"
 export { APP_ONLY_META, uiMeta } from "./types/index.js"
 export type { UiMetaOptions } from "./types/index.js"
 
+// Localization engine — a dependency-free translator shared by the server (tool
+// summaries) and the UI (widget strings). Browser-safe, so it belongs in the
+// root barrel; ships no catalogs (the consuming app provides its own). The UI
+// `LocaleProvider`/`useLocale` (in `@miragon/mcp-toolkit-ui`) consume a
+// `Translate` from here.
+export { createTranslator } from "./i18n/index.js"
+export type {
+  Message,
+  MessageCatalog,
+  Catalogs,
+  Translate,
+  CreateTranslatorOptions,
+} from "./i18n/index.js"
+
 export { executePipeline } from "./engine/pipeline-executor.js"
 export type {
   PipelineExecutionContext,
