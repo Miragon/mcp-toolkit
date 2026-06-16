@@ -50,7 +50,7 @@
   "devDependencies": {
     "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "@types/node": "25.9.2",
+    "@types/node": "25.9.3",
     "mcp-use": "1.30.2",
     "typescript": "6.0.3",
     "vitest": "4.1.8",
