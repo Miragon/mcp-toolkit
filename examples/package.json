@@ -30,25 +30,25 @@
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "mcp-use": "1.30.2",
+    "mcp-use": "1.32.1",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "4.3.0",
-    "@types/node": "25.9.2",
+    "@tailwindcss/vite": "4.3.1",
+    "@types/node": "25.9.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "concurrently": "10.0.3",
-    "tailwindcss": "4.3.0",
+    "tailwindcss": "4.3.1",
     "tsx": "4.22.4",
     "typescript": "6.0.3",
     "vite": "8.0.16",
     "vite-plugin-singlefile": "2.3.3",
-    "vitest": "4.1.8",
+    "vitest": "4.1.9",
     "wait-on": "9.0.10"
   }
 }
