@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.6.1](https://github.com/Miragon/mcp-toolkit/compare/v0.6.0...v0.6.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* require mcp-use 1.32.1 as peer dependency ([#67](https://github.com/Miragon/mcp-toolkit/issues/67)) ([6da3225](https://github.com/Miragon/mcp-toolkit/commit/6da32255848655c58dda3356ce7c60b8bffa7d5c))
+
 ## [0.6.0](https://github.com/Miragon/mcp-toolkit/compare/v0.5.0...v0.6.0) (2026-06-17)
 
 
