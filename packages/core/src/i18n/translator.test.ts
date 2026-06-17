@@ -48,4 +48,15 @@ describe("createTranslator", () => {
     const t = createTranslator({ en: { greeting: ({ name }) => `Hi ${String(name)}` } })
     expect(t("en", "greeting")).toBe("Hi undefined")
   })
+
+  it("interpolates {name} placeholders in string messages", () => {
+    const t = createTranslator({ en: { hi: "Hi {name}, {n} new" } })
+    expect(t("en", "hi", { name: "Ada", n: 3 })).toBe("Hi Ada, 3 new")
+  })
+
+  it("leaves unknown placeholders untouched and needs no params for plain strings", () => {
+    const t = createTranslator({ en: { a: "Hello {missing}", b: "Plain" } })
+    expect(t("en", "a", { other: 1 })).toBe("Hello {missing}")
+    expect(t("en", "b")).toBe("Plain")
+  })
 })

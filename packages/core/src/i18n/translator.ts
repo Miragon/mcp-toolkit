@@ -9,7 +9,16 @@
  * server alike.
  */
 
-/** A single message: a literal, or a function of interpolation params. */
+/**
+ * A single message. Either:
+ * - a string, optionally with `{name}` placeholders interpolated from params
+ *   (e.g. `"{count} open incidents"`), or
+ * - a function of the params, for logic a template can't express (plurals,
+ *   conditionals).
+ *
+ * Strings keep catalogs pure data (JSON-serialisable); reach for a function only
+ * when interpolation isn't enough.
+ */
 export type Message = string | ((params: Record<string, unknown>) => string)
 
 /** One locale's messages, keyed by a dotted message key (e.g. `"engine.list.empty"`). */
@@ -47,6 +56,10 @@ export interface CreateTranslatorOptions {
  * t("de", "greeting", { name: "Ada" }) // "Hallo, Ada"
  * t("fr", "greeting", { name: "Ada" }) // "Hello, Ada" (fallback)
  * t("de", "missing")                   // "missing"     (key passthrough)
+ *
+ * // String templates interpolate `{name}` placeholders from params:
+ * const u = createTranslator({ en: { hi: "Hi {name}, {n} new" } })
+ * u("en", "hi", { name: "Ada", n: 3 })  // "Hi Ada, 3 new"
  */
 export function createTranslator(
   catalogs: Catalogs,
@@ -56,6 +69,11 @@ export function createTranslator(
   return (locale, key, params) => {
     const message = catalogs[locale]?.[key] ?? catalogs[fallbackLocale]?.[key]
     if (message === undefined) return key
-    return typeof message === "function" ? message(params ?? {}) : message
+    if (typeof message === "function") return message(params ?? {})
+    if (!params) return message
+    // Interpolate `{name}` placeholders; leave unknown ones untouched.
+    return message.replace(/\{(\w+)\}/g, (whole, name: string) =>
+      name in params ? String(params[name]) : whole,
+    )
   }
 }
