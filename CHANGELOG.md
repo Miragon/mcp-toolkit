@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.6.0](https://github.com/Miragon/mcp-toolkit/compare/v0.5.0...v0.6.0) (2026-06-17)
+
+
+### Features
+
+* **core,ui:** i18n base — createTranslator + LocaleProvider ([#64](https://github.com/Miragon/mcp-toolkit/issues/64)) ([c4d810e](https://github.com/Miragon/mcp-toolkit/commit/c4d810e13b7c0748afc6243d416f6b85c347e45f))
+
 ## [0.5.0](https://github.com/Miragon/mcp-toolkit/compare/v0.4.0...v0.5.0) (2026-06-11)
 
 
