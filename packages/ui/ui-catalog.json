@@ -1120,6 +1120,52 @@
       "whenToUse": "Ready-made white-label themes (themePresets.miragon, .violet, .emerald) — a demonstration of createTheme and a fork-able starting point. Pass one to ThemeProvider's theme prop."
     },
     {
+      "name": "LocaleProvider",
+      "export": "LocaleProvider",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "i18n",
+      "props": [
+        {
+          "name": "locale",
+          "type": "string",
+          "required": true,
+          "description": "The active locale tag (e.g. 'en', 'de'). Resolve it on the host/server (header, user profile, session store) and pass it in."
+        },
+        {
+          "name": "translator",
+          "type": "Translate",
+          "required": false,
+          "description": "A translator from createTranslator(catalogs) (@miragon/mcp-toolkit-core). Omit to provide the locale only (useTranslate echoes keys)."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "Subtree whose widgets read the locale via useLocale/useTranslate."
+        }
+      ],
+      "whenToUse": "Wrap a widget (or a whole app) to provide the active locale + an optional translator. Widgets read it with useLocale/useTranslate. Pure React (no host required), mirroring ThemeProvider — pairs with createTranslator from @miragon/mcp-toolkit-core."
+    },
+    {
+      "name": "useLocale",
+      "export": "useLocale",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "i18n",
+      "props": [],
+      "whenToUse": "Read the active locale tag (e.g. 'de') from the nearest LocaleProvider. Returns 'en' outside a provider (does not throw), so unwrapped widgets keep rendering."
+    },
+    {
+      "name": "useTranslate",
+      "export": "useTranslate",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "i18n",
+      "props": [],
+      "whenToUse": "Get a locale-bound translate (key, params?) => string from the nearest LocaleProvider. Outside a provider it echoes the key, so a missing wrapper degrades gracefully instead of crashing."
+    },
+    {
       "name": "McpToolkitApp",
       "export": "McpToolkitApp",
       "importPath": "@miragon/mcp-toolkit-ui/app",

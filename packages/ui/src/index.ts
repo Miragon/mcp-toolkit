@@ -115,6 +115,14 @@ export type {
   ThemePresetId,
 } from "./theme/index.js"
 
+// i18n / localization. Browser-safe (React only, no `mcp-use/react`), so it
+// belongs in this root barrel: a consumer wraps its widget tree in
+// <LocaleProvider locale=… translator=…> and reads the active locale with
+// useLocale/useTranslate. Pairs with `createTranslator` from
+// `@miragon/mcp-toolkit-core`. See packages/ui/src/locale/.
+export { LocaleProvider, useLocale, useTranslate } from "./locale/index.js"
+export type { LocaleContextValue, LocaleProviderProps, BoundTranslate } from "./locale/index.js"
+
 // NOTE: MCP App shell (McpAppView, WidgetRenderer) is exported from the
 // `./app` subpath only. Keeping it out of the main barrel prevents consumers
 // that only need primitives (e.g. an admin portal) from pulling `mcp-use/react`
