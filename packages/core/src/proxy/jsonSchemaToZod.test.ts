@@ -160,4 +160,21 @@ describe("jsonSchemaToZod", () => {
       expect(out).toBeInstanceOf(z.ZodType)
     }
   })
+
+  it("does not overflow the stack on a pathologically deep schema", () => {
+    // A malicious/broken upstream could serve a deeply self-nested schema.
+    // The converter must bound its recursion instead of blowing the stack.
+    let deep: Record<string, unknown> = { type: "string" }
+    for (let i = 0; i < 5000; i++) {
+      deep = { type: "object", properties: { next: deep }, required: ["next"] }
+    }
+    let schema: z.ZodTypeAny | undefined
+    expect(() => {
+      schema = jsonSchemaToZod(deep)
+    }).not.toThrow()
+    // Beyond the depth cap the shape degrades to permissive (z.any()), so a
+    // value that stops short of the cap still parses without throwing.
+    expect(schema).toBeInstanceOf(z.ZodType)
+    expect(() => schema!.safeParse({ next: { next: {} } })).not.toThrow()
+  })
 })

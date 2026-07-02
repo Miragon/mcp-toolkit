@@ -152,4 +152,48 @@ describe("createToolRegistrar", () => {
     const result = await firstTool(tools).cb({})
     expect(result.isError).toBe(true)
   })
+
+  // A declared outputSchema promises object structuredContent. A handler that
+  // instead returns a scalar/null/undefined must not produce an invalid or
+  // missing structuredContent (which the SDK rejects with an opaque protocol
+  // error) — the registrar surfaces a clear `isError` result the SDK passes
+  // through without output-schema validation.
+  it.each([
+    ["primitive", "1.2.3", "string"],
+    ["null", null, "null"],
+    ["undefined", undefined as unknown, "undefined"],
+  ])(
+    "returns a clear isError result for a %s result when an outputSchema is declared",
+    async (_label, value, kind) => {
+      const { server, tools } = createStubServer()
+      const register = createToolRegistrar(server, {})
+      register({
+        name: "declared_but_scalar",
+        description: "",
+        outputSchema: z.object({ id: z.string() }),
+        handler: () => Promise.resolve(value),
+      })
+      const result = await firstTool(tools).cb({})
+      expect(result.isError).toBe(true)
+      expect(firstTextBlock(result)).toContain("declares an outputSchema")
+      expect(firstTextBlock(result)).toContain(kind)
+      // No invalid structuredContent leaks out for the SDK to reject.
+      expect(result.structuredContent).toBeUndefined()
+    },
+  )
+
+  it("returns a clear isError result for a scalar on the formatResult+outputSchema path", async () => {
+    const { server, tools } = createStubServer()
+    const register = createToolRegistrar(server, {})
+    register({
+      name: "formatted_but_scalar",
+      description: "",
+      outputSchema: z.object({ id: z.string() }),
+      handler: () => Promise.resolve(42),
+      formatResult: () => "summary",
+    })
+    const result = await firstTool(tools).cb({})
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toBeUndefined()
+  })
 })

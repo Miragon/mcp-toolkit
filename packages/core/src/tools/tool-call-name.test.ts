@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { extractToolCallName } from "./tool-call-name.js"
+import { extractToolCallName, isMcpTransportPath } from "./tool-call-name.js"
 
 describe("extractToolCallName", () => {
   it("returns params.name for a tools/call envelope", () => {
@@ -46,4 +46,20 @@ describe("extractToolCallName", () => {
     const batch = [{ method: "tools/call", params: { name: "analytics_query" } }]
     expect(extractToolCallName(batch)).toBeUndefined()
   })
+})
+
+describe("isMcpTransportPath", () => {
+  // mcp-use mounts the Streamable-HTTP handler at BOTH endpoints, so a
+  // `tools/call` over /sse must be captured too — otherwise the role-filter
+  // guard falls open for calls routed through /sse.
+  it.each(["/mcp", "/sse"])("captures MCP transport endpoint %s", (path) => {
+    expect(isMcpTransportPath(path)).toBe(true)
+  })
+
+  it.each(["/oauth/callback/x", "/", "/mcp/", "/messages", ""])(
+    "ignores non-transport path %p",
+    (path) => {
+      expect(isMcpTransportPath(path)).toBe(false)
+    },
+  )
 })

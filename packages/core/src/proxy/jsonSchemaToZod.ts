@@ -1,14 +1,28 @@
 import { z, type ZodTypeAny } from "zod"
 
 /**
+ * Guardrail against a maliciously (or accidentally) deep upstream schema. The
+ * converter recurses through `object.properties` and `array.items`; an upstream
+ * that serves a self-nesting or pathologically deep schema would otherwise blow
+ * the call stack when its `tools/list` is forwarded. Beyond this depth we stop
+ * descending and emit `z.any()` — the upstream stays the real validator, so a
+ * looser inbound shape at extreme depth is harmless. 64 is far past any
+ * hand-written tool schema while still bounding the recursion.
+ */
+const MAX_SCHEMA_DEPTH = 64
+
+/**
  * Minimal JSON-Schema → Zod runtime converter covering the subset real MCP
  * tools use (object/string/number/boolean/array, enum, nullable type union,
  * required). Exotic constructs (oneOf/anyOf/allOf/$ref) fall through to
  * `z.any()`. A proxy is a forwarder — the upstream is the real validator, so
  * we only need enough structure for the inbound client's tools/list to render.
  */
-export function jsonSchemaToZod(schema: unknown): ZodTypeAny {
+export function jsonSchemaToZod(schema: unknown, depth = 0): ZodTypeAny {
   if (!schema || typeof schema !== "object") {
+    return z.any()
+  }
+  if (depth >= MAX_SCHEMA_DEPTH) {
     return z.any()
   }
   const s = schema as Record<string, unknown>
@@ -38,7 +52,7 @@ export function jsonSchemaToZod(schema: unknown): ZodTypeAny {
   if (Array.isArray(type)) {
     const nonNull = type.filter((t): t is string => typeof t === "string" && t !== "null")
     if (nonNull.length === 1 && type.includes("null")) {
-      return jsonSchemaToZod({ ...s, type: nonNull[0] }).nullable()
+      return jsonSchemaToZod({ ...s, type: nonNull[0] }, depth + 1).nullable()
     }
     return z.any()
   }
@@ -48,7 +62,7 @@ export function jsonSchemaToZod(schema: unknown): ZodTypeAny {
     const required: string[] = Array.isArray(s.required) ? (s.required as string[]) : []
     const shape: Record<string, ZodTypeAny> = {}
     for (const [key, sub] of Object.entries(properties)) {
-      let field = jsonSchemaToZod(sub)
+      let field = jsonSchemaToZod(sub, depth + 1)
       if (!required.includes(key)) {
         field = field.optional()
       }
@@ -59,7 +73,7 @@ export function jsonSchemaToZod(schema: unknown): ZodTypeAny {
   }
 
   if (type === "array") {
-    return z.array(jsonSchemaToZod(s.items ?? {}))
+    return z.array(jsonSchemaToZod(s.items ?? {}, depth + 1))
   }
 
   if (type === "string") {

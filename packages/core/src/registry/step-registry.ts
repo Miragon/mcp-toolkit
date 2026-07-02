@@ -27,6 +27,15 @@ export class StepRegistry {
     return this.steps.get(stepId)
   }
 
+  /**
+   * Remove a previously-registered step. Used to roll back a partially loaded
+   * module when isolating an upstream collision (see `loadApps`); a no-op for
+   * unknown ids.
+   */
+  unregister(stepId: string): void {
+    this.steps.delete(stepId)
+  }
+
   getAll(): PipelineStepDefinition[] {
     return [...this.steps.values()]
   }

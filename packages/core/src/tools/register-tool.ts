@@ -46,13 +46,25 @@ function wrapArraySchema(schema: z.ZodTypeAny | undefined): z.ZodTypeAny | undef
 /**
  * Coerces a handler result into the `structuredContent` object shape MCP
  * requires, mirroring {@link wrapArraySchema}: bare arrays become `{ data }`,
- * objects pass through. Used to populate `structuredContent` on the
- * `formatResult` path when an `outputSchema` is declared, so the human-readable
- * text and the machine-readable payload are both emitted.
+ * objects pass through.
+ *
+ * A declared `outputSchema` is a promise to the client that this tool emits an
+ * *object* `structuredContent`. If the handler instead returns a scalar,
+ * `null`, or `undefined`, the SDK would reject the response with an opaque
+ * protocol error ("has an output schema but no structured content" / "invalid
+ * structured content"). We turn that into a clear, house-style tool error
+ * instead — thrown here and caught by {@link withToolErrors}, which surfaces it
+ * as an `isError` result the SDK passes through without output-schema
+ * validation.
  */
-function asStructuredContent(result: unknown): Record<string, unknown> {
+function toStructuredContent(result: unknown, toolName: string): Record<string, unknown> {
   if (Array.isArray(result)) return { data: result }
-  return result as Record<string, unknown>
+  if (result !== null && typeof result === "object") return result as Record<string, unknown>
+  const kind = result === null ? "null" : typeof result
+  throw new Error(
+    `Tool "${toolName}" declares an outputSchema but its handler returned a ${kind} value; ` +
+      `structured output must be an object or array.`,
+  )
 }
 
 export function createToolRegistrar<TClient>(server: MCPServer, client: TClient) {
@@ -77,7 +89,7 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
           // the human-readable text instead of dropping it. Without an
           // outputSchema the formatResult path stays text-only as before.
           if (config.outputSchema) {
-            return { ...formatted, structuredContent: asStructuredContent(result) }
+            return { ...formatted, structuredContent: toStructuredContent(result, config.name) }
           }
           return formatted
         }
@@ -86,6 +98,14 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
         }
         if (result !== null && typeof result === "object") {
           return object(result as Record<string, unknown>)
+        }
+        // A declared outputSchema requires an object `structuredContent`; a
+        // scalar/null/undefined result would make the SDK reject the response
+        // with an opaque protocol error. Surface a clear tool error instead
+        // (see toStructuredContent). Without an outputSchema, the text-only
+        // fallbacks below are valid.
+        if (config.outputSchema) {
+          return object(toStructuredContent(result, config.name))
         }
         if (result !== null && result !== undefined) {
           return text(JSON.stringify(result, null, 2))

@@ -478,10 +478,39 @@ export class UpstreamProxyPlugin implements AppPlugin<MCPServer> {
         return (await session.callTool(tool.name, params)) as ToolResult
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
+        // A dead upstream session (revoked/expired token) otherwise locks the
+        // user out permanently: `hasSession` stays true, so `_authenticate`
+        // refuses to re-auth and the tools/list filter keeps advertising tools
+        // that can never succeed. On a genuine auth failure, drop the session
+        // so re-authentication is possible again. Transient connection errors
+        // are deliberately NOT treated as auth failures — the tokens are still
+        // valid and should survive an upstream blip.
+        const cleared = await this.invalidateSessionOnAuthFailure(ctx, err)
+        if (cleared) {
+          return toolError(
+            `Your ${this.name} session is no longer valid — please call ${this.name}_authenticate again. (${message})`,
+          )
+        }
         return toolError(`Error calling ${tool.name}: ${message}`)
       }
     }
     server.tool(toolDef, handler)
+  }
+
+  /**
+   * When a forwarded call fails with a genuine auth failure (revoked/expired
+   * token), drop the caller's oauth2 session so `_authenticate` can start a
+   * fresh flow. Returns `true` when a session was actually cleared. No-op for
+   * static-auth modes (no per-user session) and for non-auth errors.
+   */
+  private async invalidateSessionOnAuthFailure(ctx: unknown, err: unknown): Promise<boolean> {
+    if (this.authConfig.mode !== "oauth2") return false
+    if (!isUpstreamAuthFailure(err)) return false
+    const userId = (ctx as ToolHandlerContext | undefined)?.auth?.user?.userId
+    if (!userId) return false
+    if (!(await this.sessionStore.hasSession(userId, this.name))) return false
+    await this.sessionStore.deleteSession(userId, this.name)
+    return true
   }
 
   private async notifyToolsListChanged(server: MCPServer, sessionId: string): Promise<void> {
@@ -539,4 +568,35 @@ export function parseNonceCookie(cookieHeader: string): string | undefined {
     .split(";")
     .map((p) => p.trim().split("="))
     .find(([k]) => k === "oauth_nonce")?.[1]
+}
+
+/**
+ * Whether an error thrown by an upstream session call is a genuine
+ * authentication failure (revoked/expired/invalid token) as opposed to a
+ * transient connection or domain error.
+ *
+ * Deliberately conservative: only 401/403 statuses and unmistakable token-auth
+ * messages count. Connection errors (ECONNREFUSED/reset, socket hang up) are
+ * NOT auth failures — the caller's tokens are still valid and must survive an
+ * upstream restart or network blip, so we don't want to force a re-login for
+ * those. Exported for testing.
+ */
+export function isUpstreamAuthFailure(err: unknown): boolean {
+  const status = (err as { status?: unknown; statusCode?: unknown; code?: unknown } | null)?.status
+  const statusCode = (err as { statusCode?: unknown } | null)?.statusCode
+  if ([status, statusCode].some((s) => s === 401 || s === 403 || s === "401" || s === "403")) {
+    return true
+  }
+  const message = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  return (
+    message.includes("http 401") ||
+    message.includes("http 403") ||
+    message.includes("unauthorized") ||
+    message.includes("forbidden") ||
+    message.includes("invalid_token") ||
+    message.includes("invalid token") ||
+    message.includes("token expired") ||
+    message.includes("token has expired") ||
+    message.includes("expired token")
+  )
 }
