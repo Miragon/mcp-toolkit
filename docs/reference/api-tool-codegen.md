@@ -24,11 +24,12 @@ literal TypeScript type expressions that replace the generated `input` /
 
 ### Functions
 
-| Symbol               | Signature                                                                                                                    |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `fetchUpstreamTools` | `(opts: FetchToolsOptions) → Promise<UpstreamToolDescriptor[]>`. Opens a streamable-HTTP client, calls `tools/list`, closes. |
-| `generateTools`      | `(config: CodegenConfig) → Promise<CodegenResult>`. Fetches upstream + compiles JSON-schemas + renders Handlebars templates. |
-| `writeCodegenOutput` | `(config, result) → Promise<void>`. Resolves `config.out` vs `cwd`, `mkdir -p`, writes `tools.ts` + `hooks.tsx`.             |
+| Symbol               | Signature                                                                                                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fetchUpstreamTools` | `(opts: FetchToolsOptions) → Promise<UpstreamToolDescriptor[]>`. Opens a streamable-HTTP client, calls `tools/list`, closes.                                           |
+| `generateTools`      | `(config: CodegenConfig) → Promise<CodegenResult>`. Fetches upstream + compiles JSON-schemas + renders Handlebars templates.                                           |
+| `renderCodegen`      | `(tools: UpstreamToolDescriptor[], config) → Promise<CodegenResult>`. The network-free half of `generateTools`: sorts + compiles + renders from an explicit tool list. |
+| `writeCodegenOutput` | `(config, result) → Promise<void>`. Resolves `config.out` vs `cwd`, `mkdir -p`, writes `tools.ts` + `hooks.tsx`.                                                       |
 
 ## `@miragon/mcp-toolkit-tool-codegen/runtime`
 

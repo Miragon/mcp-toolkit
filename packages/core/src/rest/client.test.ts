@@ -176,4 +176,76 @@ describe("createRestClient", () => {
     expect(err.body).toHaveLength(500)
     expect(err.message).toContain("…")
   })
+
+  describe("request timeout", () => {
+    // Rejects with the abort reason once the request's signal fires — models a
+    // hung upstream that only ends when aborted.
+    const hangingFetch: typeof fetch = (_input, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener(
+          "abort",
+          () => {
+            const reason: unknown = init.signal?.reason
+            reject(reason instanceof Error ? reason : new Error(String(reason)))
+          },
+          { once: true },
+        )
+      })
+
+    it("passes an abort signal to fetch by default (timeout enabled)", async () => {
+      const { fetch, calls } = makeFetchStub(jsonResponse(200, {}))
+      const client = createRestClient({ baseUrl: "https://api.example.com", fetch })
+      await client.request({ method: "GET", path: "/ping" })
+      expect(calls[0]?.init.signal).toBeInstanceOf(AbortSignal)
+    })
+
+    it("aborts a hung request after the timeout and reports it clearly", async () => {
+      const client = createRestClient({
+        baseUrl: "https://api.example.com",
+        fetch: hangingFetch,
+        timeoutMs: 10,
+      })
+      await expect(client.request({ method: "GET", path: "/slow" })).rejects.toThrow(
+        /timed out after 10ms/,
+      )
+    })
+
+    it("honours a per-request timeout override", async () => {
+      const client = createRestClient({
+        baseUrl: "https://api.example.com",
+        fetch: hangingFetch,
+        timeoutMs: 0,
+      })
+      await expect(client.request({ method: "GET", path: "/slow", timeoutMs: 10 })).rejects.toThrow(
+        /timed out after 10ms/,
+      )
+    })
+
+    it("omits the abort signal when the timeout is disabled", async () => {
+      const { fetch, calls } = makeFetchStub(jsonResponse(200, {}))
+      const client = createRestClient({
+        baseUrl: "https://api.example.com",
+        fetch,
+        timeoutMs: 0,
+      })
+      await client.request({ method: "GET", path: "/ping" })
+      expect(calls[0]?.init.signal).toBeUndefined()
+    })
+
+    it("propagates a caller abort without masking it as a timeout", async () => {
+      const controller = new AbortController()
+      const client = createRestClient({
+        baseUrl: "https://api.example.com",
+        fetch: hangingFetch,
+        timeoutMs: 0,
+      })
+      const pending = client.request({
+        method: "GET",
+        path: "/slow",
+        signal: controller.signal,
+      })
+      controller.abort(new Error("caller cancelled"))
+      await expect(pending).rejects.toThrow(/caller cancelled/)
+    })
+  })
 })

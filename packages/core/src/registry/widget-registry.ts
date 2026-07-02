@@ -14,6 +14,15 @@ export class WidgetRegistry {
     return this.widgets.get(widgetId)
   }
 
+  /**
+   * Remove a previously-registered widget. Used to roll back a partially
+   * loaded module when isolating an upstream collision (see `loadApps`); a
+   * no-op for unknown ids.
+   */
+  unregister(widgetId: string): void {
+    this.widgets.delete(widgetId)
+  }
+
   findByRequiredKeys(availableKeys: string[]): WidgetDefinition[] {
     const keySet = new Set(availableKeys)
     return [...this.widgets.values()].filter((w) => w.requires.every((key) => keySet.has(key)))

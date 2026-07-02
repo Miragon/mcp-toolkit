@@ -18,10 +18,13 @@ import type {
  * it into `createToolRegistrar` so every tool handler receives the typed
  * client instance.
  */
+const DEFAULT_TIMEOUT_MS = 30_000
+
 export function createRestClient(config: RestClientConfig): RestClient {
   const baseUrl = stripTrailingSlash(config.baseUrl)
   const authHeaders = buildAuthHeaders(config.auth ?? { mode: "none" })
   const fetchImpl = config.fetch ?? globalThis.fetch
+  const defaultTimeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
   if (typeof fetchImpl !== "function") {
     throw new Error("createRestClient: no fetch implementation available")
@@ -48,7 +51,24 @@ export function createRestClient(config: RestClientConfig): RestClient {
       }
     }
 
-    const response = await fetchImpl(url, init)
+    // A hung upstream must not block the tool call (and its MCP connection)
+    // forever. Abort on timeout, and combine with the caller's signal so an
+    // explicit cancellation still works. A dedicated timeout signal lets us
+    // tell "timed out" from "caller aborted" in the catch below.
+    const timeoutMs = options.timeoutMs ?? defaultTimeoutMs
+    const timeoutSignal = timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined
+    const signal = combineSignals(options.signal, timeoutSignal)
+    if (signal) init.signal = signal
+
+    let response: Response
+    try {
+      response = await fetchImpl(url, init)
+    } catch (err) {
+      if (timeoutSignal?.aborted && !options.signal?.aborted) {
+        throw new Error(`REST request to ${url} timed out after ${timeoutMs}ms`, { cause: err })
+      }
+      throw err
+    }
 
     if (!response.ok) {
       const body = await safeReadText(response)
@@ -67,6 +87,21 @@ export function createRestClient(config: RestClientConfig): RestClient {
   }
 
   return { request, baseUrl }
+}
+
+/**
+ * Combine an optional caller signal with an optional timeout signal into the
+ * single `AbortSignal` fetch accepts. Returns `undefined` when neither is
+ * present (no abort behaviour), the sole signal when only one is, or
+ * `AbortSignal.any([...])` when both are — so whichever fires first aborts the
+ * request.
+ */
+function combineSignals(
+  caller: AbortSignal | undefined,
+  timeout: AbortSignal | undefined,
+): AbortSignal | undefined {
+  if (caller && timeout) return AbortSignal.any([caller, timeout])
+  return caller ?? timeout
 }
 
 function buildAuthHeaders(auth: RestAuthConfig): Record<string, string> {

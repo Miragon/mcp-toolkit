@@ -25,6 +25,17 @@ export interface RestRequestOptions {
   query?: Record<string, QueryValue | QueryValue[]>
   body?: unknown
   headers?: Record<string, string>
+  /**
+   * Abort the request when this signal fires, in addition to the timeout. Use
+   * it to cancel a request from the caller (e.g. a tool handler that received
+   * its own abort signal).
+   */
+  signal?: AbortSignal
+  /**
+   * Override {@link RestClientConfig.timeoutMs} for this request. `0` disables
+   * the timeout for this call only.
+   */
+  timeoutMs?: number
 }
 
 export interface RestClientConfig {
@@ -36,6 +47,13 @@ export interface RestClientConfig {
    * for tests and for runtimes that require a custom fetch.
    */
   fetch?: typeof fetch
+  /**
+   * Default per-request timeout in milliseconds. A request that doesn't settle
+   * within this window is aborted, so a hung upstream can't block a tool call
+   * (and its MCP connection) indefinitely. Defaults to `30000`. Set to `0` to
+   * disable the default timeout entirely.
+   */
+  timeoutMs?: number
 }
 
 export interface RestClient {

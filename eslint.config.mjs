@@ -34,4 +34,94 @@ export default tseslint.config(
     plugins: { "react-hooks": reactHooks },
     rules: reactHooks.configs["recommended-latest"].rules,
   },
+
+  // ── Module-boundary enforcement (mirrors CLAUDE.md "Module boundaries") ──
+  // These were doc-only conventions; encode the ones that break consumer
+  // bundles when violated so drift fails CI instead of shipping. Type-only
+  // imports are allowed where the concern is a *runtime* leak (they're erased).
+
+  // core: browser-bundle-safe outside tools/, and no reverse dependency on ui.
+  // (proxy/ and tools/ are server-only subpaths kept out of the root barrel;
+  // a value import of mcp-use/server anywhere else would leak it into the
+  // browser graph.)
+  {
+    files: ["packages/core/src/**/*.ts"],
+    ignores: ["packages/core/src/tools/**", "**/*.test.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "mcp-use/server",
+              message:
+                "core/src outside tools/ must stay browser-bundle-safe. Import mcp-use/server only from core/tools (type-only imports are fine).",
+              allowTypeImports: true,
+            },
+          ],
+          patterns: [
+            {
+              group: ["@miragon/mcp-toolkit-ui", "@miragon/mcp-toolkit-ui/*"],
+              message:
+                "Dependency direction is core → proxy-contract only; core must not import ui.",
+            },
+            {
+              group: ["@miragon/mcp-toolkit-tool-codegen"],
+              message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ui: never reach into core/tools (pulls mcp-use/server) or build-time
+  // tool-codegen.
+  {
+    files: ["packages/ui/src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@miragon/mcp-toolkit-core/tools",
+              message:
+                "ui must never import core/tools — it pulls mcp-use/server into the browser graph.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["@miragon/mcp-toolkit-tool-codegen"],
+              message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ui root barrel: must stay free of mcp-use/react VALUE imports (they pull a
+  // langchain transitive). Such symbols ship from ./app / ./hooks, never root.
+  {
+    files: ["packages/ui/src/index.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "mcp-use/react",
+              message:
+                "The ui root barrel must not value-import mcp-use/react. Export such symbols from the ./app or ./hooks subpaths instead.",
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
 )

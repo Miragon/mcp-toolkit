@@ -49,6 +49,15 @@ export interface CreateFrameworkAppOptionsBase {
     orgGate?: string
     /** role → allowed module prefixes. Empty / missing → no restriction. */
     roleFilter?: Record<string, string[]>
+    /**
+     * When `true`, a `tools/call` whose tool name can't be resolved is *denied*
+     * rather than allowed through the {@link roleFilter} guard. Defaults to
+     * `false` for backward compatibility, but production deployments that rely
+     * on `roleFilter` for access control should set this to `true` so an
+     * unresolved name never slips past the module guard. Only meaningful
+     * alongside `roleFilter`.
+     */
+    roleFilterFailClosed?: boolean
   }
   app: {
     /**
@@ -179,7 +188,10 @@ export async function createFrameworkApp(
 
   const roleFilter = options.middleware?.roleFilter
   if (roleFilter && Object.keys(roleFilter).length > 0) {
-    const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter, { resolveToolName })
+    const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter, {
+      resolveToolName,
+      failClosed: options.middleware?.roleFilterFailClosed ?? false,
+    })
     server.use("mcp:tools/list", toolsList)
     server.use("mcp:tools/call", toolsCall)
   }
@@ -200,15 +212,33 @@ export async function createFrameworkApp(
     hostReactMajor: options.hostReactMajor ?? DEFAULT_HOST_REACT_MAJOR,
   })
   const modulePlugins = discoveredModules.map(synthesizeModulePlugin)
-  const allPlugins: AppPlugin[] = [...options.plugins, ...modulePlugins]
 
   const stepRegistry = new StepRegistry()
   const widgetRegistry = new WidgetRegistry()
+
+  // First-party plugins first: their step/widget ids are author-controlled, so
+  // a collision is a real bug and must fail loud (hard throw).
   loadApps(
-    allPlugins.map((p) => p.definition),
+    options.plugins.map((p) => p.definition),
     stepRegistry,
     widgetRegistry,
   )
+
+  // Discovered upstream modules next, in isolation: an untrusted third-party
+  // module that ships a colliding id must not brick the whole host boot. A
+  // conflicting module is skipped (with a warning) and dropped from the active
+  // plugin set so its tools/widgets/appConfig are never half-registered.
+  const { skipped } = loadApps(
+    modulePlugins.map((p) => p.definition),
+    stepRegistry,
+    widgetRegistry,
+    { isolateFailures: true },
+  )
+  const skippedModuleNames = new Set(skipped.map((s) => s.app.name))
+  const activeModulePlugins = modulePlugins.filter(
+    (p) => !skippedModuleNames.has(p.definition.name),
+  )
+  const allPlugins: AppPlugin[] = [...options.plugins, ...activeModulePlugins]
 
   for (const plugin of allPlugins) {
     plugin.registerTools?.(server)

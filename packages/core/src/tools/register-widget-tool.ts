@@ -2,11 +2,12 @@ import { type MCPServer, type ToolAnnotations } from "mcp-use/server"
 import { z } from "zod"
 import { uiMeta } from "../types/meta.js"
 import { withToolErrors } from "./with-tool-errors.js"
+import type { ToolArgs } from "./register-tool.js"
 
 type ZodRawShape = Record<string, z.ZodTypeAny>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK provides args as Record<string, any> after zod validation
-type ToolArgs = Record<string, any>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK hands the callback params as Record<string, any> after zod validation; internal SDK-facing type only.
+type LooseToolArgs = Record<string, any>
 
 interface WidgetToolResult {
   text: string
@@ -20,11 +21,11 @@ interface WidgetToolResult {
  */
 export type WidgetToolVisibility = "app" | "model" | ("app" | "model")[]
 
-export interface WidgetToolConfig<TClient> {
+export interface WidgetToolConfig<TClient, TShape extends ZodRawShape = ZodRawShape> {
   name: string
   title?: string
   description: string
-  inputSchema?: ZodRawShape
+  inputSchema?: TShape
   /** MCP tool annotations (e.g. `readOnlyHint`) advertised to the host. */
   annotations?: ToolAnnotations
   /**
@@ -39,7 +40,7 @@ export interface WidgetToolConfig<TClient> {
    * registrar; collisions are overwritten by the registrar's `ui`.
    */
   meta?: Record<string, unknown>
-  handler: (client: TClient, params: ToolArgs) => Promise<WidgetToolResult>
+  handler: (client: TClient, params: ToolArgs<TShape>) => Promise<WidgetToolResult>
 }
 
 /** Normalizes the {@link WidgetToolConfig.visibility} option into a flag set. */
@@ -57,7 +58,9 @@ export function createWidgetToolRegistrar<TClient>(
   client: TClient,
   resourceUri: string,
 ) {
-  return function register(config: WidgetToolConfig<TClient>) {
+  return function register<TShape extends ZodRawShape = ZodRawShape>(
+    config: WidgetToolConfig<TClient, TShape>,
+  ) {
     const { app, model } = resolveVisibility(config.visibility)
     // `"model"`-visible tools must not carry the app-only `visibility` marker so
     // the LLM still sees them; otherwise mark app-only. The `resourceUri` is
@@ -73,9 +76,10 @@ export function createWidgetToolRegistrar<TClient>(
         annotations: config.annotations,
         _meta: { ...config.meta, ...ui },
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback type incompatible with ToolArgs
-      withToolErrors(async (params: any) => {
-        const result = await config.handler(client, params as ToolArgs)
+      // The SDK validates params against the schema above, so the loose
+      // callback param is safely the handler's precise `ToolArgs<TShape>`.
+      withToolErrors(async (looseParams: LooseToolArgs) => {
+        const result = await config.handler(client, looseParams as ToolArgs<TShape>)
         return {
           content: [{ type: "text" as const, text: result.text }],
           structuredContent: result.structuredContent,

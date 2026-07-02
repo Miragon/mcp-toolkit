@@ -1,8 +1,10 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import { randomUUID } from "node:crypto"
+import { z } from "zod"
 import type { PipelineStepRef } from "../types/pipeline.js"
 import type { LayoutConfig } from "./layout-types.js"
+import { layoutSchema } from "./layout-schemas.js"
 
 /**
  * Current on-disk schema version stamped onto every saved record. Bump this
@@ -82,6 +84,53 @@ export interface DashboardStore {
   list(filter: DashboardListFilter): Promise<DashboardSummary[]>
   get(id: string, filter: DashboardListFilter): Promise<DashboardRecord | undefined>
   delete(id: string, filter: DashboardListFilter): Promise<boolean>
+}
+
+const stepRefSchema = z.object({
+  id: z.string(),
+  step: z.string(),
+  optional: z.boolean().optional(),
+})
+
+/**
+ * Runtime shape of a persisted dashboard. Kept in sync with
+ * {@link DashboardRecord}; `layout` reuses {@link layoutSchema} so a stored
+ * record and a fresh `render-view` layout validate against the same contract.
+ */
+const dashboardRecordSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  userId: z.string().optional(),
+  keys: z.record(z.string(), z.unknown()).optional(),
+  steps: z.array(stepRefSchema).optional(),
+  layout: layoutSchema,
+  title: z.string().optional(),
+  schemaVersion: z.number().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+/**
+ * Validate a value read back from persistence into a {@link DashboardRecord},
+ * or `undefined` when it isn't one this version can safely use.
+ *
+ * Untrusted disk state is otherwise cast straight to `DashboardRecord`, so a
+ * corrupt or partial file (e.g. a missing `updatedAt`) slips through and later
+ * crashes `list` (its `updatedAt.localeCompare` sort) or feeds garbage into
+ * `render-view`. This is the single fail-soft gate: a record that fails the
+ * schema — or carries a `schemaVersion` newer than this build understands — is
+ * rejected here so callers skip it instead of trusting it.
+ *
+ * Exported for unit testing.
+ */
+export function parseDashboardRecord(raw: unknown): DashboardRecord | undefined {
+  const result = dashboardRecordSchema.safeParse(raw)
+  if (!result.success) return undefined
+  // A record written by a newer build may use fields/semantics this version
+  // can't honour — refuse it rather than silently mis-reading it.
+  if ((result.data.schemaVersion ?? 0) > DASHBOARD_SCHEMA_VERSION) return undefined
+  return result.data
 }
 
 function nowIso(): string {
@@ -232,13 +281,30 @@ export function createFileSystemDashboardStore(
   const fileFor = (id: string) => path.join(dir, `${encodeURIComponent(id)}.json`)
 
   const readRecord = async (id: string): Promise<DashboardRecord | undefined> => {
+    let raw: string
     try {
-      const raw = await fs.readFile(fileFor(id), "utf-8")
-      return JSON.parse(raw) as DashboardRecord
+      raw = await fs.readFile(fileFor(id), "utf-8")
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return undefined
       throw err
     }
+    // Corrupt/incompatible content is treated as "not present" (fail-soft) so a
+    // single bad file can't crash `get`/`save`; a real fs error above still
+    // throws.
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      console.warn(`[dashboard-store] Ignoring dashboard "${id}": file is not valid JSON.`)
+      return undefined
+    }
+    const record = parseDashboardRecord(parsed)
+    if (!record) {
+      console.warn(
+        `[dashboard-store] Ignoring dashboard "${id}": does not match the current record schema.`,
+      )
+    }
+    return record
   }
 
   const writeRecord = async (record: DashboardRecord) => {
@@ -272,13 +338,21 @@ export function createFileSystemDashboardStore(
       const records: DashboardRecord[] = []
       for (const name of entries) {
         if (!name.endsWith(".json")) continue
+        let parsed: unknown
         try {
-          const raw = await fs.readFile(path.join(dir, name), "utf-8")
-          const record = JSON.parse(raw) as DashboardRecord
-          if (ownedBy(record, filter.userId)) records.push(record)
+          parsed = JSON.parse(await fs.readFile(path.join(dir, name), "utf-8"))
         } catch {
-          // Skip files that fail to parse — they're not our records.
+          // Not valid JSON — not one of our records. Skip.
+          continue
         }
+        // Validate before trusting: a partial record (e.g. missing `updatedAt`)
+        // would otherwise crash the sort below and take the whole listing down.
+        const record = parseDashboardRecord(parsed)
+        if (!record) {
+          console.warn(`[dashboard-store] Skipping "${name}": does not match the record schema.`)
+          continue
+        }
+        if (ownedBy(record, filter.userId)) records.push(record)
       }
       records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       return records.map((r) => ({

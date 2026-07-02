@@ -50,8 +50,22 @@ export async function generateTools(config: CodegenConfig): Promise<CodegenResul
     upstreamUrl: config.upstreamUrl,
     auth: config.auth,
   })
-  // Sort by tool name so two regenerations against the same upstream produce
-  // byte-identical output regardless of the upstream's tools/list order.
+  return renderCodegen(fetched, config)
+}
+
+/**
+ * Renders the two generated files from an explicit list of upstream tools —
+ * the pure, network-free half of {@link generateTools}. Split out so the
+ * build-time↔runtime naming/output contract can be pinned by a test that feeds
+ * a fixed tool list, instead of reaching for a live upstream.
+ *
+ * Sorts by tool name so two regenerations against the same upstream produce
+ * byte-identical output regardless of the upstream's `tools/list` order.
+ */
+export async function renderCodegen(
+  fetched: UpstreamToolDescriptor[],
+  config: CodegenConfig,
+): Promise<CodegenResult> {
   const tools = [...fetched].sort((a, b) => a.name.localeCompare(b.name))
 
   const proxyPascal = toPascalCase(config.proxyName)

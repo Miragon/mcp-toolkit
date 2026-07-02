@@ -4,14 +4,22 @@ import { withToolErrors } from "./with-tool-errors.js"
 
 type ZodRawShape = Record<string, z.ZodTypeAny>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK provides args as Record<string, any> after zod validation
-type ToolArgs = Record<string, any>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK hands the callback args as Record<string, any> after zod validation; kept as the internal SDK-facing type only.
+type LooseToolArgs = Record<string, any>
 
-export interface ToolConfig<TClient> {
+/**
+ * The validated args a handler receives. When an `inputSchema` shape is
+ * declared, this is inferred from it (`z.infer`), so handlers get precise types
+ * for free instead of a loose `Record<string, any>`. With no `inputSchema` it
+ * falls back to a permissive record, matching the pre-generic behaviour.
+ */
+export type ToolArgs<TShape extends ZodRawShape = ZodRawShape> = z.infer<z.ZodObject<TShape>>
+
+export interface ToolConfig<TClient, TShape extends ZodRawShape = ZodRawShape> {
   name: string
   description: string
   category?: string
-  inputSchema?: ZodRawShape
+  inputSchema?: TShape
   /**
    * Zod schema describing the tool's structured output. Mirrored into the
    * MCP `outputSchema` advertised to clients and used to populate
@@ -29,8 +37,8 @@ export interface ToolConfig<TClient> {
     idempotentHint?: boolean
     openWorldHint?: boolean
   }
-  handler: (client: TClient, args: ToolArgs) => Promise<unknown>
-  formatResult?: (result: unknown, args: ToolArgs) => string
+  handler: (client: TClient, args: ToolArgs<TShape>) => Promise<unknown>
+  formatResult?: (result: unknown, args: ToolArgs<TShape>) => string
 }
 
 export interface RegisteredToolMeta {
@@ -46,19 +54,31 @@ function wrapArraySchema(schema: z.ZodTypeAny | undefined): z.ZodTypeAny | undef
 /**
  * Coerces a handler result into the `structuredContent` object shape MCP
  * requires, mirroring {@link wrapArraySchema}: bare arrays become `{ data }`,
- * objects pass through. Used to populate `structuredContent` on the
- * `formatResult` path when an `outputSchema` is declared, so the human-readable
- * text and the machine-readable payload are both emitted.
+ * objects pass through.
+ *
+ * A declared `outputSchema` is a promise to the client that this tool emits an
+ * *object* `structuredContent`. If the handler instead returns a scalar,
+ * `null`, or `undefined`, the SDK would reject the response with an opaque
+ * protocol error ("has an output schema but no structured content" / "invalid
+ * structured content"). We turn that into a clear, house-style tool error
+ * instead — thrown here and caught by {@link withToolErrors}, which surfaces it
+ * as an `isError` result the SDK passes through without output-schema
+ * validation.
  */
-function asStructuredContent(result: unknown): Record<string, unknown> {
+function toStructuredContent(result: unknown, toolName: string): Record<string, unknown> {
   if (Array.isArray(result)) return { data: result }
-  return result as Record<string, unknown>
+  if (result !== null && typeof result === "object") return result as Record<string, unknown>
+  const kind = result === null ? "null" : typeof result
+  throw new Error(
+    `Tool "${toolName}" declares an outputSchema but its handler returned a ${kind} value; ` +
+      `structured output must be an object or array.`,
+  )
 }
 
 export function createToolRegistrar<TClient>(server: MCPServer, client: TClient) {
   const registeredTools: RegisteredToolMeta[] = []
 
-  function register(config: ToolConfig<TClient>) {
+  function register<TShape extends ZodRawShape = ZodRawShape>(config: ToolConfig<TClient, TShape>) {
     registeredTools.push({ name: config.name, category: config.category })
     server.tool(
       {
@@ -68,7 +88,10 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
         outputSchema: wrapArraySchema(config.outputSchema),
         annotations: config.annotations,
       },
-      withToolErrors(async (args: ToolArgs) => {
+      // The SDK validates args against the schema above, so the loose callback
+      // arg is safely the handler's precise `ToolArgs<TShape>`.
+      withToolErrors(async (looseArgs: LooseToolArgs) => {
+        const args = looseArgs as ToolArgs<TShape>
         const result = await config.handler(client, args)
         if (config.formatResult) {
           const formatted = text(config.formatResult(result, args))
@@ -77,7 +100,7 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
           // the human-readable text instead of dropping it. Without an
           // outputSchema the formatResult path stays text-only as before.
           if (config.outputSchema) {
-            return { ...formatted, structuredContent: asStructuredContent(result) }
+            return { ...formatted, structuredContent: toStructuredContent(result, config.name) }
           }
           return formatted
         }
@@ -86,6 +109,14 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
         }
         if (result !== null && typeof result === "object") {
           return object(result as Record<string, unknown>)
+        }
+        // A declared outputSchema requires an object `structuredContent`; a
+        // scalar/null/undefined result would make the SDK reject the response
+        // with an opaque protocol error. Surface a clear tool error instead
+        // (see toStructuredContent). Without an outputSchema, the text-only
+        // fallbacks below are valid.
+        if (config.outputSchema) {
+          return object(toStructuredContent(result, config.name))
         }
         if (result !== null && result !== undefined) {
           return text(JSON.stringify(result, null, 2))
