@@ -2,11 +2,13 @@ import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { vi } from "vitest"
 import {
   createFileSystemDashboardStore,
   createInMemoryDashboardStore,
   DashboardOwnershipError,
   DASHBOARD_SCHEMA_VERSION,
+  parseDashboardRecord,
   resolveSavedRecord,
   type DashboardRecord,
   type DashboardStore,
@@ -211,5 +213,82 @@ describe("resolveSavedRecord", () => {
       now,
     )
     expect(merged?.userId).toBeUndefined()
+  })
+})
+
+describe("parseDashboardRecord", () => {
+  const valid: DashboardRecord = {
+    id: "d1",
+    name: "Ok",
+    layout: { rows: [] },
+    schemaVersion: DASHBOARD_SCHEMA_VERSION,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-02T00:00:00.000Z",
+  }
+
+  it("accepts a well-formed record", () => {
+    expect(parseDashboardRecord(valid)).toMatchObject({ id: "d1", name: "Ok" })
+  })
+
+  it("accepts a legacy record with no schemaVersion (implicit v0)", () => {
+    const legacy: Record<string, unknown> = { ...valid }
+    delete legacy.schemaVersion
+    expect(parseDashboardRecord(legacy)).toMatchObject({ id: "d1" })
+  })
+
+  const withoutUpdatedAt = (): Record<string, unknown> => {
+    const rec: Record<string, unknown> = { ...valid }
+    delete rec.updatedAt
+    return rec
+  }
+
+  it.each([
+    ["a missing required field (updatedAt)", withoutUpdatedAt()],
+    ["a wrong field type (name is a number)", { ...valid, name: 42 }],
+    ["a malformed layout", { ...valid, layout: { not: "a layout" } }],
+    ["a non-object", "just a string"],
+    ["null", null],
+  ])("rejects %s", (_label, input) => {
+    expect(parseDashboardRecord(input)).toBeUndefined()
+  })
+
+  it("rejects a record from a newer schema version this build can't read", () => {
+    expect(
+      parseDashboardRecord({ ...valid, schemaVersion: DASHBOARD_SCHEMA_VERSION + 1 }),
+    ).toBeUndefined()
+  })
+})
+
+describe("createFileSystemDashboardStore — corrupt files are fail-soft", () => {
+  let dir: string
+  let store: DashboardStore
+
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), "mcp-toolkit-dashboards-corrupt-"))
+    store = createFileSystemDashboardStore({ dir })
+    vi.spyOn(console, "warn").mockImplementation(() => {})
+  })
+
+  afterEach(async () => {
+    vi.restoreAllMocks()
+    await fs.rm(dir, { recursive: true, force: true })
+  })
+
+  it("list() skips a partial record instead of crashing on the sort", async () => {
+    await store.save({ name: "Good", layout: { rows: [] } })
+    // A record missing updatedAt would blow up `updatedAt.localeCompare` in the sort.
+    await fs.writeFile(path.join(dir, "broken.json"), JSON.stringify({ id: "broken", name: "x" }))
+    await fs.writeFile(path.join(dir, "notjson.json"), "{ not valid json")
+
+    const list = await store.list({})
+    expect(list.map((d) => d.name)).toEqual(["Good"])
+  })
+
+  it("get() returns undefined for a corrupt record instead of throwing", async () => {
+    await fs.writeFile(
+      path.join(dir, encodeURIComponent("bad") + ".json"),
+      JSON.stringify({ id: "bad" }),
+    )
+    await expect(store.get("bad", {})).resolves.toBeUndefined()
   })
 })

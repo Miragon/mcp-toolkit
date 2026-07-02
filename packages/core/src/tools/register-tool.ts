@@ -4,14 +4,22 @@ import { withToolErrors } from "./with-tool-errors.js"
 
 type ZodRawShape = Record<string, z.ZodTypeAny>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK provides args as Record<string, any> after zod validation
-type ToolArgs = Record<string, any>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK hands the callback args as Record<string, any> after zod validation; kept as the internal SDK-facing type only.
+type LooseToolArgs = Record<string, any>
 
-export interface ToolConfig<TClient> {
+/**
+ * The validated args a handler receives. When an `inputSchema` shape is
+ * declared, this is inferred from it (`z.infer`), so handlers get precise types
+ * for free instead of a loose `Record<string, any>`. With no `inputSchema` it
+ * falls back to a permissive record, matching the pre-generic behaviour.
+ */
+export type ToolArgs<TShape extends ZodRawShape = ZodRawShape> = z.infer<z.ZodObject<TShape>>
+
+export interface ToolConfig<TClient, TShape extends ZodRawShape = ZodRawShape> {
   name: string
   description: string
   category?: string
-  inputSchema?: ZodRawShape
+  inputSchema?: TShape
   /**
    * Zod schema describing the tool's structured output. Mirrored into the
    * MCP `outputSchema` advertised to clients and used to populate
@@ -29,8 +37,8 @@ export interface ToolConfig<TClient> {
     idempotentHint?: boolean
     openWorldHint?: boolean
   }
-  handler: (client: TClient, args: ToolArgs) => Promise<unknown>
-  formatResult?: (result: unknown, args: ToolArgs) => string
+  handler: (client: TClient, args: ToolArgs<TShape>) => Promise<unknown>
+  formatResult?: (result: unknown, args: ToolArgs<TShape>) => string
 }
 
 export interface RegisteredToolMeta {
@@ -70,7 +78,7 @@ function toStructuredContent(result: unknown, toolName: string): Record<string, 
 export function createToolRegistrar<TClient>(server: MCPServer, client: TClient) {
   const registeredTools: RegisteredToolMeta[] = []
 
-  function register(config: ToolConfig<TClient>) {
+  function register<TShape extends ZodRawShape = ZodRawShape>(config: ToolConfig<TClient, TShape>) {
     registeredTools.push({ name: config.name, category: config.category })
     server.tool(
       {
@@ -80,7 +88,10 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
         outputSchema: wrapArraySchema(config.outputSchema),
         annotations: config.annotations,
       },
-      withToolErrors(async (args: ToolArgs) => {
+      // The SDK validates args against the schema above, so the loose callback
+      // arg is safely the handler's precise `ToolArgs<TShape>`.
+      withToolErrors(async (looseArgs: LooseToolArgs) => {
+        const args = looseArgs as ToolArgs<TShape>
         const result = await config.handler(client, args)
         if (config.formatResult) {
           const formatted = text(config.formatResult(result, args))

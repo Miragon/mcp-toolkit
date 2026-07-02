@@ -1,5 +1,5 @@
 export type { ToolShape, TypedCallTool } from "./runtime.js"
 export { fetchUpstreamTools } from "./fetch-tools.js"
 export type { FetchToolsOptions, UpstreamToolDescriptor } from "./fetch-tools.js"
-export { generateTools, writeCodegenOutput } from "./codegen.js"
+export { generateTools, renderCodegen, writeCodegenOutput } from "./codegen.js"
 export type { CodegenConfig, CodegenResult } from "./codegen.js"

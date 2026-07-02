@@ -11,13 +11,7 @@ import {
   SHOW_TASKS_BOARD,
   TASKS_BOARD_DATA,
 } from "./tool-names.js"
-import {
-  createTaskStore,
-  type TaskPriority,
-  type TaskStatus,
-  type TaskStore,
-  type TasksBoardData,
-} from "./store.js"
+import { createTaskStore, type TaskStore, type TasksBoardData } from "./store.js"
 
 /**
  * The `tasks` module — the missing example: an MCP server with its **own** tools
@@ -104,9 +98,9 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
     // A bare array is auto-wrapped to `{ data: [...] }` for structuredContent.
     outputSchema: z.array(taskSchema),
     handler: (client, args) => {
-      // The registrar types `args` loosely (post-Zod `Record<string, any>`), so
-      // narrow it to this tool's validated shape before use.
-      const { status, priority } = args as { status?: TaskStatus; priority?: TaskPriority }
+      // `args` is typed from this tool's `inputSchema` (status/priority) — the
+      // registrar infers the handler arg shape, so no cast is needed.
+      const { status, priority } = args
       return Promise.resolve(client.list({ status, priority }))
     },
   })
@@ -131,7 +125,7 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
     },
     outputSchema: taskSchema,
     handler: (client, args) => {
-      const { title, priority } = args as { title: string; priority?: TaskPriority }
+      const { title, priority } = args
       return Promise.resolve(client.create({ title, priority }))
     },
   })
@@ -154,7 +148,7 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
     },
     outputSchema: taskSchema,
     handler: (client, args) => {
-      const { taskId } = args as { taskId: string }
+      const { taskId } = args
       return Promise.resolve(client.complete(taskId))
     },
   })
