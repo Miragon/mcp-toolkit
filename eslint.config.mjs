@@ -67,8 +67,7 @@ export default tseslint.config(
             },
             {
               group: ["@miragon/mcp-toolkit-tool-codegen"],
-              message:
-                "tool-codegen is build-time. Runtime code imports only its /runtime types.",
+              message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
               allowTypeImports: true,
             },
           ],
@@ -96,8 +95,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ["@miragon/mcp-toolkit-tool-codegen"],
-              message:
-                "tool-codegen is build-time. Runtime code imports only its /runtime types.",
+              message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
               allowTypeImports: true,
             },
           ],
