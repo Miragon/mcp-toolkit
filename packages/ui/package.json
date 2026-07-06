@@ -26,6 +26,7 @@
   "files": [
     "dist",
     "src",
+    "ui-catalog.json",
     "README.md"
   ],
   "scripts": {

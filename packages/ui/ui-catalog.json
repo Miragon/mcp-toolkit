@@ -1,6 +1,6 @@
 {
   "$comment": "Machine-readable catalog of prompt-relevant @miragon/mcp-toolkit-ui building blocks. Hand-maintained, source of truth is packages/ui/src/. A Vitest drift-guard (src/ui-catalog.test.ts) asserts every `export` named here is actually exported from its `importPath` barrel, so this file cannot silently drift from the code. Consumed by the docs/reference/components.md page and the build-mcp-widget skill. `importPath` is one of: '@miragon/mcp-toolkit-ui' (root barrel, mcp-use/react-free), '@miragon/mcp-toolkit-ui/app' (MCP app shell, imports mcp-use/react), '@miragon/mcp-toolkit-ui/hooks' (view-tool hooks).",
-  "version": "0.3.1",
+  "version": "0.6.1",
   "importPaths": {
     "root": "@miragon/mcp-toolkit-ui",
     "app": "@miragon/mcp-toolkit-ui/app",
