@@ -84,7 +84,7 @@ pinned exactly, so match them:
 
 ```sh
 pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-proxy-contract
-pnpm add @modelcontextprotocol/sdk@1.29.0 mcp-use@1.32.1 zod@4.4.3
+pnpm add @modelcontextprotocol/sdk@1.29.0 mcp-use@1.33.0 zod@4.4.3
 ```
 
 A minimal host:
