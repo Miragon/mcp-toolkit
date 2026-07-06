@@ -28,8 +28,12 @@ export type {
   ResolvedBackend,
   CreateBackendRegistryOptions,
 } from "./backend-registry.js"
-export { installToolCallNameCapture, extractToolCallName } from "./tool-call-name.js"
-export type { ToolNameResolver } from "./tool-call-name.js"
+export {
+  installToolCallNameCapture,
+  extractToolCallName,
+  extractToolCallNames,
+} from "./tool-call-name.js"
+export type { ToolNameResolver, ToolNameCapture } from "./tool-call-name.js"
 
 // Dashboard-store implementations are server-side (the filesystem impl
 // imports `node:fs`). Consumers wire them through `createFrameworkApp`'s

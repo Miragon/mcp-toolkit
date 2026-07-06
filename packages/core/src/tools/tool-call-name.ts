@@ -20,20 +20,49 @@ type HonoContext = NonNullable<ReturnType<typeof getRequestContext>>
 export type ToolNameResolver = () => string | undefined
 
 /**
- * Parse a JSON-RPC request body and return the `params.name` of a
- * `tools/call` request, or `undefined` for any other shape.
+ * The resolver returned by {@link installToolCallNameCapture}: callable as a
+ * plain {@link ToolNameResolver} (first `tools/call` name — the common case
+ * and the logging-friendly one), with `.all()` exposing every name the
+ * in-flight envelope carries. A JSON-RPC *batch* can contain several
+ * `tools/call` requests, and a guard that only checks one of them can be
+ * bypassed by the others — the role filter therefore consumes `.all()`.
+ */
+export interface ToolNameCapture extends ToolNameResolver {
+  /** Every `tools/call` name in the in-flight envelope, or `undefined` outside a capture scope. */
+  all: () => string[] | undefined
+}
+
+/**
+ * Parse a JSON-RPC request body and return the `params.name` of every
+ * `tools/call` request it carries: a single request yields zero or one entry,
+ * a batch array yields one entry per `tools/call` it contains. Batches are a
+ * real-world shape, not an edge case — Streamable-HTTP revision 2025-03-26
+ * allows them, and claude.ai (via mcp-remote) frames single calls as
+ * one-element batches.
  *
  * Pure and side-effect free so it can be unit-tested without an HTTP server.
- * Tolerates arbitrary `unknown` input: malformed bodies, batch arrays, and
- * non-`tools/call` methods all yield `undefined` rather than throwing.
+ * Tolerates arbitrary `unknown` input: malformed bodies, malformed batch
+ * entries, and non-`tools/call` methods contribute nothing rather than throw.
+ */
+export function extractToolCallNames(body: unknown): string[] {
+  if (Array.isArray(body)) {
+    return body.flatMap((entry) => extractToolCallNames(entry))
+  }
+  if (typeof body !== "object" || body === null) return []
+  const { method, params } = body as { method?: unknown; params?: unknown }
+  if (method !== "tools/call") return []
+  if (typeof params !== "object" || params === null) return []
+  const { name } = params as { name?: unknown }
+  return typeof name === "string" ? [name] : []
+}
+
+/**
+ * First `tools/call` name of a JSON-RPC request body (single request or batch
+ * array), or `undefined` when it carries none. Sufficient for logging; guards
+ * must use {@link extractToolCallNames} — a batch can carry several calls.
  */
 export function extractToolCallName(body: unknown): string | undefined {
-  if (typeof body !== "object" || body === null) return undefined
-  const { method, params } = body as { method?: unknown; params?: unknown }
-  if (method !== "tools/call") return undefined
-  if (typeof params !== "object" || params === null) return undefined
-  const { name } = params as { name?: unknown }
-  return typeof name === "string" ? name : undefined
+  return extractToolCallNames(body)[0]
 }
 
 /**
@@ -71,8 +100,8 @@ export function isMcpTransportPath(path: string): boolean {
   return MCP_TRANSPORT_PATHS.has(path)
 }
 
-export function installToolCallNameCapture(server: McpServerInstance<boolean>): ToolNameResolver {
-  const toolNameByRequest = new WeakMap<HonoContext, string>()
+export function installToolCallNameCapture(server: McpServerInstance<boolean>): ToolNameCapture {
+  const toolNamesByRequest = new WeakMap<HonoContext, string[]>()
 
   server.use(async (c, next) => {
     if (c.req.method === "POST" && isMcpTransportPath(c.req.path)) {
@@ -80,17 +109,18 @@ export function installToolCallNameCapture(server: McpServerInstance<boolean>): 
         .clone()
         .json()
         .catch(() => undefined)
-      const toolName = extractToolCallName(body)
-      if (toolName !== undefined) {
-        toolNameByRequest.set(c, toolName)
+      const toolNames = extractToolCallNames(body)
+      if (toolNames.length > 0) {
+        toolNamesByRequest.set(c, toolNames)
       }
     }
     await next()
   })
 
-  return () => {
+  const all = (): string[] | undefined => {
     const requestContext = getRequestContext()
     if (!requestContext) return undefined
-    return toolNameByRequest.get(requestContext)
+    return toolNamesByRequest.get(requestContext)
   }
+  return Object.assign(() => all()?.[0], { all })
 }

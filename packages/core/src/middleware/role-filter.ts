@@ -7,9 +7,11 @@
  * - `toolsList` — filters `tools/list` responses so users only see tools
  *   belonging to modules their role(s) can access.
  * - `toolsCall` — defence-in-depth: blocks a `tools/call` for a tool whose
- *   module isn't allowed for the caller's role(s). Reads the tool name via the
- *   injected `resolveToolName` (mcp-use 1.28 does not put it in `ctx.params`);
- *   when the name can't be resolved it fails *open* by default (allow) — pass
+ *   module isn't allowed for the caller's role(s). Reads the tool name(s) via
+ *   the injected `resolveToolNames`/`resolveToolName` (mcp-use 1.28 does not
+ *   put them in `ctx.params`); a JSON-RPC batch can carry several `tools/call`
+ *   requests, and the guard denies when *any* of them is disallowed. When no
+ *   name can be resolved it fails *open* by default (allow) — pass
  *   `failClosed: true` to deny instead.
  *
  * Tool-to-module mapping uses the prefix convention `<module>_<tool>`.
@@ -51,6 +53,15 @@ export interface RoleFilterOptions {
    */
   resolveToolName?: () => string | undefined
   /**
+   * Resolves *every* `tools/call` name of the in-flight request. A JSON-RPC
+   * batch envelope can carry several `tools/call` requests — a guard that only
+   * checks one of them can be bypassed by the others, so when this resolver is
+   * provided the guard checks each name and denies if *any* is disallowed.
+   * Wire it to the `.all` of `installToolCallNameCapture(server)`'s return.
+   * Takes precedence over `resolveToolName` when it yields at least one name.
+   */
+  resolveToolNames?: () => string[] | undefined
+  /**
    * When `true`, a `tools/call` whose tool name can't be resolved is *denied*
    * instead of allowed. Defaults to `false` (fail-open) to preserve the prior
    * behaviour — opt in for stricter deployments where an unresolved name should
@@ -66,6 +77,7 @@ export function createRoleFilterMiddleware(
   opts: RoleFilterOptions = {},
 ): RoleFilterMiddlewares {
   const resolveToolName = opts.resolveToolName
+  const resolveToolNames = opts.resolveToolNames
   const failClosed = opts.failClosed ?? false
   const hasRules = Object.keys(roleToModules).length > 0
 
@@ -91,14 +103,23 @@ export function createRoleFilterMiddleware(
 
   const toolsCall: RoleFilterMiddleware = async (ctx, next) => {
     if (!hasRules) return next()
+    // A JSON-RPC batch can carry several tools/call requests — check them
+    // all; a single-name check would let the remaining batch entries through.
+    const resolvedNames = resolveToolNames?.()
     const resolved = resolveToolName?.()
-    const toolName =
+    const fallbackName =
       typeof resolved === "string"
         ? resolved
         : typeof ctx.params?.name === "string"
           ? ctx.params.name
           : undefined
-    if (!toolName) {
+    const toolNames =
+      resolvedNames && resolvedNames.length > 0
+        ? resolvedNames
+        : fallbackName !== undefined
+          ? [fallbackName]
+          : []
+    if (toolNames.length === 0) {
       if (failClosed) {
         throw new Error(
           "Access denied: unable to resolve the tool name for this call; rejecting under fail-closed policy.",
@@ -106,15 +127,18 @@ export function createRoleFilterMiddleware(
       }
       return next()
     }
-    if (!toolName.includes("_")) return next()
     const allowed = allowedModulesFor(ctx.auth?.user)
     if (allowed === null) return next()
-    const modulePrefix = toolName.split("_")[0] ?? ""
-    if (!allowed.includes(modulePrefix)) {
-      const userRoles = (ctx.auth?.user as { roles?: string[] } | undefined)?.roles ?? []
-      throw new Error(
-        `Access denied: role(s) "${userRoles.join(", ")}" have no access to module "${modulePrefix}".`,
-      )
+    for (const toolName of toolNames) {
+      // Tools without an underscore are framework/app-level and always allowed.
+      if (!toolName.includes("_")) continue
+      const modulePrefix = toolName.split("_")[0] ?? ""
+      if (!allowed.includes(modulePrefix)) {
+        const userRoles = (ctx.auth?.user as { roles?: string[] } | undefined)?.roles ?? []
+        throw new Error(
+          `Access denied: role(s) "${userRoles.join(", ")}" have no access to module "${modulePrefix}".`,
+        )
+      }
     }
     return next()
   }
