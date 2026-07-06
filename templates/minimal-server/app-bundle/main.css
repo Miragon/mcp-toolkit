@@ -1,0 +1,9 @@
+@import "@miragon/mcp-toolkit-ui/globals.css";
+
+/* Your widgets live outside the UI package, so Tailwind must scan them too. */
+@source "../src/**/*.{ts,tsx}";
+
+/* The UI package ships its TypeScript sources; scanning them generates the
+   classes its components use (its own globals.css does this relative to
+   itself — this line keeps it explicit and robust against hoisting layouts). */
+@source "../node_modules/@miragon/mcp-toolkit-ui/src/**/*.{ts,tsx}";

@@ -1,6 +1,10 @@
 import { defineConfig } from "vitepress"
 
 export default defineConfig({
+  // GitHub Pages serves the project site under /mcp-toolkit/ — the docs
+  // workflow (.github/workflows/docs.yml) sets DOCS_BASE accordingly.
+  // Local dev and preview keep the default "/".
+  base: process.env.DOCS_BASE ?? "/",
   lang: "en-US",
   title: "mcp-toolkit",
   description:
@@ -9,12 +13,17 @@ export default defineConfig({
   lastUpdated: true,
 
   // Relative links inside the docs work fine.
-  // Links from docs into ../examples/..., ../../packages/..., or ../../.claude/...
-  // point at repo-local source files that aren't part of the VitePress routing
-  // tree (they exist on disk but the site doesn't render them). Tell VitePress to
-  // leave them alone — they resolve correctly when the docs are read on
-  // GitHub or via the file system.
-  ignoreDeadLinks: [/(?:^|\/)examples\//, /(?:^|\/)packages\//, /(?:^|\/)\.claude\//],
+  // Links from docs into ../examples/..., ../../packages/..., ../../templates/...,
+  // or ../../.claude/... point at repo-local source files that aren't part of the
+  // VitePress routing tree (they exist on disk but the site doesn't render them).
+  // Tell VitePress to leave them alone — they resolve correctly when the docs are
+  // read on GitHub or via the file system.
+  ignoreDeadLinks: [
+    /(?:^|\/)examples\//,
+    /(?:^|\/)packages\//,
+    /(?:^|\/)templates\//,
+    /(?:^|\/)\.claude\//,
+  ],
 
   themeConfig: {
     siteTitle: "mcp-toolkit",

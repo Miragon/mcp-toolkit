@@ -3,7 +3,10 @@ import tseslint from "typescript-eslint"
 import reactHooks from "eslint-plugin-react-hooks"
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**"] },
+  // templates/ is a standalone consumer project outside the pnpm workspace —
+  // its deps aren't installed here, so type-aware linting can't resolve them.
+  // It is typechecked and built in its mirror repo's CI (mcp-toolkit-starter).
+  { ignores: ["**/dist/**", "**/node_modules/**", "templates/**"] },
 
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,

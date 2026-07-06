@@ -117,7 +117,8 @@ example exercise + docs entry. Don't merge a feature without the docs.
 ## Releasing
 
 The packages publish to GitHub Packages (`https://npm.pkg.github.com`,
-scope `@miragon`, restricted access). Current published version: `0.3.1`.
+scope `@miragon`, restricted access). All four packages share one version,
+tracked in the root `package.json` (release-please bumps them in lockstep).
 Releases are automated via [release-please](https://github.com/googleapis/release-please)
 driven by Conventional Commits — no changeset workflow.
 

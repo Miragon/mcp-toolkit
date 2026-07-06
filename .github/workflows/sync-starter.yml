@@ -1,0 +1,60 @@
+name: Sync starter template
+
+# Mirrors templates/minimal-server into Miragon/mcp-toolkit-starter so the
+# "Use this template" repo can never drift from the monorepo source of truth.
+# Requires the release-please GitHub App to be installed on the starter repo
+# with Contents write (and Workflows write, since the template ships its own
+# .github/workflows/ci.yml).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "templates/minimal-server/**"
+      - ".github/workflows/sync-starter.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Mirror is idempotent — the newest run wins.
+concurrency:
+  group: sync-starter
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Push template to mcp-toolkit-starter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          owner: Miragon
+          repositories: mcp-toolkit-starter
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: Miragon/mcp-toolkit-starter
+          token: ${{ steps.app-token.outputs.token }}
+          path: starter
+
+      - name: Mirror template into starter
+        run: rsync -a --delete --exclude ".git" templates/minimal-server/ starter/
+
+      - name: Commit and push
+        working-directory: starter
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Starter already up to date."
+            exit 0
+          fi
+          git commit -m "chore: sync from mcp-toolkit@${GITHUB_SHA::7}"
+          git push

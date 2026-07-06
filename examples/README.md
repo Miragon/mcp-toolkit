@@ -91,7 +91,10 @@ cp examples/env.example examples/.env    # first time only
 # ports via wait-on before it boots.
 pnpm --filter @miragon/mcp-toolkit-examples start
 
-# or run each process in its own terminal
+# or run each process in its own terminal — build the host's widget bundle
+# once first (dev:host serves it from app-bundle/dist, which is not in git;
+# the one-shot `start` above does this for you)
+pnpm --filter @miragon/mcp-toolkit-examples build:bundle
 pnpm --filter @miragon/mcp-toolkit-examples dev:articles-upstream
 pnpm --filter @miragon/mcp-toolkit-examples dev:customers-upstream
 pnpm --filter @miragon/mcp-toolkit-examples dev:host
@@ -117,6 +120,15 @@ pnpm --filter @miragon/mcp-toolkit-examples test
 
 Defaults: articles-upstream on `:4000`, customers-upstream on `:4001`, host on
 `:3010`. Override via `.env` (see `env.example`).
+
+With the host up, the quickest look is the built-in mcp-use inspector at
+<http://localhost:3010/inspector> — call `show_tasks_board` to watch a tool
+render a widget.
+
+Booting `dev:host` without the two upstreams prints a warning that plugin
+`articles` declares a `proxyBinding` with no matching proxy. That is harmless
+unless you call the articles steps — `tasks` and `orders` are self-owned and
+work regardless.
 
 ## What the examples prove
 

@@ -30,7 +30,8 @@ export function buildProxyAppConfigs(
     const proxy = byName.get(plugin.proxyBinding)
     if (!proxy) {
       console.warn(
-        `[mcp-toolkit] plugin "${plugin.definition.name}" declares proxyBinding "${plugin.proxyBinding}" but no matching UpstreamProxyPlugin is registered — steps will fail at callTool time.`,
+        `[mcp-toolkit] plugin "${plugin.definition.name}" declares proxyBinding "${plugin.proxyBinding}" but no matching UpstreamProxyPlugin is registered — steps will fail at callTool time. ` +
+          `Harmless unless you call this plugin's steps; to clear it, start the upstream and declare it in MCP_PROXIES (proxy "name" must equal the proxyBinding).`,
       )
       out[plugin.definition.name] = base
       continue

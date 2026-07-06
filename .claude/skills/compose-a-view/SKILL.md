@@ -19,7 +19,7 @@ trap here.
 
 - **Eager multi-widget dashboard** (`buildComposedView`) — you already have the
   data; lay several widgets out in one view. **This is the default.** Most
-  dashboards (including every one in the real CIB Seven cockpit) use this.
+  dashboards in consumer projects use this.
 - **Declarative pipeline** (`render-view` + steps) — the **advanced** path. Use it
   **only** when one step's input depends on a previous step's **output** (resolve an
   id → fetch its detail → derive a view), or when you want the view to be
@@ -240,12 +240,12 @@ The layout is a **12-column grid** of rows, optionally nested in tabs
           {
             "widget": "analytics:kpi-grid",
             "span": 6,
-            "props": { "processDefinitionKey": "miraveloLeasing" },
+            "props": { "processDefinitionKey": "orderFulfillment" },
           },
           {
             "widget": "analytics:kpi-grid",
             "span": 6,
-            "props": { "processDefinitionKey": "nordwindOnboarding" },
+            "props": { "processDefinitionKey": "customerOnboarding" },
           },
         ],
       },
@@ -269,7 +269,7 @@ be re-composable in the builder. Don't introduce steps, a step registry, and a
 ## Verify
 
 ```sh
-cd /tmp/mcp-toolkit   # or the repo root
+# from the repo root
 pnpm -r build && pnpm -r typecheck && pnpm -r test && pnpm -r lint
 
 # the orders module proves both paths end-to-end in one in-process smoke test:

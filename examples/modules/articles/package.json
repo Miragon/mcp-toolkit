@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "mcp-tool-codegen generate --config ./codegen.config.ts",
-    "generate:check": "mcp-tool-codegen generate --config ./codegen.config.ts --check"
+    "generate": "tsx node_modules/@miragon/mcp-toolkit-tool-codegen/dist/cli.js generate --config ./codegen.config.ts",
+    "generate:check": "tsx node_modules/@miragon/mcp-toolkit-tool-codegen/dist/cli.js generate --config ./codegen.config.ts --check"
+  },
+  "devDependencies": {
+    "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
+    "tsx": "4.22.4"
   }
 }

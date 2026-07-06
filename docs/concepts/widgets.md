@@ -73,6 +73,27 @@ these into named props on the wrapped single-data widget.
 
 ## Component
 
+The common shape is a **single-data widget**: a plain React component with a
+typed `data` prop, registered in the bundle via
+`adaptDataWidget(Widget, dataType)` (`packages/ui/src/app/adapt-data-widget.tsx`).
+The adapter finds the step whose `_dataType` matches and forwards its `data`,
+so the component never sees the render envelope:
+
+```tsx
+export function TasksBoard({ data }: { data: TasksBoardData | null }) {
+  /* … */
+}
+
+// app-bundle widget map
+const widgets = {
+  "tasks:board": adaptDataWidget<TasksBoardData>(TasksBoard, "tasks:board"),
+}
+```
+
+A widget can instead take the raw `WidgetProps` (keys + context) the
+framework passes — useful when it reads pipeline keys directly and drives
+its own fetches:
+
 ```tsx
 import type { WidgetProps } from "@miragon/mcp-toolkit-core"
 import { Card, CardContent, Skeleton } from "@miragon/mcp-toolkit-ui"
