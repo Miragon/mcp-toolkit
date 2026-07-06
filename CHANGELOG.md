@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.7.0](https://github.com/Miragon/mcp-toolkit/compare/v0.6.1...v0.7.0) (2026-07-06)
+
+
+### Features
+
+* developer-experience overhaul — quickstart, starter template, docs deploy ([#76](https://github.com/Miragon/mcp-toolkit/issues/76)) ([8e1e9b0](https://github.com/Miragon/mcp-toolkit/commit/8e1e9b02334d443daa73a3ef9579825b79236c1a))
+
+
+### Bug Fixes
+
+* **core:** harden proxy auth, boot isolation, and tool-result contracts ([#73](https://github.com/Miragon/mcp-toolkit/issues/73)) ([dddb41c](https://github.com/Miragon/mcp-toolkit/commit/dddb41cf7c8b0cc2cddc6d938a78c9079f4640e5))
+* **deps:** bump mcp-use to 1.33.0 ([#77](https://github.com/Miragon/mcp-toolkit/issues/77)) ([e26f44c](https://github.com/Miragon/mcp-toolkit/commit/e26f44cccddd76a1b045b47253e57303b855dddf))
+
 ## [0.6.1](https://github.com/Miragon/mcp-toolkit/compare/v0.6.0...v0.6.1) (2026-06-17)
 
 
