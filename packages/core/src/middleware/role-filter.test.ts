@@ -118,4 +118,65 @@ describe("createRoleFilterMiddleware — toolsCall", () => {
     await expect(toolsCall(ctxWithRoles(["viewer"]), next)).resolves.toBe("ok")
     expect(next).toHaveBeenCalledOnce()
   })
+
+  // A JSON-RPC batch envelope can carry several tools/call requests. Checking
+  // only one name would let the remaining entries bypass the module guard, so
+  // the guard consumes `resolveToolNames` and denies when ANY name is
+  // disallowed.
+  describe("JSON-RPC batches (resolveToolNames)", () => {
+    it("allows a batch when every tool's module is permitted", async () => {
+      const resolveToolNames = vi.fn(() => ["analytics_query", "analytics_export", "render-view"])
+      const { toolsCall } = createRoleFilterMiddleware(roleToModules, { resolveToolNames })
+      const next = vi.fn(() => Promise.resolve("ok"))
+      await expect(toolsCall(ctxWithRoles(["viewer"]), next)).resolves.toBe("ok")
+      expect(next).toHaveBeenCalledOnce()
+    })
+
+    it("denies a batch when ANY tool's module is not permitted", async () => {
+      const resolveToolNames = vi.fn(() => ["analytics_query", "billing_invoice"])
+      const { toolsCall } = createRoleFilterMiddleware(roleToModules, { resolveToolNames })
+      const next = vi.fn(() => Promise.resolve("ok"))
+      await expect(toolsCall(ctxWithRoles(["viewer"]), next)).rejects.toThrow(
+        /no access to module "billing"/,
+      )
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it("takes precedence over the single-name resolver", async () => {
+      const resolveToolName = vi.fn(() => "analytics_query")
+      const resolveToolNames = vi.fn(() => ["analytics_query", "billing_invoice"])
+      const { toolsCall } = createRoleFilterMiddleware(roleToModules, {
+        resolveToolName,
+        resolveToolNames,
+      })
+      const next = vi.fn(() => Promise.resolve("ok"))
+      await expect(toolsCall(ctxWithRoles(["viewer"]), next)).rejects.toThrow(/no access to module/)
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it("falls back to the single-name resolver when it yields no names", async () => {
+      const resolveToolName = vi.fn(() => "billing_invoice")
+      const resolveToolNames = vi.fn(() => undefined)
+      const { toolsCall } = createRoleFilterMiddleware(roleToModules, {
+        resolveToolName,
+        resolveToolNames,
+      })
+      const next = vi.fn(() => Promise.resolve("ok"))
+      await expect(toolsCall(ctxWithRoles(["viewer"]), next)).rejects.toThrow(/no access to module/)
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it("applies failClosed when neither resolver yields a name", async () => {
+      const resolveToolNames = vi.fn(() => [])
+      const { toolsCall } = createRoleFilterMiddleware(roleToModules, {
+        resolveToolNames,
+        failClosed: true,
+      })
+      const next = vi.fn(() => Promise.resolve("ok"))
+      await expect(toolsCall(ctxWithRoles(["viewer"]), next)).rejects.toThrow(
+        /unable to resolve the tool name/,
+      )
+      expect(next).not.toHaveBeenCalled()
+    })
+  })
 })

@@ -157,7 +157,15 @@ export function McpAppView({
   // cascading render. The guard against transient empty toolOutput stays:
   // widgetProps may briefly drop `context`/`layout` when displayMode toggles,
   // and we don't want that to clobber a valid viewData.
-  const [prevInitialViewData, setPrevInitialViewData] = useState(initialViewData)
+  //
+  // `prev` MUST start as `null`, not `initialViewData`: hosts that expose the
+  // complete tool output before the app's first render (e.g. window.openai
+  // globals injected ahead of script execution) would otherwise never trip the
+  // identity check — initialViewData never changes again, the sync never runs,
+  // and the app idles on the loading skeleton forever.
+  const [prevInitialViewData, setPrevInitialViewData] = useState<typeof initialViewData | null>(
+    null,
+  )
   if (initialViewData !== prevInitialViewData) {
     setPrevInitialViewData(initialViewData)
     if (!isPending && initialViewData?.context && initialViewData?.layout) {

@@ -190,6 +190,9 @@ export async function createFrameworkApp(
   if (roleFilter && Object.keys(roleFilter).length > 0) {
     const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter, {
       resolveToolName,
+      // Batch-aware: a JSON-RPC batch envelope can carry several tools/call
+      // requests; the guard must check all of them, not just the first.
+      resolveToolNames: resolveToolName.all,
       failClosed: options.middleware?.roleFilterFailClosed ?? false,
     })
     server.use("mcp:tools/list", toolsList)
