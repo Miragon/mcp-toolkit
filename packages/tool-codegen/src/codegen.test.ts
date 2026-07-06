@@ -65,6 +65,12 @@ describe("renderCodegen — emitted contract", () => {
     expect(toolsFile).toContain("export type BillingApiCallTool = TypedCallTool<BillingApiToolMap>")
     // The full (prefixed) tool name keys the map.
     expect(toolsFile).toContain('"billing-api_get-invoice"')
+    // The query key uses Prettier-style spacing — committed output must pass
+    // the repo's format gate while staying byte-identical to `generate --check`.
+    expect(hooksFile).toContain('["billing-api", "get-invoice"]')
+    // Exactly one trailing newline, for the same reason.
+    expect(toolsFile).toMatch(/[^\n]\n$/)
+    expect(hooksFile).toMatch(/[^\n]\n$/)
   })
 
   it("defaults the output type to `unknown` when the upstream omits outputSchema", async () => {

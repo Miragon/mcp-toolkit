@@ -88,10 +88,18 @@ export async function renderCodegen(
   ])
 
   return {
-    toolsFile: toolsTpl(view),
-    hooksFile: hooksTpl(view),
+    toolsFile: normalizeEof(toolsTpl(view)),
+    hooksFile: normalizeEof(hooksTpl(view)),
     tools,
   }
+}
+
+/**
+ * Exactly one trailing newline, so committed output passes the repo's
+ * Prettier gate while staying byte-identical to `generate --check`.
+ */
+function normalizeEof(rendered: string): string {
+  return rendered.replace(/\n*$/, "\n")
 }
 
 async function renderTool(
@@ -126,7 +134,9 @@ async function renderTool(
     outputTypeBody,
     inputTypeRef,
     outputTypeRef,
-    queryKey: JSON.stringify([config.proxyName, tool.name]),
+    // Prettier-style spacing so committed output passes the repo's format gate
+    // without breaking `generate --check`'s byte comparison.
+    queryKey: `[${JSON.stringify(config.proxyName)}, ${JSON.stringify(tool.name)}]`,
   }
 }
 
