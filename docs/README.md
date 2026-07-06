@@ -15,11 +15,15 @@ deployment concerns.
 
 ## Start here
 
-- [Getting started](getting-started.md) — minimal host in ~20 lines.
+- [Getting started](getting-started.md) — run the examples, then start your
+  own project.
+- [Building a full module](guides/building-a-full-module.md) — your own
+  tools + widget, the common case.
 - [Architecture](concepts/architecture.md) — what a Miranum-style MCP server
   actually does at request time.
-- [Building a UI-only module](guides/building-a-ui-only-module.md) — wrap an
-  external MCP with typed widgets and steps.
+
+Wrapping an existing upstream MCP instead? See
+[Building a UI-only module](guides/building-a-ui-only-module.md).
 
 ## Map
 

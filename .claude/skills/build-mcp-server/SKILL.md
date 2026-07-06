@@ -270,14 +270,19 @@ createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widg
 ## Step 7 — Run & verify
 
 ```sh
-# 1. Build the widget bundle (htmlPath above points at app-bundle/dist/index.html)
+# 1. First time only: the host reads its config from examples/.env
+cp examples/env.example examples/.env
+# 2. Build the widget bundle (htmlPath above points at app-bundle/dist/index.html)
 pnpm --filter @miragon/mcp-toolkit-examples build:bundle
-# 2. Boot the host
+# 3. Boot the host
 pnpm --filter @miragon/mcp-toolkit-examples dev:host
 ```
 
-Drive it with `curl` (or point the MCP Inspector,
-`npx @modelcontextprotocol/inspector`, at `http://localhost:3010/mcp`):
+Booting without the demo upstreams prints a `proxyBinding "articles"` warning —
+harmless for a self-owned module; only the articles steps need that upstream.
+
+Drive it with the built-in inspector at `http://localhost:3010/inspector`, or
+with `curl`:
 
 ```sh
 # the module's own tools appear directly in tools/list
