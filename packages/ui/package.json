@@ -1,6 +1,6 @@
 {
   "name": "@miragon/mcp-toolkit-ui",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "React UI for MCP servers: shadcn primitives, composite components, TanStack Query hooks, and the MCP App shell (McpAppView + WidgetRenderer).",
   "type": "module",
   "sideEffects": [

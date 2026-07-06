@@ -1,6 +1,6 @@
 {
   "name": "@miragon/mcp-toolkit-proxy-contract",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Shared contract for MCP upstream-proxy configuration: Zod schemas, env-var helpers, and the canonical JSON shape written by admin portals and consumed by MCP servers.",
   "type": "module",
   "sideEffects": false,

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.7.2](https://github.com/Miragon/mcp-toolkit/compare/v0.7.1...v0.7.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* **core,ui:** batch-aware tools/call name capture + first-render widget props sync ([#82](https://github.com/Miragon/mcp-toolkit/issues/82)) ([af1df0e](https://github.com/Miragon/mcp-toolkit/commit/af1df0e71050fa3e92dc8b769d5b930ee8df8986))
+
 ## [0.7.1](https://github.com/Miragon/mcp-toolkit/compare/v0.7.0...v0.7.1) (2026-07-06)
 
 
