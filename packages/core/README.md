@@ -15,7 +15,7 @@ Published to GitHub Packages. Point the `@miragon` scope at it in your
 ```
 
 ```sh
-pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-proxy-contract @modelcontextprotocol/sdk@1.29.0 mcp-use@1.32.1 zod@4.4.3
+pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-proxy-contract @modelcontextprotocol/sdk@1.29.0 mcp-use@1.33.0 zod@4.4.3
 ```
 
 Peer versions are pinned exactly — install the versions above.

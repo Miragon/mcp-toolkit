@@ -15,7 +15,7 @@ Published to GitHub Packages. Point the `@miragon` scope at it in your
 ```
 
 ```sh
-pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@1.32.1 react@19.2.7 react-dom@19.2.7 tailwindcss@4.3.1
+pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@1.33.0 react@19.2.7 react-dom@19.2.7 tailwindcss@4.3.1
 ```
 
 Peer versions are pinned exactly — install the versions above.

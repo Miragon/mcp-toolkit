@@ -16,7 +16,7 @@
     "@miragon/mcp-toolkit-proxy-contract": "0.6.1",
     "@miragon/mcp-toolkit-ui": "0.6.1",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "mcp-use": "1.32.1",
+    "mcp-use": "1.33.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "zod": "4.4.3"
