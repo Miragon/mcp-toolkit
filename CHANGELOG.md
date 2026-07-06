@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.7.1](https://github.com/Miragon/mcp-toolkit/compare/v0.7.0...v0.7.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **deps:** bump mcp-use to 1.34.1 ([#80](https://github.com/Miragon/mcp-toolkit/issues/80)) ([9b939f9](https://github.com/Miragon/mcp-toolkit/commit/9b939f9ddadf6c750b3a25cfc99a72a1004f8b9a))
+
 ## [0.7.0](https://github.com/Miragon/mcp-toolkit/compare/v0.6.1...v0.7.0) (2026-07-06)
 
 
