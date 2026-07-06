@@ -12,9 +12,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@miragon/mcp-toolkit-core": "0.6.1",
-    "@miragon/mcp-toolkit-proxy-contract": "0.6.1",
-    "@miragon/mcp-toolkit-ui": "0.6.1",
+    "@miragon/mcp-toolkit-core": "0.7.0",
+    "@miragon/mcp-toolkit-proxy-contract": "0.7.0",
+    "@miragon/mcp-toolkit-ui": "0.7.0",
     "@modelcontextprotocol/sdk": "1.29.0",
     "mcp-use": "1.33.0",
     "react": "19.2.7",
