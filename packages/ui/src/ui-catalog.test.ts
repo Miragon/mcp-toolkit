@@ -33,7 +33,6 @@ interface CatalogEntry {
 }
 
 interface Catalog {
-  version: string
   importPaths: Record<"root" | "app" | "hooks", string>
   components: CatalogEntry[]
 }

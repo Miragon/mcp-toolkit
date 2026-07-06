@@ -12,7 +12,6 @@
         { "type": "json", "path": "packages/proxy-contract/package.json", "jsonpath": "$.version" },
         { "type": "json", "path": "packages/tool-codegen/package.json", "jsonpath": "$.version" },
         { "type": "json", "path": "packages/ui/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/ui/ui-catalog.json", "jsonpath": "$.version" },
         {
           "type": "json",
           "path": "templates/minimal-server/package.json",
