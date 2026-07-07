@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.8.0](https://github.com/Miragon/mcp-toolkit/compare/v0.7.2...v0.8.0) (2026-07-07)
+
+
+### Features
+
+* **core,ui:** dual-protocol widget contract + tool-result recovery ([#84](https://github.com/Miragon/mcp-toolkit/issues/84)) ([9b543b0](https://github.com/Miragon/mcp-toolkit/commit/9b543b0ada6f6f4fa53b898c3e1c8c23415e3ce5))
+
 ## [0.7.2](https://github.com/Miragon/mcp-toolkit/compare/v0.7.1...v0.7.2) (2026-07-06)
 
 
