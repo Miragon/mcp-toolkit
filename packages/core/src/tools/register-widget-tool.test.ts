@@ -53,7 +53,29 @@ describe("createWidgetToolRegistrar", () => {
     expect(firstTool(tools).definition.title).toBe("Show Thing")
   })
 
-  it("omits the visibility marker for model-visible tools", () => {
+  it("emits the dual-protocol widget contract for model-visible tools", () => {
+    const { server, tools } = createStubServer()
+    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    register({
+      name: "render_thing",
+      title: "Render Thing",
+      description: "renders a thing",
+      visibility: "model",
+      handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
+    })
+    expect(firstTool(tools).definition._meta).toEqual({
+      ui: { resourceUri: RESOURCE_URI },
+      "ui/resourceUri": RESOURCE_URI,
+      "openai/outputTemplate": RESOURCE_URI,
+      "openai/toolInvocation/invoking": "Loading Render Thing...",
+      "openai/toolInvocation/invoked": "Render Thing ready",
+      "openai/widgetAccessible": true,
+      "openai/resultCanProduceWidget": true,
+      "openai/widgetDescription": "renders a thing",
+    })
+  })
+
+  it("derives the invocation strings from the name when no title is given", () => {
     const { server, tools } = createStubServer()
     const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
     register({
@@ -62,7 +84,39 @@ describe("createWidgetToolRegistrar", () => {
       visibility: "model",
       handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
     })
-    expect(firstTool(tools).definition._meta).toEqual({ ui: { resourceUri: RESOURCE_URI } })
+    const meta = firstTool(tools).definition._meta
+    expect(meta?.["openai/toolInvocation/invoking"]).toBe("Loading render_thing...")
+    expect(meta?.["openai/toolInvocation/invoked"]).toBe("render_thing ready")
+  })
+
+  it("prefers explicit invoking/invoked strings over the derived defaults", () => {
+    const { server, tools } = createStubServer()
+    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    register({
+      name: "render_thing",
+      title: "Render Thing",
+      description: "renders a thing",
+      visibility: "model",
+      invoking: "Crunching numbers...",
+      invoked: "Numbers crunched",
+      handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
+    })
+    const meta = firstTool(tools).definition._meta
+    expect(meta?.["openai/toolInvocation/invoking"]).toBe("Crunching numbers...")
+    expect(meta?.["openai/toolInvocation/invoked"]).toBe("Numbers crunched")
+  })
+
+  it("threads the widgetCSP meta default into model-visible tools", () => {
+    const { server, tools } = createStubServer()
+    const csp = { connect_domains: ["http://localhost:8400"] }
+    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI, { widgetCSP: csp })
+    register({
+      name: "render_thing",
+      description: "renders a thing",
+      visibility: "model",
+      handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
+    })
+    expect(firstTool(tools).definition._meta?.["openai/widgetCSP"]).toEqual(csp)
   })
 
   it("keeps visibility when both app and model surfaces are requested", () => {
@@ -74,8 +128,27 @@ describe("createWidgetToolRegistrar", () => {
       visibility: ["app", "model"],
       handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
     })
-    // Advertised to the model, so it must not be hidden by the app-only marker.
-    expect(firstTool(tools).definition._meta).toEqual({ ui: { resourceUri: RESOURCE_URI } })
+    // Advertised to the model, so it must not be hidden by the app-only
+    // marker — and being model-visible it carries the widget contract keys.
+    const meta = firstTool(tools).definition._meta
+    expect(meta?.ui).toEqual({ resourceUri: RESOURCE_URI })
+    expect(meta?.["ui/resourceUri"]).toBe(RESOURCE_URI)
+    expect(meta?.["openai/outputTemplate"]).toBe(RESOURCE_URI)
+  })
+
+  it("keeps app-only widget tools free of the dual-protocol keys", () => {
+    const { server, tools } = createStubServer()
+    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI, {
+      widgetCSP: { connect_domains: ["http://localhost:8400"] },
+    })
+    register({
+      name: "thing_data",
+      description: "app-only data feed",
+      handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
+    })
+    expect(firstTool(tools).definition._meta).toEqual({
+      ui: { resourceUri: RESOURCE_URI, visibility: ["app"] },
+    })
   })
 
   it("forwards annotations and merges extra meta flat under the ui block", () => {

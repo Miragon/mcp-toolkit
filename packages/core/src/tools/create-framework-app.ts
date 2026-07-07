@@ -10,7 +10,7 @@ import { discoverUpstreamModules, DEFAULT_HOST_REACT_MAJOR } from "../module-loa
 import { synthesizeModulePlugin } from "../module-loader/synthesize-plugin.js"
 import { createInMemoryDashboardStore, type DashboardStore } from "../framework/dashboard-store.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
-import { registerFrameworkTools } from "./register-framework-tools.js"
+import { registerFrameworkTools, type AppResourceCsp } from "./register-framework-tools.js"
 import { registerCatalogueTool } from "./register-catalogue-tool.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
 import { registerUpstreamProxies } from "./register-upstream-proxies.js"
@@ -72,6 +72,14 @@ export interface CreateFrameworkAppOptionsBase {
     htmlPath: string
     /** Override the refresh tool name (default: `refresh-view`). */
     refreshToolName?: string
+    /**
+     * Additional CSP origins advertised on the widget resource
+     * (`_meta.ui.csp`) and widget tools (`openai/widgetCSP`). The origin of
+     * {@link CreateFrameworkAppOptionsBase.baseUrl} is always merged in, so
+     * most deployments never need this — set it only when widgets fetch from
+     * origins other than the server itself (e.g. a CDN).
+     */
+    csp?: AppResourceCsp
     /**
      * Opt-in switch for the visual in-iframe builder platform and dashboard
      * persistence. **Defaults to `false` (lean by default).**
@@ -275,6 +283,10 @@ export async function createFrameworkApp(
     // shows its Build affordance only when the catalogue/dashboard tools below
     // are actually registered.
     builderAvailable: options.app.builder ?? false,
+    // Feeds the widget-resource CSP (`_meta.ui.csp` + `openai/widgetCSP`):
+    // the baseUrl origin is auto-injected next to any explicit `app.csp`.
+    baseUrl: options.baseUrl,
+    csp: options.app.csp,
   })
 
   // The visual builder platform is opt-in: the catalogue (its data source)

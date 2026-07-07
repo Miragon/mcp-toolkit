@@ -1,3 +1,4 @@
+import type { WidgetToolMetaDefaults } from "./meta.js"
 import type { PipelineStepDefinition } from "./step.js"
 import type { WidgetDefinition } from "./widget.js"
 
@@ -42,5 +43,17 @@ export interface AppPlugin<TServer = unknown> {
    */
   proxyBinding?: string
   registerTools?: (server: TServer) => void
-  registerWidgetTools?: (server: TServer, resourceUri: string) => void
+  /**
+   * Registers the plugin's widget tools against the shared app resource.
+   * The optional `metaDefaults` carry app-level widget `_meta` defaults
+   * (currently the Apps SDK CSP) — forward them into
+   * `createWidgetToolRegistrar` / `uiMeta` so every widget tool advertises
+   * the same contract as the framework's own `render-view`. Implementations
+   * may ignore the parameter; their tools then simply omit those keys.
+   */
+  registerWidgetTools?: (
+    server: TServer,
+    resourceUri: string,
+    metaDefaults?: WidgetToolMetaDefaults,
+  ) => void
 }

@@ -1,6 +1,6 @@
 import { type MCPServer, type ToolAnnotations } from "mcp-use/server"
 import { z } from "zod"
-import { uiMeta } from "../types/meta.js"
+import { uiMeta, type WidgetToolMetaDefaults } from "../types/meta.js"
 import { withToolErrors } from "./with-tool-errors.js"
 import type { ToolArgs } from "./register-tool.js"
 
@@ -40,6 +40,18 @@ export interface WidgetToolConfig<TClient, TShape extends ZodRawShape = ZodRawSh
    * registrar; collisions are overwritten by the registrar's `ui`.
    */
   meta?: Record<string, unknown>
+  /**
+   * Host status line while the tool call runs
+   * (`openai/toolInvocation/invoking`). Defaults to `Loading <title>...`.
+   * Only emitted on model-visible widget tools.
+   */
+  invoking?: string
+  /**
+   * Host status line once the tool call finished
+   * (`openai/toolInvocation/invoked`). Defaults to `<title> ready`.
+   * Only emitted on model-visible widget tools.
+   */
+  invoked?: string
   handler: (client: TClient, params: ToolArgs<TShape>) => Promise<WidgetToolResult>
 }
 
@@ -57,6 +69,7 @@ export function createWidgetToolRegistrar<TClient>(
   server: MCPServer,
   client: TClient,
   resourceUri: string,
+  metaDefaults?: WidgetToolMetaDefaults,
 ) {
   return function register<TShape extends ZodRawShape = ZodRawShape>(
     config: WidgetToolConfig<TClient, TShape>,
@@ -65,7 +78,17 @@ export function createWidgetToolRegistrar<TClient>(
     // `"model"`-visible tools must not carry the app-only `visibility` marker so
     // the LLM still sees them; otherwise mark app-only. The `resourceUri` is
     // always present so the host knows which bundle renders the result.
-    const ui = uiMeta({ resourceUri, appOnly: app && !model })
+    // Model-visible tools additionally get the dual-protocol widget contract
+    // (flat `ui/resourceUri` + `openai/*` keys) ext-apps hosts key on.
+    const ui = uiMeta({
+      resourceUri,
+      appOnly: app && !model,
+      title: config.title ?? config.name,
+      invoking: config.invoking,
+      invoked: config.invoked,
+      widgetDescription: config.description,
+      widgetCSP: metaDefaults?.widgetCSP,
+    })
 
     server.tool(
       {
