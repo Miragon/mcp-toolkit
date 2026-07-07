@@ -5,6 +5,7 @@ import type { LayoutConfig, PipelineStepRef, RowDef } from "@miragon/mcp-toolkit
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
+import { useToolResultRecovery } from "../hooks/use-tool-result-recovery.js"
 import { parseToolResult } from "../lib/parse-tool-result.js"
 import { LayoutBuilder } from "./layout-builder.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
@@ -61,6 +62,16 @@ interface ViewData {
    * server whose `get-builder-catalogue` tool isn't registered.
    */
   builderAvailable?: boolean
+}
+
+/**
+ * A renderable view payload: the envelope `render-view`/`show_*` tools emit
+ * as `structuredContent`. Module-level so it is referentially stable as the
+ * recovery hook's `isValid` dependency.
+ */
+function isCompleteViewData(value: unknown): value is ViewData {
+  const v = value as ViewData | null | undefined
+  return Boolean(v?.context && v?.layout)
 }
 
 export interface McpAppViewProps {
@@ -127,6 +138,8 @@ export function McpAppView({
     displayMode: currentDisplayMode,
     requestDisplayMode,
     safeArea,
+    toolInput,
+    hostContext,
   } = useWidget<ViewData>()
 
   const [viewData, setViewData] = useState<ViewData | null>(null)
@@ -168,9 +181,29 @@ export function McpAppView({
   )
   if (initialViewData !== prevInitialViewData) {
     setPrevInitialViewData(initialViewData)
-    if (!isPending && initialViewData?.context && initialViewData?.layout) {
+    if (!isPending && isCompleteViewData(initialViewData)) {
       setViewData(initialViewData)
     }
+  }
+
+  // Hosts that strip `structuredContent` from the tool-result notification
+  // (claude.ai / Claude Desktop) leave `initialViewData` empty forever; the
+  // recovery re-executes the originating tool once via `callTool` (responses
+  // carry `structuredContent` intact) and fills the gap. Conforming hosts
+  // deliver a valid payload up front, so this never fires there.
+  const recovery = useToolResultRecovery<ViewData>({
+    resultReady: !isPending,
+    props: initialViewData,
+    isValid: isCompleteViewData,
+    toolInput,
+    hostContext,
+    callTool,
+  })
+  const [prevRecovered, setPrevRecovered] = useState<ViewData | null>(null)
+  if (recovery.data !== prevRecovered) {
+    setPrevRecovered(recovery.data)
+    // The host-delivered payload always wins; recovery only fills the gap.
+    if (recovery.data && !viewData) setViewData(recovery.data)
   }
 
   // Lazy-load any remote widgets referenced by the current layout that the

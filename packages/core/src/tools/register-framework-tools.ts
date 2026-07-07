@@ -1,5 +1,5 @@
 import fs from "node:fs/promises"
-import { type MCPServer, RESOURCE_MIME_TYPE, text } from "mcp-use/server"
+import { createMcpAppsResource, type MCPServer, RESOURCE_MIME_TYPE, text } from "mcp-use/server"
 import { z } from "zod"
 import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
@@ -9,8 +9,25 @@ import type { ToolHandlerContext } from "../proxy/types.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
-import { APP_ONLY_META, uiMeta } from "../types/meta.js"
+import { APP_ONLY_META, uiMeta, type WidgetCspMeta } from "../types/meta.js"
 import { isRemoteWidget } from "../types/widget.js"
+
+/**
+ * CSP advertised on the widget resource, in the SEP-1865 camelCase shape
+ * (`_meta.ui.csp`). All entries are full origins (e.g. `https://server.example`).
+ * The Apps SDK tool-meta variant (`openai/widgetCSP`, snake_cased) is derived
+ * from the same value.
+ */
+export interface AppResourceCsp {
+  /** Origins allowed for fetch/XHR/WebSocket from inside the widget iframe. */
+  connectDomains?: string[]
+  /** Origins allowed for images, scripts, stylesheets, fonts. */
+  resourceDomains?: string[]
+  /** Allowed iframe origins. */
+  frameDomains?: string[]
+  /** Allowed `base-uri` origins. */
+  baseUriDomains?: string[]
+}
 
 export interface RegisterFrameworkToolsOptions {
   stepRegistry: StepRegistry
@@ -47,6 +64,21 @@ export interface RegisterFrameworkToolsOptions {
    * `false`.
    */
   builderAvailable?: boolean
+  /**
+   * Public base URL the server advertises. Its origin is auto-injected into
+   * the resource CSP's connect/resource/baseUri domains — mirroring native
+   * mcp-use's server-origin enrichment — so widgets can reach the server
+   * origin without CSP violations. Without it (and without {@link csp}) the
+   * resource advertises no CSP, which ext-apps hosts treat as the secure
+   * "no network" default; fine for a fully inlined bundle.
+   */
+  baseUrl?: string
+  /**
+   * Additional CSP origins advertised on the widget resource
+   * (`_meta.ui.csp`) and, snake_cased, on widget tools (`openai/widgetCSP`).
+   * Merged with the origin derived from {@link baseUrl}.
+   */
+  csp?: AppResourceCsp
 }
 
 const stepRefSchema = z.object({
@@ -77,6 +109,48 @@ function extractUserId(ctx: unknown): string | undefined {
   return typeof user?.userId === "string" ? user.userId : undefined
 }
 
+function withOrigin(list: string[] | undefined, origin: string): string[] {
+  if (!list) return [origin]
+  return list.includes(origin) ? list : [...list, origin]
+}
+
+/**
+ * Merges the configured CSP with the server origin derived from `baseUrl`
+ * (injected into connect/resource/baseUri domains, deduplicated) — the same
+ * enrichment native mcp-use applies to its widget definitions. Returns
+ * `undefined` when there is nothing to advertise.
+ */
+export function buildAppResourceCsp(
+  baseUrl: string | undefined,
+  csp: AppResourceCsp | undefined,
+): AppResourceCsp | undefined {
+  let origin: string | undefined
+  if (baseUrl) {
+    try {
+      origin = new URL(baseUrl).origin
+    } catch {
+      // Invalid baseUrl — skip origin injection rather than failing boot.
+    }
+  }
+  if (!origin) return csp
+  return {
+    ...csp,
+    connectDomains: withOrigin(csp?.connectDomains, origin),
+    resourceDomains: withOrigin(csp?.resourceDomains, origin),
+    baseUriDomains: withOrigin(csp?.baseUriDomains, origin),
+  }
+}
+
+/** Converts the camelCase resource CSP into the snake_cased `openai/widgetCSP` shape. */
+function toWidgetCspMeta(csp: AppResourceCsp): WidgetCspMeta {
+  const meta: WidgetCspMeta = {}
+  if (csp.connectDomains) meta.connect_domains = csp.connectDomains
+  if (csp.resourceDomains) meta.resource_domains = csp.resourceDomains
+  if (csp.frameDomains) meta.frame_domains = csp.frameDomains
+  if (csp.baseUriDomains) meta.base_uri_domains = csp.baseUriDomains
+  return meta
+}
+
 /**
  * Registers the framework-level MCP tools that make up a Miranum-style MCP
  * app: the manifest tool, the `render-view` / `refresh-view` pair, the widget
@@ -101,7 +175,12 @@ export function registerFrameworkTools(
     htmlPath,
     refreshToolName = "refresh-view",
     builderAvailable = false,
+    baseUrl,
+    csp,
   } = options
+
+  const resourceCsp = buildAppResourceCsp(baseUrl, csp)
+  const widgetCSP = resourceCsp ? toWidgetCspMeta(resourceCsp) : undefined
 
   server.tool(
     {
@@ -140,13 +219,20 @@ export function registerFrameworkTools(
       description:
         "Builds a UI from pipeline steps and widgets. IMPORTANT: call get-framework-manifest first to learn which step-ids and widget-ids are available — only use ids listed there. Each widget entry's optional `propsSchema` (JSON Schema) describes the per-instance `props` you can set on a layout cell to scope or configure that widget (e.g. one tab per `processDefinitionKey`).",
       schema: renderViewSchema,
-      _meta: uiMeta({ resourceUri }),
+      _meta: uiMeta({
+        resourceUri,
+        title: "Render View",
+        invoking: "Rendering view...",
+        invoked: "View rendered",
+        widgetDescription: "Interactive view composed of pipeline-driven widgets",
+        widgetCSP,
+      }),
     },
     renderHandler,
   )
 
   for (const plugin of plugins) {
-    plugin.registerWidgetTools?.(server, resourceUri)
+    plugin.registerWidgetTools?.(server, resourceUri, { widgetCSP })
   }
 
   server.tool(
@@ -162,17 +248,28 @@ export function registerFrameworkTools(
 
   registerReadWidgetBundleTool(server, { widgetRegistry, plugins, proxies })
 
+  // The resource `_meta.ui.csp` must appear on the LISTING (resources/list)
+  // and on the READ contents — ext-apps hosts read it from the contents when
+  // sandboxing the iframe. `createMcpAppsResource` produces exactly the shape
+  // native mcp-use emits (mimeType `text/html;profile=mcp-app` + `_meta.ui`).
+  const resourceMeta = resourceCsp ? { ui: { csp: resourceCsp } } : undefined
   server.resource(
     {
       name: "mcp-app-html",
       uri: resourceUri,
       mimeType: RESOURCE_MIME_TYPE,
+      ...(resourceMeta ? { _meta: resourceMeta } : {}),
     },
     async () => {
+      // Read lazily per request so dev servers pick up a rebuilt bundle
+      // without a restart (same behaviour as before).
       const html = await fs.readFile(htmlPath, "utf-8")
-      return {
-        contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
-      }
+      const uiResource = createMcpAppsResource(
+        resourceUri,
+        html,
+        resourceCsp ? { csp: resourceCsp } : undefined,
+      )
+      return { contents: [uiResource.resource] }
     },
   )
 }

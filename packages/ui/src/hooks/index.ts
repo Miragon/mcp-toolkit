@@ -6,3 +6,12 @@ export { useViewToolQuery } from "./use-view-tool-query.js"
 export type { UseViewToolQueryOptions } from "./use-view-tool-query.js"
 export { useViewData } from "./use-view-data.js"
 export type { ViewDataResult } from "./use-view-data.js"
+export {
+  useToolResultRecovery,
+  resolveRecoveryToolName,
+  decodeRecoveredResult,
+} from "./use-tool-result-recovery.js"
+export type {
+  ToolResultRecoveryOptions,
+  ToolResultRecoveryState,
+} from "./use-tool-result-recovery.js"
