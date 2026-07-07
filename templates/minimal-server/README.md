@@ -1,49 +1,54 @@
 # my-mcp-server — minimal @miragon/mcp-toolkit starter
 
-A self-contained starter for an MCP server built on the published
-`@miragon/mcp-toolkit` packages: one host (`createFrameworkApp`), one module
-that registers its **own** tools plus a widget (the `tasks` module), and the
-Vite setup that builds the widget bundle into a single `mcp-app.html`.
-Nothing in here depends on the monorepo.
+A self-contained MCP server built on the published `@miragon/mcp-toolkit`
+packages: one host, one module that registers its **own** tools plus a widget
+(the `tasks` module), and the Vite setup that builds the widget into a single
+`mcp-app.html`. Three commands take you from clone to a rendered widget.
 
-Two ways to start:
+## Quickstart
 
-- **Use the template repo** — [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter)
-  mirrors this directory. Click "Use this template" (or
-  `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) and
-  you have a fresh repo with CI included.
-- **Copy this directory** out of the `mcp-toolkit` repo and rename it.
+You need Node.js 20 or newer and [pnpm](https://pnpm.io).
 
-The included CI (`.github/workflows/ci.yml`) typechecks and builds the widget
-bundle. It installs from the restricted `@miragon` scope: repos in the Miragon
-org can use the built-in workflow token once the packages grant them read
-access; anywhere else, add a `PACKAGES_READ_TOKEN` repo secret (a PAT with
-`read:packages`).
+1. **Authenticate against GitHub Packages.** The packages live under the
+   restricted `@miragon` scope; the `.npmrc` in this project is already wired
+   to it. Create a [personal access token](https://github.com/settings/tokens)
+   with the `read:packages` scope and export it:
 
-## Prerequisites
+   ```sh
+   export GITHUB_TOKEN=ghp_…
+   ```
 
-- Node.js 20 or newer, and [pnpm](https://pnpm.io).
-- A GitHub [personal access token](https://github.com/settings/tokens) with
-  the `read:packages` scope, exported as `GITHUB_TOKEN`. The packages live on
-  GitHub Packages under the restricted `@miragon` scope; the `.npmrc` in this
-  directory is already wired to it.
+2. **Install:**
 
-```sh
-export GITHUB_TOKEN=ghp_…
-```
+   ```sh
+   pnpm install
+   ```
 
-## Run it
+3. **Run** (builds the widget bundle, then boots the host):
 
-```sh
-pnpm install
-pnpm start          # builds the widget bundle, then boots the host
-```
+   ```sh
+   pnpm start
+   ```
 
-Then open <http://localhost:3010/inspector> (the Inspector is built into
-mcp-use) and call `show_tasks_board`. That is the full loop: an MCP tool
-returning a rendered widget.
+4. **See it work:** open <http://localhost:3010/inspector> (the Inspector is
+   built into mcp-use) and call `show_tasks_board` — the task-board widget
+   renders. That is the full loop: an MCP tool returning a rendered UI.
 
-Optional config lives in `.env` (copy `env.example` first):
+> `pnpm install` fails with a 401/403? `GITHUB_TOKEN` is not set in this
+> shell, or the token is missing the `read:packages` scope.
+
+## Dev loop
+
+- `pnpm dev` — boots the host only (no bundle rebuild). Enough while you
+  iterate on tools and server code.
+- `pnpm start` — `build:bundle` + `dev`. Use it after changing a widget or
+  the widget map: the host serves the built file at
+  `app-bundle/dist/index.html`, so widget changes only show up after a
+  rebuild and restart.
+- `pnpm typecheck` — `tsc --noEmit`.
+
+Optional config lives in `.env` (`PORT`, `MCP_URL`) — copy the template
+first:
 
 ```sh
 cp env.example .env
@@ -90,16 +95,31 @@ Inside the bundle, `app-bundle/main.tsx` maps widget ids to React components:
   `_dataType` is `"tasks:board"` (set by `buildSingleWidgetView` in
   `show_tasks_board`) and forwards its data to the component's `data` prop.
 
-The bundle is a build artifact: after changing a widget or the map, rebuild it
-(`pnpm build:bundle`) and restart — the host reads the file at
-`app-bundle/dist/index.html`. `pnpm start` chains both.
-
 Styling: `app-bundle/main.css` imports the toolkit's
 `@miragon/mcp-toolkit-ui/globals.css` (Tailwind theme + tokens) and adds two
 `@source` lines so Tailwind generates classes used outside the CSS file's own
 tree — your widgets under `src/`, and the UI package's shipped sources in
 `node_modules`. If a class "does nothing" in the rendered widget, check that
 the file using it is covered by an `@source` line.
+
+## CI
+
+The included CI (`.github/workflows/ci.yml`) typechecks and builds the widget
+bundle. It installs from the restricted `@miragon` scope: repos in the Miragon
+org can use the built-in workflow token once the packages grant them read
+access; anywhere else, add a `PACKAGES_READ_TOKEN` repo secret (a PAT with
+`read:packages`).
+
+## Where this project comes from
+
+This project is maintained as
+[`templates/minimal-server`](https://github.com/Miragon/mcp-toolkit/tree/main/templates/minimal-server)
+in the `mcp-toolkit` monorepo and auto-mirrored to
+[`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter),
+the "Use this template" repo. Nothing in it depends on the monorepo — it
+installs only published packages. If you run it in place inside the monorepo
+checkout, install with `pnpm install --ignore-workspace` (the directory sits
+inside the monorepo's pnpm workspace but is not part of it).
 
 ## Where to go next
 
