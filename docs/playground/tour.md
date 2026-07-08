@@ -152,12 +152,8 @@ Repeat stop 5 with one change — an id that doesn't exist:
 ```json
 {
   "keys": { "orders:customerId": "does-not-exist" },
-  "steps": [
-    /* … as above … */
-  ],
-  "layout": {
-    /* … */
-  }
+  "steps": [/* … as above … */],
+  "layout": {/* … */}
 }
 ```
 

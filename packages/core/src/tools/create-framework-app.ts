@@ -151,8 +151,7 @@ export interface CreateFrameworkAppOptionsWithoutOAuth extends CreateFrameworkAp
 }
 
 export type CreateFrameworkAppOptions =
-  | CreateFrameworkAppOptionsWithOAuth
-  | CreateFrameworkAppOptionsWithoutOAuth
+  CreateFrameworkAppOptionsWithOAuth | CreateFrameworkAppOptionsWithoutOAuth
 
 /**
  * Orchestrates a full Miranum-style MCP server: MCPServer construction,
