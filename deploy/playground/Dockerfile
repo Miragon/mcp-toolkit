@@ -7,7 +7,7 @@
 # runs through tsx, which is a devDependency, so pruning to prod deps would
 # break the runtime. The `prepare` scripts of the workspace packages build
 # their dist/ during `pnpm install`.
-FROM node:22-slim
+FROM node:26-slim
 
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
