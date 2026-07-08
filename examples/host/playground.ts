@@ -30,7 +30,10 @@ const app = await createFrameworkApp({
   baseUrl: process.env.MCP_URL,
   plugins: [createTasksPlugin(), createOrdersPlugin()],
   // No upstreams by default — the federation examples stay local-only. An
-  // MCP_PROXIES env var still works if a deployment wants to add one.
+  // exported MCP_PROXIES still works if a deployment wants to add one; note
+  // that `dev:playground` deliberately does NOT load examples/.env (unlike
+  // `dev:host`) — the full host's .env drags in the upstream proxies and
+  // PORT 3010, which would crash or collide with this host.
   proxies: parseProxyConfigEnv(process.env.MCP_PROXIES),
   callbackBaseUrl: process.env.MCP_URL,
   app: {

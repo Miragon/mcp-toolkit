@@ -8,7 +8,7 @@
     "dev:articles-upstream": "tsx --env-file-if-exists=.env articles-upstream/server.ts",
     "dev:customers-upstream": "pnpm run build:customer-widget && tsx --env-file-if-exists=.env customers-upstream/server.ts",
     "dev:host": "tsx --env-file-if-exists=.env host/index.ts",
-    "dev:playground": "tsx --env-file-if-exists=.env host/playground.ts",
+    "dev:playground": "tsx host/playground.ts",
     "start:playground": "pnpm run build:bundle && pnpm run dev:playground",
     "_wait:upstreams": "wait-on -t 30000 tcp:4000 tcp:4001",
     "_dev:host-gated": "pnpm run _wait:upstreams && pnpm run dev:host",

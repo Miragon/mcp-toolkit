@@ -125,9 +125,10 @@ Reading: [debugging pipeline steps](recipes/debugging-pipeline-steps.md)
 
 ### 7. Builder & dashboards
 
-The playground boots with `app.builder: true`, so the view from stop 4 or 5
-has a Build/edit affordance in a widget-capable host — the in-iframe builder,
-fed by `get-builder-catalogue`. Saving persists through the dashboard CRUD
+The playground boots with `app.builder: true`, so the pipeline view from
+stop 5 has a Build/edit affordance in a widget-capable host — the in-iframe
+builder, fed by `get-builder-catalogue`. (The eager view from stop 4 doesn't:
+only pipeline-rendered views carry the refresh params the builder re-runs.) Saving persists through the dashboard CRUD
 tools, which you can also drive directly: `save-dashboard` with the keys,
 steps, and layout from stop 5, then `list-dashboards`, then `load-dashboard` —
 its result feeds straight back into `render-view`. A saved dashboard is a

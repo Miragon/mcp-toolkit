@@ -96,6 +96,8 @@ pnpm --filter @miragon/mcp-toolkit-examples start
 # the public playground host (tasks + orders + builder, no upstreams) on :3020.
 # This is what https://mcp-toolkit-playground.fly.dev serves — the guided tour
 # is docs/playground.md, the Fly deployment lives in deploy/playground/.
+# Deliberately ignores examples/.env (the full host's env would drag in the
+# upstream proxies and port 3010); exported env vars still apply.
 pnpm --filter @miragon/mcp-toolkit-examples start:playground
 
 # or run each process in its own terminal — build the host's widget bundle

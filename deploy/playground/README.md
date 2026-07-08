@@ -17,8 +17,13 @@ tour through it is [`docs/playground.md`](../../docs/playground.md).
   workspace):
 
   ```sh
-  flyctl deploy --config deploy/playground/fly.toml
+  flyctl deploy --config deploy/playground/fly.toml --ha=false
   ```
+
+  `--ha=false` matters on a fresh app: everything is per-process in-memory
+  (see below), so the app must stay a **single machine** — Fly's default HA
+  pair would round-robin MCP sessions into a process that has never seen
+  them. On an existing single-machine app the flag is a harmless no-op.
 
 ## Deliberate properties
 

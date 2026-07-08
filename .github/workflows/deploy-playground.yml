@@ -11,11 +11,18 @@ name: Deploy playground
 on:
   push:
     branches: [main]
+    # Keep in sync with what deploy/playground/Dockerfile copies into the
+    # image (plus .dockerignore, which shapes the build context).
     paths:
       - "packages/**"
       - "examples/**"
       - "deploy/playground/**"
       - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - "docs/package.json"
+      - ".dockerignore"
       - ".github/workflows/deploy-playground.yml"
   workflow_dispatch:
 
@@ -37,6 +44,9 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
 
       # Build context is the repo root (the Dockerfile copies the workspace).
-      - run: flyctl deploy --config deploy/playground/fly.toml --remote-only
+      # --ha=false: state (sessions, stores, dashboards) is per-process
+      # in-memory, so the app must stay a single machine — a second HA
+      # machine would round-robin sessions into the wrong process.
+      - run: flyctl deploy --config deploy/playground/fly.toml --remote-only --ha=false
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
