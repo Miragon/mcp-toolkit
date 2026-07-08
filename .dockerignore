@@ -1,0 +1,14 @@
+# Build context is the repo root (see deploy/playground/Dockerfile).
+.git
+.github
+.claude
+.context
+docs/*
+!docs/package.json
+templates
+node_modules
+**/node_modules
+**/dist
+**/.env
+**/.mcp-use
+examples/host/.dashboards

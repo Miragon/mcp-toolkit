@@ -22,6 +22,7 @@ export default defineConfig({
     /(?:^|\/)examples\//,
     /(?:^|\/)packages\//,
     /(?:^|\/)templates\//,
+    /(?:^|\/)deploy\//,
     /(?:^|\/)\.claude\//,
   ],
 
@@ -29,6 +30,7 @@ export default defineConfig({
     siteTitle: "mcp-toolkit",
     nav: [
       { text: "Getting Started", link: "/getting-started" },
+      { text: "Playground", link: "/playground" },
       { text: "Concepts", link: "/concepts/architecture" },
       { text: "Guides", link: "/guides/building-a-ui-only-module" },
       { text: "Reference", link: "/reference/components" },
@@ -38,7 +40,10 @@ export default defineConfig({
     sidebar: [
       {
         text: "Getting Started",
-        items: [{ text: "Getting started", link: "/getting-started" }],
+        items: [
+          { text: "Getting started", link: "/getting-started" },
+          { text: "Playground", link: "/playground" },
+        ],
       },
       {
         text: "Concepts",

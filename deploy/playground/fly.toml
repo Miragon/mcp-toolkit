@@ -1,0 +1,37 @@
+# Fly.io config for the public playground. Deploy from the REPO ROOT so the
+# Docker build context contains the whole workspace:
+#
+#   flyctl deploy --config deploy/playground/fly.toml
+#
+# (`dockerfile` below is resolved relative to this file; the build context is
+# the directory flyctl runs in.)
+app = "mcp-toolkit-playground"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  HOST = "0.0.0.0"
+  PORT = "8080"
+  MCP_URL = "https://mcp-toolkit-playground.fly.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[checks]
+  [checks.tcp]
+    port = 8080
+    type = "tcp"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
