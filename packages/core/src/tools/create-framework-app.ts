@@ -20,6 +20,12 @@ import { deriveAppResourceUri } from "./app-resource-uri.js"
 export interface CreateFrameworkAppOptionsBase {
   name: string
   version?: string
+  /**
+   * Human-readable description of what the server does. Shown on mcp-use's
+   * built-in landing page (a browser `GET` on the MCP endpoint) and in
+   * `serverInfo`-adjacent surfaces.
+   */
+  description?: string
   /** Public base URL the server advertises (resource URIs, oauth callbacks). */
   baseUrl?: string
   host?: string
@@ -175,6 +181,7 @@ export async function createFrameworkApp(
   const baseConfig = {
     name: options.name,
     version: options.version ?? "0.1.0",
+    description: options.description,
     host: options.host ?? "localhost",
     baseUrl: options.baseUrl,
   }

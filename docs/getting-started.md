@@ -1,6 +1,10 @@
 # Getting started
 
-Two paths, in the order we recommend them:
+Zero-install first look: the [hosted playground](playground/index.md) is a
+public toolkit server with a guided tour — call a tool, watch a widget render,
+chain a pipeline. Nothing to clone.
+
+Then two paths, in the order we recommend them:
 
 1. [Run the examples](#run-the-examples-first) — see a complete host working in
    four commands. Works in a fresh clone, no npm auth.
@@ -136,6 +140,8 @@ browser-safe), widget-side hooks from `@miragon/mcp-toolkit-ui/app` and
 
 ## Where to next
 
+- [Playground tour](playground/tour.md) — the toolkit's feature surface as a
+  click-through: widgets, composed views, pipelines, builder.
 - [Building a full module](guides/building-a-full-module.md) — your own tools +
   widget end-to-end (the common case).
 - [Architecture](concepts/architecture.md) — what the server actually does on
