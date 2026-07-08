@@ -29,10 +29,15 @@ call per stop. Each stop is a feature plus the concept doc behind it:
 
 ## Connect
 
-- **Browser** — open <https://mcp-toolkit-playground.fly.dev/mcp>. That is
-  mcp-use's built-in landing page: per-client install instructions and an
-  "Open in Inspector" button that opens the hosted inspector already connected
-  to the playground.
+Open <https://mcp-toolkit-playground.fly.dev/mcp> in a browser and you land on
+mcp-use's built-in page — per-client install instructions and an "Open in
+Inspector" button that opens the hosted inspector already connected to the
+playground:
+
+![The playground landing page: server description, connection URL, an Open in Inspector button, and per-client install instructions](./images/landing-page.png)
+
+- **Browser** — the "Open in Inspector" button above; nothing to install.
+- **Claude Code**:
 - **Claude Code**:
 
   ```sh
@@ -42,5 +47,9 @@ call per stop. Each stop is a feature plus the concept doc behind it:
 - **Cursor / VS Code** — one-click install links on the landing page.
 
 State is shared and in-memory. Whatever visitors create lives until the Fly
-machine restarts (it auto-stops when idle) — treat it as a scratchpad. To run
-your own copy instead, see [Run it locally](running-locally.md).
+machine restarts (it auto-stops when idle) — treat it as a scratchpad.
+
+To run your own copy, use `pnpm --filter @miragon/mcp-toolkit-examples start:playground`
+(boots the same host on `:3020` with the inspector); the entry is
+[`examples/host/playground.ts`](../../examples/host/playground.ts) and the Fly
+deployment lives in [`deploy/playground/`](../../deploy/playground/).

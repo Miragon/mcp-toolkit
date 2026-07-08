@@ -66,8 +66,6 @@ export default defineConfig({
           items: [
             { text: "Overview", link: "/playground/" },
             { text: "Guided tour", link: "/playground/tour" },
-            { text: "Run it locally", link: "/playground/running-locally" },
-            { text: "Deploy your own", link: "/playground/deployment" },
           ],
         },
       ],
