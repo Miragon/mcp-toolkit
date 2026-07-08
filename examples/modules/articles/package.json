@@ -9,6 +9,6 @@
   },
   "devDependencies": {
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
-    "tsx": "4.22.4"
+    "tsx": "4.22.5"
   }
 }
