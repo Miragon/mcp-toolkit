@@ -1,0 +1,3 @@
+# Default owners — requested as reviewers on every PR, including Dependabot's.
+# Replaces the deprecated `reviewers:` key in dependabot.yml (removed Aug 2025).
+* @emaarco @dominikhorn93
