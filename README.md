@@ -16,8 +16,8 @@ This monorepo ships four packages that are consumed by multiple MCP server proje
 Zero install: the **[hosted playground](https://mcp-toolkit-playground.fly.dev/mcp)**
 serves the example modules live — open it in a browser for connect
 instructions and an auto-connected inspector, and follow the
-[guided tour](./docs/playground.md) through tools → widgets → composed views →
-pipelines → builder.
+[guided tour](./docs/playground/tour.md) through tools → widgets → composed
+views → pipelines → builder.
 
 Locally, no npm auth needed — `pnpm install` links the workspace packages. The
 fastest way to see the toolkit working is the [examples workspace](./examples):
@@ -50,7 +50,7 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
 
 Where to next:
 
-- [`docs/playground.md`](./docs/playground.md) — the guided tour through the
+- [`docs/playground/`](./docs/playground/index.md) — the guided tour through the
   hosted playground; deploy config in [`deploy/playground/`](./deploy/playground/).
 - [`docs/getting-started.md`](./docs/getting-started.md) — the canonical
   getting-started: run the examples, then build your own host + module.

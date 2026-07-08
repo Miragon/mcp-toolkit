@@ -15,8 +15,8 @@ deployment concerns.
 
 ## Start here
 
-- [Playground](playground.md) — the docs, but clickable: a hosted toolkit
-  server with a guided tour through tools → widgets → composed views →
+- [Playground](playground/index.md) — the docs, but clickable: a hosted
+  toolkit server with a guided tour through tools → widgets → composed views →
   pipelines → builder. Zero install.
 - [Getting started](getting-started.md) — run the examples, then start your
   own project.

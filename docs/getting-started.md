@@ -1,7 +1,7 @@
 # Getting started
 
-Zero-install first look: the [hosted playground](playground.md) is a public
-toolkit server with a guided tour — call a tool, watch a widget render,
+Zero-install first look: the [hosted playground](playground/index.md) is a
+public toolkit server with a guided tour — call a tool, watch a widget render,
 chain a pipeline. Nothing to clone.
 
 Then two paths, in the order we recommend them:
@@ -140,7 +140,7 @@ browser-safe), widget-side hooks from `@miragon/mcp-toolkit-ui/app` and
 
 ## Where to next
 
-- [Playground tour](playground.md) — the toolkit's feature surface as a
+- [Playground tour](playground/tour.md) — the toolkit's feature surface as a
   click-through: widgets, composed views, pipelines, builder.
 - [Building a full module](guides/building-a-full-module.md) — your own tools +
   widget end-to-end (the common case).

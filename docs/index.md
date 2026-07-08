@@ -11,7 +11,7 @@ hero:
       link: /getting-started
     - theme: alt
       text: Try the playground
-      link: /playground
+      link: /playground/
     - theme: alt
       text: Architecture
       link: /concepts/architecture

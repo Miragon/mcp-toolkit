@@ -4,7 +4,7 @@ Fly.io deployment of the public playground —
 <https://mcp-toolkit-playground.fly.dev/mcp>. The server is
 [`examples/host/playground.ts`](../../examples/host/playground.ts) (the
 `tasks` + `orders` modules with `builder: true`, no upstreams); the guided
-tour through it is [`docs/playground.md`](../../docs/playground.md).
+tour through it is [`docs/playground/`](../../docs/playground/index.md).
 
 ## How it deploys
 
