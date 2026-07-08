@@ -1,0 +1,52 @@
+name: Deploy playground
+
+# Redeploys https://mcp-toolkit-playground.fly.dev on every push to main that
+# can change its behavior, so the playground tracks the repo. Deploy config
+# lives in deploy/playground/ (Dockerfile + fly.toml); the guided tour through
+# the deployed server is docs/playground.md.
+#
+# Requires the FLY_API_TOKEN repo secret — a deploy token scoped to the app:
+#   flyctl tokens create deploy -a mcp-toolkit-playground
+
+on:
+  push:
+    branches: [main]
+    # Keep in sync with what deploy/playground/Dockerfile copies into the
+    # image (plus .dockerignore, which shapes the build context).
+    paths:
+      - "packages/**"
+      - "examples/**"
+      - "deploy/playground/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - "docs/package.json"
+      - ".dockerignore"
+      - ".github/workflows/deploy-playground.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deploys are idempotent — the newest run wins.
+concurrency:
+  group: deploy-playground
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+
+      # Build context is the repo root (the Dockerfile copies the workspace).
+      # --ha=false: state (sessions, stores, dashboards) is per-process
+      # in-memory, so the app must stay a single machine — a second HA
+      # machine would round-robin sessions into the wrong process.
+      - run: flyctl deploy --config deploy/playground/fly.toml --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

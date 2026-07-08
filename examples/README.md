@@ -16,7 +16,9 @@ examples/
 ├── customers-upstream/         external MCP for the customers example
 │   ├── server.ts                 get-customer + module manifest + widget resource
 │   └── widget/                   CustomerCard.tsx (built by Vite, externalised React)
-├── host/                       createFrameworkApp wiring, proxies both upstreams
+├── host/                       createFrameworkApp wiring
+│   ├── index.ts                  full host — proxies both upstreams, all four modules
+│   └── playground.ts             public playground — tasks + orders only, no upstreams
 ├── modules/
 │   ├── articles/               host-bundled UI module (proxyBinding: "articles")
 │   ├── tasks/                  self-owned module — its OWN tools + a widget
@@ -90,6 +92,13 @@ cp examples/env.example examples/.env    # first time only
 # per-process log prefixes. The host is gated on both upstream
 # ports via wait-on before it boots.
 pnpm --filter @miragon/mcp-toolkit-examples start
+
+# the public playground host (tasks + orders + builder, no upstreams) on :3020.
+# This is what https://mcp-toolkit-playground.fly.dev serves — the guided tour
+# is docs/playground/, the Fly deployment lives in deploy/playground/.
+# Deliberately ignores examples/.env (the full host's env would drag in the
+# upstream proxies and port 3010); exported env vars still apply.
+pnpm --filter @miragon/mcp-toolkit-examples start:playground
 
 # or run each process in its own terminal — build the host's widget bundle
 # once first (dev:host serves it from app-bundle/dist, which is not in git;
