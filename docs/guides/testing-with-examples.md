@@ -92,7 +92,8 @@ in-process implementation) → `structuredContent` with article data back.
 ## Regenerating the articles types
 
 The typed client is a build-time snapshot of the standalone
-`codegen-source.ts` endpoint (port 4000; started automatically):
+`codegen-source.ts` endpoint (port 4000; start it first with
+`pnpm --filter @miragon/mcp-toolkit-examples dev:codegen-source`):
 
 ```sh
 pnpm --filter @miragon/mcp-toolkit-examples generate

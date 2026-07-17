@@ -9,10 +9,9 @@ export interface RegisterDashboardToolsOptions {
   store: DashboardStore
   /**
    * Optional widget registry used by `save-dashboard` to warn (never reject)
-   * when a layout references widget ids the server doesn't know about. Remote
-   * widgets contributed by upstream modules may legitimately be absent from
-   * this registry, so unknown ids are surfaced as a non-fatal warning rather
-   * than a hard validation failure. Omit to skip the check entirely.
+   * when a layout references widget ids the server doesn't know about —
+   * usually a typo, surfaced as a non-fatal warning so a save is never
+   * blocked on a cosmetic mistake. Omit to skip the check entirely.
    */
   widgetRegistry?: WidgetRegistry
 }
@@ -55,7 +54,7 @@ function extractUserId(ctx: unknown): string | undefined {
  * (mirrored into `structuredContent`) so the model itself receives the
  * bundle — `structuredContent` alone is "not added to model context" per
  * MCP. The `{ keys, steps, layout, title }` fields can be piped straight
- * into `render-view` — the "aufrufbares Dashboard" loop the plan targets.
+ * into `render-view` to re-render the saved dashboard.
  *
  * Registered by `createFrameworkApp` only when `app.builder` is `true` —
  * dashboard persistence is part of the opt-in visual builder platform
@@ -77,10 +76,9 @@ export function registerDashboardTools(
       schema: saveSchema,
     },
     async (params, ctx) => {
-      // Warn (never reject) on unknown widget ids: a layout may reference a
-      // remote widget contributed by an upstream module that this registry
-      // doesn't list, so a hard rejection would block legitimate saves. The
-      // unknown ids surface in the text summary so the user can spot a typo.
+      // Warn (never reject) on unknown widget ids — usually a typo. A save is
+      // deliberately never blocked on a cosmetic layout mistake; the unknown
+      // ids surface in the text summary so the user can spot and fix it.
       const unknownWidgets = widgetRegistry
         ? [...new Set(collectLayoutWidgets(params.layout))].filter((id) => !widgetRegistry.get(id))
         : []
@@ -98,7 +96,7 @@ export function registerDashboardTools(
       const summaryLines = [
         `Saved dashboard "${record.name}" (${record.id}).`,
         unknownWidgets.length > 0
-          ? `Warning: layout references widget ids not registered on this server: ${unknownWidgets.join(", ")}. They will only render if served by an upstream module at view time.`
+          ? `Warning: layout references widget ids not registered on this server: ${unknownWidgets.join(", ")}. They will not render — check for typos or register the widgets.`
           : "",
       ].filter(Boolean)
       return {

@@ -84,8 +84,8 @@ The config module's default export must satisfy the CodegenConfig type:
 
   export default {
     proxyName: "lexoffice",
-    upstreamUrl: process.env.LEXOFFICE_UPSTREAM_URL,
-    auth: { mode: "bearer", token: process.env.MCP_PROXY_LEXOFFICE_TOKEN },
+    upstreamUrl: process.env.LEXOFFICE_CODEGEN_SOURCE_URL,
+    auth: { mode: "bearer", token: process.env.LEXOFFICE_CODEGEN_TOKEN },
     out: "./src/generated",
   }
 `,
