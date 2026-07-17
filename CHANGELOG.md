@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.9.0](https://github.com/Miragon/mcp-toolkit/compare/v0.8.0...v0.9.0) (2026-07-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* createFrameworkApp drops the previously required `proxies` option along with `callbackBaseUrl`, `hostReactMajor`, and `secretResolver`; the boot path collapses to first-party loadApps + per-plugin appConfigs. registerFrameworkTools drops its `proxies` option and no longer registers read-widget-bundle. The core ./proxy subpath and the proxy-contract package are gone.
+
+### Features
+
+* **core,examples:** hosted playground with Fly deployment and guided-tour docs ([#91](https://github.com/Miragon/mcp-toolkit/issues/91)) ([8143761](https://github.com/Miragon/mcp-toolkit/commit/8143761514f6669cbda38eac8167206cfca24607))
+* remove upstream/proxy federation — external MCP gateways own aggregation ([#100](https://github.com/Miragon/mcp-toolkit/issues/100)) ([8d42dfc](https://github.com/Miragon/mcp-toolkit/commit/8d42dfc8a65b0d8d918c5511898a3a814250f479))
+
 ## [0.8.0](https://github.com/Miragon/mcp-toolkit/compare/v0.7.2...v0.8.0) (2026-07-07)
 
 
