@@ -16,7 +16,7 @@ export class WidgetRegistry {
 
   /**
    * Remove a previously-registered widget. Used to roll back a partially
-   * loaded module when isolating an upstream collision (see `loadApps`); a
+   * loaded module when isolating a collision (see `loadApps`); a
    * no-op for unknown ids.
    */
   unregister(widgetId: string): void {

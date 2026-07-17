@@ -1,21 +1,24 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { createFrameworkApp, createFileSystemDashboardStore } from "@miragon/mcp-toolkit-core/tools"
-import { parseProxyConfigEnv } from "@miragon/mcp-toolkit-proxy-contract"
 import { createPlugin as createArticlesPlugin } from "../modules/articles/plugin.js"
 import { createPlugin as createTasksPlugin } from "../modules/tasks/plugin.js"
 import { createPlugin as createOrdersPlugin } from "../modules/orders/plugin.js"
 
 /**
- * Boots a host MCP server using the toolkit's `createFrameworkApp`. Serves four
- * modules at once, covering every kind:
- *   - articles   UI-only, federates articles-upstream's tools (proxyBinding)
- *   - customers  fully upstream-hosted (step + widget discovered via manifest)
- *   - tasks      self-owned: the module registers its *own* tools + widget via
- *                `createToolRegistrar` (no upstream). See `modules/tasks/`.
- *   - orders     self-owned: shows BOTH composition paths against one domain — an
- *                eager multi-widget dashboard (`buildComposedView`, the default)
+ * Boots a self-contained host MCP server using the toolkit's
+ * `createFrameworkApp`. Serves three self-owned modules at once:
+ *   - articles   the tool-codegen example: its own tools plus a *generated*
+ *                typed client (`generated/`) used by the resolve-article step
+ *                and the ArticleCard widget. See `modules/articles/`.
+ *   - tasks      the module registers its own tools + widget via
+ *                `createToolRegistrar` (no pipeline). See `modules/tasks/`.
+ *   - orders     shows BOTH composition paths against one domain — an eager
+ *                multi-widget dashboard (`buildComposedView`, the default)
  *                and a real two-step pipeline (`render-view`). See `modules/orders/`.
+ *
+ * Aggregating several MCP servers into one surface is an external gateway's
+ * job (e.g. agentgateway) — each toolkit server stays self-contained.
  *
  * Saved dashboards (created via the builder's Save button) land in
  * `${here}/.dashboards/<id>.json`. Delete the directory to reset.
@@ -27,8 +30,6 @@ const app = await createFrameworkApp({
   version: "0.0.1",
   baseUrl: process.env.MCP_URL,
   plugins: [createArticlesPlugin(), createTasksPlugin(), createOrdersPlugin()],
-  proxies: parseProxyConfigEnv(process.env.MCP_PROXIES),
-  callbackBaseUrl: process.env.MCP_URL,
   app: {
     resourceUri: "ui://toolkit-example/mcp-app.html",
     htmlPath: path.join(here, "..", "app-bundle", "dist", "index.html"),

@@ -37,12 +37,12 @@ export default defineConfig({
       { text: "Playground", link: "/playground/", activeMatch: "^/playground/" },
       {
         text: "Docs",
-        activeMatch: "^/(concepts|guides|reference|recipes|plans)/",
+        activeMatch: "^/(concepts|guides|reference|recipes)/",
         items: [
           { text: "Concepts", link: "/concepts/architecture" },
-          { text: "Guides", link: "/guides/building-a-full-module" },
+          { text: "Guides", link: "/guides/building-dashboards" },
           { text: "Reference", link: "/reference/components" },
-          { text: "Recipes", link: "/recipes/adding-an-oauth2-upstream" },
+          { text: "Recipes", link: "/recipes/debugging-pipeline-steps" },
         ],
       },
     ],
@@ -82,7 +82,6 @@ export default defineConfig({
             { text: "Widgets", link: "/concepts/widgets" },
             { text: "Host portability", link: "/concepts/host-portability" },
             { text: "View builder", link: "/concepts/view-builder" },
-            { text: "Upstream proxies", link: "/concepts/upstream-proxies" },
             { text: "Middleware", link: "/concepts/middleware" },
           ],
         },
@@ -90,8 +89,6 @@ export default defineConfig({
           text: "Guides",
           collapsed: false,
           items: [
-            { text: "Building a full module", link: "/guides/building-a-full-module" },
-            { text: "Building a UI-only module", link: "/guides/building-a-ui-only-module" },
             {
               text: "Developing widgets in isolation",
               link: "/guides/developing-widgets-in-isolation",
@@ -101,7 +98,6 @@ export default defineConfig({
             { text: "Layout & rendering", link: "/guides/layout-and-rendering" },
             { text: "Using tool-codegen", link: "/guides/using-tool-codegen" },
             { text: "Typed callTool in steps", link: "/guides/typed-call-tool-in-steps" },
-            { text: "Registering upstream proxies", link: "/guides/registering-upstream-proxies" },
             { text: "Middleware & auth", link: "/guides/middleware-and-auth" },
             { text: "Testing with examples", link: "/guides/testing-with-examples" },
           ],
@@ -114,10 +110,6 @@ export default defineConfig({
             { text: "@miragon/mcp-toolkit-core", link: "/reference/api-core" },
             { text: "@miragon/mcp-toolkit-ui", link: "/reference/api-ui" },
             {
-              text: "@miragon/mcp-toolkit-proxy-contract",
-              link: "/reference/api-proxy-contract",
-            },
-            {
               text: "@miragon/mcp-toolkit-tool-codegen",
               link: "/reference/api-tool-codegen",
             },
@@ -127,25 +119,7 @@ export default defineConfig({
         {
           text: "Recipes",
           collapsed: true,
-          items: [
-            {
-              text: "Adding an OAuth2 upstream",
-              link: "/recipes/adding-an-oauth2-upstream",
-            },
-            { text: "Role-based module access", link: "/recipes/role-based-module-access" },
-            { text: "Multi-proxy setup", link: "/recipes/multi-proxy-setup" },
-            { text: "Debugging pipeline steps", link: "/recipes/debugging-pipeline-steps" },
-          ],
-        },
-        {
-          text: "Plans",
-          collapsed: true,
-          items: [
-            {
-              text: "Upstream-hosted modules",
-              link: "/plans/upstream-hosted-modules",
-            },
-          ],
+          items: [{ text: "Debugging pipeline steps", link: "/recipes/debugging-pipeline-steps" }],
         },
       ],
     },

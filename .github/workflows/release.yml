@@ -46,7 +46,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pnpm publish -r \
-            --filter "@miragon/mcp-toolkit-proxy-contract" \
             --filter "@miragon/mcp-toolkit-core" \
             --filter "@miragon/mcp-toolkit-tool-codegen" \
             --filter "@miragon/mcp-toolkit-ui" \

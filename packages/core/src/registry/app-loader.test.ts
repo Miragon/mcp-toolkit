@@ -60,7 +60,7 @@ describe("loadApps — default (fail loud)", () => {
   })
 })
 
-describe("loadApps — isolateFailures (untrusted upstream)", () => {
+describe("loadApps — isolateFailures (untrusted module source)", () => {
   it("skips a colliding module instead of throwing, and reports it", () => {
     const { steps, widgets } = registries()
     loadApps([app("first", ["shared:s"], [])], steps, widgets)

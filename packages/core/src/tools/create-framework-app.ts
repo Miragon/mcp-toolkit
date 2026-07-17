@@ -1,19 +1,14 @@
 import { MCPServer, type McpServerInstance, type OAuthProvider } from "mcp-use/server"
-import type { ProxyConfig } from "@miragon/mcp-toolkit-proxy-contract"
 import { loadApps } from "../registry/app-loader.js"
 import { StepRegistry } from "../registry/step-registry.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
-import { buildProxyAppConfigs } from "../proxy/build-proxy-app-configs.js"
 import { createOrgGateMiddleware } from "../middleware/org-gate.js"
 import { createRoleFilterMiddleware } from "../middleware/role-filter.js"
-import { discoverUpstreamModules, DEFAULT_HOST_REACT_MAJOR } from "../module-loader/discover.js"
-import { synthesizeModulePlugin } from "../module-loader/synthesize-plugin.js"
 import { createInMemoryDashboardStore, type DashboardStore } from "../framework/dashboard-store.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
 import { registerFrameworkTools, type AppResourceCsp } from "./register-framework-tools.js"
 import { registerCatalogueTool } from "./register-catalogue-tool.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
-import { registerUpstreamProxies } from "./register-upstream-proxies.js"
 import { installToolCallNameCapture } from "./tool-call-name.js"
 import { deriveAppResourceUri } from "./app-resource-uri.js"
 
@@ -30,26 +25,6 @@ export interface CreateFrameworkAppOptionsBase {
   baseUrl?: string
   host?: string
   plugins: AppPlugin[]
-  /** Parsed proxy config (use `parseProxyConfigEnv` or hand-build). */
-  proxies: ProxyConfig
-  /**
-   * Public base URL the OAuth callback routes of `auth.mode === "oauth2"`
-   * proxies mount under. Defaults to {@link baseUrl} when omitted — the
-   * common single-origin deployment where the server advertises and receives
-   * callbacks on the same URL. Set it explicitly only when callbacks arrive on
-   * a different origin than the one the server advertises. When neither this
-   * nor `baseUrl` is set and an oauth2 proxy is configured, boot still fails
-   * fast with the "callbackBaseUrl is required" error.
-   */
-  callbackBaseUrl?: string
-  /**
-   * Major React version the host ships. Controls whether an upstream-hosted
-   * module's `runtime.react` range is accepted at discovery time. Defaults
-   * to the toolkit's own `TOOLKIT_REACT_MAJOR` when omitted. Pass an
-   * explicit number if the host's React runtime diverges from the bundled
-   * UI package's peer range (rare).
-   */
-  hostReactMajor?: number
   middleware?: {
     /** When set, every RPC must come from a token with this organization_id. */
     orgGate?: string
@@ -128,8 +103,6 @@ export interface CreateFrameworkAppOptionsBase {
   }
   /** Supplies the non-empty set of apps each plugin represents. */
   appConfig?: AppConfig
-  /** Swap in a non-env secret resolver (Vault, Doppler, etc.). */
-  secretResolver?: (name: string) => string | undefined
 }
 
 /**
@@ -155,10 +128,13 @@ export type CreateFrameworkAppOptions =
 
 /**
  * Orchestrates a full Miranum-style MCP server: MCPServer construction,
- * org-gate + role-filter middleware, upstream-proxy federation,
- * per-plugin tool registration, and the framework-level tool trio
- * (`get-framework-manifest`, `render-view`, `refresh-view`) + mcp-app.html
- * resource.
+ * org-gate + role-filter middleware, per-plugin tool registration, and the
+ * framework-level tool trio (`get-framework-manifest`, `render-view`,
+ * `refresh-view`) + mcp-app.html resource.
+ *
+ * The server is deliberately self-contained: it serves only the first-party
+ * plugins passed in. Aggregating several MCP servers into one surface is an
+ * external gateway's job (e.g. agentgateway), not this framework's.
  *
  * OAuth is opt-in: pass an `oauth` provider to enable OAuth-gated routes and
  * get an `MCPServer<true>` back, or omit it to boot without OAuth and get an
@@ -174,6 +150,10 @@ export function createFrameworkApp(
 export function createFrameworkApp(
   options: CreateFrameworkAppOptionsWithoutOAuth,
 ): Promise<McpServerInstance<false>>
+// Async without an internal await today: the boot path became fully
+// synchronous when upstream discovery was removed, but the Promise return
+// stays — consumers `await` it, and future boot steps may be async again.
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function createFrameworkApp(
   options: CreateFrameworkAppOptions,
 ): Promise<McpServerInstance<boolean>> {
@@ -213,55 +193,29 @@ export async function createFrameworkApp(
     server.use("mcp:tools/call", toolsCall)
   }
 
-  const proxies = await registerUpstreamProxies(server, {
-    entries: options.proxies,
-    // Default to the advertised base URL — the common single-origin
-    // deployment where the server receives OAuth callbacks on the same URL it
-    // advertises. An explicit `callbackBaseUrl` still wins when callbacks
-    // arrive on a different origin.
-    callbackBaseUrl: options.callbackBaseUrl ?? options.baseUrl,
-    secretResolver: options.secretResolver,
-  })
-
-  const discoveredModules = await discoverUpstreamModules({
-    entries: options.proxies,
-    proxies,
-    hostReactMajor: options.hostReactMajor ?? DEFAULT_HOST_REACT_MAJOR,
-  })
-  const modulePlugins = discoveredModules.map(synthesizeModulePlugin)
-
   const stepRegistry = new StepRegistry()
   const widgetRegistry = new WidgetRegistry()
 
-  // First-party plugins first: their step/widget ids are author-controlled, so
-  // a collision is a real bug and must fail loud (hard throw).
+  // Plugin step/widget ids are author-controlled, so a collision is a real
+  // bug and must fail loud (hard throw).
+  const allPlugins: AppPlugin[] = options.plugins
   loadApps(
-    options.plugins.map((p) => p.definition),
+    allPlugins.map((p) => p.definition),
     stepRegistry,
     widgetRegistry,
   )
-
-  // Discovered upstream modules next, in isolation: an untrusted third-party
-  // module that ships a colliding id must not brick the whole host boot. A
-  // conflicting module is skipped (with a warning) and dropped from the active
-  // plugin set so its tools/widgets/appConfig are never half-registered.
-  const { skipped } = loadApps(
-    modulePlugins.map((p) => p.definition),
-    stepRegistry,
-    widgetRegistry,
-    { isolateFailures: true },
-  )
-  const skippedModuleNames = new Set(skipped.map((s) => s.app.name))
-  const activeModulePlugins = modulePlugins.filter(
-    (p) => !skippedModuleNames.has(p.definition.name),
-  )
-  const allPlugins: AppPlugin[] = [...options.plugins, ...activeModulePlugins]
 
   for (const plugin of allPlugins) {
     plugin.registerTools?.(server)
   }
 
-  const appConfigs = buildProxyAppConfigs(allPlugins, proxies)
+  // Per-app step configuration: each plugin's `appConfig` keyed by app name.
+  // A plugin may inject closures here (e.g. a typed `callTool`) — the pipeline
+  // executor pre-binds the per-request user context on any `callTool` it finds
+  // (see `pipeline-executor.ts:bindAppConfig`).
+  const appConfigs: Record<string, Record<string, unknown>> = Object.fromEntries(
+    allPlugins.map((p) => [p.definition.name, p.appConfig ?? {}]),
+  )
   const appConfig: AppConfig = options.appConfig ?? {
     activeApps: allPlugins.map((p) => ({ app: p.definition.name, config: {} })),
     pipelines: {},
@@ -281,7 +235,6 @@ export async function createFrameworkApp(
     config: appConfig,
     appConfigs,
     plugins: allPlugins,
-    proxies,
     resourceUri,
     htmlPath: options.app.htmlPath,
     refreshToolName: options.app.refreshToolName,

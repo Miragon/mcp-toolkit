@@ -1,13 +1,11 @@
 # Architecture
 
-A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
+A Miranum-style MCP server is an mcp-use `MCPServer` with two layers:
 
-1. **Upstream proxies** — federate external MCPs under a `<proxy>_` prefix.
-2. **App plugins** — register domain tools, widget tools, pipeline steps, widgets.
-3. **Framework tools** — always-on: LLM-facing `get-framework-manifest`
+1. **App plugins** — register domain tools, widget tools, pipeline steps, widgets.
+2. **Framework tools** — always-on: LLM-facing `get-framework-manifest`
    and `render-view`; app-only (iframe internal, never in LLM
-   `tools/list`) `refresh-view` and `read-widget-bundle` (streams
-   upstream-hosted widget JS to the browser). Plus the `mcp-app-html`
+   `tools/list`) `refresh-view`. Plus the `mcp-app-html`
    widget bundle resource. **Opt-in** (only when `app.builder === true`,
    default off): the `save-/list-/load-/delete-dashboard` CRUD quartet
    backed by a pluggable `DashboardStore`, plus the app-only
@@ -25,9 +23,8 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 │  ┌──────────────┐  ┌──────────────────────────────────────────────┐  │
 │  │ middleware   │  │ tools                                        │  │
 │  │  org-gate    │  │  get-framework-manifest · render-view        │  │
-│  │  role-filter │  │  <plugin>_* · <proxy>_*                      │  │
-│  └──────────────┘  │  (app-only) refresh-view · read-widget-      │  │
-│                    │  bundle                                      │  │
+│  │  role-filter │  │  <plugin>_*                                  │  │
+│  └──────────────┘  │  (app-only) refresh-view                     │  │
 │                    │  (opt-in, app.builder) save-/list-/load-/    │  │
 │                    │  delete-dashboard · (app-only) get-builder-  │  │
 │                    │  catalogue                                   │  │
@@ -35,14 +32,25 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 │  ┌──────────────────────────────────────────────────────────────┐    │
 │  │ resources: ui://<app>/mcp-app.html (widget bundle)           │    │
 │  └──────────────────────────────────────────────────────────────┘    │
-└────┬─────────────────────────────────────────┬───────────────────────┘
-     │ pipeline: step.execute(ctx, appConfig)  │ forwardedTool.call
-     │  with injected typed callTool closure   │
-┌────▼────────────────┐                  ┌─────▼───────────────────────┐
-│ StepRegistry        │                  │ Upstream MCP (external)     │
-│ WidgetRegistry      │                  │ OAuth2 / bearer / header    │
-└─────────────────────┘                  └─────────────────────────────┘
+└────┬─────────────────────────────────────────────────────────────────┘
+     │ pipeline: step.execute(ctx, appConfig)
+     │  with the plugin-injected typed callTool closure
+┌────▼────────────────┐
+│ StepRegistry        │
+│ WidgetRegistry      │
+└─────────────────────┘
 ```
+
+## Federation is a gateway concern
+
+Every toolkit server is **self-contained**: its own tools, its own steps,
+its own widgets, its own UI bundle. Aggregating several MCP servers into
+one client-facing surface is the job of an external MCP gateway in front
+of them (e.g. [agentgateway](https://agentgateway.dev) — federation /
+multiplexing of multiple MCP servers, virtual servers). The client host
+renders the UI of whichever server's tool was called. The toolkit
+deliberately ships no upstream-proxy or module-discovery machinery of its
+own.
 
 ## Request flow — `render-view`
 
@@ -52,9 +60,9 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
    - Looks up definition by `ref.step` in `StepRegistry`.
    - Checks all `requires` keys exist in the running context.
    - Builds the step's `appConfig` via `bindAppConfig`: if the config has a
-     `callTool` closure (from `buildProxyAppConfigs`), wraps it so the 3rd
-     `ctx` arg gets pre-bound with `userId`, leaving steps with a 2-arg
-     signature.
+     `callTool` closure (injected by the plugin via `AppPlugin.appConfig`),
+     wraps it so the 3rd `ctx` arg gets pre-bound with `userId`, leaving
+     steps with a 2-arg signature.
    - Calls `step.execute(context, appConfig)`.
    - Merges the returned `keys` into the running context.
 4. The view payload returned to the client has `structuredContent` with
@@ -62,27 +70,14 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with three layers:
 5. The widget bundle (`mcp-app.html`) renders each widget in the layout by
    reading its `WidgetDefinition.requires` against `context.keys`.
 
-## Request flow — federated upstream tool call
-
-1. Client calls `articles_get-article`.
-2. mcp-use routes to the handler `UpstreamProxyPlugin.registerForwardedTool`
-   registered during `init`.
-3. **Static auth** (`none`/`bearer`/`header`) — handler calls the shared
-   `staticSession.callTool("get-article", args)`.
-4. **oauth2** — handler looks up the per-user session via
-   `sessionStore.getSession(userId, proxyName)`. If absent, returns an error
-   telling the user to run `<proxy>_authenticate` first.
-5. Result passes straight back to the client.
-
 ## Request flow — server-internal tool call from a step
 
-Same upstream path, but initiated from a pipeline step, not from the public
-RPC surface:
-
 1. Step calls its injected `callTool("articles_get-article", { id })`.
-2. `buildProxyAppConfigs` wraps this to `proxy.callUpstream(name, args, userId)`.
-3. `callUpstream` strips the `<proxy>_` prefix, resolves the correct session
-   (static or per-user oauth2), and calls `session.callTool(bareName, args)`.
+2. The executor's `bindAppConfig` has pre-bound the per-request `userId`
+   onto the closure.
+3. The closure resolves the call however the plugin implemented it — an
+   in-process store lookup (the examples' articles module), a REST call,
+   or an MCP client session.
 
 **Caveat**: `role-filter` middleware only runs on the public RPC surface.
 Step-internal dispatches bypass it. For defence-in-depth on step paths,
@@ -98,8 +93,6 @@ add an explicit check in the step.
 | Catalogue helper     | `packages/core/src/framework/catalogue.ts`                        |
 | Dashboard CRUD tools | `packages/core/src/tools/register-dashboard-tools.ts`             |
 | Dashboard store      | `packages/core/src/framework/dashboard-store.ts`                  |
-| Proxy mounting       | `packages/core/src/tools/register-upstream-proxies.ts`            |
-| Proxy runtime        | `packages/core/src/proxy/UpstreamProxyPlugin.ts`                  |
 | Pipeline executor    | `packages/core/src/engine/pipeline-executor.ts`                   |
 | View rendering       | `packages/core/src/framework/render-view.ts`                      |
 | Manifest             | `packages/core/src/framework/manifest.ts`                         |

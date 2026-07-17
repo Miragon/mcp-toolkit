@@ -3,8 +3,6 @@ import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
-import { isRemoteWidget } from "../types/widget.js"
-import type { RemoteWidgetInfo } from "./render-view.js"
 
 export interface CatalogueInput {
   keys?: Record<string, unknown>
@@ -82,7 +80,6 @@ export interface CataloguePayload {
   unreachableWidgets: UnreachableWidget[]
   availableSteps: AvailableStep[]
   keyCatalog: KeyCatalogEntry[]
-  remoteWidgets: Record<string, RemoteWidgetInfo>
   /**
    * Pipeline validation issues from `validatePipeline`. The catalogue is
    * fail-soft (it still returns a usable palette even when the pipeline can't
@@ -199,13 +196,6 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
       }
     })
 
-  const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
-  for (const widget of allWidgets) {
-    if (isRemoteWidget(widget)) {
-      remoteWidgets[widget.id] = { bundle: widget.bundle, moduleId: widget.moduleId }
-    }
-  }
-
   const textSummary = [
     `Reachable widgets: ${reachableWidgets.length}`,
     `Keys: ${[...availableKeys].join(", ") || "none"}`,
@@ -240,7 +230,6 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
       unreachableWidgets,
       availableSteps,
       keyCatalog,
-      remoteWidgets,
       validationIssues: validation.issues,
     },
   }

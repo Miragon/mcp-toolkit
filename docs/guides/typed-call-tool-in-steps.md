@@ -1,89 +1,83 @@
 # Typed `callTool` in steps
 
-Pipeline steps dispatch to upstream MCP tools through a typed `callTool`
+Pipeline steps can dispatch tool-style calls through a typed `callTool`
 closure on their `appConfig`. This guide covers how the closure gets there,
 what the executor does with it, and how to type it.
 
 ## What gets injected, where
 
-During boot, `createFrameworkApp` calls:
+The plugin itself owns the closure: it puts a `callTool` function into its
+`appConfig`, and `createFrameworkApp` hands that `appConfig` to the
+plugin's steps at execution time (keyed by app name — `executePipeline`
+picks a step's entry by `ref.step.split(":")[0]`).
 
-```ts
-const appConfigs = buildProxyAppConfigs(plugins, proxies)
-```
+Before the step runs, the executor's `bindAppConfig` rewraps any
+`callTool` it finds: the step-facing signature stays 2-arg
+`(toolName, args)`, while the underlying closure receives the current
+per-request context (`{ userId }`) as a hidden 3rd argument. Steps stay
+synchronous and userId-free; the closure can still scope data per user.
 
-For each plugin:
-
-- No `proxyBinding` → `appConfigs[plugin.definition.name] = plugin.appConfig ?? {}`.
-- `proxyBinding` matches a known `UpstreamProxyPlugin` →
-  `appConfigs[name] = { ...plugin.appConfig, callTool }` where `callTool`
-  is a 3-arg closure `(toolName, args, ctx?) → proxy.callUpstream(…)`.
-
-`executePipeline` picks a step's entry by `ref.step.split(":")[0]` (the app
-name) and runs it through `bindAppConfig(ctx)`, which converts the 3-arg
-closure into the 2-arg shape steps see — with the caller's `userId` already
-bound.
-
-Source: `packages/core/src/proxy/build-proxy-app-configs.ts`,
-`packages/core/src/engine/pipeline-executor.ts`.
+Source: `packages/core/src/engine/pipeline-executor.ts`.
 
 ## Declaring the step's type
 
-Pull in the generated proxy-specific `CallTool` type (e.g. `LexofficeCallTool`):
+Pull in the generated namespace-specific `CallTool` type (e.g.
+`ArticlesCallTool` from [tool-codegen](using-tool-codegen.md)):
 
 ```ts
 import type { PipelineStepDefinition } from "@miragon/mcp-toolkit-core"
-import type { LexofficeCallTool } from "../generated/tools.js"
+import type { ArticlesCallTool } from "../generated/tools.js"
 
-export const step: PipelineStepDefinition<{ callTool: LexofficeCallTool }> = {
-  id: "lexoffice:resolve-invoice",
-  dataType: "lexoffice:invoice",
-  requires: ["lexoffice:invoiceNumber"],
-  produces: ["lexoffice:invoice"],
+export const step: PipelineStepDefinition<{ callTool: ArticlesCallTool }> = {
+  id: "articles:resolve-article",
+  dataType: "articles:article",
+  requires: ["articles:articleId"],
+  produces: ["articles:article"],
   async execute(ctx, { callTool }) {
-    const inv = await callTool("lexoffice_retrieve-invoice", {
-      invoiceNumber: String(ctx.keys["lexoffice:invoiceNumber"]),
+    const article = await callTool("articles_get-article", {
+      id: String(ctx.keys["articles:articleId"]),
     })
-    // inv is typed from the upstream's outputSchema (or `unknown` if absent)
+    // article is typed from the source's outputSchema (or `unknown` if absent)
     return {
-      _app: "lexoffice",
-      _step: "resolve-invoice",
-      data: inv,
-      keys: { "lexoffice:invoice": inv },
+      _app: "articles",
+      _step: "resolve-article",
+      data: article,
+      keys: { "articles:article": article },
     }
   },
 }
 ```
 
-`TypedCallTool` (with `LexofficeToolMap` as its generic argument) collapses
+`TypedCallTool` (with `ArticlesToolMap` as its generic argument) collapses
 to a 2-arg signature — the pipeline executor pre-binds `userId` so steps
 don't touch it.
 
 ## Plugin-side wiring
 
+The plugin injects the implementation. In the examples' articles module it
+is an in-process closure over the module's own store; in your project it
+can be anything with the same typed surface — a REST client, a DB call, or
+an MCP client session:
+
 ```ts
 export function createPlugin(): AppPlugin {
+  const store = createArticleStore()
   return {
     definition, // contains `steps: [step]`
-    proxyBinding: "lexoffice", // must equal the proxy `name` in MCP_PROXIES
+    appConfig: { callTool: createArticlesCallTool(store) },
+    registerTools: (server) => registerArticleTools(server as MCPServer, store),
   }
 }
 ```
 
+See `examples/modules/articles/plugin.ts` for the full implementation
+including the documented cast a switch-based `TypedCallTool` needs.
+
 ## Edge cases
 
-**Proxy missing / misnamed.** If `proxyBinding` names a proxy that doesn't
-exist in `proxies`, `buildProxyAppConfigs` logs a warning and skips the
-injection. The step will then find `appConfig.callTool === undefined` and
-crash on first use — fix the mismatch and restart.
-
-**oauth2 without a user session.** `callUpstream` throws an error like
-`no active session for user "$userId". User must complete $name_authenticate first.`
-Catch it in the step if you want a nicer user-facing error.
-
-**Static modes before `init`.** `callUpstream` also throws if `init(server)`
-never ran. `createFrameworkApp` awaits init for you, so this is only a
-concern if you wire a server by hand.
+**Missing closure.** If the plugin forgets to put `callTool` into its
+`appConfig`, the step finds `appConfig.callTool === undefined` and crashes
+on first use — wire the closure in `createPlugin()`.
 
 **Role-filter middleware does not apply here.** Step dispatch bypasses the
 public RPC surface. If your step path needs a role check, add it explicitly.
@@ -91,7 +85,7 @@ See [middleware](../concepts/middleware.md).
 
 ## Without codegen
 
-If you're wrapping a tiny upstream and don't want codegen, type the closure
+If the tool surface is tiny and you don't want codegen, type the closure
 by hand:
 
 ```ts
@@ -110,5 +104,5 @@ const step: PipelineStepDefinition<{ callTool: TypedCallTool<MyToolMap> }> = { .
 ## Reference
 
 - `TypedCallTool` → `packages/tool-codegen/src/runtime.ts`
-- `buildProxyAppConfigs` → `packages/core/src/proxy/build-proxy-app-configs.ts`
 - `bindAppConfig` → `packages/core/src/engine/pipeline-executor.ts`
+- Worked example → `examples/modules/articles/`

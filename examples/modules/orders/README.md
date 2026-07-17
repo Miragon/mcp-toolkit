@@ -146,10 +146,8 @@ the two widgets each read the "orders:dashboard" step data:
    `context.keys`.
 2. **STEP B's `requires` names the key it needs.** The executor runs B **only**
    once every key in `requires` is present — so B cannot run until A has produced
-   `orders:customer`. (No explicit `inputMapping` is needed here because A writes
-   the key under the exact name B requires. `inputMapping` is for the federated
-   case, where a declarative step renames an upstream tool's output into a
-   namespaced key — see `examples/modules/articles`.)
+   `orders:customer`. (A writes
+   the key under the exact name B requires — no mapping layer involved.)
 3. **STEP B reads A's output straight off the context** —
    `ctx.keys["orders:customer"]` — instead of re-resolving the customer. That is
    the whole point of a pipeline: B consumes A's output.
@@ -240,7 +238,7 @@ wraps the widget in a `<ModelContext>` so the model knows what the user is looki
 # 1. Build the host's widget bundle (includes orders:kpi + orders:table)
 pnpm --filter @miragon/mcp-toolkit-examples build:bundle
 
-# 2. Boot the host (serves articles + customers + tasks + orders)
+# 2. Boot the host (serves articles + tasks + orders)
 pnpm --filter @miragon/mcp-toolkit-examples dev:host
 
 # 3a. The eager dashboard (the default path) — a two-cell layout:

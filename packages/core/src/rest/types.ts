@@ -1,9 +1,9 @@
 /**
  * Auth configuration for a REST upstream.
  *
- * Modes mirror `UpstreamProxyPlugin` for consistency, minus `oauth2` which
- * requires per-user session plumbing (callback routes, token store) and is
- * a future iteration.
+ * Modes: `none`, `bearer`, and custom `header`. `oauth2` is out of scope —
+ * it requires per-user session plumbing (callback routes, token store) and
+ * is a future iteration.
  *
  * - `none`    — no auth headers added
  * - `bearer`  — stamps `Authorization: Bearer <token>`

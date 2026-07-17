@@ -18,7 +18,13 @@ to import from build scripts.
 
 `auth` in both types is `{ mode: "none" } \| { mode: "bearer", token } \| { mode: "header", headerName, value }`. oauth2 is not supported at build time.
 
-`overrides` in `CodegenConfig` maps full tool names (`<proxy>_<tool>`) to
+`proxyName` is the namespace prefix for everything generated: source tool
+`get-article` with `proxyName: "articles"` becomes the runtime name
+`articles_get-article`, type map `ArticlesToolMap`, hook
+`useArticlesGetArticle`. `upstreamUrl` is the MCP endpoint whose
+`tools/list` gets snapshotted at build time.
+
+`overrides` in `CodegenConfig` maps full tool names (`<proxyName>_<tool>`) to
 literal TypeScript type expressions that replace the generated `input` /
 `output` bodies — the escape hatch for MCPs that omit `outputSchema`.
 
@@ -43,12 +49,6 @@ bundles don't pull in `handlebars` / `json-schema-to-typescript`.
 
 Generated code imports only these — consumers never need to reach into
 the `main` entry at runtime.
-
-## `buildProxyAppConfigs` — note
-
-Despite being mentioned in codegen discussions, `buildProxyAppConfigs` is
-exported from **`@miragon/mcp-toolkit-core`** (and `…-core/proxy`), not
-from this package. See the core reference.
 
 ## CLI — `mcp-tool-codegen`
 
@@ -95,17 +95,22 @@ import type { CodegenConfig } from "@miragon/mcp-toolkit-tool-codegen"
 
 export default {
   proxyName: "lexoffice",
-  upstreamUrl: process.env.LEXOFFICE_UPSTREAM_URL!,
-  auth: { mode: "bearer", token: process.env.MCP_PROXY_LEXOFFICE_TOKEN! },
+  upstreamUrl: process.env.LEXOFFICE_MCP_URL!,
+  auth: { mode: "bearer", token: process.env.LEXOFFICE_TOKEN! },
   out: "./src/generated",
   overrides: {
     "lexoffice_retrieve-invoice": {
-      // upstream omits outputSchema → pin the shape by hand
+      // source omits outputSchema → pin the shape by hand
       output: `{ id: string; amount: number; status: "paid" | "open" | "overdue" }`,
     },
   },
 } satisfies CodegenConfig
 ```
+
+The worked example lives at
+[`examples/modules/articles/`](../../examples/modules/articles/) —
+`codegen.config.ts` snapshots the standalone build-time endpoint
+`codegen-source.ts` into the committed `generated/` client.
 
 ## Generated output shape
 
@@ -132,10 +137,9 @@ export function useLexofficeRetrieveInvoice(
 }
 ```
 
-One hook per upstream tool. Query key: `[proxyName, toolName]`.
+One hook per source tool. Query key: `[proxyName, toolName]`.
 
 ## See also
 
 - [Using tool-codegen](../guides/using-tool-codegen.md)
 - [Typed call-tool in steps](../guides/typed-call-tool-in-steps.md)
-- [Building a UI-only module](../guides/building-a-ui-only-module.md)

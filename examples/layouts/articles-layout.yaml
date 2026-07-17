@@ -6,8 +6,8 @@
 #   }'
 #
 # The `articles:resolve-article` step calls `articles_get-article` through the
-# proxy bound to articles-upstream, produces `articles:article`, which
-# satisfies the `articles:article-card` widget.
+# typed callTool the articles plugin injects into its appConfig, produces
+# `articles:article`, which satisfies the `articles:article-card` widget.
 rows:
   - row:
       - widget: articles:article-card

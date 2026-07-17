@@ -35,9 +35,9 @@ function authHeaders(auth: FetchToolsOptions["auth"]): Record<string, string> {
  * initialize handshake, and returns the `tools/list` response. The
  * connection is closed before returning.
  *
- * Used by the codegen CLI (`generate` / `inspect`) to snapshot an upstream's
- * tool surface. Not intended for request-path use at runtime — the toolkit's
- * runtime proxy goes through `UpstreamProxyPlugin` instead.
+ * Used by the codegen CLI (`generate` / `inspect`) to snapshot a source
+ * server's tool surface. Build-time only — not intended for request-path
+ * use at runtime.
  */
 export async function fetchUpstreamTools(
   options: FetchToolsOptions,

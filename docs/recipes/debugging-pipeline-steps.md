@@ -46,14 +46,10 @@ is non-empty, you're past the manifest layer — start there.
 ## Step didn't get a typed `callTool`
 
 Symptoms: the step throws `callTool is not a function` or a TypeScript
-error at the call site. Two causes:
-
-1. **`proxyBinding` isn't set on the plugin.** `buildProxyAppConfigs`
-   only injects `callTool` when `plugin.proxyBinding` is a string.
-   Without it the closure is `undefined`.
-2. **`proxyBinding` references a proxy that doesn't exist.** The helper
-   logs a warning and leaves the appConfig empty. Make sure the proxy
-   name appears in `MCP_PROXIES`.
+error at the call site. The plugin didn't inject the closure: `callTool`
+only exists if the plugin puts it into its own `AppPlugin.appConfig`
+(see the articles module's `createArticlesCallTool`). Check the plugin
+factory and that the step's app prefix matches `definition.name`.
 
 ## Step ran but the widget renders empty
 
@@ -71,8 +67,8 @@ Common reasons:
 ## userId not propagating
 
 `renderView` reads `ctx.userId` from the inbound auth and threads it
-through `executePipeline → bindAppConfig → callTool`. If your step
-gets `userId: undefined` for an oauth2 upstream call:
+through `executePipeline → bindAppConfig → callTool`. If your
+user-scoped `callTool` closure sees `userId: undefined`:
 
 - The MCP request is unauthenticated. `oauth?` was omitted from
   `createFrameworkApp`, or the user hasn't logged in.

@@ -7,8 +7,6 @@ export type {
   WidgetProps,
   WidgetSize,
   WidgetDefinition,
-  LocalWidgetDefinition,
-  RemoteWidgetDefinition,
   AppDefinition,
   AppPlugin,
   PipelineConfig,
@@ -20,7 +18,6 @@ export type {
   StepDataEntry,
   RefreshParams,
 } from "./types/index.js"
-export { isRemoteWidget } from "./types/index.js"
 export { APP_ONLY_META, uiMeta } from "./types/index.js"
 export type { UiMetaOptions } from "./types/index.js"
 
@@ -50,11 +47,7 @@ export { WidgetRegistry } from "./registry/widget-registry.js"
 export { loadApps } from "./registry/app-loader.js"
 
 export { renderView } from "./framework/render-view.js"
-export type {
-  RenderViewInput,
-  RenderViewOptions,
-  RemoteWidgetInfo,
-} from "./framework/render-view.js"
+export type { RenderViewInput, RenderViewOptions } from "./framework/render-view.js"
 export {
   buildSingleWidgetView,
   buildComposedView,
@@ -100,13 +93,6 @@ export { layoutSchema, rowSchema } from "./framework/layout-schemas.js"
 
 export { resolveActiveModules, parseActiveModules } from "./framework/active-modules.js"
 export type { ActiveModuleSelection } from "./framework/active-modules.js"
-export { buildProxyAppConfigs } from "./proxy/build-proxy-app-configs.js"
-
-export { buildStepFromDeclaration, dotPath } from "./pipeline/declarative-step.js"
-export type { DeclarativeAppConfig } from "./pipeline/declarative-step.js"
-export { discoverUpstreamModules, DEFAULT_HOST_REACT_MAJOR } from "./module-loader/discover.js"
-export type { DiscoveredModule, DiscoverUpstreamModulesOptions } from "./module-loader/discover.js"
-export { synthesizeModulePlugin } from "./module-loader/synthesize-plugin.js"
 
 export { createOrgGateMiddleware } from "./middleware/org-gate.js"
 export type { OrgGateMiddleware } from "./middleware/org-gate.js"

@@ -20,7 +20,7 @@ mcp:tools/list          ← role-filter toolsList
 mcp:tools/call          ← role-filter toolsCall
     │
     ▼
-tool handler            ← plugin.registerTools / framework tools / proxy forwarders
+tool handler            ← plugin.registerTools / framework tools
 ```
 
 ## Authentication
@@ -38,8 +38,8 @@ await createFrameworkApp({
 })
 ```
 
-Skip the option for unauthenticated development servers (the framework tools
-still work; proxy oauth2 modes won't because they need a `userId`).
+Skip the option for unauthenticated development servers — the framework tools
+still work (steps then see `userId: undefined`).
 
 ## Org gate
 
@@ -118,4 +118,3 @@ inside a step if you need defense-in-depth on that path.
 ## See also
 
 - [Middleware concept](../concepts/middleware.md)
-- [Role-based module access recipe](../recipes/role-based-module-access.md)

@@ -28,9 +28,10 @@ import type { OrdersAppConfig } from "./steps/resolve-customer.js"
  * `_dataType`, and the pipeline step emits it as its `dataType` — so one
  * `adaptDataWidget(Widget, "orders:dashboard")` registration serves both.
  *
- * Like `tasks`, `orders` is *self-owned*: it registers its OWN tools (no upstream
- * proxy, no network), so `appConfig: { store }` is passed straight through to the
- * pipeline steps untouched (only `proxyBinding` plugins get a `callTool` injected).
+ * Like `tasks`, `orders` is *self-owned*: it registers its OWN tools and its
+ * `appConfig: { store }` is passed straight through to the pipeline steps
+ * untouched (the executor only rewraps an `appConfig.callTool` closure, which
+ * this module doesn't use).
  *
  * It contributes:
  *   - `list_customers` — a domain read tool (via `createToolRegistrar`) so a caller
@@ -196,9 +197,9 @@ export function createPlugin(): AppPlugin {
   // here all close over this one instance.
   const store: OrderStore = createOrderStore()
 
-  // The pipeline steps read the store off `appConfig`. For a self-owned module the
-  // framework passes this through untouched (see `OrdersAppConfig`); only
-  // `proxyBinding` plugins get a `callTool` injected instead.
+  // The pipeline steps read the store off `appConfig`. The framework passes it
+  // through untouched (see `OrdersAppConfig`); the executor only rewraps an
+  // `appConfig.callTool` closure, which this module doesn't use.
   const appConfig: OrdersAppConfig = { store }
 
   return {

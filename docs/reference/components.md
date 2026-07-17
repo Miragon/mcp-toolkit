@@ -653,7 +653,7 @@ register it here.
 ### McpToolkitApp
 
 `/app` import. Props: `widgets` (required, `Record<string, WidgetComponent>`),
-`widgetLoader?`, `refreshToolName?` (default `"refresh-view"`), `labels?`.
+`refreshToolName?` (default `"refresh-view"`), `labels?`.
 
 ```tsx
 import { createRoot } from "react-dom/client"
@@ -667,7 +667,7 @@ createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widg
 **When to use:** the recommended consumer root for an `mcp-app.html` bundle. It
 wraps `McpAppView` in mcp-use's `McpUseProvider` (host auto-sizing, `StrictMode`,
 error boundary, theme). See the [UI API reference](./api-ui.md) for `McpAppView`,
-`WidgetRenderer`, `LayoutBuilder`, and the remote-widget loader.
+`WidgetRenderer` and `LayoutBuilder`.
 
 ## Dev
 
@@ -705,8 +705,7 @@ for unit-testing the props envelope without rendering.
 ## See also
 
 - [`@miragon/mcp-toolkit-ui` API reference](./api-ui.md) — the full export
-  surface (incl. app-shell internals, `LayoutBuilder`, remote-widget loader).
-- [Building a UI-only module](../guides/building-a-ui-only-module.md)
+  surface (incl. app-shell internals and `LayoutBuilder`).
 - [Developing widgets in isolation](../guides/developing-widgets-in-isolation.md)
 - [Host portability concept](../concepts/host-portability.md)
 - [Widgets concept](../concepts/widgets.md)

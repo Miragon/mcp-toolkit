@@ -67,7 +67,7 @@ and close one with `complete_task` (grab an id from `list_tasks` first):
 `complete_task` is idempotent — call it twice and the second call is a no-op,
 not an error.
 
-Reading: [building a full module](../guides/building-a-full-module.md)
+Reading: [app plugins](../concepts/app-plugins.md)
 
 ## 3. A tool that renders a widget
 
@@ -201,5 +201,5 @@ Reading: [view builder](../concepts/view-builder.md) ·
 
 You've touched every layer: domain tools, a single-widget view, an eager
 composed view, a real pipeline, fail-soft execution, and the builder. To build
-your own, start with [building a full module](../guides/building-a-full-module.md);
+your own, start with [getting started](../getting-started.md);
 to run this host locally, see the [overview](index.md).

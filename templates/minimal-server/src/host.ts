@@ -1,7 +1,6 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { createFrameworkApp } from "@miragon/mcp-toolkit-core/tools"
-import { parseProxyConfigEnv } from "@miragon/mcp-toolkit-proxy-contract"
 import { createPlugin as createTasksPlugin } from "./modules/tasks/plugin.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -11,9 +10,6 @@ const app = await createFrameworkApp({
   version: "0.1.0",
   baseUrl: process.env.MCP_URL,
   plugins: [createTasksPlugin()],
-  // Optional upstream MCP servers to federate; unset MCP_PROXIES → none.
-  proxies: parseProxyConfigEnv(process.env.MCP_PROXIES),
-  callbackBaseUrl: process.env.MCP_URL,
   app: {
     resourceUri: "ui://my-mcp-server/mcp-app.html",
     // The single-file widget bundle. Build it first: `pnpm build:bundle`.

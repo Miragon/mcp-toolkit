@@ -80,9 +80,9 @@ describe("executePipeline", () => {
 
   it("does not merge undefined produced keys, so a dependent step sees them as missing", async () => {
     // A step that "produces" a key but resolves it to `undefined` (e.g. a
-    // declarative `outputMapping` dot-path that missed because the upstream
-    // tool returned an unexpected shape) must NOT satisfy a later step's
-    // `requires` gate — otherwise the dependent step runs against missing data.
+    // lookup that missed because a tool returned an unexpected shape) must
+    // NOT satisfy a later step's `requires` gate — otherwise the dependent
+    // step runs against missing data.
     const registry = new StepRegistry()
     registry.register(
       step({

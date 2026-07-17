@@ -2,7 +2,7 @@
 
 Build-time codegen + runtime glue for type-safe MCP tool calls: TypedCallTool
 helper and a CLI that generates TypeScript types + React Query hooks from an
-upstream MCP's tools/list.
+MCP server's tools/list.
 
 ## Install
 
@@ -29,17 +29,16 @@ pnpm add -D @miragon/mcp-toolkit-tool-codegen @miragon/mcp-toolkit-core @modelco
 
 ## CLI
 
-The `mcp-tool-codegen` bin generates `tools.ts` + `hooks.tsx` from an
-upstream's `tools/list`:
+The `mcp-tool-codegen` bin generates `tools.ts` + `hooks.tsx` from a
+source server's `tools/list`:
 
 ```sh
 mcp-tool-codegen generate            # reads ./codegen.config.ts (CodegenConfig)
 mcp-tool-codegen generate --check    # CI: exit 1 on drift vs committed output
-mcp-tool-codegen inspect --upstream https://upstream.example/mcp
+mcp-tool-codegen inspect --upstream https://source.example/mcp
 ```
 
 Generated code imports only `@miragon/mcp-toolkit-tool-codegen/runtime`.
-`buildProxyAppConfigs` lives in `@miragon/mcp-toolkit-core`, not here.
 
 ## Links
 

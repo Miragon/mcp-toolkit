@@ -44,9 +44,9 @@ export default tseslint.config(
   // imports are allowed where the concern is a *runtime* leak (they're erased).
 
   // core: browser-bundle-safe outside tools/, and no reverse dependency on ui.
-  // (proxy/ and tools/ are server-only subpaths kept out of the root barrel;
-  // a value import of mcp-use/server anywhere else would leak it into the
-  // browser graph.)
+  // (tools/ is a server-only subpath kept out of the root barrel; a value
+  // import of mcp-use/server anywhere else would leak it into the browser
+  // graph.)
   {
     files: ["packages/core/src/**/*.ts"],
     ignores: ["packages/core/src/tools/**", "**/*.test.ts"],
@@ -65,8 +65,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ["@miragon/mcp-toolkit-ui", "@miragon/mcp-toolkit-ui/*"],
-              message:
-                "Dependency direction is core → proxy-contract only; core must not import ui.",
+              message: "core is the bottom of the dependency graph; core must not import ui.",
             },
             {
               group: ["@miragon/mcp-toolkit-tool-codegen"],

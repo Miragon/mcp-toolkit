@@ -81,7 +81,7 @@ describe("registerDashboardTools", () => {
       },
     })
 
-    // Not an error — remote widgets may legitimately be absent here.
+    // Not an error — save-dashboard warns (never rejects) on unknown widget ids.
     expect(result.isError).toBeUndefined()
     const payload = result.structuredContent as { id?: string; unknownWidgets?: string[] }
     expect(typeof payload.id).toBe("string")

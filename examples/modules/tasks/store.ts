@@ -1,9 +1,9 @@
 /**
  * In-memory task store for the `tasks` example module.
  *
- * This is the domain layer of a *self-owned* MCP server: unlike the `articles`
- * and `customers` modules (which federate an upstream's tools through a proxy),
- * `tasks` registers its **own** tools backed by this store. Keeping the data
+ * This is the domain layer of a self-owned MCP server: `tasks` registers its
+ * own tools backed by this store (the `articles` module does the same, with a
+ * codegen'd typed client on top). Keeping the data
  * here — with no network, database, or `node:*` import — makes the example
  * runnable as-is and keeps the pure logic (`countByStatus`, `filterTasks`)
  * unit-testable with Vitest (see `store.test.ts`).

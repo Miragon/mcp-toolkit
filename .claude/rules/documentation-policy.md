@@ -7,7 +7,6 @@ paths:
   - "packages/*/src/framework/manifest.ts"
   - "packages/*/src/framework/layout-schemas.ts"
   - "packages/*/src/framework/layout-types.ts"
-  - "packages/proxy-contract/src/module-manifest.ts"
   - "packages/*/package.json"
 ---
 
@@ -27,7 +26,6 @@ The rule activates when you touch any of:
 - `packages/*/src/index.ts` and any subpath barrel `packages/*/src/**/index.ts`
 - `packages/*/src/types/**` — public type definitions
 - `packages/*/src/framework/manifest.ts`, `framework/layout-schemas.ts`, `framework/layout-types.ts`
-- `packages/proxy-contract/src/module-manifest.ts`
 - `packages/*/package.json` — the `exports` map
 
 Use the trigger as a checklist prompt, not a blocker: most edits won't
@@ -55,13 +53,12 @@ need a doc change, but you should _confirm_ that before declaring done.
 
 Pick the right home — these aren't synonyms:
 
-| Bucket                    | Contains                                                                                                   |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `docs/concepts/`          | _Why and how_ — architecture, contracts, mental models. Read once.                                         |
-| `docs/guides/`            | _End-to-end walkthroughs_ — "do this thing from scratch". Always end with a link into `examples/`.         |
-| `docs/reference/api-*.md` | _Every public symbol_ — table form, signature, one-line description. Source-of-truth for the API surface.  |
-| `docs/recipes/`           | _Small focused how-tos_ — "I want to add an OAuth2 upstream". Self-contained.                              |
-| `docs/plans/`             | _Historical / shipped designs_ — kept for context. Mark `Status: shipped` and link to current docs at top. |
+| Bucket                    | Contains                                                                                                  |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `docs/concepts/`          | _Why and how_ — architecture, contracts, mental models. Read once.                                        |
+| `docs/guides/`            | _End-to-end walkthroughs_ — "do this thing from scratch". Always end with a link into `examples/`.        |
+| `docs/reference/api-*.md` | _Every public symbol_ — table form, signature, one-line description. Source-of-truth for the API surface. |
+| `docs/recipes/`           | _Small focused how-tos_ — "I want to debug a pipeline step". Self-contained.                              |
 
 ## VitePress gotchas (learned the hard way)
 
@@ -77,9 +74,9 @@ because Vue's HTML compiler runs over the rendered output. Avoid:
   inside inline code. For JSX-style examples, prefer
   `<Component prop={varName} />` over `<Component prop={{ ...obj }} />`,
   or move the example into a fenced block.
-- **Generic placeholders like `<Proxy>CallTool` in prose.** Same parser
+- **Generic placeholders like `<App>CallTool` in prose.** Same parser
   issue. Rewrite as `<…>CallTool` in prose, or as a concrete name
-  (`LexofficeCallTool`) and explain "for your proxy" alongside.
+  (`ArticlesCallTool`) and explain "for your module" alongside.
 
 Cross-repo links (`../../examples/...`, `../../packages/...`) are
 intentionally ignored by `ignoreDeadLinks` in
@@ -121,5 +118,5 @@ and the doc change. Splitting them lets the docs drift between merges.
 - **Don't restate the code.** A reference entry says _what_ a symbol is;
   it doesn't paste the implementation.
 - **Reuse the vocabulary already in the codebase.** "Step", "widget",
-  "key", "proxy", "manifest" — established terms. New synonyms cause
+  "key", "manifest" — established terms. New synonyms cause
   drift.

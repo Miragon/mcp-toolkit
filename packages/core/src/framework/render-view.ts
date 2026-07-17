@@ -1,11 +1,8 @@
 import { executePipeline, type PipelineExecutionContext } from "../engine/pipeline-executor.js"
 import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
-import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
 import type { ViewStructuredContent } from "../types/view-data.js"
-import { isRemoteWidget } from "../types/widget.js"
-import { collectLayoutWidgets } from "./view-builders.js"
 import type { LayoutConfig } from "./layout-types.js"
 
 export interface RenderViewInput {
@@ -15,20 +12,9 @@ export interface RenderViewInput {
   title?: string
 }
 
-/**
- * Bundle metadata for a widget whose code lives on an upstream MCP server.
- * The browser-side widget loader reads `bundle` via the upstream identified
- * by `moduleId` and dynamically imports the result.
- */
-export interface RemoteWidgetInfo {
-  bundle: string
-  moduleId: string
-}
-
 export interface RenderViewOptions {
   input: RenderViewInput
   stepRegistry: StepRegistry
-  widgetRegistry?: WidgetRegistry
   appConfigs?: Record<string, Record<string, unknown>>
   /**
    * Per-request context (currently: the calling userId) that the pipeline
@@ -54,7 +40,7 @@ export interface RenderViewOptions {
  * is consumed by the `McpAppView` component in `@miragon/mcp-toolkit-ui`.
  */
 export async function renderView(options: RenderViewOptions) {
-  const { input, stepRegistry, widgetRegistry, appConfigs, ctx, builderAvailable } = options
+  const { input, stepRegistry, appConfigs, ctx, builderAvailable } = options
   const initialKeys = input.keys ?? {}
   const pipelineConfig = { steps: input.steps }
 
@@ -92,24 +78,6 @@ export async function renderView(options: RenderViewOptions) {
     .filter(Boolean)
     .join("\n")
 
-  // Advertise bundle metadata only for the upstream-hosted widgets the layout
-  // actually references — not every remote widget in the registry. The
-  // browser-side loader (`McpAppView`) fetches each advertised bundle, so
-  // shipping the full registry would make a single-widget view pull every
-  // upstream bundle's metadata (and, on `useToolQuery`-driven refreshes, set
-  // up unused loads). The in-iframe builder gets its full remote palette from
-  // `get-builder-catalogue` instead (see `catalogue.ts`), so filtering here
-  // doesn't starve build mode. Local widgets carry no bundle and are skipped.
-  const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
-  if (widgetRegistry) {
-    const layoutWidgetIds = new Set(collectLayoutWidgets(input.layout))
-    for (const widget of widgetRegistry.getAll()) {
-      if (layoutWidgetIds.has(widget.id) && isRemoteWidget(widget)) {
-        remoteWidgets[widget.id] = { bundle: widget.bundle, moduleId: widget.moduleId }
-      }
-    }
-  }
-
   const structuredContent: ViewStructuredContent = {
     _refreshParams: {
       keys: input.keys,
@@ -135,7 +103,6 @@ export async function renderView(options: RenderViewOptions) {
       errors: context.errors,
     },
     layout: input.layout,
-    remoteWidgets,
     builderAvailable: builderAvailable ?? false,
   }
 

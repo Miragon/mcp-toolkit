@@ -13,7 +13,7 @@ import {
 } from "./fetch-tools.js"
 
 export interface CodegenConfig {
-  /** The proxy name this upstream is federated under (tool name prefix). */
+  /** Namespace prefix for the generated tool names and type names (`<proxyName>_<tool>`). */
   proxyName: string
   upstreamUrl: string
   auth?: FetchToolsOptions["auth"]

@@ -65,15 +65,6 @@ export interface LayoutBuilderProps {
   labels?: LayoutBuilderLabels
   onSaved?: (result: { id: string; name: string }) => void
   /**
-   * Called after each `get-builder-catalogue` fetch with the catalogue's full
-   * remote-widget palette (`{ id → { bundle, moduleId } }`). The parent
-   * (`McpAppView`) uses it to pre-load every upstream-hosted widget bundle so
-   * the palette renders real widgets immediately when dropped onto the canvas.
-   * `render-view` only advertises the remote widgets the *layout* references,
-   * so build mode learns about the rest here rather than from the view payload.
-   */
-  onCatalogue?: (remoteWidgets: Record<string, { bundle: string; moduleId: string }>) => void
-  /**
    * Called when the user clicks "Done" / exits the builder. Receives
    * the final draft so the parent can swap into the rendered view with
    * the just-built layout. Omit `commit` to leave parent state untouched.
@@ -113,7 +104,6 @@ export function LayoutBuilder({
   dashboardId,
   labels,
   onSaved,
-  onCatalogue,
   onExit,
 }: LayoutBuilderProps) {
   const L = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels])
@@ -371,7 +361,6 @@ export function LayoutBuilder({
         unreachableWidgets?: UnreachableWidget[]
         availableSteps?: AvailableStep[]
         keyCatalog?: KeyCatalogEntry[]
-        remoteWidgets?: Record<string, { bundle: string; moduleId: string }>
         validationIssues?: string[]
         context?: {
           keys: Record<string, unknown>
@@ -393,10 +382,6 @@ export function LayoutBuilder({
       // run as configured (Finding [10]/[6]). Coerce undefined → [] so a
       // fixed pipeline clears a previously-shown warning.
       setValidationIssues(sc?.validationIssues ?? [])
-      // Hand the parent the full remote-widget palette so it can pre-load
-      // every upstream bundle for the builder (render-view only ships the
-      // ones the layout references).
-      if (sc?.remoteWidgets) onCatalogue?.(sc.remoteWidgets)
       // A successful fetch clears any stale failure banner.
       setRefreshError(null)
     } catch (err) {
@@ -415,7 +400,7 @@ export function LayoutBuilder({
     } finally {
       setStatus("idle")
     }
-  }, [catalogueToolName, callTool, keyEntries, stepEntries, onCatalogue])
+  }, [catalogueToolName, callTool, keyEntries, stepEntries])
 
   // Fetch the catalogue on mount (no debounce) so the builder is ready
   // immediately. Then on every keys/steps edit, debounce 600ms before

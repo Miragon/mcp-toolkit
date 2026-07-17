@@ -132,7 +132,7 @@ builder lets you:
 - Switch between flat-rows and **tabs** mode.
 
 Future extensions — optional `rowHeight`, 2D placement, shared live-state
-— are tracked in `docs/plans/`.
+— are deliberately out of scope for now.
 
 ## Tools
 
@@ -140,7 +140,6 @@ Future extensions — optional `rowHeight`, 2D placement, shared live-state
 | ------------------------ | ---------- | ---------------------------------------------------------------------------- |
 | `render-view`            | LLM        | Run the pipeline, return rendered payload. The LLM's primary view tool.      |
 | `refresh-view`           | app        | Re-run the pipeline with the stored params (refresh button).                 |
-| `read-widget-bundle`     | app        | Stream upstream-hosted widget JS to the iframe.                              |
 | `get-builder-catalogue`  | app        | Reachable + unreachable widgets, key catalogue, available steps. Build-mode. |
 | `get-framework-manifest` | LLM        | Discover what widgets / steps are registered (registry dump, no live keys).  |
 

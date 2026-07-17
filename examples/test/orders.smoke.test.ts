@@ -62,7 +62,6 @@ describe("orders module smoke", () => {
       version: "0.0.0",
       host: "127.0.0.1",
       plugins: [createOrdersPlugin()],
-      proxies: [],
       app: {
         resourceUri: "ui://orders-smoke/mcp-app.html",
         htmlPath: FIXTURE_HTML,

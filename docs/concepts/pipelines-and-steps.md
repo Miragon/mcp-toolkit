@@ -63,11 +63,10 @@ See `packages/core/src/engine/pipeline-executor.ts`.
 
 ## Where `appConfig` comes from
 
-Per-app, built once at boot by `buildProxyAppConfigs(plugins, proxies)`:
+Per-app, provided by the plugin itself via `AppPlugin.appConfig`:
 
-- Starts from `plugin.appConfig ?? {}`.
-- If `plugin.proxyBinding` matches a registered `UpstreamProxyPlugin`,
-  injects a `callTool` that dispatches through that proxy.
+- The plugin injects any closures its steps need — typically a typed
+  `callTool` (see the articles module's in-process implementation).
 - Keyed by `plugin.definition.name`; the executor picks the entry via
   `ref.step.split(":")[0]`.
 
@@ -111,7 +110,7 @@ export const resolveInvoice: PipelineStepDefinition<{ callTool: LexofficeCallToo
 ## See also
 
 - [typed-call-tool-in-steps](../guides/typed-call-tool-in-steps.md) — injecting
-  a typed `callTool` from an upstream proxy.
+  a typed `callTool` into a plugin's `appConfig`.
 - [layout-and-rendering](../guides/layout-and-rendering.md) — how `render-view`
   consumes the pipeline output.
 - [debugging-pipeline-steps](../recipes/debugging-pipeline-steps.md).

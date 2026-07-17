@@ -71,9 +71,8 @@ yet, with one-click "Add producing step" actions.
   layout you just built.
 - **Save dashboard** — prompts for a name + optional description, then
   calls `save-dashboard`. Returns `{ id, name, createdAt, updatedAt }`
-  (plus `unknownWidgets` when the layout references widget ids the server
-  doesn't know — a non-fatal warning, since remote widgets may live
-  upstream).
+  (plus `unknownWidgets` as a non-fatal warning when the layout
+  references widget ids the server doesn't know).
 
 The user's draft layout is local until they click Done or Save —
 nothing leaks back to the LLM mid-edit.
@@ -102,8 +101,7 @@ accepts, steps 2 and 3 need no translation.
 ## Testing locally
 
 ```sh
-# One command: build widget bundles, then boot articles-upstream,
-# customers-upstream, and the host with startup gating.
+# One command: build the widget bundle, then boot the host.
 pnpm --filter @miragon/mcp-toolkit-examples start
 
 # In another shell — render a view (LLM-style call)

@@ -8,12 +8,12 @@ how much of the toolkit they pull in:
 | Layer                                              | You bring                         | You skip                                       |
 | -------------------------------------------------- | --------------------------------- | ---------------------------------------------- |
 | **(a)** Primitives + hand-built UI, standalone     | an existing MCP server + a widget | `createFrameworkApp`, plugins, the host bundle |
-| **(b)** Data-widgets + `adaptDataWidget` in a host | a host bundle + widget components | upstream proxies, pipelines beyond one step    |
-| **(c)** Full federation, pipelines, dashboards     | upstreams + plugins + steps       | nothing — the whole runtime                    |
+| **(b)** Data-widgets + `adaptDataWidget` in a host | a host bundle + widget components | pipelines beyond one step                      |
+| **(c)** Full pipelines and dashboards              | plugins + steps + layouts         | nothing — the whole runtime                    |
 
 You can start at (a) and grow into (c) without rewriting widgets: a widget
 written against `useHostBridge()` and the primitives renders unchanged whether
-it is mounted standalone, in a host, or under federation.
+it is mounted standalone or in a host.
 
 ## (a) Primitives + a hand-built UI against an existing server
 
@@ -76,11 +76,11 @@ The widget stays testable in isolation (it is just `({ data }) => …`) and the
 [widget playground](../guides/developing-widgets-in-isolation.md) renders it from
 fixtures with no host. See
 [`examples/modules/articles/widgets/ArticleCard.tsx`](../../examples/modules/articles/widgets/ArticleCard.tsx)
-and [`examples/customers-upstream/widget/CustomerCard.tsx`](../../examples/customers-upstream/widget/CustomerCard.tsx).
+and [`examples/widget-playground/CustomerCard.tsx`](../../examples/widget-playground/CustomerCard.tsx).
 
-## (c) Full federation, pipelines, and dashboards
+## (c) Full pipelines and dashboards
 
-The complete runtime: federate several upstream MCPs under one server, resolve
+The complete runtime: resolve
 data through declarative [pipeline steps](./pipelines-and-steps.md), render
 multi-widget [layouts](../guides/layout-and-rendering.md), and let users persist
 [dashboards](../guides/building-dashboards.md). This is the
@@ -91,7 +91,6 @@ end-to-end by [`examples/host/`](../../examples/host/).
 const app = await createFrameworkApp({
   name: "my-mcp",
   plugins: [createArticlesPlugin()],
-  proxies: parseProxyConfigEnv(process.env.MCP_PROXIES),
   // `builder: true` opts into the visual in-iframe builder + dashboard
   // persistence; it is off by default (lean). Widget rendering works either
   // way. See the [view builder](./view-builder.md) concept.
@@ -105,7 +104,7 @@ The layers compose downward, never lock upward: a host (layer c) still renders
 data-widgets (layer b) built from primitives (layer a), and the _same_
 hand-built widget runs in all three because it only depends on the primitives
 and `useHostBridge()`. Adopt the smallest layer that solves your problem and
-reach for the next one only when you actually need federation, pipelines, or
+reach for the next one only when you actually need pipelines or
 dashboards.
 
 ## See also

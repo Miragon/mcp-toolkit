@@ -10,9 +10,7 @@ import { McpAppView, type McpAppViewProps } from "./mcp-app-view.js"
  * Usage at the bundle entry point:
  *
  * ```tsx
- * createRoot(root).render(
- *   <McpToolkitApp widgets={widgets} widgetLoader={widgetLoader} />,
- * )
+ * createRoot(root).render(<McpToolkitApp widgets={widgets} />)
  * ```
  *
  * `McpUseProvider` also installs StrictMode, a default ErrorBoundary, and
