@@ -22,17 +22,16 @@ cp examples/env.example examples/.env    # first time only
 pnpm --filter @miragon/mcp-toolkit-examples start
 ```
 
-`start` builds all widget bundles, boots the two demo upstreams
-(articles `:4000`, customers `:4001`), and starts the host on `:3010` once both
-upstreams are up. The host serves four modules covering every module kind —
-see [examples/README.md](../examples/README.md) for what each one proves.
+`start` builds the widget bundle and starts the host on `:3010`. The host
+serves three self-owned modules (articles, tasks, orders) — see
+[examples/README.md](../examples/README.md) for what each one proves.
 
 Now look at it:
 
 - **Inspector** — open `http://localhost:3010/inspector` (built into mcp-use)
   and call `show_tasks_board`. That is the full loop: an MCP tool returning a
   rendered widget.
-- **Shell** — list the federated tool surface:
+- **Shell** — list the tool surface:
 
   ```sh
   curl -sX POST http://localhost:3010/mcp -H 'content-type: application/json' \
@@ -49,10 +48,7 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
 ::: tip Running processes individually
 `dev:host` alone expects the widget bundle to exist — run
 `pnpm --filter @miragon/mcp-toolkit-examples build:bundle` once first (the
-one-shot `start` does this for you). Booting the host without the upstreams
-prints a warning that plugin `articles` declares a `proxyBinding` with no
-matching proxy — harmless unless you call the articles steps; start
-`dev:articles-upstream` / `dev:customers-upstream` to clear it.
+one-shot `start` does this for you).
 :::
 
 ## Start your own project
@@ -87,7 +83,7 @@ and export a [personal access token](https://github.com/settings/tokens) with
 pinned exactly, so match them:
 
 ```sh
-pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-proxy-contract
+pnpm add @miragon/mcp-toolkit-core
 pnpm add @modelcontextprotocol/sdk@1.29.0 mcp-use@1.34.1 zod@4.4.3
 ```
 
@@ -97,7 +93,6 @@ A minimal host:
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { createFrameworkApp } from "@miragon/mcp-toolkit-core/tools"
-import { parseProxyConfigEnv } from "@miragon/mcp-toolkit-proxy-contract"
 import { createPlugin as createTasksPlugin } from "./modules/tasks/plugin.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -107,8 +102,6 @@ const app = await createFrameworkApp({
   version: "0.1.0",
   baseUrl: process.env.MCP_URL,
   plugins: [createTasksPlugin()], // your AppPlugins
-  proxies: parseProxyConfigEnv(process.env.MCP_PROXIES),
-  callbackBaseUrl: process.env.MCP_URL,
   app: {
     resourceUri: "ui://my-mcp/mcp-app.html",
     htmlPath: path.join(here, "mcp-app.html"),
@@ -118,15 +111,17 @@ const app = await createFrameworkApp({
 await app.listen(Number(process.env.PORT ?? 3010))
 ```
 
-That boots an MCP server with the framework tool trio
-(`get-framework-manifest`, `render-view`, `refresh-view`), an `mcp-app-html`
-resource serving the widget bundle, and any upstream proxies declared in
-`MCP_PROXIES` (tools auto-federated).
+That boots a self-contained MCP server with the framework tool trio
+(`get-framework-manifest`, `render-view`, `refresh-view`) and an `mcp-app-html`
+resource serving the widget bundle. Aggregating several such servers into one
+surface is an external MCP gateway's job (e.g.
+[agentgateway](https://agentgateway.dev)) — see
+[architecture](concepts/architecture.md).
 
 Two things the snippet leans on:
 
-- **The plugin** — a module that registers its own tools and a widget. Build it
-  along [building a full module](guides/building-a-full-module.md); the runnable
+- **The plugin** — a module that registers its own tools and a widget. See the
+  [app-plugins concept](concepts/app-plugins.md); the runnable
   reference is [`examples/modules/tasks`](../examples/modules/tasks/README.md).
 - **The widget bundle** — `htmlPath` must point at a built single-file
   `mcp-app.html` that maps widget ids to React components. The template ships
@@ -142,10 +137,8 @@ browser-safe), widget-side hooks from `@miragon/mcp-toolkit-ui/app` and
 
 - [Playground tour](playground/tour.md) — the toolkit's feature surface as a
   click-through: widgets, composed views, pipelines, builder.
-- [Building a full module](guides/building-a-full-module.md) — your own tools +
-  widget end-to-end (the common case).
 - [Architecture](concepts/architecture.md) — what the server actually does on
   each request.
-- [Building a UI-only module](guides/building-a-ui-only-module.md) — wrap an
-  existing upstream MCP instead.
+- [Using tool-codegen](guides/using-tool-codegen.md) — typed tool calls from
+  steps and widgets, worked through the articles module.
 - [Env var reference](reference/env-vars.md) — all config knobs.

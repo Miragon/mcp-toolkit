@@ -26,8 +26,8 @@ data contract, and to iterate on it in isolation.
 - **Reference widgets** —
   [`OrderStatusCard`](../../../examples/host-portability/OrderStatusCard.tsx)
   (host-portable, full bridge surface),
-  [`CustomerCard`](../../../examples/customers-upstream/widget/CustomerCard.tsx)
-  (a `({ keys })` remote-bundle widget), and
+  [`CustomerCard`](../../../examples/widget-playground/CustomerCard.tsx)
+  (a plain-props `({ keys })` playground fixture), and
   [`TasksBoard`](../../../examples/modules/tasks/widgets/TasksBoard.tsx)
   (a `({ data })` widget pushed by a `show_*` tool, registered with
   `adaptDataWidget`, with self-fetch refresh + agentic hand-offs).

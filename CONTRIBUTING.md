@@ -11,9 +11,7 @@ pnpm monorepo (`pnpm-workspace.yaml`):
 ```
 packages/
 ├── core/             runtime + types + framework helpers + tool registrars
-│                       (incl. buildProxyAppConfigs in core/src/proxy/)
 ├── ui/               React primitives + composed components + McpAppView
-├── proxy-contract/   Zod schemas + parser for MCP_PROXIES
 └── tool-codegen/     CLI + runtime types + TypedCallTool helper
 
 examples/             standalone playground (not published)
@@ -57,9 +55,8 @@ Working on a `core` or `tool-codegen` change? Add or adapt a tiny
 scenario in `examples/` and exercise it:
 
 ```sh
-pnpm --filter @miragon/mcp-toolkit-examples dev:articles-upstream    # terminal 1
-pnpm --filter @miragon/mcp-toolkit-examples dev:customers-upstream   # terminal 2
-pnpm --filter @miragon/mcp-toolkit-examples dev:host                 # terminal 3
+pnpm --filter @miragon/mcp-toolkit-examples build:bundle
+pnpm --filter @miragon/mcp-toolkit-examples dev:host
 ```
 
 The `examples/` README documents the standard render-view flows. Adding
@@ -87,7 +84,6 @@ version from `pnpm-lock.yaml` into `package.json`. See
 
 ### File / module boundaries
 
-- `core` may depend on `proxy-contract`. Other directions are forbidden.
 - `core/tools/*` may import `mcp-use/server`. Anything in `core/src/*`
   outside `tools/` must stay browser-bundle-safe (no `mcp-use/server`,
   no `node:*`).
@@ -117,7 +113,7 @@ example exercise + docs entry. Don't merge a feature without the docs.
 ## Releasing
 
 The packages publish to GitHub Packages (`https://npm.pkg.github.com`,
-scope `@miragon`, restricted access). All four packages share one version,
+scope `@miragon`, restricted access). All three packages share one version,
 tracked in the root `package.json` (release-please bumps them in lockstep).
 Releases are automated via [release-please](https://github.com/googleapis/release-please)
 driven by Conventional Commits — no changeset workflow.
@@ -136,7 +132,7 @@ The flow (`.github/workflows/release-please.yml`):
    push a `v*` tag, setting its `release_created` output to `true`.
 3. The same workflow's `publish` job is gated on
    `needs.release-please.outputs.release_created == 'true'` and publishes the
-   four packages. It chains off the action output rather than the `v*` tag for
+   three packages. It chains off the action output rather than the `v*` tag for
    a deterministic, single publish per release.
 
 `.github/workflows/release.yml` is the **manual fallback**

@@ -4,13 +4,10 @@ import { z } from "zod"
 import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
 import { renderView } from "../framework/render-view.js"
-import type { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
-import type { ToolHandlerContext } from "../proxy/types.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
-import { APP_ONLY_META, uiMeta, type WidgetCspMeta } from "../types/meta.js"
-import { isRemoteWidget } from "../types/widget.js"
+import { uiMeta, type WidgetCspMeta } from "../types/meta.js"
 
 /**
  * CSP advertised on the widget resource, in the SEP-1865 camelCase shape
@@ -35,12 +32,6 @@ export interface RegisterFrameworkToolsOptions {
   config: AppConfig
   appConfigs: Record<string, Record<string, unknown>>
   plugins: AppPlugin[]
-  /**
-   * Upstream proxies the `read-widget-bundle` tool routes through. Kept
-   * separate from `plugins` because proxies aren't `AppPlugin`s (they have
-   * no definition/steps/widgets) — same shape as `buildProxyAppConfigs`.
-   */
-  proxies?: UpstreamProxyPlugin[]
   /**
    * The MCP UI resource URI that hosts the widget bundle (typically the
    * compiled `mcp-app.html`). Referenced by `render-view` / `refresh-view`
@@ -104,8 +95,17 @@ const renderViewSchema = z.object({
 
 type RenderViewParams = z.infer<typeof renderViewSchema>
 
+/**
+ * Minimal shape of the mcp-use tool-handler context this module reads —
+ * kept structural (rather than importing mcp-use's context type) so the
+ * extraction stays tolerant of hosts that omit auth entirely.
+ */
+interface ToolHandlerAuthContext {
+  auth?: { user?: { userId?: string } }
+}
+
 function extractUserId(ctx: unknown): string | undefined {
-  const user = (ctx as ToolHandlerContext | undefined)?.auth?.user
+  const user = (ctx as ToolHandlerAuthContext | undefined)?.auth?.user
   return typeof user?.userId === "string" ? user.userId : undefined
 }
 
@@ -170,7 +170,6 @@ export function registerFrameworkTools(
     config,
     appConfigs,
     plugins,
-    proxies = [],
     resourceUri,
     htmlPath,
     refreshToolName = "refresh-view",
@@ -205,7 +204,6 @@ export function registerFrameworkTools(
         title: params.title,
       },
       stepRegistry,
-      widgetRegistry,
       appConfigs,
       ctx: { userId: extractUserId(ctx) },
       builderAvailable,
@@ -246,8 +244,6 @@ export function registerFrameworkTools(
     renderHandler,
   )
 
-  registerReadWidgetBundleTool(server, { widgetRegistry, plugins, proxies })
-
   // The resource `_meta.ui.csp` must appear on the LISTING (resources/list)
   // and on the READ contents — ext-apps hosts read it from the contents when
   // sandboxing the iframe. `createMcpAppsResource` produces exactly the shape
@@ -270,91 +266,6 @@ export function registerFrameworkTools(
         resourceCsp ? { csp: resourceCsp } : undefined,
       )
       return { contents: [uiResource.resource] }
-    },
-  )
-}
-
-/**
- * Registers the host-side bridge the browser widget-loader calls to read
- * an upstream-hosted widget bundle. The tool takes a widget `id` declared
- * in the manifest, looks up the owning plugin's `proxyBinding`, and reads
- * the resource through that `UpstreamProxyPlugin`'s session — same
- * transport (and auth) as any other upstream tool call, keeping widget
- * fetches on the SDK path instead of leaking a separate fetch endpoint.
- *
- * Marked `visibility: ["app"]` so it is only callable from inside the
- * widget iframe, not the LLM.
- */
-function registerReadWidgetBundleTool(
-  server: MCPServer,
-  deps: {
-    widgetRegistry: WidgetRegistry
-    plugins: AppPlugin[]
-    proxies: UpstreamProxyPlugin[]
-  },
-): void {
-  const { widgetRegistry, plugins, proxies } = deps
-  const proxiesByName = new Map<string, UpstreamProxyPlugin>()
-  for (const proxy of proxies) {
-    proxiesByName.set(proxy.name, proxy)
-  }
-  const proxyBindingByModule = new Map<string, string>()
-  for (const plugin of plugins) {
-    if (plugin.proxyBinding) {
-      proxyBindingByModule.set(plugin.definition.name, plugin.proxyBinding)
-    }
-  }
-
-  server.tool(
-    {
-      name: "read-widget-bundle",
-      title: "Read Widget Bundle",
-      description:
-        "App-only tool. Returns the JS source of an upstream-hosted widget bundle so the browser-side loader can evaluate it. Pass the widget id declared in the manifest.",
-      schema: z.object({
-        id: z.string().describe("Namespaced widget id, e.g. 'items-ui:item-card'."),
-      }),
-      _meta: APP_ONLY_META,
-    },
-    async ({ id }, ctx) => {
-      const widget = widgetRegistry.get(id)
-      if (!widget || !isRemoteWidget(widget)) {
-        return {
-          content: [{ type: "text" as const, text: `Widget "${id}" is not upstream-hosted.` }],
-          isError: true,
-        }
-      }
-      const proxyName = proxyBindingByModule.get(widget.moduleId)
-      const proxy = proxyName ? proxiesByName.get(proxyName) : undefined
-      if (!proxy) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `No upstream proxy registered for module "${widget.moduleId}".`,
-            },
-          ],
-          isError: true,
-        }
-      }
-      try {
-        const source = await proxy.readUpstreamResourceText(widget.bundle, extractUserId(ctx))
-        return {
-          content: [{ type: "text" as const, text: source }],
-          structuredContent: { id, bundle: widget.bundle, source },
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Failed to read widget bundle "${id}": ${message}`,
-            },
-          ],
-          isError: true,
-        }
-      }
     },
   )
 }

@@ -49,7 +49,7 @@ Three accepted forms:
 
 ```jsonc
 {
-  "rows": [{ "row": [{ "widget": "customers:customer-card", "span": 6 }] }],
+  "rows": [{ "row": [{ "widget": "orders:table", "span": 6 }] }],
 }
 ```
 
@@ -59,7 +59,7 @@ Three accepted forms:
 {
   "tabs": [
     { "label": "Article", "rows": [{ "row": [{ "widget": "articles:article-card" }] }] },
-    { "label": "Customer", "rows": [{ "row": [{ "widget": "customers:customer-card" }] }] },
+    { "label": "Orders", "rows": [{ "row": [{ "widget": "orders:table" }] }] },
   ],
 }
 ```
@@ -131,8 +131,8 @@ JSON
 ```
 
 See [`examples/layouts/`](../../examples/layouts/) for runnable shapes —
-`articles-layout.yaml` (host-bundled widget) and `customers-layout.yaml`
-(upstream-hosted widget loaded at render time).
+`articles-layout.yaml` (single-widget row) and `orders-dashboard.yaml`
+(multi-widget dashboard).
 
 ## See also
 

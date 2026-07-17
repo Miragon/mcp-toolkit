@@ -13,9 +13,7 @@ import type { McpServerInstance } from "mcp-use/server"
  * the curl flows in `examples/README.md` but runnable in CI (`pnpm -r test`).
  *
  * The scenario is fully self-contained: a local step produces a key with no
- * I/O, satisfying a host-bundled widget. This keeps the smoke test independent
- * of the external `articles-upstream` / `customers-upstream` servers, which are
- * only available when running the playground by hand.
+ * I/O, satisfying a host-bundled widget — no external servers involved.
  */
 
 const FIXTURE_HTML = path.join(import.meta.dirname, "fixtures", "mcp-app.html")
@@ -71,7 +69,6 @@ describe("examples host smoke", () => {
       version: "0.0.0",
       host: "127.0.0.1",
       plugins: [createSmokePlugin()],
-      proxies: [],
       app: {
         resourceUri: "ui://examples-smoke/mcp-app.html",
         htmlPath: FIXTURE_HTML,

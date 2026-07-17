@@ -61,7 +61,7 @@ cp env.example .env
 ├── .npmrc                         # @miragon scope → GitHub Packages
 ├── env.example                    # PORT / MCP_URL — copy to .env
 ├── src/
-│   ├── host.ts                    # createFrameworkApp: plugins, proxies, app bundle
+│   ├── host.ts                    # createFrameworkApp: plugins, app bundle
 │   └── modules/tasks/
 │       ├── definition.ts          # static contract: module name + widget ids
 │       ├── tool-names.ts          # tool-name constants (server ↔ widget agree here)
@@ -69,7 +69,7 @@ cp env.example .env
 │       ├── plugin.ts              # tools: list_tasks, create_task, show_tasks_board, tasks_board_data
 │       └── widgets/TaskListCard.tsx  # the widget: {data: TasksBoardData} → UI primitives
 └── app-bundle/
-    ├── index.html                 # bundle entry + React importmap shim
+    ├── index.html                 # bundle entry
     ├── main.tsx                   # widget-id map → React components (McpToolkitApp)
     ├── main.css                   # Tailwind entry: globals.css + @source scan paths
     ├── vite.config.ts             # single-file build → app-bundle/dist/index.html

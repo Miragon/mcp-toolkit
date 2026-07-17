@@ -14,8 +14,6 @@ interface WidgetDefinition {
   consumes?: string[] // step `dataType`s this widget renders (LLM hint)
   size: WidgetSize // "quarter" | "third" | "half" | "full" | "header"
   propsSchema?: Record<string, unknown> // JSON Schema for per-instance `props`
-  bundle?: string // upstream-hosted widgets only (resource URI)
-  moduleId?: string // upstream-hosted widgets only (originating module)
 }
 
 interface WidgetProps {
@@ -140,48 +138,15 @@ The widget bundle feeds `context.keys` into each widget's `WidgetProps.keys`.
 
 ## Bundling
 
-### Host-bundled widgets
-
-Typical setup: a single HTML file (Vite-built) mounted as an MCP
+Every widget ships in the server's own bundle: a single HTML file
+(Vite-built) mounted as an MCP
 resource (`ui://<app>/mcp-app.html`) that statically imports every
 widget. The consumer passes the `{ id: Component }` map to
 `<McpToolkitApp widgets={...} />` and the toolkit handles the host
 iframe plumbing (`mcp-use`'s `McpUseProvider` + `McpAppView` together).
 See [layout-and-rendering](../guides/layout-and-rendering.md).
 
-### Upstream-hosted widgets
-
-A widget can alternatively ship with the upstream MCP server that owns
-its data — the host doesn't need to know about it at build time.
-
-1. The upstream exposes two things: an MCP resource serving the built
-   widget JS (e.g. `ui://customers/customer-card.js`, with `react` +
-   `react/jsx-runtime` externalised to the host's import map), and a
-   `get-module-manifest` tool advertising both the widget id → bundle
-   URI mapping and the declarative step that produces the widget's
-   required keys.
-2. The host discovers the manifest at boot (when the proxy is flagged
-   `upstreamModules: true`) and registers a synthetic `AppPlugin` from
-   it — step and widget definitions land in the normal registries, but
-   no widget component is bundled into the host.
-3. At render time, `McpAppView`'s default `widgetLoader` sees the widget
-   id advertised under `viewData.remoteWidgets`, calls the framework's
-   `read-widget-bundle` tool through the host bridge, wraps the returned
-   JS in a Blob URL, and dynamically imports it. The `default` export is
-   memoised next to the host-bundled widgets for the lifetime of the
-   view.
-
-The widget bundle must assert against the host's React (same major), and
-the manifest declares `runtime.react` so the host can reject
-incompatible bundles at boot. See
-[`examples/customers-upstream/`](../../examples/customers-upstream/) for
-a runnable example and
-[`packages/ui/src/app/remote-widget-loader.ts`](../../packages/ui/src/app/remote-widget-loader.ts)
-for the loader internals.
-
 ## Reference
 
 - `WidgetDefinition`, `WidgetProps`, `WidgetSize` → `packages/core/src/types/widget.ts`
 - Render payload → `packages/core/src/framework/render-view.ts`
-- Remote loader → `packages/ui/src/app/remote-widget-loader.ts`
-- Manifest contract → `packages/proxy-contract/src/module-manifest.ts`

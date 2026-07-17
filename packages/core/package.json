@@ -15,10 +15,6 @@
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.js"
     },
-    "./proxy": {
-      "types": "./dist/proxy/index.d.ts",
-      "import": "./dist/proxy/index.js"
-    },
     "./rest": {
       "types": "./dist/rest/index.d.ts",
       "import": "./dist/rest/index.js"
@@ -42,13 +38,11 @@
     "access": "restricted"
   },
   "peerDependencies": {
-    "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "mcp-use": "1.34.3",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@types/node": "26.0.1",
     "mcp-use": "1.34.3",

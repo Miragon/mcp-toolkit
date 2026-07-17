@@ -1,9 +1,9 @@
 # `tasks` — build your own MCP server with tools + a widget
 
 The end-to-end example for the **most common real case**: _"I'm building my own
-MCP server. I want it to expose some tools **and** a nice UI."_ Unlike the other
-example modules — `articles` (UI-only, federates an upstream's tools via
-`proxyBinding`) and `customers` (fully upstream-hosted) — `tasks` registers its
+MCP server. I want it to expose some tools **and** a nice UI."_ Every example
+module is self-owned; where `articles` adds a typed generated client
+(tool-codegen), `tasks` stays minimal: it registers its
 **own** tools with `createToolRegistrar`, backed by an in-memory store it owns.
 
 There is no backend and no network: the domain lives in
@@ -111,7 +111,7 @@ for the full contract.
 # 1. Build the host's widget bundle (includes tasks:board)
 pnpm --filter @miragon/mcp-toolkit-examples build:bundle
 
-# 2. Boot the host (serves articles + customers + tasks)
+# 2. Boot the host (serves articles + tasks + orders)
 pnpm --filter @miragon/mcp-toolkit-examples dev:host
 ```
 

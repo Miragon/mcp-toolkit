@@ -8,8 +8,8 @@ import { CREATE_TASK, LIST_TASKS, SHOW_TASKS_BOARD, TASKS_BOARD_DATA } from "./t
 import { createTaskStore, type TaskStore, type TasksBoardData } from "./store.js"
 
 /**
- * The `tasks` module: an MCP server module with its **own** tools (no upstream
- * proxy) plus a hand-built widget. It contributes three kinds of tool:
+ * The `tasks` module: an MCP server module with its **own** tools plus a
+ * hand-built widget. It contributes three kinds of tool:
  *   1. Domain tools via `createToolRegistrar` — `list_tasks`, `create_task`.
  *      Each declares a Zod `inputSchema` with `.describe()` on every field,
  *      MCP `annotations`, and an `outputSchema`.
@@ -56,7 +56,7 @@ function boardSummary(board: TasksBoardData): string {
   )
 }
 
-// ── Domain tools (the module's own tools, no upstream) ───────────────────────
+// ── Domain tools ─────────────────────────────────────────────────────────────
 function registerTaskTools(server: MCPServer, store: TaskStore) {
   const register = createToolRegistrar<TaskStore>(server, store)
 

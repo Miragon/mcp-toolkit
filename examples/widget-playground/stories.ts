@@ -1,5 +1,5 @@
 import type { FixtureToolEntry, FixtureWidget } from "@miragon/mcp-toolkit-ui/app"
-import CustomerCard from "../customers-upstream/widget/CustomerCard.js"
+import CustomerCard from "./CustomerCard.js"
 import { ArticleCard } from "../modules/articles/widgets/ArticleCard.js"
 import { TasksBoard } from "../modules/tasks/widgets/TasksBoard.js"
 import type { TasksBoardData } from "../modules/tasks/store.js"
@@ -150,7 +150,7 @@ export const STORIES: Story[] = [
     id: "customer-card",
     label: "CustomerCard",
     description:
-      "Remote-bundle card from customers-upstream. Reads keys['customers:customer'] — pure props, no tool calls.",
+      "Dependency-free fixture card (inline styles, no toolkit primitives). Reads keys['customers:customer'] — pure props, no tool calls.",
     widget: CustomerCard,
     data: {
       "customers:customer": {

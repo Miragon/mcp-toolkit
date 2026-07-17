@@ -1,9 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { renderView } from "./render-view.js"
 import { StepRegistry } from "../registry/step-registry.js"
-import { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepDefinition } from "../types/step.js"
-import type { WidgetDefinition } from "../types/widget.js"
 import type { LayoutConfig } from "./layout-types.js"
 
 const trivialLayout: LayoutConfig = [{ row: [{ widget: "demo:card" }] }]
@@ -23,14 +21,6 @@ const step = (overrides: Partial<PipelineStepDefinition> = {}): PipelineStepDefi
     }),
   ...overrides,
 })
-
-const widget = (overrides: Partial<WidgetDefinition> = {}): WidgetDefinition =>
-  ({
-    id: "demo:card",
-    requires: [],
-    size: "full",
-    ...overrides,
-  }) as WidgetDefinition
 
 interface RenderError {
   content: { type: "text"; text: string }[]
@@ -57,7 +47,6 @@ interface RenderOk {
       errors: { stepId: string; reason: string }[]
     }
     layout: LayoutConfig
-    remoteWidgets: Record<string, { bundle: string; moduleId: string }>
     builderAvailable: boolean
   }
 }
@@ -194,42 +183,6 @@ describe("renderView", () => {
     expect(ok.content[0]?.text).toContain("View")
     expect(ok.content[0]?.text).toContain("Keys: demo:seed")
     expect(ok.content[0]?.text).toContain("Errors: boom: kaboom")
-  })
-
-  it("advertises remoteWidgets only for upstream widgets the layout references", async () => {
-    // render-view filters the advertised remoteWidgets down to the bundles the
-    // *layout* uses — the browser-side loader fetches every advertised bundle,
-    // so shipping the whole registry would make a single-widget view pull
-    // unused upstream bundles. (The in-iframe builder gets its full remote
-    // palette from `get-builder-catalogue` instead.)
-    const stepRegistry = new StepRegistry()
-    const widgetRegistry = new WidgetRegistry()
-    // `trivialLayout` references `demo:card`. Register it as a remote widget so
-    // it is advertised, plus an unrelated remote widget that must be filtered
-    // out, plus a local (non-remote) widget that is never advertised.
-    widgetRegistry.register(
-      widget({ id: "demo:card", bundle: "ui://demo/card.js", moduleId: "demo" }),
-    )
-    widgetRegistry.register(
-      widget({ id: "items:card", bundle: "ui://items/card.js", moduleId: "items" }),
-    )
-    widgetRegistry.register(widget({ id: "demo:local" }))
-
-    const okWith = expectOk(
-      await renderView({
-        input: { keys: {}, layout: trivialLayout },
-        stepRegistry,
-        widgetRegistry,
-      }),
-    )
-    expect(okWith.structuredContent.remoteWidgets).toEqual({
-      "demo:card": { bundle: "ui://demo/card.js", moduleId: "demo" },
-    })
-
-    const okWithout = expectOk(
-      await renderView({ input: { keys: {}, layout: trivialLayout }, stepRegistry }),
-    )
-    expect(okWithout.structuredContent.remoteWidgets).toEqual({})
   })
 
   it("defaults builderAvailable to false and echoes an explicit flag", async () => {

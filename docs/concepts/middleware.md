@@ -47,8 +47,8 @@ Source: `packages/core/src/middleware/role-filter.ts`.
 
 ## Caveat — server-internal calls bypass middleware
 
-When a pipeline step dispatches through the injected `callTool` closure, it
-calls `UpstreamProxyPlugin.callUpstream` directly and skips the MCP RPC
+When a pipeline step dispatches through the injected `callTool` closure, the
+closure resolves the call in-process and skips the MCP RPC
 surface. The role filter _doesn't_ apply. Step code is part of the trusted
 server, so the default is acceptable — add explicit role checks inside the
 step if a step path must also be gated.
@@ -71,4 +71,3 @@ The factory skips each helper when its option is missing or empty — see
 ## See also
 
 - [middleware-and-auth](../guides/middleware-and-auth.md) — full walkthrough.
-- [role-based-module-access](../recipes/role-based-module-access.md) — recipe.

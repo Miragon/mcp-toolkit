@@ -5,22 +5,17 @@
   "type": "module",
   "description": "Standalone playground for the MCP toolkit. Not published — consumed locally via pnpm workspace.",
   "scripts": {
-    "dev:articles-upstream": "tsx --env-file-if-exists=.env articles-upstream/server.ts",
-    "dev:customers-upstream": "pnpm run build:customer-widget && tsx --env-file-if-exists=.env customers-upstream/server.ts",
     "dev:host": "tsx --env-file-if-exists=.env host/index.ts",
     "dev:playground": "tsx host/playground.ts",
     "start:playground": "pnpm run build:bundle && pnpm run dev:playground",
-    "_wait:upstreams": "wait-on -t 30000 tcp:4000 tcp:4001",
-    "_dev:host-gated": "pnpm run _wait:upstreams && pnpm run dev:host",
-    "dev:all": "concurrently -n articles,customers,host -c green,magenta,cyan --kill-others-on-fail \"pnpm run dev:articles-upstream\" \"tsx --env-file-if-exists=.env customers-upstream/server.ts\" \"pnpm run _dev:host-gated\"",
+    "dev:codegen-source": "tsx --env-file-if-exists=.env modules/articles/codegen-source.ts",
     "dev:widget-playground": "vite --config widget-playground/vite.config.ts",
     "dev:host-portability": "vite --config host-portability/vite.config.ts",
     "build:bundle": "vite build --config app-bundle/vite.config.ts",
-    "build:customer-widget": "vite build --config customers-upstream/widget/vite.config.ts",
     "build:widget-playground": "vite build --config widget-playground/vite.config.ts",
     "build:host-portability": "vite build --config host-portability/vite.config.ts",
-    "build:all": "pnpm run build:bundle && pnpm run build:customer-widget && pnpm run build:widget-playground && pnpm run build:host-portability",
-    "start": "pnpm run build:all && pnpm run dev:all",
+    "build:all": "pnpm run build:bundle && pnpm run build:widget-playground && pnpm run build:host-portability",
+    "start": "pnpm run build:bundle && pnpm run dev:host",
     "generate": "pnpm --filter articles-example run generate",
     "generate:check": "pnpm --filter articles-example run generate:check",
     "test": "vitest run",
@@ -28,7 +23,6 @@
   },
   "dependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
-    "@miragon/mcp-toolkit-proxy-contract": "workspace:*",
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
@@ -44,13 +38,11 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.3",
-    "concurrently": "10.0.3",
     "tailwindcss": "4.3.2",
     "tsx": "4.23.0",
     "typescript": "6.0.3",
     "vite": "8.1.4",
     "vite-plugin-singlefile": "2.3.3",
-    "vitest": "4.1.10",
-    "wait-on": "9.0.10"
+    "vitest": "4.1.10"
   }
 }

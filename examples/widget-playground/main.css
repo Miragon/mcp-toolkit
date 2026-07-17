@@ -3,5 +3,4 @@
 /* The example widgets live outside the UI package, so Tailwind needs to scan
    them (and this playground's own components) for class names. */
 @source "../modules/**/*.{ts,tsx}";
-@source "../customers-upstream/widget/**/*.{ts,tsx}";
 @source "./**/*.{ts,tsx}";

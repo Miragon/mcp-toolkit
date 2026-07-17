@@ -8,13 +8,12 @@ import type { PipelineStepDefinition } from "../types/step.js"
 
 const emptyConfig: AppConfig = { activeApps: [], pipelines: {} }
 
-const widget = (overrides: Partial<WidgetDefinition>): WidgetDefinition =>
-  ({
-    id: "demo:widget",
-    requires: [],
-    size: "full",
-    ...overrides,
-  }) as WidgetDefinition
+const widget = (overrides: Partial<WidgetDefinition>): WidgetDefinition => ({
+  id: "demo:widget",
+  requires: [],
+  size: "full",
+  ...overrides,
+})
 
 const step = (overrides: Partial<PipelineStepDefinition>): PipelineStepDefinition => ({
   id: "demo:load",

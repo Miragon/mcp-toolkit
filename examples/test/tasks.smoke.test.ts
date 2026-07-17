@@ -11,7 +11,7 @@ import type { Task, TasksBoardData } from "../modules/tasks/store.js"
  * In-process smoke test for the self-owned `tasks` module. Boots a real MCP
  * server via `createFrameworkApp` with `createTasksPlugin()` over a loopback
  * socket and drives it with an MCP client — proving the module's *own* tools
- * (registered through `createToolRegistrar`, not federated from an upstream)
+ * (registered through `createToolRegistrar`)
  * appear in `tools/list` and round-trip through real calls.
  *
  * Runs in CI through the root `pnpm -r --if-present run test`.
@@ -42,7 +42,6 @@ describe("tasks module smoke", () => {
       version: "0.0.0",
       host: "127.0.0.1",
       plugins: [createTasksPlugin()],
-      proxies: [],
       app: {
         resourceUri: "ui://tasks-smoke/mcp-app.html",
         htmlPath: FIXTURE_HTML,

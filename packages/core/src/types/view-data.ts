@@ -40,8 +40,7 @@ export interface RefreshParams {
  * full payload lives here.
  *
  * Optional fields reflect which producer emitted the envelope: `render-view`
- * sets `_refreshParams` and `remoteWidgets`, while the eager view builders
- * leave both out.
+ * sets `_refreshParams`, while the eager view builders leave it out.
  */
 export interface ViewStructuredContent {
   // Index signature: the MCP SDK types a tool result's `structuredContent` as
@@ -58,7 +57,6 @@ export interface ViewStructuredContent {
     errors: { stepId: string; reason: string }[]
   }
   layout: LayoutConfig
-  remoteWidgets?: Record<string, { bundle: string; moduleId: string }>
   /**
    * Whether the in-iframe visual builder is actually usable on this server —
    * i.e. `app.builder` is enabled and the app-only `get-builder-catalogue`

@@ -172,11 +172,9 @@ Notes:
   records the error fail-soft (the request does **not** crash) and STEP B is
   **skipped** because its required key was never produced — it never runs on
   missing data.
-- **`inputMapping` / `outputMapping`** (`z.record(string, string)` on a declarative
-  step) are for the **federated** case: a declarative step that calls an upstream
-  tool renames the upstream's input/output into namespaced keys. When a step writes
-  a key under the exact name the next step requires (as above), you don't need them.
-  See `examples/modules/articles` for the federated pattern.
+- **Steps that call the module's own tools** inject a typed `callTool` (generated
+  by tool-codegen) via the plugin's `appConfig` instead of reaching into a store —
+  see `examples/modules/articles` for that pattern.
 - **The same widget registrations serve both paths.** Because STEP B emits
   `dataType: "orders:dashboard"` — the same dataType the eager entries used —
   `adaptDataWidget(OrdersKpi, "orders:dashboard")` resolves the data either way.

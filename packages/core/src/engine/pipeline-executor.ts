@@ -13,10 +13,12 @@ export interface PipelineExecutionContext {
 }
 
 /**
- * If the step's appConfig contains a `callTool` function (injected by
- * `buildProxyAppConfigs` from this package's `proxy/`), rewrap it so the
- * step-facing call signature is `(name, args)` while the underlying
- * closure receives the current `{ userId }` via a hidden 3rd argument.
+ * If the step's appConfig contains a `callTool` function (a closure the
+ * plugin injects via `AppPlugin.appConfig`, e.g. a typed `callTool` bound to
+ * the module's own store or client), rewrap it so the step-facing call
+ * signature is `(name, args)` while the underlying closure receives the
+ * current `{ userId }` via a hidden 3rd argument — steps stay synchronous
+ * and userId-free while the closure can still scope data per user.
  * All other keys pass through untouched.
  */
 function bindAppConfig(appConfig: unknown, ctx: PipelineExecutionContext | undefined): unknown {

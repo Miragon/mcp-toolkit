@@ -173,29 +173,4 @@ describe("getBuilderCatalogue", () => {
     expect(payload.reachableWidgets[0]).toMatchObject({ id: "sales:reachable", propsSchema })
     expect(payload.unreachableWidgets[0]).toMatchObject({ id: "sales:unreachable", propsSchema })
   })
-
-  it("advertises upstream-hosted widgets via remoteWidgets", async () => {
-    const stepRegistry = new StepRegistry()
-    const widgetRegistry = new WidgetRegistry()
-    widgetRegistry.register({
-      id: "items:item-card",
-      requires: ["items:item"],
-      size: "half",
-      bundle: "ui://items/widgets/item-card.js",
-      moduleId: "items",
-    })
-
-    const result = await getBuilderCatalogue({
-      input: { keys: { "items:item": { id: 1 } } },
-      stepRegistry,
-      widgetRegistry,
-    })
-
-    expect(result.structuredContent.remoteWidgets).toEqual({
-      "items:item-card": {
-        bundle: "ui://items/widgets/item-card.js",
-        moduleId: "items",
-      },
-    })
-  })
 })

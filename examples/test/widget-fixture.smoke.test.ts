@@ -2,7 +2,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import { WidgetFixtureHost, FixtureCallToolRegistry } from "@miragon/mcp-toolkit-ui/app"
-import CustomerCard from "../customers-upstream/widget/CustomerCard.js"
+import CustomerCard from "../widget-playground/CustomerCard.js"
 
 /**
  * Smoke test for the widget harness. Renders a real example widget through

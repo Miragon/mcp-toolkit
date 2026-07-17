@@ -29,7 +29,7 @@ export class StepRegistry {
 
   /**
    * Remove a previously-registered step. Used to roll back a partially loaded
-   * module when isolating an upstream collision (see `loadApps`); a no-op for
+   * module when isolating a collision (see `loadApps`); a no-op for
    * unknown ids.
    */
   unregister(stepId: string): void {

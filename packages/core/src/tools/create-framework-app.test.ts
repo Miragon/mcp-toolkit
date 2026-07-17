@@ -19,9 +19,7 @@ function options(builder?: boolean): CreateFrameworkAppOptionsWithoutOAuth {
   return {
     name: "builder-gate-test",
     version: "0.0.0",
-    // No upstream proxies / plugins: keeps the boot hermetic. An empty proxy
-    // list short-circuits proxy registration + module discovery.
-    proxies: [],
+    // No plugins: keeps the boot hermetic.
     plugins: [],
     app: {
       // Pin the resource URI so we don't hash a (missing) bundle file.

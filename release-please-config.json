@@ -8,19 +8,25 @@
       "package-name": "mcp-toolkit",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        { "type": "json", "path": "packages/core/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/proxy-contract/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/tool-codegen/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/ui/package.json", "jsonpath": "$.version" },
         {
           "type": "json",
-          "path": "templates/minimal-server/package.json",
-          "jsonpath": "$.dependencies['@miragon/mcp-toolkit-core']"
+          "path": "packages/core/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/tool-codegen/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/ui/package.json",
+          "jsonpath": "$.version"
         },
         {
           "type": "json",
           "path": "templates/minimal-server/package.json",
-          "jsonpath": "$.dependencies['@miragon/mcp-toolkit-proxy-contract']"
+          "jsonpath": "$.dependencies['@miragon/mcp-toolkit-core']"
         },
         {
           "type": "json",

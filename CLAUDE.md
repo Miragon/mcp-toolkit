@@ -6,7 +6,6 @@ Project-specific guidance for AI agents and humans working in this repo.
 
 Kept in sync with the same rule in `CONTRIBUTING.md`:
 
-- `core` may depend on `proxy-contract`. Other directions are forbidden.
 - `core/tools/*` may import `mcp-use/server`. Anything in `core/src/*`
   outside `tools/` must stay browser-bundle-safe (no `mcp-use/server`, no
   `node:*`).
@@ -41,7 +40,7 @@ against, so reach for the existing building blocks instead of re-deriving them:
   and run `pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground`.
 - **Reference widgets** —
   [`OrderStatusCard`](examples/host-portability/OrderStatusCard.tsx) (host-portable)
-  and [`CustomerCard`](examples/customers-upstream/widget/CustomerCard.tsx).
+  and [`CustomerCard`](examples/widget-playground/CustomerCard.tsx).
 
 ## Skills
 

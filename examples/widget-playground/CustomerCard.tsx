@@ -1,16 +1,10 @@
 import { useState } from "react"
 
 /**
- * Remote-hosted widget served as an MCP resource by `customers-upstream`.
- *
- * The host never sees this source — the bundle is fetched at render time
- * through `read-widget-bundle`, evaluated via a Blob URL + dynamic `import()`,
- * and mounted by `McpAppView` next to host-bundled widgets.
- *
- * `react` and `react/jsx-runtime` are external: they resolve through the
- * host's `<script type="importmap">` (see `examples/app-bundle/index.html`),
- * which re-exports `globalThis.React` — same instance as the host, so hooks
- * and context work identically.
+ * Playground fixture: a deliberately dependency-free widget (inline styles,
+ * no toolkit primitives, no tool calls) that renders purely from the `keys`
+ * prop. Useful as the minimal counter-example to the toolkit-styled widgets —
+ * it shows the raw `WidgetProps.keys` contract with nothing else on top.
  */
 
 interface Customer {
@@ -81,7 +75,7 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
             background: "#0ea5e9",
           }}
         />
-        remote bundle · customers-upstream
+        plain-props widget · playground fixture
       </div>
       <div
         style={{

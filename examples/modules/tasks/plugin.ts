@@ -14,10 +14,10 @@ import {
 import { createTaskStore, type TaskStore, type TasksBoardData } from "./store.js"
 
 /**
- * The `tasks` module — the missing example: an MCP server with its **own** tools
- * (no upstream proxy) plus a hand-built widget. Compare with `articles`
- * (UI-only, `proxyBinding`) and `customers` (fully upstream-hosted). This is the
- * common real case: "I'm building my own MCP server with tools + UI."
+ * The `tasks` module: an MCP server with its **own** tools plus a hand-built
+ * widget — the common real case: "I'm building my own MCP server with tools +
+ * UI." Compare with `articles`, which layers a generated typed client
+ * (tool-codegen) on the same self-owned pattern.
  *
  * It contributes three kinds of tool:
  *   1. Domain tools via `createToolRegistrar` — `list_tasks`, `create_task`,

@@ -2,11 +2,13 @@ import type { PipelineStepDefinition } from "@miragon/mcp-toolkit-core"
 import type { ArticlesCallTool } from "../generated/tools.js"
 
 /**
- * Resolves a single article via the federated `articles_get-article` proxy tool.
+ * Resolves a single article via the typed `articles_get-article` call.
  *
- * The `callTool` in `appConfig` is injected by `buildProxyAppConfigs` when
- * `plugin.proxyBinding === "articles"`, with `userId` pre-bound by the pipeline
- * executor — so step code only deals with `(toolName, args)`.
+ * The `callTool` in `appConfig` is the typed closure the plugin itself
+ * injects (see `plugin.ts`), with the per-request userId pre-bound by the
+ * pipeline executor — so step code only deals with `(toolName, args)` and
+ * gets compile-time checking on names, args, and result from the generated
+ * `ArticlesCallTool` type.
  */
 export const resolveArticleStep: PipelineStepDefinition<{ callTool: ArticlesCallTool }> = {
   id: "articles:resolve-article",

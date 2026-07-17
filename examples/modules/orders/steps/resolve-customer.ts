@@ -4,13 +4,12 @@ import type { Customer, OrderStore } from "../store.js"
 /**
  * The `appConfig` shape the `orders` steps receive.
  *
- * For a self-owned module (no upstream proxy) the framework passes
- * `plugin.appConfig` through to the executor **untouched** — see
- * `buildProxyAppConfigs`: only plugins with a `proxyBinding` get a `callTool`
- * injected. So `createPlugin()` sets `appConfig: { store }` and the steps read
- * the in-memory store straight off it. (A federated module would instead receive
- * `{ callTool }` and dispatch tool calls against its upstream — see
- * `examples/modules/articles/steps/resolve-article.ts`.)
+ * The framework passes `plugin.appConfig` through to the executor
+ * **untouched** (the executor only rewraps an `appConfig.callTool` closure,
+ * which this module doesn't use). So `createPlugin()` sets
+ * `appConfig: { store }` and the steps read the in-memory store straight off
+ * it. (A module with a typed `callTool` instead dispatches through that
+ * closure — see `examples/modules/articles/steps/resolve-article.ts`.)
  */
 export interface OrdersAppConfig {
   store: OrderStore
