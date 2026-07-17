@@ -198,4 +198,40 @@ describe("getBuilderCatalogue", () => {
       },
     })
   })
+
+  it("advertises host-alias widgets via aliasWidgets with presetProps, as the full palette", async () => {
+    const stepRegistry = new StepRegistry()
+    const widgetRegistry = new WidgetRegistry()
+    widgetRegistry.register({ id: "shell:kpi-grid", requires: [], size: "quarter" })
+    // One alias is reachable, one is not — unlike render-view, the builder
+    // catalogue advertises the FULL alias palette either way.
+    widgetRegistry.register({
+      id: "items:orders-kpi",
+      requires: [],
+      size: "quarter",
+      moduleId: "items",
+      hostWidget: "shell:kpi-grid",
+      presetProps: { title: "Orders" },
+    })
+    widgetRegistry.register({
+      id: "items:unreachable-kpi",
+      requires: ["items:missing"],
+      size: "quarter",
+      moduleId: "items",
+      hostWidget: "shell:kpi-grid",
+    })
+
+    const result = await getBuilderCatalogue({
+      input: { keys: {} },
+      stepRegistry,
+      widgetRegistry,
+    })
+
+    expect(result.structuredContent.aliasWidgets).toEqual({
+      "items:orders-kpi": { hostWidget: "shell:kpi-grid", presetProps: { title: "Orders" } },
+      "items:unreachable-kpi": { hostWidget: "shell:kpi-grid" },
+    })
+    // Aliases carry no bundle and must never appear in remoteWidgets.
+    expect(result.structuredContent.remoteWidgets).toEqual({})
+  })
 })

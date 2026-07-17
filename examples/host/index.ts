@@ -1,5 +1,6 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import { TOOLKIT_VERSION } from "@miragon/mcp-toolkit-core"
 import { createFrameworkApp, createFileSystemDashboardStore } from "@miragon/mcp-toolkit-core/tools"
 import { parseProxyConfigEnv } from "@miragon/mcp-toolkit-proxy-contract"
 import { createPlugin as createArticlesPlugin } from "../modules/articles/plugin.js"
@@ -29,6 +30,18 @@ const app = await createFrameworkApp({
   plugins: [createArticlesPlugin(), createTasksPlugin(), createOrdersPlugin()],
   proxies: parseProxyConfigEnv(process.env.MCP_PROXIES),
   callbackBaseUrl: process.env.MCP_URL,
+  // Shared runtimes (beyond React) the app-bundle actually exposes to
+  // upstream-hosted widget bundles — see `exposeSharedRuntime` in
+  // `app-bundle/main.tsx` and the import-map plugin in
+  // `app-bundle/vite.config.ts`. Discovery skips (fail-soft) any module whose
+  // `runtime` requirements this set can't satisfy. Declare only what the
+  // bundle truly exposes; the version literals track examples/package.json
+  // (`mcp-use`, `@tanstack/react-query`).
+  hostRuntime: {
+    toolkitUi: TOOLKIT_VERSION,
+    mcpUseReact: "1.34.3",
+    reactQuery: "5.101.2",
+  },
   app: {
     resourceUri: "ui://toolkit-example/mcp-app.html",
     htmlPath: path.join(here, "..", "app-bundle", "dist", "index.html"),

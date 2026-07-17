@@ -8,7 +8,7 @@ import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import { useToolResultRecovery } from "../hooks/use-tool-result-recovery.js"
 import { parseToolResult } from "../lib/parse-tool-result.js"
 import { LayoutBuilder } from "./layout-builder.js"
-import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
+import { WidgetRenderer, resolveAliasComponents, type WidgetComponent } from "./widget-renderer.js"
 import { createRemoteWidgetLoader, type WidgetLoader } from "./remote-widget-loader.js"
 
 export interface McpAppViewLabels {
@@ -41,6 +41,17 @@ interface RemoteWidgetInfo {
   moduleId: string
 }
 
+/**
+ * Alias metadata for a manifest widget that renders a host-bundled component:
+ * the shell resolves `hostWidget` in its own `widgets` map and merges
+ * `presetProps` under each layout cell's props (the cell wins key-by-key).
+ * Mirrors `HostAliasWidgetInfo` in `@miragon/mcp-toolkit-core`.
+ */
+interface HostAliasWidgetInfo {
+  hostWidget: string
+  presetProps?: Record<string, unknown>
+}
+
 interface ViewData {
   _refreshParams?: RefreshParams
   title?: string
@@ -55,6 +66,12 @@ interface ViewData {
   }
   layout?: LayoutConfig
   remoteWidgets?: Record<string, RemoteWidgetInfo>
+  /**
+   * Manifest widgets that alias a host-bundled widget. Only layout-referenced
+   * aliases are advertised by `render-view`; build mode merges in the full
+   * catalogue palette via `LayoutBuilder`'s `onAliasCatalogue`.
+   */
+  aliasWidgets?: Record<string, HostAliasWidgetInfo>
   /**
    * Whether the server's in-iframe builder platform is usable (set by
    * `render-view` from `createFrameworkApp`'s `app.builder`). The shell gates
@@ -163,6 +180,13 @@ export function McpAppView({
   // and we merge it in for pre-loading.
   const [cataloguedRemoteWidgets, setCataloguedRemoteWidgets] = useState<
     Record<string, RemoteWidgetInfo>
+  >({})
+
+  // Same idea for host-alias widgets: `render-view` only advertises the
+  // layout-referenced aliases, the builder catalogue reports the full palette
+  // via `onAliasCatalogue` so dropped aliases resolve immediately.
+  const [cataloguedAliasWidgets, setCataloguedAliasWidgets] = useState<
+    Record<string, HostAliasWidgetInfo>
   >({})
 
   // Sync host-provided initialViewData → local viewData via render-phase
@@ -276,7 +300,27 @@ export function McpAppView({
     }
   }, [effectiveWidgetLoader, remoteWidgetManifest, widgetIdsInLayout, widgets, remoteWidgets])
 
-  const mergedWidgets = useMemo(() => ({ ...widgets, ...remoteWidgets }), [widgets, remoteWidgets])
+  // Resolve host-alias widgets into renderable components: each alias id maps
+  // to a host-bundled component wrapped so its manifest preset props merge
+  // UNDER the layout cell's props (the cell wins key-by-key).
+  const aliasManifest = useMemo<Record<string, HostAliasWidgetInfo>>(() => {
+    if (!buildMode) return viewData?.aliasWidgets ?? {}
+    return { ...cataloguedAliasWidgets, ...viewData?.aliasWidgets }
+  }, [buildMode, viewData, cataloguedAliasWidgets])
+
+  // Server-side validation guarantees each alias targets a registered local
+  // widget, but the browser bundle map can still lack the component — the
+  // resolver warns and skips those (the cell renders like any unbundled
+  // widget), never crashing the view.
+  const aliasComponents = useMemo<Record<string, WidgetComponent>>(
+    () => resolveAliasComponents(aliasManifest, widgets),
+    [aliasManifest, widgets],
+  )
+
+  const mergedWidgets = useMemo(
+    () => ({ ...widgets, ...remoteWidgets, ...aliasComponents }),
+    [widgets, remoteWidgets, aliasComponents],
+  )
 
   const toggleFullscreen = useCallback(async () => {
     const newMode = displayMode === "fullscreen" ? "inline" : "fullscreen"
@@ -458,6 +502,7 @@ export function McpAppView({
             widgets={mergedWidgets}
             callTool={callToolFn}
             onCatalogue={setCataloguedRemoteWidgets}
+            onAliasCatalogue={setCataloguedAliasWidgets}
             onExit={exitBuildMode}
           />
         ) : viewData.layout ? (

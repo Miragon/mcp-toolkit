@@ -64,6 +64,7 @@ interface WidgetDefinitionBase {
 export interface LocalWidgetDefinition extends WidgetDefinitionBase {
   bundle?: undefined
   moduleId?: undefined
+  hostWidget?: undefined
 }
 
 /**
@@ -80,20 +81,49 @@ export interface RemoteWidgetDefinition extends WidgetDefinitionBase {
    * upstream proxy.
    */
   moduleId: string
+  hostWidget?: undefined
 }
 
 /**
- * Either a {@link LocalWidgetDefinition} or a {@link RemoteWidgetDefinition}.
- * Use the {@link isRemoteWidget} type guard to narrow when iterating.
+ * Widget contributed by an upstream module as an ALIAS onto a host-bundled
+ * widget: no bundle, no resource read — render the host component identified
+ * by `hostWidget` with `presetProps` merged under the layout cell's props.
  */
-export type WidgetDefinition = LocalWidgetDefinition | RemoteWidgetDefinition
+export interface HostAliasWidgetDefinition extends WidgetDefinitionBase {
+  bundle?: undefined
+  /** Module that contributed this alias (namespace prefix of `id`). */
+  moduleId: string
+  /** Id of the host-registered (local) widget this alias renders. */
+  hostWidget: string
+  /** Preset props from the manifest; layout-cell props override key-by-key. */
+  presetProps?: Record<string, unknown>
+}
+
+/**
+ * A {@link LocalWidgetDefinition}, a {@link RemoteWidgetDefinition}, or a
+ * {@link HostAliasWidgetDefinition}. Use the {@link isRemoteWidget} /
+ * {@link isHostAliasWidget} type guards to narrow when iterating.
+ */
+export type WidgetDefinition =
+  LocalWidgetDefinition | RemoteWidgetDefinition | HostAliasWidgetDefinition
 
 /**
  * Type-guard: true iff the widget's code lives on an upstream MCP server and
  * must be loaded through `read-widget-bundle` at render time. Checks both
  * fields the type contract claims so downstream code (`render-view`,
  * `read-widget-bundle`) can safely read `widget.moduleId` after the narrow.
+ * Host-alias widgets carry a `moduleId` but no `bundle`, so they are `false`.
  */
 export function isRemoteWidget(widget: WidgetDefinition): widget is RemoteWidgetDefinition {
   return typeof widget.bundle === "string" && typeof widget.moduleId === "string"
+}
+
+/**
+ * Type-guard: true iff the widget is an upstream-contributed alias onto a
+ * host-bundled widget (see {@link HostAliasWidgetDefinition}). Downstream
+ * code can safely read `widget.hostWidget` / `widget.presetProps` after the
+ * narrow.
+ */
+export function isHostAliasWidget(widget: WidgetDefinition): widget is HostAliasWidgetDefinition {
+  return typeof widget.hostWidget === "string"
 }

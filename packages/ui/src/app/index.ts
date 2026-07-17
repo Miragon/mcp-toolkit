@@ -6,6 +6,9 @@ export {
   WidgetErrorBoundary,
   RenderedWidget,
   contextHasNoData,
+  mergeAliasProps,
+  createAliasWidget,
+  resolveAliasComponents,
 } from "./widget-renderer.js"
 export type { WidgetRendererProps, WidgetComponent } from "./widget-renderer.js"
 export { LayoutBuilder } from "./layout-builder.js"

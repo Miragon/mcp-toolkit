@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest"
 import type { ModuleManifest, ProxyConfigEntry } from "@miragon/mcp-toolkit-proxy-contract"
-import { discoverUpstreamModules } from "./discover.js"
+import { discoverUpstreamModules, findRuntimeIssue, runtimeRangeSatisfied } from "./discover.js"
 import type { UpstreamProxyPlugin } from "../proxy/UpstreamProxyPlugin.js"
 
 const validManifest: ModuleManifest = {
@@ -188,5 +188,146 @@ describe("discoverUpstreamModules", () => {
       hostReactMajor: 19,
     })
     expect(result.map((r) => r.manifest.moduleId)).toEqual(["good-mod"])
+  })
+
+  it("skips a module requiring a runtime extra the host does not declare, and keeps siblings", async () => {
+    const needy = {
+      ...validManifest,
+      schemaVersion: 2,
+      runtime: { react: "^19.0.0", toolkitUi: "^0.9.0" },
+    }
+    const plain = { ...validManifest, moduleId: "plain-mod", steps: [], widgets: [] }
+    const { proxy: needyProxy } = stubProxy("needy", { structuredContent: needy })
+    const { proxy: plainProxy } = stubProxy("plain", { structuredContent: plain })
+    const result = await discoverUpstreamModules({
+      entries: [flaggedEntry("needy"), flaggedEntry("plain")],
+      proxies: [needyProxy, plainProxy],
+      hostReactMajor: 19,
+      // hostRuntime omitted entirely — nothing beyond React is exposed.
+    })
+    expect(result.map((r) => r.manifest.moduleId)).toEqual(["plain-mod"])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]?.[0]).toContain("@miragon/mcp-toolkit-ui")
+    expect(warn.mock.calls[0]?.[0]).toContain("does not expose")
+  })
+
+  it("skips a module on a 0.x minor mismatch and accepts an exact 0.x minor match", async () => {
+    const manifestWith = (toolkitUi: string) => ({
+      ...validManifest,
+      schemaVersion: 2,
+      runtime: { react: "^19.0.0", toolkitUi },
+    })
+
+    const { proxy: mismatch } = stubProxy("items", {
+      structuredContent: manifestWith("~0.8.0"),
+    })
+    const rejected = await discoverUpstreamModules({
+      entries: [flaggedEntry("items")],
+      proxies: [mismatch],
+      hostReactMajor: 19,
+      hostRuntime: { toolkitUi: "0.9.0" },
+    })
+    expect(rejected).toEqual([])
+    expect(warn.mock.calls[0]?.[0]).toContain('requires @miragon/mcp-toolkit-ui "~0.8.0"')
+
+    const { proxy: match } = stubProxy("items", {
+      structuredContent: manifestWith("^0.9.0"),
+    })
+    const accepted = await discoverUpstreamModules({
+      entries: [flaggedEntry("items")],
+      proxies: [match],
+      hostReactMajor: 19,
+      hostRuntime: { toolkitUi: "0.9.0" },
+    })
+    expect(accepted).toHaveLength(1)
+  })
+
+  it("accepts a module declaring all three runtime extras when the host satisfies them", async () => {
+    const manifest = {
+      ...validManifest,
+      schemaVersion: 2,
+      runtime: {
+        react: "^19.0.0",
+        mcpUseReact: "^1.0.0",
+        toolkitUi: "^0.9.0",
+        reactQuery: "^5.0.0",
+      },
+    }
+    const { proxy } = stubProxy("items", { structuredContent: manifest })
+    const result = await discoverUpstreamModules({
+      entries: [flaggedEntry("items")],
+      proxies: [proxy],
+      hostReactMajor: 19,
+      hostRuntime: { mcpUseReact: "1.34.3", toolkitUi: "0.9.0", reactQuery: "5.62.1" },
+    })
+    expect(result).toHaveLength(1)
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it("skips a future-version manifest via the schemaVersion probe, not the parse error", async () => {
+    // A hypothetical v3 manifest with a new *required* field and without
+    // fields v2 requires — the full parse would fail, but the pre-parse
+    // version probe must catch it first and report the accurate reason.
+    const { proxy } = stubProxy("items", {
+      structuredContent: { schemaVersion: 3, someRequiredNewField: { shape: "unknown" } },
+    })
+    const result = await discoverUpstreamModules({
+      entries: [flaggedEntry("items")],
+      proxies: [proxy],
+      hostReactMajor: 19,
+    })
+    expect(result).toEqual([])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]?.[0]).toContain("declares schemaVersion 3")
+    expect(warn.mock.calls[0]?.[0]).not.toContain("invalid module manifest")
+  })
+})
+
+describe("runtimeRangeSatisfied", () => {
+  it.each<[string, string, boolean]>([
+    ["19", "19", true],
+    ["^19.0.0", "19", true],
+    ["~19.1.2", "19", true],
+    ["18", "19", false],
+    ["^0.9.0", "0.9.0", true],
+    ["^0.8.0", "0.9.0", false],
+    // 0.x requires an explicit minor: the minor is the breaking axis, so a
+    // bare "0" cannot be verified and is rejected rather than guessed.
+    ["0", "0.9.0", false],
+    [">=19 <20", "19", false],
+    ["garbage", "19", false],
+  ])("(%s, %s) -> %s", (range, hostVersion, expected) => {
+    expect(runtimeRangeSatisfied(range, hostVersion)).toBe(expected)
+  })
+})
+
+describe("findRuntimeIssue", () => {
+  it("returns undefined when every declared runtime is satisfiable", () => {
+    const issue = findRuntimeIssue(
+      { react: "^19.0.0", toolkitUi: "^0.9.0", reactQuery: "^5.0.0" },
+      19,
+      { toolkitUi: "0.9.0", reactQuery: "5.62.1" },
+    )
+    expect(issue).toBeUndefined()
+  })
+
+  it("names React and the range on a React mismatch", () => {
+    const issue = findRuntimeIssue({ react: "^18.0.0" }, 19)
+    expect(issue).toContain('React "^18.0.0"')
+    expect(issue).toContain("host ships React 19")
+  })
+
+  it("names the library and range when the host does not expose a required extra", () => {
+    const issue = findRuntimeIssue({ react: "^19.0.0", mcpUseReact: "^1.0.0" }, 19, {})
+    expect(issue).toContain('mcp-use/react "^1.0.0"')
+    expect(issue).toContain("does not expose mcp-use/react")
+  })
+
+  it("names the library, range, and host version on an extra version mismatch", () => {
+    const issue = findRuntimeIssue({ react: "^19.0.0", reactQuery: "^4.0.0" }, 19, {
+      reactQuery: "5.62.1",
+    })
+    expect(issue).toContain('@tanstack/react-query "^4.0.0"')
+    expect(issue).toContain("host exposes @tanstack/react-query 5.62.1")
   })
 })

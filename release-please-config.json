@@ -8,6 +8,7 @@
       "package-name": "mcp-toolkit",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
+        { "type": "generic", "path": "packages/core/src/module-loader/discover.ts" },
         { "type": "json", "path": "packages/core/package.json", "jsonpath": "$.version" },
         { "type": "json", "path": "packages/proxy-contract/package.json", "jsonpath": "$.version" },
         { "type": "json", "path": "packages/tool-codegen/package.json", "jsonpath": "$.version" },

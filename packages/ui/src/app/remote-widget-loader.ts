@@ -77,7 +77,23 @@ export function createRemoteWidgetLoader(options: CreateRemoteWidgetLoaderOption
 
   return async function loadRemoteWidget(id, uri) {
     const source = await fetchResource(id, uri)
-    const mod = await evaluateBundle(source)
+    let mod: RemoteWidgetModule
+    try {
+      mod = await evaluateBundle(source)
+    } catch (err) {
+      // The commonest evaluation failure is an unresolvable bare specifier:
+      // the bundle externalised a shared runtime (mcp-use/react, the
+      // toolkit-ui barrels, @tanstack/react-query) that the host page's
+      // import map doesn't expose. Point straight at the fix instead of
+      // leaving a bare "Failed to resolve module specifier" in the console.
+      const reason = err instanceof Error ? err.message : String(err)
+      throw new Error(
+        `remote widget "${id}" bundle at ${uri} failed to evaluate: ${reason}. ` +
+          `If the message names a bare module specifier, the host page's import map does not ` +
+          `expose that shared runtime — see buildSharedRuntimeImportMap/exposeSharedRuntime in @miragon/mcp-toolkit-ui.`,
+        { cause: err },
+      )
+    }
     if (typeof mod.default !== "function") {
       throw new Error(`remote widget "${id}" bundle at ${uri} has no default export component`)
     }

@@ -28,6 +28,22 @@ describe("createRemoteWidgetLoader", () => {
     )
   })
 
+  it("wraps evaluateBundle rejections with id, uri, reason, and the import-map hint", async () => {
+    const fetchResource = vi.fn().mockResolvedValue("// bundle source")
+    const evaluateBundle = vi
+      .fn()
+      .mockRejectedValue(new Error('Failed to resolve module specifier "mcp-use/react"'))
+    const loader = createRemoteWidgetLoader({ fetchResource, evaluateBundle })
+
+    const promise = loader("items-ui:item-card", "ui://items-ui/item-card.js")
+    await expect(promise).rejects.toThrow(/remote widget "items-ui:item-card"/)
+    await expect(promise).rejects.toThrow(/ui:\/\/items-ui\/item-card\.js failed to evaluate/)
+    await expect(promise).rejects.toThrow(/Failed to resolve module specifier "mcp-use\/react"/)
+    await expect(promise).rejects.toThrow(
+      /buildSharedRuntimeImportMap\/exposeSharedRuntime in @miragon\/mcp-toolkit-ui/,
+    )
+  })
+
   it("bubbles up fetchResource errors verbatim", async () => {
     const fetchResource = vi.fn().mockRejectedValue(new Error("404 missing bundle"))
     const evaluateBundle = vi.fn()

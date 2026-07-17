@@ -154,6 +154,100 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:host               # term 2
 # tools/call render-view with the shape in examples/layouts/articles-layout.yaml
 ```
 
+The two sections below apply to shape 2 (the fully upstream-hosted module).
+
+## Reusing a host widget (`hostWidget` references)
+
+If the host already bundles a widget that fits your data, the manifest can
+contribute an **alias** instead of shipping a bundle. A `hostWidget` entry
+(requires `schemaVersion: 2`) maps your module-namespaced widget id onto a
+host-registered widget id, optionally with preset props:
+
+```ts
+const manifest: ModuleManifest = {
+  schemaVersion: 2, // mandatory once the manifest uses hostWidget entries
+  moduleId: "customers",
+  runtime: { react: "^19.0.0" },
+  steps: [/* … */],
+  widgets: [
+    {
+      id: "customers:orders-kpi", // your namespace, like any widget id
+      requires: [],
+      hostWidget: "orders:kpi", // the HOST's widget id — foreign namespace expected
+      props: { source: "customers module" }, // presets, merged under cell props
+      size: "half",
+    },
+  ],
+}
+```
+
+Rules:
+
+- **Props precedence — the cell wins.** The entry's `props` are merged
+  _under_ each layout cell's own `props`, key by key. A cell that sets
+  `props: { source: "override" }` overrides the preset's `source` while
+  keeping the other preset keys.
+- **Target rules.** `hostWidget` must name a widget the host bundles itself
+  (a _local_ widget). An unregistered target — or one that is upstream-hosted
+  or itself an alias — makes the host skip your whole module at boot
+  (fail-soft, logged warning). Coordinate the id with the host operator; it is
+  deliberately not namespace-checked against your module.
+- **Rendering.** `render-view` advertises layout-referenced aliases under
+  `structuredContent.aliasWidgets`; the shell resolves them against its own
+  bundled widget map — no fetch, no extra bundle.
+
+Runnable example: the `customers:orders-kpi` entry in
+[`examples/customers-upstream/server.ts`](../../examples/customers-upstream/server.ts).
+
+## Interactive widgets with shared runtimes
+
+A remote widget that only renders pushed data needs nothing beyond React. To
+make it _interactive_ — calling tools via `useCallTool`, using `useToolQuery`
+or the toolkit-ui primitives — the bundle must share the **host's** module
+instances (React context identity), which takes one declaration on each side:
+
+1. **Externalise everything shared** in the widget's Vite build:
+
+   ```ts
+   rollupOptions: {
+     external: [
+       "react", "react/jsx-runtime", "react-dom", "react-dom/client",
+       "mcp-use/react",
+       "@miragon/mcp-toolkit-ui",
+       "@miragon/mcp-toolkit-ui/app",
+       "@miragon/mcp-toolkit-ui/hooks",
+       "@tanstack/react-query",
+     ],
+   }
+   ```
+
+2. **Declare what you import** in the manifest's `runtime` block — and bump to
+   `schemaVersion: 2`:
+
+   ```ts
+   runtime: { react: "^19.0.0", toolkitUi: "0.9.0" }, // + mcpUseReact / reactQuery as used
+   ```
+
+   Pin the toolkit version you built against. 0.x ranges match on major
+   **and** minor (the 0.x breaking axis); majors >= 1 match on major only. A
+   host that doesn't expose a runtime you declare skips your module fail-soft
+   at discovery — which beats the alternative: an _undeclared_ import dies at
+   bundle-evaluation time in the browser.
+
+3. The host, for its part, exposes the runtimes (`exposeSharedRuntime` +
+   `buildSharedRuntimeImportMap` in its app-bundle) and declares them via
+   `createFrameworkApp`'s `hostRuntime` option. See
+   [widgets — shared runtimes](../concepts/widgets.md#shared-runtimes-and-interactive-remote-widgets).
+
+CSS caveat: toolkit-ui primitives depend on the host page's compiled Tailwind.
+Utility classes the host's own widgets never emit are missing from the host's
+CSS, so a remote widget's Tailwind styling is only as complete as the host's
+class set — prefer inline styles or the primitives the host demonstrably uses.
+
+Runnable example: the refresh button in
+[`examples/customers-upstream/widget/CustomerCard.tsx`](../../examples/customers-upstream/widget/CustomerCard.tsx)
+calls the federated `customers_get-customer` tool through `useCallTool`.
+
 ## See also
 
 - [Using tool-codegen](using-tool-codegen.md)

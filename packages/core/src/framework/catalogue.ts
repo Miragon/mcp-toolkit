@@ -3,8 +3,8 @@ import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
-import { isRemoteWidget } from "../types/widget.js"
-import type { RemoteWidgetInfo } from "./render-view.js"
+import { isHostAliasWidget, isRemoteWidget } from "../types/widget.js"
+import type { HostAliasWidgetInfo, RemoteWidgetInfo } from "./render-view.js"
 
 export interface CatalogueInput {
   keys?: Record<string, unknown>
@@ -83,6 +83,14 @@ export interface CataloguePayload {
   availableSteps: AvailableStep[]
   keyCatalog: KeyCatalogEntry[]
   remoteWidgets: Record<string, RemoteWidgetInfo>
+  /**
+   * Manifest widgets that alias a host-bundled widget, keyed by alias id.
+   * Like {@link remoteWidgets} this is the FULL palette (unlike
+   * `render-view`, which filters to layout-referenced entries) so the
+   * builder can offer every alias. The shell resolves `hostWidget` in its
+   * own `widgets` map and merges `presetProps` under each cell's props.
+   */
+  aliasWidgets: Record<string, HostAliasWidgetInfo>
   /**
    * Pipeline validation issues from `validatePipeline`. The catalogue is
    * fail-soft (it still returns a usable palette even when the pipeline can't
@@ -206,6 +214,16 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
     }
   }
 
+  const aliasWidgets: Record<string, HostAliasWidgetInfo> = {}
+  for (const widget of allWidgets) {
+    if (isHostAliasWidget(widget)) {
+      aliasWidgets[widget.id] = {
+        hostWidget: widget.hostWidget,
+        ...(widget.presetProps ? { presetProps: widget.presetProps } : {}),
+      }
+    }
+  }
+
   const textSummary = [
     `Reachable widgets: ${reachableWidgets.length}`,
     `Keys: ${[...availableKeys].join(", ") || "none"}`,
@@ -241,6 +259,7 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
       availableSteps,
       keyCatalog,
       remoteWidgets,
+      aliasWidgets,
       validationIssues: validation.issues,
     },
   }

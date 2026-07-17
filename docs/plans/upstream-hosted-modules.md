@@ -10,6 +10,9 @@
 > [guides/building-a-ui-only-module](../guides/building-a-ui-only-module.md),
 > and [`examples/customers-upstream/`](../../examples/customers-upstream/).
 > A few reality notes vs the original plan are called out inline below.
+> The "Future: reactDom, reactQuery, toolkitUi" runtime extensions and
+> host-widget references (`hostWidget` manifest entries) have since shipped
+> in v2 of the manifest contract (`MODULE_MANIFEST_SCHEMA_VERSION = 2`).
 
 ## Goal
 

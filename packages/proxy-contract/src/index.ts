@@ -17,6 +17,9 @@ export {
   RuntimeRequirementSchema,
   DeclarativeStepSchema,
   RemoteWidgetSchema,
+  HostWidgetRefSchema,
+  ManifestWidgetSchema,
+  isHostWidgetRef,
   WidgetSizeSchema,
   ModuleManifestSchema,
   GET_MODULE_MANIFEST_TOOL,
@@ -25,6 +28,8 @@ export type {
   RuntimeRequirement,
   DeclarativeStep,
   RemoteWidget,
+  HostWidgetRef,
+  ManifestWidget,
   WidgetSizeHint,
   ModuleManifest,
 } from "./module-manifest.js"

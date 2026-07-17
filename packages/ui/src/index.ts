@@ -143,3 +143,23 @@ export type { ParseToolResultOptions } from "./lib/parse-tool-result.js"
  * `package.json`.
  */
 export const TOOLKIT_REACT_MAJOR = 19 as const
+
+// Shared-runtime contract for upstream-hosted (remote) widget bundles: the
+// host app-bundle exposes module namespaces on globalThis
+// (`exposeSharedRuntime`) and satisfies the bundles' externals through
+// import-map data:-URI shims (`buildSharedRuntimeImportMap`). Pure data +
+// DOM-free helpers (no `mcp-use/react` value imports), so it lives in the
+// root barrel. See packages/ui/src/runtime/shared-runtime.ts.
+export {
+  SHARED_RUNTIME_GLOBALS,
+  exposeSharedRuntime,
+  assertSharedRuntimeExposed,
+  dataUriShim,
+  buildSharedRuntimeImportMap,
+  MCP_USE_REACT_EXPORTS,
+  REACT_QUERY_EXPORTS,
+  TOOLKIT_UI_EXPORTS,
+  TOOLKIT_UI_APP_EXPORTS,
+  TOOLKIT_UI_HOOKS_EXPORTS,
+} from "./runtime/shared-runtime.js"
+export type { SharedRuntimeModules } from "./runtime/shared-runtime.js"

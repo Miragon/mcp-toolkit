@@ -1,6 +1,16 @@
 import * as React from "react"
 import * as ReactDOMClient from "react-dom/client"
 import { createRoot } from "react-dom/client"
+import * as McpUseReact from "mcp-use/react"
+import * as McpToolkitUi from "@miragon/mcp-toolkit-ui"
+import * as McpToolkitUiApp from "@miragon/mcp-toolkit-ui/app"
+import * as McpToolkitUiHooks from "@miragon/mcp-toolkit-ui/hooks"
+import * as ReactQuery from "@tanstack/react-query"
+import {
+  SHARED_RUNTIME_GLOBALS,
+  assertSharedRuntimeExposed,
+  exposeSharedRuntime,
+} from "@miragon/mcp-toolkit-ui"
 import { McpToolkitApp, adaptDataWidget } from "@miragon/mcp-toolkit-ui/app"
 import { ArticleCard } from "../modules/articles/widgets/ArticleCard.js"
 import { TasksBoard } from "../modules/tasks/widgets/TasksBoard.js"
@@ -10,12 +20,23 @@ import { OrdersTable } from "../modules/orders/widgets/OrdersTable.js"
 import type { OrdersDashboardData } from "../modules/orders/store.js"
 import "./main.css"
 
-// Expose the host's React + ReactDOM on globalThis so upstream-hosted widget
-// bundles can import them through the `<script type="importmap">` shim in
-// index.html. The shim re-exports `globalThis.React` / `globalThis.ReactDOM`,
-// guaranteeing the widget mounts against the same React instance as the host
-// (hooks + context rely on instance identity, not just version parity).
-Object.assign(globalThis, { React, ReactDOM: ReactDOMClient })
+// Expose the host's shared runtimes on globalThis so upstream-hosted widget
+// bundles can import them through the `<script type="importmap">` shims (see
+// index.html + the sharedRuntimeImportMap plugin in vite.config.ts). The shims
+// re-export these exact namespaces, guaranteeing a remote bundle gets the SAME
+// module instances as the host — hooks and React contexts (useCallTool,
+// useHostBridge, the react-query client) rely on instance identity, not just
+// version parity. Must match what host/index.ts declares via `hostRuntime`.
+exposeSharedRuntime({
+  React,
+  ReactDOM: ReactDOMClient,
+  McpUseReact,
+  McpToolkitUi,
+  McpToolkitUiApp,
+  McpToolkitUiHooks,
+  ReactQuery,
+})
+assertSharedRuntimeExposed(Object.values(SHARED_RUNTIME_GLOBALS))
 
 // Host-bundled widget registry. Upstream-hosted widgets (e.g. the customers
 // module) are fetched at runtime via the toolkit's default widget loader

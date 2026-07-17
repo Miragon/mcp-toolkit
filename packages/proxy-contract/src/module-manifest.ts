@@ -25,8 +25,17 @@ export const MODULE_ID_PATTERN = /^[a-z][a-z0-9-]*$/
  * skips any manifest whose `schemaVersion` exceeds the version it was built
  * against (fail-soft), so a newer upstream can advertise additional fields
  * without bricking an older host.
+ *
+ * Version history:
+ * - `2` — adds host-widget references ({@link HostWidgetRefSchema}, the
+ *   `hostWidget` field) and extended runtime requirements
+ *   (`runtime.mcpUseReact` / `runtime.toolkitUi` / `runtime.reactQuery`).
+ *   Manifests using either feature MUST declare `schemaVersion: 2` (enforced
+ *   by the schema) so v1 hosts skip them cleanly at their version gate
+ *   instead of half-parsing.
+ * - `1` — initial versioned contract: bundle widgets + declarative steps.
  */
-export const MODULE_MANIFEST_SCHEMA_VERSION = 1 as const
+export const MODULE_MANIFEST_SCHEMA_VERSION = 2 as const
 
 /**
  * Declarative step `id`, widget `id`, step `dataType`, and every entry in
@@ -49,20 +58,30 @@ const namespacedId = z.string().regex(NAMESPACED_ID_PATTERN, "must be `<moduleId
 export const RuntimeRequirementSchema = z.object({
   /**
    * Semver range the module's widget bundles expect for `react`. Example:
-   * `"^19.0.0"`. Phase 2 introduces range-parsing + version-checking; for now
-   * the contract just requires a non-empty string.
+   * `"^19.0.0"`.
    */
   react: z.string().min(1),
+  // The three optional keys below are semver ranges for shared runtimes
+  // beyond React. Declaring one means the module's bundles import that
+  // library as an external and the host must expose it (import map +
+  // globalThis shim). A host that does not expose a required runtime skips
+  // the module (fail-soft). Requires `schemaVersion: 2`.
+  /** The `mcp-use/react` entry, versioned by the `mcp-use` package. */
+  mcpUseReact: z.string().min(1).optional(),
+  /** `@miragon/mcp-toolkit-ui` (all subpaths share one version). */
+  toolkitUi: z.string().min(1).optional(),
+  /** `@tanstack/react-query`. */
+  reactQuery: z.string().min(1).optional(),
 })
 
 export type RuntimeRequirement = z.infer<typeof RuntimeRequirementSchema>
 
 /**
  * A declarative pipeline step. Reduces to a single upstream tool call with
- * input/output key mappings, no host-side JS. The executor lives in
- * `@miragon/mcp-toolkit-core` (Phase 2) and binds each step to its
- * originating module's `callTool` closure at registration time — a step
- * from module A can only invoke tools on upstream A.
+ * input/output key mappings, no host-side JS. The executor
+ * (`buildStepFromDeclaration` in `@miragon/mcp-toolkit-core`) binds each step
+ * to its originating module's `callTool` closure at registration time — a
+ * step from module A can only invoke tools on upstream A.
  */
 export const DeclarativeStepSchema = z
   .object({
@@ -164,6 +183,8 @@ export const RemoteWidgetSchema = z.object({
    * the upstream's MCP resource API.
    */
   bundle: z.string().min(1),
+  /** Mutually exclusive with `bundle` — reserved by {@link HostWidgetRefSchema}. */
+  hostWidget: z.never().optional(),
   /**
    * Optional layout size hint for the widget. Defaults to `"full"` when
    * omitted — matches the prior (size-less) contract, so upstreams that
@@ -183,6 +204,57 @@ export const RemoteWidgetSchema = z.object({
 export type RemoteWidget = z.infer<typeof RemoteWidgetSchema>
 
 /**
+ * A widget entry that references an EXISTING host-registered widget id instead
+ * of shipping a bundle. The host synthesizes an alias: layout cells referencing
+ * this module-namespaced `id` render the host widget identified by `hostWidget`,
+ * with `props` merged under each cell's own `props` (the cell wins).
+ * The target must be a host-bundled (local) widget; a target that is not
+ * registered — or is itself upstream-hosted — causes the host to skip the
+ * whole module (fail-soft). Requires `schemaVersion: 2`.
+ */
+export const HostWidgetRefSchema = z.object({
+  id: namespacedId,
+  /**
+   * Keys the aliased widget expects in its `data` prop. The pipeline resolver
+   * uses these to decide which steps must run before rendering the widget.
+   */
+  requires: z.array(namespacedId),
+  /**
+   * Host-registered widget id, e.g. `"shell:kpi-grid"`. Deliberately NOT
+   * namespace-checked against this module — it names a widget of the host,
+   * not one of the module's own.
+   */
+  hostWidget: z.string().min(1),
+  /** Mutually exclusive with `hostWidget` — reserved by {@link RemoteWidgetSchema}. */
+  bundle: z.never().optional(),
+  /** Preset props merged under each layout cell's `props` (cell props win). */
+  props: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * Optional layout size hint for the widget. Defaults to `"full"` when
+   * omitted, same as {@link RemoteWidgetSchema}.
+   */
+  size: WidgetSizeSchema.optional(),
+  /**
+   * Optional JSON Schema describing per-instance props the alias accepts via
+   * the layout cell's `props` field. Surfaced verbatim in the host's
+   * `get-framework-manifest`, exactly like a bundle widget's `propsSchema`.
+   */
+  propsSchema: z.record(z.string(), z.unknown()).optional(),
+})
+
+export type HostWidgetRef = z.infer<typeof HostWidgetRefSchema>
+
+/** Either widget flavour a manifest may carry. */
+export const ManifestWidgetSchema = z.union([RemoteWidgetSchema, HostWidgetRefSchema])
+
+export type ManifestWidget = z.infer<typeof ManifestWidgetSchema>
+
+/** Narrow a manifest widget entry to the host-reference variant. */
+export function isHostWidgetRef(widget: ManifestWidget): widget is HostWidgetRef {
+  return typeof (widget as HostWidgetRef).hostWidget === "string"
+}
+
+/**
  * The full manifest an upstream returns from `get-module-manifest`. Every
  * widget/step ID is validated to start with `<moduleId>:` so composition
  * across multiple upstreams cannot produce ID collisions.
@@ -200,7 +272,7 @@ export const ModuleManifestSchema = z
     moduleId: z.string().regex(MODULE_ID_PATTERN),
     runtime: RuntimeRequirementSchema,
     steps: z.array(DeclarativeStepSchema),
-    widgets: z.array(RemoteWidgetSchema),
+    widgets: z.array(ManifestWidgetSchema),
   })
   .superRefine((manifest, ctx) => {
     const prefix = `${manifest.moduleId}:`
@@ -244,6 +316,29 @@ export const ModuleManifestSchema = z
         })
       }
       seenWidgetIds.add(widget.id)
+    }
+    // v2 feature gating: manifests using v2-only fields must declare
+    // schemaVersion >= 2 so v1 hosts skip them cleanly at the version gate
+    // instead of half-parsing (runtime extras would be silently stripped).
+    const usesV2Runtime =
+      manifest.runtime.mcpUseReact !== undefined ||
+      manifest.runtime.toolkitUi !== undefined ||
+      manifest.runtime.reactQuery !== undefined
+    if (usesV2Runtime && manifest.schemaVersion < 2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["schemaVersion"],
+        message: "runtime.mcpUseReact/toolkitUi/reactQuery require schemaVersion >= 2",
+      })
+    }
+    for (const [i, widget] of manifest.widgets.entries()) {
+      if (isHostWidgetRef(widget) && manifest.schemaVersion < 2) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["widgets", i, "hostWidget"],
+          message: "hostWidget references require schemaVersion >= 2",
+        })
+      }
     }
   })
 

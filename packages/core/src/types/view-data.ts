@@ -60,6 +60,12 @@ export interface ViewStructuredContent {
   layout: LayoutConfig
   remoteWidgets?: Record<string, { bundle: string; moduleId: string }>
   /**
+   * Manifest widgets that alias a host-bundled widget; the shell resolves
+   * `hostWidget` in its own `widgets` map and merges `presetProps` under each
+   * cell's props. Only layout-referenced aliases are advertised.
+   */
+  aliasWidgets?: Record<string, { hostWidget: string; presetProps?: Record<string, unknown> }>
+  /**
    * Whether the in-iframe visual builder is actually usable on this server —
    * i.e. `app.builder` is enabled and the app-only `get-builder-catalogue`
    * tool is registered. `render-view` derives it from `createFrameworkApp`'s

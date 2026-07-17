@@ -6,8 +6,9 @@ export type {
   WidgetDefinition,
   LocalWidgetDefinition,
   RemoteWidgetDefinition,
+  HostAliasWidgetDefinition,
 } from "./widget.js"
-export { isRemoteWidget } from "./widget.js"
+export { isRemoteWidget, isHostAliasWidget } from "./widget.js"
 export type { AppDefinition, AppPlugin } from "./app.js"
 export type { PipelineConfig, PipelineStepRef } from "./pipeline.js"
 export type { AppConfig, AppConfigEntry, ValidationResult } from "./config.js"

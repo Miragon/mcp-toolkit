@@ -9,6 +9,14 @@ import "./main.css"
 // Expose the bundle's React + ReactDOM on globalThis so upstream-hosted widget
 // bundles can import them through the importmap shim in index.html — they must
 // mount against the SAME React instance (hooks rely on instance identity).
+// `@miragon/mcp-toolkit-ui` ships helpers for this contract: swap this line
+// for `exposeSharedRuntime({ React, ReactDOM: ReactDOMClient })`, and when you
+// want remote widgets to use `useCallTool`/react-query, expose the extended
+// runtimes too (`McpUseReact`, `McpToolkitUi*`, `ReactQuery`) and generate the
+// matching import-map entries with `buildSharedRuntimeImportMap` — then
+// declare them in `createFrameworkApp`'s `hostRuntime` option. See the
+// upstream-hosted widgets docs (docs/concepts/widgets.md) and
+// examples/app-bundle/ in the toolkit repo for the full wiring.
 Object.assign(globalThis, { React, ReactDOM: ReactDOMClient })
 
 // Widget-id map: every widget id declared in a plugin's `definition.ts` must

@@ -15,7 +15,9 @@ interface WidgetDefinition {
   size: WidgetSize // "quarter" | "third" | "half" | "full" | "header"
   propsSchema?: Record<string, unknown> // JSON Schema for per-instance `props`
   bundle?: string // upstream-hosted widgets only (resource URI)
-  moduleId?: string // upstream-hosted widgets only (originating module)
+  moduleId?: string // upstream-contributed widgets only (originating module)
+  hostWidget?: string // host-alias widgets only (target host widget id)
+  presetProps?: Record<string, unknown> // host-alias widgets only (merged under cell props)
 }
 
 interface WidgetProps {
@@ -27,6 +29,13 @@ interface WidgetProps {
 
 A widget runs only if all `requires` keys exist in `context.keys` — the
 `WidgetRenderer` in `@miragon/mcp-toolkit-ui` filters missing ones out.
+
+The union has three variants (narrow with `isRemoteWidget` /
+`isHostAliasWidget`): **local** (code in the host's app-bundle), **remote**
+(`bundle` + `moduleId` — fetched from the upstream at render time), and
+**host-alias** (`hostWidget` + `moduleId` — an upstream module reusing a
+host-bundled widget under its own id, see
+[upstream-hosted widgets](#upstream-hosted-widgets)).
 
 ## `requires` vs `consumes` — two distinct contracts
 
@@ -133,10 +142,17 @@ hooks wrap). Server-stored `stepData` under `context` is available too via
     errors: { stepId, reason }[],
   },
   layout: LayoutConfig,
+  // layout-referenced upstream widgets, keyed by widget id:
+  remoteWidgets: Record<id, { bundle, moduleId }>, // fetched via read-widget-bundle
+  aliasWidgets: Record<id, { hostWidget, presetProps? }>, // resolved in the host bundle
 }
 ```
 
 The widget bundle feeds `context.keys` into each widget's `WidgetProps.keys`.
+`remoteWidgets` and `aliasWidgets` are filtered to the widgets the layout
+actually references: the shell's loader fetches each `remoteWidgets` bundle on
+demand, and resolves each `aliasWidgets` entry against its own `widgets` map
+(merging `presetProps` under the cell's `props` — the cell wins).
 
 ## Bundling
 
@@ -155,8 +171,8 @@ A widget can alternatively ship with the upstream MCP server that owns
 its data — the host doesn't need to know about it at build time.
 
 1. The upstream exposes two things: an MCP resource serving the built
-   widget JS (e.g. `ui://customers/customer-card.js`, with `react` +
-   `react/jsx-runtime` externalised to the host's import map), and a
+   widget JS (e.g. `ui://customers/customer-card.js`, with its shared
+   runtimes externalised to the host's import map), and a
    `get-module-manifest` tool advertising both the widget id → bundle
    URI mapping and the declarative step that produces the widget's
    required keys.
@@ -171,17 +187,64 @@ its data — the host doesn't need to know about it at build time.
    memoised next to the host-bundled widgets for the lifetime of the
    view.
 
-The widget bundle must assert against the host's React (same major), and
-the manifest declares `runtime.react` so the host can reject
-incompatible bundles at boot. See
-[`examples/customers-upstream/`](../../examples/customers-upstream/) for
-a runnable example and
+See [`examples/customers-upstream/`](../../examples/customers-upstream/)
+for a runnable example and
 [`packages/ui/src/app/remote-widget-loader.ts`](../../packages/ui/src/app/remote-widget-loader.ts)
 for the loader internals.
+
+#### Shared runtimes and interactive remote widgets
+
+A remote bundle never ships its own React — `react` / `react/jsx-runtime`
+resolve through the host page's `<script type="importmap">` to the host's
+instance. The same mechanism extends to `mcp-use/react`, the three
+`@miragon/mcp-toolkit-ui` barrels, and `@tanstack/react-query`, which is what
+makes remote widgets _interactive_: `useCallTool` / `useHostBridge` /
+`useToolQuery` read React contexts, and context lookups only resolve against
+the **same module instance** the host rendered the providers with. The wiring
+has three host-side parts (all from `@miragon/mcp-toolkit-ui`):
+
+1. The app-bundle entry calls `exposeSharedRuntime({ React, ReactDOM, ... })`
+   to put the module namespaces on `globalThis`.
+2. The host page's import map gains entries from
+   `buildSharedRuntimeImportMap(...)` — data:-URI shims re-exporting exactly
+   those globals (drift-tested export lists, so the shims can't lag the
+   barrels).
+3. The server declares what the bundle exposes via `createFrameworkApp`'s
+   `hostRuntime` option.
+
+On the module side, the widget build externalises the libraries it imports and
+the manifest declares them in `runtime` (`mcpUseReact` / `toolkitUi` /
+`reactQuery`, requiring `schemaVersion: 2`). At discovery the host checks every
+declared range against what it exposes and skips the module fail-soft on any
+mismatch — majors >= 1 compare majors (same rule as `runtime.react` always
+had), 0.x ranges also compare minors because the minor is the 0.x breaking
+axis. A runtime the module needs but never declares fails later and uglier: the
+bundle's import dies in the browser (the loader wraps that error with a hint
+pointing here).
+
+CSS caveat: toolkit-ui primitives rely on the host page's compiled Tailwind.
+Classes the host's own widgets never emit are not in the host's CSS, so styling
+of a remote widget degrades to whatever classes the host happens to ship —
+inline styles or host-guaranteed primitives are the safe choices.
+
+#### Host-widget references (aliases)
+
+A manifest widget entry can, instead of a `bundle`, carry
+`hostWidget: "<host-widget-id>"` (schemaVersion 2): the module contributes an
+_alias_ onto a widget the host already bundles — no second bundle, no fetch.
+Layout cells referencing the module-namespaced alias id render the host
+component with the entry's `props` merged **under** the cell's own `props`
+(the cell wins key-by-key). The target must be a host-bundled (local) widget;
+an unregistered, remote, or alias target makes the host skip the whole module
+at boot (fail-soft). `render-view` advertises layout-referenced aliases under
+`structuredContent.aliasWidgets`, and the shell resolves them against its own
+`widgets` map (`resolveAliasComponents`).
 
 ## Reference
 
 - `WidgetDefinition`, `WidgetProps`, `WidgetSize` → `packages/core/src/types/widget.ts`
 - Render payload → `packages/core/src/framework/render-view.ts`
 - Remote loader → `packages/ui/src/app/remote-widget-loader.ts`
+- Shared-runtime contract → `packages/ui/src/runtime/shared-runtime.ts`
+- Alias resolution → `packages/ui/src/app/widget-renderer.tsx` (`resolveAliasComponents`)
 - Manifest contract → `packages/proxy-contract/src/module-manifest.ts`

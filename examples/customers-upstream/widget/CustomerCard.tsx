@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { parseToolResult, useCallTool } from "@miragon/mcp-toolkit-ui"
 
 /**
  * Remote-hosted widget served as an MCP resource by `customers-upstream`.
@@ -7,10 +8,14 @@ import { useState } from "react"
  * through `read-widget-bundle`, evaluated via a Blob URL + dynamic `import()`,
  * and mounted by `McpAppView` next to host-bundled widgets.
  *
- * `react` and `react/jsx-runtime` are external: they resolve through the
- * host's `<script type="importmap">` (see `examples/app-bundle/index.html`),
- * which re-exports `globalThis.React` — same instance as the host, so hooks
- * and context work identically.
+ * All bare imports are external (see `vite.config.ts`): they resolve through
+ * the host page's `<script type="importmap">` shims
+ * (`buildSharedRuntimeImportMap`), which re-export the namespaces the host's
+ * `exposeSharedRuntime` call put on globalThis — the SAME module instances as
+ * the host. That instance identity is what makes `useCallTool` work here:
+ * the hook reads the host's React context, so this remote widget can call
+ * federated tools (`customers_get-customer`) interactively. The manifest
+ * declares the dependency via `runtime.toolkitUi`.
  */
 
 interface Customer {
@@ -37,13 +42,37 @@ function str(value: unknown): string {
 }
 
 export default function CustomerCard({ keys }: { keys: Keys }) {
-  const customer = (keys["customers:customer"] ?? {}) as Customer
+  // The pipeline-resolved customer is the initial render; a refresh replaces
+  // it with a live re-fetch through the host's federated tool.
+  const [refreshed, setRefreshed] = useState<Customer | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
+  const callTool = useCallTool()
+
+  const customer = refreshed ?? keys["customers:customer"] ?? {}
   const name = str(customer.name) || "(unknown)"
   const email = str(customer.email)
   const tier = str(customer.tier) || "bronze"
   const since = str(customer.since)
   const [expanded, setExpanded] = useState(false)
   const tierStyle = tierColor[tier] ?? tierBronze
+
+  const refresh = async () => {
+    const id = str(customer.id)
+    if (!callTool || !id || refreshing) return
+    setRefreshing(true)
+    setRefreshError(null)
+    try {
+      // Federated tool on the host: `<proxy>_<tool>` — routed back to this
+      // widget's own upstream server.
+      const result = await callTool("customers_get-customer", { id })
+      setRefreshed(parseToolResult(result))
+    } catch (err) {
+      setRefreshError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   return (
     <div
@@ -113,26 +142,47 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
       <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
         customer since {since || "—"}
       </div>
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        style={{
-          marginTop: 12,
-          padding: "5px 12px",
-          border: "1px solid #e2e8f0",
-          borderRadius: 6,
-          background: "#f8fafc",
-          color: "#334155",
-          cursor: "pointer",
-          fontSize: 12,
-          fontWeight: 500,
-          transition: "background 0.15s",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "#f8fafc")}
-      >
-        {expanded ? "hide id" : "show id"}
-      </button>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          style={{
+            padding: "5px 12px",
+            border: "1px solid #e2e8f0",
+            borderRadius: 6,
+            background: "#f8fafc",
+            color: "#334155",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 500,
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#f8fafc")}
+        >
+          {expanded ? "hide id" : "show id"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          disabled={!callTool || refreshing}
+          style={{
+            padding: "5px 12px",
+            border: "1px solid #bae6fd",
+            borderRadius: 6,
+            background: "#e0f2fe",
+            color: "#0369a1",
+            cursor: refreshing ? "wait" : "pointer",
+            fontSize: 12,
+            fontWeight: 500,
+          }}
+        >
+          {refreshing ? "refreshing…" : refreshed ? "refreshed ✓ — again" : "refresh via tool"}
+        </button>
+      </div>
+      {refreshError && (
+        <div style={{ fontSize: 12, color: "#b91c1c", marginTop: 8 }}>{refreshError}</div>
+      )}
       {expanded && (
         <div
           style={{

@@ -1,3 +1,4 @@
+import { isHostWidgetRef } from "@miragon/mcp-toolkit-proxy-contract"
 import type { AppPlugin } from "../types/app.js"
 import type { WidgetDefinition } from "../types/widget.js"
 import { buildStepFromDeclaration } from "../pipeline/declarative-step.js"
@@ -18,20 +19,30 @@ import type { DiscoveredModule } from "./discover.js"
  * - Compiles each remote widget into a `WidgetDefinition` carrying the
  *   bundle URI + originating `moduleId`. `render-view` relays the bundle
  *   metadata to the browser-side loader.
+ * - Compiles each host-widget reference into a `HostAliasWidgetDefinition`:
+ *   no bundle, no resource read — `render-view` advertises the alias via
+ *   `aliasWidgets` and the browser shell renders the host component named
+ *   by `hostWidget` with the manifest's `props` as `presetProps` (merged
+ *   under each layout cell's own props).
  *
  * Widget size defaults to `"full"` when the manifest omits it — matches
  * the pre-size-field contract.
  */
 export function synthesizeModulePlugin(discovered: DiscoveredModule): AppPlugin {
   const { manifest, proxy } = discovered
-  const widgets: WidgetDefinition[] = manifest.widgets.map((w) => ({
-    id: w.id,
-    requires: [...w.requires],
-    size: w.size ?? "full",
-    ...(w.propsSchema ? { propsSchema: w.propsSchema } : {}),
-    bundle: w.bundle,
-    moduleId: manifest.moduleId,
-  }))
+  const widgets: WidgetDefinition[] = manifest.widgets.map((w) => {
+    const base = {
+      id: w.id,
+      requires: [...w.requires],
+      size: w.size ?? "full",
+      ...(w.propsSchema ? { propsSchema: w.propsSchema } : {}),
+      moduleId: manifest.moduleId,
+    }
+    if (isHostWidgetRef(w)) {
+      return { ...base, hostWidget: w.hostWidget, ...(w.props ? { presetProps: w.props } : {}) }
+    }
+    return { ...base, bundle: w.bundle }
+  })
   return {
     definition: {
       name: manifest.moduleId,

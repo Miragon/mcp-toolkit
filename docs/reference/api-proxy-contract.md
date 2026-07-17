@@ -92,15 +92,83 @@ widgets + declarative steps as a synthetic `AppPlugin`. The manifest
 contract lives in this package so admin tooling and module authors
 share one validator.
 
+The contract is versioned: `MODULE_MANIFEST_SCHEMA_VERSION` is currently `2`,
+and a v2 host accepts both v1 and v2 manifests (the gate only skips manifests
+declaring a _newer_ version than the host understands, fail-soft). Declare the
+minimum version you actually use: stay on `schemaVersion: 1` (or omit it)
+unless the manifest uses a v2 feature — `hostWidget` widget entries or the
+extended `runtime` keys — in which case `schemaVersion: 2` is mandatory and
+enforced by the schema.
+
 ### Schemas
 
-| Symbol                     | Shape                                                                                                                                                                                                                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ModuleManifestSchema`     | `{ schemaVersion?, moduleId, runtime, steps[], widgets[] }`. `schemaVersion` is optional and defaults to `1`; a host skips any manifest whose `schemaVersion` exceeds the version it was built against (fail-soft). `superRefine` rejects duplicate step/widget IDs and any ID that doesn't start with `<moduleId>:`. |
-| `RuntimeRequirementSchema` | `{ react: string }`. Semver range the module's widget bundles need (e.g. `"^19.0.0"`). Host fail-soft skips modules whose range doesn't satisfy `TOOLKIT_REACT_MAJOR`.                                                                                                                                                |
-| `DeclarativeStepSchema`    | `{ id, dataType, requires, produces, tool, inputMapping, outputMapping }`. `tool` is unprefixed — host prepends the originating proxy name. `inputMapping` reads dot-paths into the pipeline context (e.g. `keys.<ns>:itemId`); `outputMapping` writes dot-paths from the tool response into produced keys.           |
-| `RemoteWidgetSchema`       | `{ id, requires, bundle, size?, propsSchema? }`. `bundle` is an MCP resource URI (typically `ui://<moduleId>/widgets/<name>.js`). `size` defaults to `"full"` when omitted; `propsSchema` mirrors `WidgetDefinition.propsSchema` from `@miragon/mcp-toolkit-core` and surfaces verbatim in `get-framework-manifest`.  |
-| `WidgetSizeSchema`         | `z.enum(["quarter", "third", "half", "full", "header"])`. Mirrors `WidgetSize` from core so the manifest contract stays standalone.                                                                                                                                                                                   |
+| Symbol                     | Shape                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ModuleManifestSchema`     | `{ schemaVersion?, moduleId, runtime, steps[], widgets[] }`. `schemaVersion` is optional and defaults to `1`; a host skips any manifest whose `schemaVersion` exceeds the version it was built against (fail-soft). `superRefine` rejects duplicate step/widget IDs, any ID that doesn't start with `<moduleId>:`, and v2-only features (`hostWidget` entries, runtime extras) declared under `schemaVersion: 1`. |
+| `RuntimeRequirementSchema` | `{ react, mcpUseReact?, toolkitUi?, reactQuery? }`. Semver ranges the module's widget bundles need. `react` (e.g. `"^19.0.0"`) is always required; the optional extras declare shared runtimes the bundles import as externals and require `schemaVersion: 2`. See [Runtime requirements](#runtime-requirements).                                                                                                 |
+| `DeclarativeStepSchema`    | `{ id, dataType, requires, produces, tool, inputMapping, outputMapping }`. `tool` is unprefixed — host prepends the originating proxy name. `inputMapping` reads dot-paths into the pipeline context (e.g. `keys.<ns>:itemId`); `outputMapping` writes dot-paths from the tool response into produced keys.                                                                                                       |
+| `ManifestWidgetSchema`     | `z.union([RemoteWidgetSchema, HostWidgetRefSchema])` — either widget flavour a manifest may carry. Narrow with `isHostWidgetRef`.                                                                                                                                                                                                                                                                                 |
+| `RemoteWidgetSchema`       | `{ id, requires, bundle, size?, propsSchema? }`. `bundle` is an MCP resource URI (typically `ui://<moduleId>/widgets/<name>.js`). `size` defaults to `"full"` when omitted; `propsSchema` mirrors `WidgetDefinition.propsSchema` from `@miragon/mcp-toolkit-core` and surfaces verbatim in `get-framework-manifest`.                                                                                              |
+| `HostWidgetRefSchema`      | `{ id, requires, hostWidget, props?, size?, propsSchema? }`. No bundle — aliases an existing **host-bundled** widget; `props` are presets merged under each layout cell's `props` (the cell wins). Requires `schemaVersion: 2`. See [Host-widget references](#host-widget-references-schemaversion-2).                                                                                                            |
+| `WidgetSizeSchema`         | `z.enum(["quarter", "third", "half", "full", "header"])`. Mirrors `WidgetSize` from core so the manifest contract stays standalone.                                                                                                                                                                                                                                                                               |
+
+`bundle` and `hostWidget` are mutually exclusive — a widget entry carrying
+both (or neither) fails both union arms and is rejected.
+
+### Host-widget references (schemaVersion 2)
+
+A `hostWidget` entry contributes a widget **without shipping a bundle**: it
+aliases a widget the host already bundles. Layout cells referencing the
+module-namespaced alias `id` render the host component named by `hostWidget`,
+with the entry's `props` applied as presets:
+
+```jsonc
+{
+  "schemaVersion": 2,
+  "moduleId": "customers",
+  "runtime": { "react": "^19.0.0" },
+  "steps": [],
+  "widgets": [
+    {
+      "id": "customers:revenue-kpis", // module-namespaced, like any widget id
+      "requires": [],
+      "hostWidget": "shell:kpi-grid", // a widget the HOST bundles — foreign namespace expected
+      "props": { "title": "Revenue", "columns": 4 }, // preset props
+      "size": "half",
+    },
+  ],
+}
+```
+
+- **Props precedence (the cell wins):** the manifest's `props` are merged
+  _under_ each layout cell's own `props`, key by key — a cell rendering
+  `customers:revenue-kpis` with `props: { "columns": 2 }` gets
+  `{ title: "Revenue", columns: 2 }`.
+- **Target rules:** `hostWidget` names a widget of the _host_, so it is
+  deliberately not namespace-checked against the module. The target must be a
+  host-bundled (local) widget — a target that is unregistered, upstream-hosted,
+  or itself an alias makes the host skip the whole module at boot (fail-soft,
+  logged warning; the module's steps and other widgets are dropped with it).
+
+### Runtime requirements
+
+`RuntimeRequirementSchema` describes the shared libraries the module's widget
+bundles import as externals. The host checks every declared entry at discovery
+time and skips the module (fail-soft) when it cannot satisfy one:
+
+| Key            | Library                                       | Notes                                                            |
+| -------------- | --------------------------------------------- | ---------------------------------------------------------------- |
+| `react`        | `react` / `react-dom`                         | Always required. Semver range, e.g. `"^19.0.0"`.                 |
+| `mcpUseReact?` | `mcp-use/react`                               | Versioned by the `mcp-use` package. Requires `schemaVersion: 2`. |
+| `toolkitUi?`   | `@miragon/mcp-toolkit-ui` (all three barrels) | All subpaths share one version. Requires `schemaVersion: 2`.     |
+| `reactQuery?`  | `@tanstack/react-query`                       | Requires `schemaVersion: 2`.                                     |
+
+Range semantics (`runtimeRangeSatisfied` in `@miragon/mcp-toolkit-core`):
+plain, caret, and tilde forms only. Majors >= 1 compare majors; 0.x ranges
+additionally compare minors, because the minor is the breaking axis for 0.x
+packages (the toolkit itself included). An extra the module requires but the
+host does not declare (via `createFrameworkApp`'s `hostRuntime` option) is a
+mismatch — declaring nothing means exposing nothing.
 
 ### Patterns
 
@@ -111,20 +179,28 @@ share one validator.
 
 ### Constants
 
-| Symbol                           | Value                   | Purpose                                                                                                                                                                                     |
-| -------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET_MODULE_MANIFEST_TOOL`       | `"get-module-manifest"` | Canonical tool name an upstream exposes to advertise its manifest. Use this constant on both sides.                                                                                         |
-| `MODULE_MANIFEST_SCHEMA_VERSION` | `1`                     | Current version of the module-manifest contract. Stamped as the default `schemaVersion`; a host skips manifests whose `schemaVersion` exceeds the version it was built against (fail-soft). |
+| Symbol                           | Value                   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET_MODULE_MANIFEST_TOOL`       | `"get-module-manifest"` | Canonical tool name an upstream exposes to advertise its manifest. Use this constant on both sides.                                                                                                                                                                                                                                                                                                             |
+| `MODULE_MANIFEST_SCHEMA_VERSION` | `2`                     | Current version of the module-manifest contract. The version gate is strictly-greater with no lower bound, so a v2 host accepts **both** v1 and v2 manifests; only manifests from the future are skipped (fail-soft). Manifests using v2-only features must declare `schemaVersion: 2` — the schema rejects under-declaration, which is what lets v1 (0.8.x) hosts skip them cleanly at their own version gate. |
 
 ### Types
 
-| Type                 | Origin                                      |
-| -------------------- | ------------------------------------------- |
-| `ModuleManifest`     | `z.infer<typeof ModuleManifestSchema>`.     |
-| `RuntimeRequirement` | `z.infer<typeof RuntimeRequirementSchema>`. |
-| `DeclarativeStep`    | `z.infer<typeof DeclarativeStepSchema>`.    |
-| `RemoteWidget`       | `z.infer<typeof RemoteWidgetSchema>`.       |
-| `WidgetSizeHint`     | `z.infer<typeof WidgetSizeSchema>`.         |
+| Type                 | Origin                                                                    |
+| -------------------- | ------------------------------------------------------------------------- |
+| `ModuleManifest`     | `z.infer<typeof ModuleManifestSchema>`.                                   |
+| `RuntimeRequirement` | `z.infer<typeof RuntimeRequirementSchema>`.                               |
+| `DeclarativeStep`    | `z.infer<typeof DeclarativeStepSchema>`.                                  |
+| `ManifestWidget`     | `z.infer<typeof ManifestWidgetSchema>` — `RemoteWidget \| HostWidgetRef`. |
+| `RemoteWidget`       | `z.infer<typeof RemoteWidgetSchema>`.                                     |
+| `HostWidgetRef`      | `z.infer<typeof HostWidgetRefSchema>`.                                    |
+| `WidgetSizeHint`     | `z.infer<typeof WidgetSizeSchema>`.                                       |
+
+### Guards
+
+| Symbol            | Signature                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| `isHostWidgetRef` | `(widget: ManifestWidget) → widget is HostWidgetRef`. True when the entry carries a `hostWidget`. |
 
 See [`packages/proxy-contract/src/module-manifest.ts`](../../packages/proxy-contract/src/module-manifest.ts)
 and [the upstream-hosted modules plan](../plans/upstream-hosted-modules.md)

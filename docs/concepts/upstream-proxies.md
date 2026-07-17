@@ -88,9 +88,28 @@ A proxy can opt into _module discovery_ by setting
 `upstreamModules: true` in its config entry. At boot the host calls
 `get-module-manifest` on the upstream — if present, the returned
 `ModuleManifest` (see `packages/proxy-contract/src/module-manifest.ts`)
-declares declarative pipeline steps and widget bundle URIs. The host
-compiles those into a synthetic `AppPlugin` and registers it alongside
-user-supplied plugins; no consumer-side plugin file needed.
+declares declarative pipeline steps and widgets (bundle URIs or
+`hostWidget` aliases onto host-bundled widgets). The host compiles those
+into a synthetic `AppPlugin` and registers it alongside user-supplied
+plugins; no consumer-side plugin file needed.
+
+Discovery is fail-soft throughout — a bad upstream skips that module
+(with a logged warning) and never bricks the boot. The gates, in order:
+
+1. **Schema version** — manifests declaring a `schemaVersion` newer than
+   the host understands are skipped (probed before the full parse, so
+   future required fields don't surface as a confusing parse error). The
+   contract is at v2; a v2 host accepts both v1 and v2 manifests.
+2. **Validation** — Zod parse + namespace/duplicate checks; v2-only
+   features (`hostWidget`, runtime extras) require `schemaVersion: 2`.
+3. **Runtime requirements** — every range in the manifest's `runtime`
+   block is checked against what the host actually exposes: the React
+   major always, plus any declared extras (`mcpUseReact` / `toolkitUi` /
+   `reactQuery`) against `createFrameworkApp`'s `hostRuntime` option. An
+   extra the host doesn't declare is a mismatch.
+4. **Host-alias targets** — after first-party plugins load, any module
+   whose `hostWidget` reference doesn't resolve to a registered
+   host-bundled widget is dropped.
 
 Declarative steps are thin wrappers: each one names an upstream tool +
 `inputMapping` + `outputMapping` and is executed by

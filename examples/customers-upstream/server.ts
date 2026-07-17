@@ -2,6 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { MCPServer } from "mcp-use/server"
+import { TOOLKIT_VERSION } from "@miragon/mcp-toolkit-core"
 import { GET_MODULE_MANIFEST_TOOL, type ModuleManifest } from "@miragon/mcp-toolkit-proxy-contract"
 import { z } from "zod"
 
@@ -10,10 +11,17 @@ import { z } from "zod"
  *
  * Ships everything the host needs for this module:
  *   - get-customer         tool the declarative step calls
- *   - get-module-manifest  advertises the step + widget so the host compiles
+ *   - get-module-manifest  advertises the step + widgets so the host compiles
  *                          them into its registries at boot (no host-side code)
  *   - ui://customers/customer-card.js   the widget bundle, served as an MCP
  *                          resource and fetched on demand via `read-widget-bundle`
+ *
+ * The manifest is a `schemaVersion: 2` document exercising both v2 features:
+ *   - `runtime.toolkitUi` — the widget bundle imports `useCallTool` from
+ *     `@miragon/mcp-toolkit-ui` as an external, so the host must expose that
+ *     shared runtime (see `hostRuntime` in `examples/host/index.ts`).
+ *   - a `hostWidget` reference — `customers:orders-kpi` aliases the host's
+ *     bundled `orders:kpi` widget instead of shipping a second bundle.
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -92,9 +100,15 @@ server.tool(
 )
 
 const manifest: ModuleManifest = {
-  schemaVersion: 1,
+  // v2 is REQUIRED here: the manifest uses `runtime.toolkitUi` and a
+  // `hostWidget` entry (the schema rejects under-declaration). A 0.8.x host
+  // skips this module fail-soft at its version gate instead of half-parsing.
+  schemaVersion: 2,
   moduleId: "customers",
-  runtime: { react: "^19.0.0" },
+  // In-repo example: importing TOOLKIT_VERSION keeps CI green across release
+  // bumps. A real-world upstream pins the literal toolkit version it built
+  // against (0.x: major AND minor must match the host's).
+  runtime: { react: "^19.0.0", toolkitUi: TOOLKIT_VERSION },
   steps: [
     {
       id: "customers:resolve-customer",
@@ -111,6 +125,19 @@ const manifest: ModuleManifest = {
       id: "customers:customer-card",
       requires: ["customers:customer"],
       bundle: bundleUri,
+      size: "half",
+    },
+    {
+      // Host-widget reference (v2): no bundle — the host renders its own
+      // bundled `orders:kpi` component wherever a layout references
+      // `customers:orders-kpi`. `props` are preset props merged UNDER each
+      // layout cell's `props` (the cell wins key-by-key). The target must be
+      // a host-bundled widget; an unknown/remote target makes the host skip
+      // this whole module (fail-soft) at boot.
+      id: "customers:orders-kpi",
+      requires: [],
+      hostWidget: "orders:kpi",
+      props: { source: "customers-upstream alias" },
       size: "half",
     },
   ],

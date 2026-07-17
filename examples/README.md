@@ -38,8 +38,21 @@ examples/
 2. **Fully upstream-hosted module** (`customers`): upstream ships _both_ the
    declarative step and the widget bundle. Host discovers the module via
    `get-module-manifest`, compiles the declarative step, and fetches the
-   widget bundle at render time through `read-widget-bundle`. See
-   `customers-upstream/`.
+   widget bundle at render time through `read-widget-bundle`. The manifest is
+   a `schemaVersion: 2` document that also exercises both v2 features:
+   - **Interactive remote widget**: `CustomerCard` imports `useCallTool` from
+     `@miragon/mcp-toolkit-ui` (externalised; declared via
+     `runtime.toolkitUi`) and re-fetches its customer through the federated
+     `customers_get-customer` tool — the host's import-map shims hand the
+     bundle the host's own module instances, so the hook's React context
+     resolves (see `app-bundle/main.tsx` `exposeSharedRuntime`).
+   - **Host-widget alias**: `customers:orders-kpi` carries
+     `hostWidget: "orders:kpi"` instead of a bundle — layouts referencing the
+     alias render the host's bundled `orders:kpi` component with the
+     manifest's preset `props` merged under each cell's `props` (the cell
+     wins).
+
+   See `customers-upstream/`.
 
 3. **Self-owned server with its own tools** (`tasks`): the module registers its
    **own** tools with `createToolRegistrar` (`list_tasks`, `create_task`,
@@ -150,11 +163,19 @@ work regardless.
   `callTool` closure into `appConfig` — steps use it without touching HTTP or
   the MCP SDK.
 - `customers-upstream` exposes `get-module-manifest`. The host discovers it
-  at boot, synthesises an `AppPlugin` from the manifest, and compiles the
-  declarative step into the step registry — no host-side code for that
-  module. The widget bundle is fetched lazily at render time via
-  `read-widget-bundle`, evaluated through a Blob URL in the browser, and
-  mounts against the host's React instance via the app-bundle import map.
+  at boot, checks the manifest's `runtime` requirements against its declared
+  `hostRuntime` (see `host/index.ts`), synthesises an `AppPlugin` from the
+  manifest, and compiles the declarative step into the step registry — no
+  host-side code for that module. The widget bundle is fetched lazily at
+  render time via `read-widget-bundle`, evaluated through a Blob URL in the
+  browser, and mounts against the host's shared runtimes (React, toolkit-ui,
+  react-query) via the app-bundle import map — same instances, so its
+  `useCallTool` refresh button works.
+- The manifest's `customers:orders-kpi` entry proves the `hostWidget` alias
+  path: the host validates the target `orders:kpi` is one of its own bundled
+  widgets at boot and renders it (with the manifest's preset props under the
+  cell's props) wherever a layout references the alias id — no second bundle
+  shipped or fetched.
 - `render-view` runs the pipeline, resolves widget requirements, returns
   `structuredContent` with per-widget data ready for an iframe bundle.
 

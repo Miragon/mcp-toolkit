@@ -9,6 +9,7 @@ export type {
   WidgetDefinition,
   LocalWidgetDefinition,
   RemoteWidgetDefinition,
+  HostAliasWidgetDefinition,
   AppDefinition,
   AppPlugin,
   PipelineConfig,
@@ -20,7 +21,7 @@ export type {
   StepDataEntry,
   RefreshParams,
 } from "./types/index.js"
-export { isRemoteWidget } from "./types/index.js"
+export { isRemoteWidget, isHostAliasWidget } from "./types/index.js"
 export { APP_ONLY_META, uiMeta } from "./types/index.js"
 export type { UiMetaOptions } from "./types/index.js"
 
@@ -54,6 +55,7 @@ export type {
   RenderViewInput,
   RenderViewOptions,
   RemoteWidgetInfo,
+  HostAliasWidgetInfo,
 } from "./framework/render-view.js"
 export {
   buildSingleWidgetView,
@@ -104,9 +106,21 @@ export { buildProxyAppConfigs } from "./proxy/build-proxy-app-configs.js"
 
 export { buildStepFromDeclaration, dotPath } from "./pipeline/declarative-step.js"
 export type { DeclarativeAppConfig } from "./pipeline/declarative-step.js"
-export { discoverUpstreamModules, DEFAULT_HOST_REACT_MAJOR } from "./module-loader/discover.js"
-export type { DiscoveredModule, DiscoverUpstreamModulesOptions } from "./module-loader/discover.js"
+export {
+  discoverUpstreamModules,
+  DEFAULT_HOST_REACT_MAJOR,
+  TOOLKIT_VERSION,
+  findRuntimeIssue,
+  runtimeRangeSatisfied,
+} from "./module-loader/discover.js"
+export type {
+  DiscoveredModule,
+  DiscoverUpstreamModulesOptions,
+  HostRuntimeExtras,
+} from "./module-loader/discover.js"
 export { synthesizeModulePlugin } from "./module-loader/synthesize-plugin.js"
+export { filterPluginsWithValidHostRefs } from "./module-loader/validate-host-refs.js"
+export type { HostRefValidationResult } from "./module-loader/validate-host-refs.js"
 
 export { createOrgGateMiddleware } from "./middleware/org-gate.js"
 export type { OrgGateMiddleware } from "./middleware/org-gate.js"

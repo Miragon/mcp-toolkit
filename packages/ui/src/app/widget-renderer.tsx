@@ -56,6 +56,62 @@ export function contextHasNoData(context: PipelineContext): boolean {
 }
 
 /**
+ * Merges manifest preset props under layout-cell props. Cell wins key-by-key.
+ * Returns undefined when both are absent so adapters keep seeing `widgetProps`
+ * exactly as before for non-alias widgets.
+ */
+export function mergeAliasProps(
+  preset?: Record<string, unknown>,
+  cell?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (!preset && !cell) return undefined
+  return { ...preset, ...cell }
+}
+
+/**
+ * Wraps a host widget so an upstream alias renders it with preset props merged
+ * under cell props. {@link RenderedWidget} passes the layout cell's `props` as
+ * `widgetProps`, so the wrapper sees them on `props.widgetProps` — precedence
+ * layout cell > manifest preset holds.
+ */
+export function createAliasWidget(
+  Target: WidgetComponent,
+  presetProps?: Record<string, unknown>,
+): WidgetComponent {
+  return function AliasWidget(props: WidgetProps) {
+    return <Target {...props} widgetProps={mergeAliasProps(presetProps, props.widgetProps)} />
+  }
+}
+
+/**
+ * Resolves a host-alias manifest (`{ aliasId → { hostWidget, presetProps? } }`)
+ * against the host bundle's widget map into renderable components via
+ * {@link createAliasWidget}.
+ *
+ * Fail-soft: server-side validation guarantees each alias targets a registered
+ * local widget, but the browser bundle map can still lack the component. An
+ * unresolvable target logs a warning and skips that alias (the cell then
+ * renders like any unbundled widget) — it never throws.
+ */
+export function resolveAliasComponents(
+  aliasManifest: Record<string, { hostWidget: string; presetProps?: Record<string, unknown> }>,
+  widgets: Record<string, WidgetComponent>,
+): Record<string, WidgetComponent> {
+  const out: Record<string, WidgetComponent> = {}
+  for (const [id, info] of Object.entries(aliasManifest)) {
+    const target = widgets[info.hostWidget]
+    if (!target) {
+      console.warn(
+        `[mcp-toolkit] alias widget "${id}" targets "${info.hostWidget}", which is not in the host bundle — skipping.`,
+      )
+      continue
+    }
+    out[id] = createAliasWidget(target, info.presetProps)
+  }
+  return out
+}
+
+/**
  * The single render site for a layout cell's widget, shared across the
  * rendered view (`RowsRenderer`), the builder canvas, and the builder
  * preview so all three isolate crashes identically:

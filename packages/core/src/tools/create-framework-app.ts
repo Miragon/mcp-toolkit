@@ -6,8 +6,13 @@ import { WidgetRegistry } from "../registry/widget-registry.js"
 import { buildProxyAppConfigs } from "../proxy/build-proxy-app-configs.js"
 import { createOrgGateMiddleware } from "../middleware/org-gate.js"
 import { createRoleFilterMiddleware } from "../middleware/role-filter.js"
-import { discoverUpstreamModules, DEFAULT_HOST_REACT_MAJOR } from "../module-loader/discover.js"
+import {
+  discoverUpstreamModules,
+  DEFAULT_HOST_REACT_MAJOR,
+  type HostRuntimeExtras,
+} from "../module-loader/discover.js"
 import { synthesizeModulePlugin } from "../module-loader/synthesize-plugin.js"
+import { filterPluginsWithValidHostRefs } from "../module-loader/validate-host-refs.js"
 import { createInMemoryDashboardStore, type DashboardStore } from "../framework/dashboard-store.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
 import { registerFrameworkTools, type AppResourceCsp } from "./register-framework-tools.js"
@@ -50,6 +55,13 @@ export interface CreateFrameworkAppOptionsBase {
    * UI package's peer range (rare).
    */
   hostReactMajor?: number
+  /**
+   * Shared runtimes beyond React that the widget app-bundle exposes to
+   * upstream-hosted widget bundles (see `exposeSharedRuntime` /
+   * `buildSharedRuntimeImportMap` in `@miragon/mcp-toolkit-ui`). Absent keys
+   * mean "not exposed"; modules requiring them are skipped at discovery.
+   */
+  hostRuntime?: HostRuntimeExtras
   middleware?: {
     /** When set, every RPC must come from a token with this organization_id. */
     orgGate?: string
@@ -227,6 +239,7 @@ export async function createFrameworkApp(
     entries: options.proxies,
     proxies,
     hostReactMajor: options.hostReactMajor ?? DEFAULT_HOST_REACT_MAJOR,
+    hostRuntime: options.hostRuntime,
   })
   const modulePlugins = discoveredModules.map(synthesizeModulePlugin)
 
@@ -241,18 +254,26 @@ export async function createFrameworkApp(
     widgetRegistry,
   )
 
+  // Host-alias targets must resolve to first-party widgets: validate against
+  // the registry now (first-party loaded, modules not yet) and drop offending
+  // modules fail-soft.
+  const { accepted: hostRefValidPlugins } = filterPluginsWithValidHostRefs(
+    modulePlugins,
+    widgetRegistry,
+  )
+
   // Discovered upstream modules next, in isolation: an untrusted third-party
   // module that ships a colliding id must not brick the whole host boot. A
   // conflicting module is skipped (with a warning) and dropped from the active
   // plugin set so its tools/widgets/appConfig are never half-registered.
   const { skipped } = loadApps(
-    modulePlugins.map((p) => p.definition),
+    hostRefValidPlugins.map((p) => p.definition),
     stepRegistry,
     widgetRegistry,
     { isolateFailures: true },
   )
   const skippedModuleNames = new Set(skipped.map((s) => s.app.name))
-  const activeModulePlugins = modulePlugins.filter(
+  const activeModulePlugins = hostRefValidPlugins.filter(
     (p) => !skippedModuleNames.has(p.definition.name),
   )
   const allPlugins: AppPlugin[] = [...options.plugins, ...activeModulePlugins]

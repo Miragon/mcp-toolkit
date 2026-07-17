@@ -58,6 +58,7 @@ interface RenderOk {
     }
     layout: LayoutConfig
     remoteWidgets: Record<string, { bundle: string; moduleId: string }>
+    aliasWidgets: Record<string, { hostWidget: string; presetProps?: Record<string, unknown> }>
     builderAvailable: boolean
   }
 }
@@ -230,6 +231,44 @@ describe("renderView", () => {
       await renderView({ input: { keys: {}, layout: trivialLayout }, stepRegistry }),
     )
     expect(okWithout.structuredContent.remoteWidgets).toEqual({})
+  })
+
+  it("advertises aliasWidgets only for layout-referenced alias widgets, never in remoteWidgets", async () => {
+    // Mirror of the remoteWidgets filtering test above: alias metadata is
+    // advertised only for the aliases the layout references, and an alias
+    // must never leak into remoteWidgets (the browser loader would try to
+    // fetch a bundle that doesn't exist).
+    const stepRegistry = new StepRegistry()
+    const widgetRegistry = new WidgetRegistry()
+    widgetRegistry.register(widget({ id: "shell:kpi-grid" }))
+    widgetRegistry.register(
+      widget({
+        id: "demo:card",
+        moduleId: "demo",
+        hostWidget: "shell:kpi-grid",
+        presetProps: { title: "Demo KPIs" },
+      }),
+    )
+    widgetRegistry.register(
+      widget({ id: "demo:unreferenced-alias", moduleId: "demo", hostWidget: "shell:kpi-grid" }),
+    )
+
+    const ok = expectOk(
+      await renderView({
+        input: { keys: {}, layout: trivialLayout },
+        stepRegistry,
+        widgetRegistry,
+      }),
+    )
+    expect(ok.structuredContent.aliasWidgets).toEqual({
+      "demo:card": { hostWidget: "shell:kpi-grid", presetProps: { title: "Demo KPIs" } },
+    })
+    expect(ok.structuredContent.remoteWidgets).toEqual({})
+
+    const okWithout = expectOk(
+      await renderView({ input: { keys: {}, layout: trivialLayout }, stepRegistry }),
+    )
+    expect(okWithout.structuredContent.aliasWidgets).toEqual({})
   })
 
   it("defaults builderAvailable to false and echoes an explicit flag", async () => {

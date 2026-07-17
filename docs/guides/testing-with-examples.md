@@ -13,8 +13,10 @@ examples/
 ├── articles-upstream/server.ts     external MCP: list-articles, get-article
 ├── customers-upstream/
 │   ├── server.ts                   external MCP: get-customer + get-module-manifest
-│   │                                 + ui://customers/customer-card.js resource
-│   └── widget/                     CustomerCard.tsx (Vite-built, React externalised)
+│   │                                 (schemaVersion 2: runtime.toolkitUi + a
+│   │                                 hostWidget alias) + the widget resource
+│   └── widget/                     CustomerCard.tsx (Vite-built, shared runtimes
+│                                     externalised; interactive via useCallTool)
 ├── host/index.ts                   createFrameworkApp wiring, proxies both upstreams
 ├── modules/
 │   └── articles/                   host-bundled UI module (proxyBinding: "articles")
@@ -29,7 +31,13 @@ Two flows are demonstrated:
    via codegen.
 2. **Fully upstream-hosted module** (`customers`) — upstream ships both
    the declarative step (via `get-module-manifest`) _and_ the widget
-   bundle (via `read-widget-bundle`); host has no module code.
+   bundle (via `read-widget-bundle`); host has no module code. Its
+   manifest also exercises both schemaVersion-2 features: the
+   `CustomerCard` bundle is _interactive_ (imports `useCallTool` as an
+   external, declared via `runtime.toolkitUi`, resolved through the
+   host's shared-runtime import map), and `customers:orders-kpi` is a
+   `hostWidget` alias rendering the host's own `orders:kpi` widget with
+   preset props.
 
 ## Running
 
@@ -126,7 +134,44 @@ curl -sX POST http://localhost:3010/mcp \
 The declarative step runs the compiled `customers:resolve-customer`
 (built from the manifest at boot); `read-widget-bundle` proves the host
 can stream the upstream's widget JS on demand. In a browser, the app
-bundle's default widget loader calls the same tool automatically.
+bundle's default widget loader calls the same tool automatically — and
+the fetched `CustomerCard` is interactive: its refresh button calls the
+federated `customers_get-customer` through `useCallTool`, resolved via
+the host's shared-runtime import map.
+
+## Exercising the host-widget alias
+
+The customers manifest also contributes `customers:orders-kpi` — a
+`hostWidget` alias onto the host's bundled `orders:kpi`. Render it by
+driving the orders pipeline under the alias id:
+
+```sh
+curl -sX POST http://localhost:3010/mcp \
+  -H 'content-type: application/json' \
+  -d @- <<'JSON' | jq '.result.structuredContent.aliasWidgets'
+{
+  "jsonrpc":"2.0","id":4,"method":"tools/call",
+  "params":{
+    "name":"render-view",
+    "arguments":{
+      "keys":{"orders:customerId":"c-1"},
+      "steps":[
+        {"id":"customer","step":"orders:resolve-customer"},
+        {"id":"orders","step":"orders:list-customer-orders"}
+      ],
+      "layout":{"rows":[{"row":[{"widget":"customers:orders-kpi","span":6}]}]}
+    }
+  }
+}
+JSON
+```
+
+The output advertises the alias
+(`{"customers:orders-kpi":{"hostWidget":"orders:kpi","presetProps":{…}}}`);
+in a browser the shell resolves it against its own widget map and renders
+the host's KPI strip — no bundle fetched. Break the target name in
+`customers-upstream/server.ts` and reboot to see the fail-soft path: the
+host warns and drops the whole customers module.
 
 ## Regenerating the articles types
 

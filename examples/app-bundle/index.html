@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Toolkit example — widget bundle</title>
+    <!--
+      Import map for upstream-hosted widget bundles: bare specifiers they
+      externalise resolve to data:-URI shims re-exporting the globalThis
+      namespaces `main.tsx` assigns via `exposeSharedRuntime`. Only the
+      react entries are hand-written; the shared-runtime entries
+      (mcp-use/react, @miragon/mcp-toolkit-ui{,/app,/hooks},
+      @tanstack/react-query) are injected at build time by the
+      `sharedRuntimeImportMap` plugin in vite.config.ts, generated from
+      `buildSharedRuntimeImportMap` so this file can never drift from the
+      shim constants in packages/ui/src/runtime/shared-runtime.ts.
+    -->
     <script type="importmap">
       {
         "imports": {

@@ -4,7 +4,7 @@ import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
 import type { ViewStructuredContent } from "../types/view-data.js"
-import { isRemoteWidget } from "../types/widget.js"
+import { isHostAliasWidget, isRemoteWidget } from "../types/widget.js"
 import { collectLayoutWidgets } from "./view-builders.js"
 import type { LayoutConfig } from "./layout-types.js"
 
@@ -23,6 +23,16 @@ export interface RenderViewInput {
 export interface RemoteWidgetInfo {
   bundle: string
   moduleId: string
+}
+
+/**
+ * Alias metadata for a manifest widget that renders a host-bundled component.
+ * The browser shell resolves `hostWidget` in its own `widgets` map and merges
+ * `presetProps` under each layout cell's props (the cell wins key-by-key).
+ */
+export interface HostAliasWidgetInfo {
+  hostWidget: string
+  presetProps?: Record<string, unknown>
 }
 
 export interface RenderViewOptions {
@@ -100,12 +110,22 @@ export async function renderView(options: RenderViewOptions) {
   // up unused loads). The in-iframe builder gets its full remote palette from
   // `get-builder-catalogue` instead (see `catalogue.ts`), so filtering here
   // doesn't starve build mode. Local widgets carry no bundle and are skipped.
+  // Host-alias widgets must NOT land in `remoteWidgets` — the browser loader
+  // would try to fetch them; they get their own `aliasWidgets` map instead,
+  // filtered to layout-referenced entries by the same reasoning.
   const remoteWidgets: Record<string, RemoteWidgetInfo> = {}
+  const aliasWidgets: Record<string, HostAliasWidgetInfo> = {}
   if (widgetRegistry) {
     const layoutWidgetIds = new Set(collectLayoutWidgets(input.layout))
     for (const widget of widgetRegistry.getAll()) {
-      if (layoutWidgetIds.has(widget.id) && isRemoteWidget(widget)) {
+      if (!layoutWidgetIds.has(widget.id)) continue
+      if (isRemoteWidget(widget)) {
         remoteWidgets[widget.id] = { bundle: widget.bundle, moduleId: widget.moduleId }
+      } else if (isHostAliasWidget(widget)) {
+        aliasWidgets[widget.id] = {
+          hostWidget: widget.hostWidget,
+          ...(widget.presetProps ? { presetProps: widget.presetProps } : {}),
+        }
       }
     }
   }
@@ -136,6 +156,7 @@ export async function renderView(options: RenderViewOptions) {
     },
     layout: input.layout,
     remoteWidgets,
+    aliasWidgets,
     builderAvailable: builderAvailable ?? false,
   }
 

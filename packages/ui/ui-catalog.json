@@ -1271,6 +1271,66 @@
         }
       ],
       "whenToUse": "Build the WidgetProps envelope the fixture host passes to a widget — exported mainly for unit testing the envelope shape without rendering React."
+    },
+    {
+      "name": "exposeSharedRuntime",
+      "export": "exposeSharedRuntime",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "app-shell",
+      "props": [
+        {
+          "name": "modules",
+          "type": "SharedRuntimeModules",
+          "required": true,
+          "description": "Module namespaces keyed by canonical global name (React, ReactDOM, McpUseReact, McpToolkitUi, McpToolkitUiApp, McpToolkitUiHooks, ReactQuery). Undefined entries are skipped."
+        },
+        {
+          "name": "target",
+          "type": "object",
+          "required": false,
+          "description": "Assignment target. Default globalThis."
+        }
+      ],
+      "whenToUse": "Call once in the host app-bundle entry (before any remote widget loads) to publish the host's own module instances for upstream-hosted widget bundles. Pairs with buildSharedRuntimeImportMap: the import-map shims re-export these exact objects, so remote bundles share the host's React contexts (useCallTool, useHostBridge, theme) instead of context-splitting on a bundled copy."
+    },
+    {
+      "name": "buildSharedRuntimeImportMap",
+      "export": "buildSharedRuntimeImportMap",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "app-shell",
+      "props": [
+        {
+          "name": "include",
+          "type": "{ mcpUseReact?: boolean; toolkitUi?: boolean; reactQuery?: boolean }",
+          "required": true,
+          "description": "Which optional shared runtimes to emit entries for. toolkitUi covers all three @miragon/mcp-toolkit-ui barrels."
+        }
+      ],
+      "whenToUse": "Build the import-map entries (bare specifier → data:-URI shim over the exposeSharedRuntime globals) for the host page's importmap script tag, e.g. merged in via a Vite transformIndexHtml hook. Include exactly the runtimes the host declares in createFrameworkApp's hostRuntime option."
+    },
+    {
+      "name": "assertSharedRuntimeExposed",
+      "export": "assertSharedRuntimeExposed",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "app-shell",
+      "props": [
+        {
+          "name": "globalNames",
+          "type": "readonly string[]",
+          "required": true,
+          "description": "Canonical global names to require, e.g. Object.values(SHARED_RUNTIME_GLOBALS)."
+        },
+        {
+          "name": "target",
+          "type": "object",
+          "required": false,
+          "description": "Object to probe. Default globalThis."
+        }
+      ],
+      "whenToUse": "Dev-time guard after exposeSharedRuntime: throws (listing the missing globals) if the app-bundle forgot to expose a runtime the import map advertises — catching the mistake at boot instead of as a cryptic remote-widget import failure."
     }
   ]
 }

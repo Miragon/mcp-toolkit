@@ -74,6 +74,17 @@ export interface LayoutBuilderProps {
    */
   onCatalogue?: (remoteWidgets: Record<string, { bundle: string; moduleId: string }>) => void
   /**
+   * Called after each `get-builder-catalogue` fetch with the catalogue's full
+   * host-alias palette (`{ id → { hostWidget, presetProps? } }`). The parent
+   * (`McpAppView`) resolves each alias against its own `widgets` map so
+   * dropping an alias onto the canvas renders the host component immediately.
+   * Mirrors `onCatalogue` for the same reason: `render-view` only advertises
+   * the aliases the *layout* references.
+   */
+  onAliasCatalogue?: (
+    aliasWidgets: Record<string, { hostWidget: string; presetProps?: Record<string, unknown> }>,
+  ) => void
+  /**
    * Called when the user clicks "Done" / exits the builder. Receives
    * the final draft so the parent can swap into the rendered view with
    * the just-built layout. Omit `commit` to leave parent state untouched.
@@ -114,6 +125,7 @@ export function LayoutBuilder({
   labels,
   onSaved,
   onCatalogue,
+  onAliasCatalogue,
   onExit,
 }: LayoutBuilderProps) {
   const L = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels])
@@ -372,6 +384,7 @@ export function LayoutBuilder({
         availableSteps?: AvailableStep[]
         keyCatalog?: KeyCatalogEntry[]
         remoteWidgets?: Record<string, { bundle: string; moduleId: string }>
+        aliasWidgets?: Record<string, { hostWidget: string; presetProps?: Record<string, unknown> }>
         validationIssues?: string[]
         context?: {
           keys: Record<string, unknown>
@@ -397,6 +410,9 @@ export function LayoutBuilder({
       // every upstream bundle for the builder (render-view only ships the
       // ones the layout references).
       if (sc?.remoteWidgets) onCatalogue?.(sc.remoteWidgets)
+      // Same for the host-alias palette: the parent resolves each alias
+      // against its own bundled widget map (no fetch involved).
+      if (sc?.aliasWidgets) onAliasCatalogue?.(sc.aliasWidgets)
       // A successful fetch clears any stale failure banner.
       setRefreshError(null)
     } catch (err) {
@@ -415,7 +431,7 @@ export function LayoutBuilder({
     } finally {
       setStatus("idle")
     }
-  }, [catalogueToolName, callTool, keyEntries, stepEntries, onCatalogue])
+  }, [catalogueToolName, callTool, keyEntries, stepEntries, onCatalogue, onAliasCatalogue])
 
   // Fetch the catalogue on mount (no debounce) so the builder is ready
   // immediately. Then on every keys/steps edit, debounce 600ms before
