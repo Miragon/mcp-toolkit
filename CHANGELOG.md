@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.10.1](https://github.com/Miragon/mcp-toolkit/compare/v0.10.0...v0.10.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **core:** accept JSON-string layout in render-view/refresh-view ([#105](https://github.com/Miragon/mcp-toolkit/issues/105)) ([214550d](https://github.com/Miragon/mcp-toolkit/commit/214550d213c24d965bc51049f11a2cb33f2becff))
+
 ## [0.10.0](https://github.com/Miragon/mcp-toolkit/compare/v0.9.0...v0.10.0) (2026-07-28)
 
 
