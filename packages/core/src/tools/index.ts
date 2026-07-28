@@ -41,6 +41,7 @@ export {
   createFileSystemDashboardStore,
   DashboardOwnershipError,
   resolveSavedRecord,
+  parseDashboardRecord,
   DASHBOARD_SCHEMA_VERSION,
 } from "../framework/dashboard-store.js"
 export type {

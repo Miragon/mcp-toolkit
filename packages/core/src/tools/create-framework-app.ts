@@ -1,4 +1,9 @@
-import { MCPServer, type McpServerInstance, type OAuthProvider } from "mcp-use/server"
+import {
+  MCPServer,
+  type McpServerInstance,
+  type OAuthProvider,
+  type ServerConfig,
+} from "mcp-use/server"
 import { loadApps } from "../registry/app-loader.js"
 import { StepRegistry } from "../registry/step-registry.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
@@ -24,6 +29,22 @@ export interface CreateFrameworkAppOptionsBase {
   /** Public base URL the server advertises (resource URIs, oauth callbacks). */
   baseUrl?: string
   host?: string
+  /**
+   * Pass-through of the remaining mcp-use {@link ServerConfig} handed to the
+   * `MCPServer` constructor. The main use case is wiring session/stream
+   * backends — e.g. Redis-backed `sessionStore` / `streamManager` so several
+   * server instances can share sessions — but any mcp-use server option
+   * (`stateless`, `cors`, `sessionIdleTimeoutMs`, `instructions`, …) works
+   * without the toolkit having to mirror it. The six toolkit-owned keys
+   * (`name`, `version`, `description`, `host`, `baseUrl`, `oauth`) are
+   * excluded via `Omit` because they are first-class options on this
+   * interface already; `oauth` additionally stays out because it selects the
+   * `MCPServer<true | false>` constructor overload.
+   */
+  serverOptions?: Omit<
+    ServerConfig,
+    "name" | "version" | "description" | "host" | "baseUrl" | "oauth"
+  >
   plugins: AppPlugin[]
   middleware?: {
     /** When set, every RPC must come from a token with this organization_id. */
@@ -164,9 +185,12 @@ export async function createFrameworkApp(
     host: options.host ?? "localhost",
     baseUrl: options.baseUrl,
   }
+  // `serverOptions` is statically disjoint from `baseConfig` (its type Omits
+  // every toolkit-owned key); the spread order is defense-in-depth so the
+  // toolkit's first-class options always win at runtime.
   const server: McpServerInstance<boolean> = options.oauth
-    ? new MCPServer({ ...baseConfig, oauth: options.oauth })
-    : new MCPServer(baseConfig)
+    ? new MCPServer({ ...options.serverOptions, ...baseConfig, oauth: options.oauth })
+    : new MCPServer({ ...options.serverOptions, ...baseConfig })
 
   const orgGateId = options.middleware?.orgGate
   if (orgGateId) {
