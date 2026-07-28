@@ -1,6 +1,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import type { MCPServer } from "mcp-use/server"
 import { describe, expect, it } from "vitest"
+import type { z } from "zod"
 import { createInMemoryDashboardStore } from "../framework/dashboard-store.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
 import type { WidgetDefinition } from "../types/widget.js"
@@ -8,6 +9,7 @@ import { registerDashboardTools } from "./register-dashboard-tools.js"
 
 interface CapturedToolDefinition {
   name: string
+  schema?: z.ZodType
 }
 
 type ToolCallback = (args: Record<string, unknown>, ctx?: unknown) => Promise<CallToolResult>
@@ -44,7 +46,21 @@ function setup(widgetRegistry?: WidgetRegistry) {
     if (!tool) throw new Error(`tool not registered: ${name}`)
     return tool
   }
-  return { byName }
+  // Mirrors the mcp-use server call path: validate the raw wire arguments
+  // against the tool's zod schema and hand the PARSE OUTPUT (including
+  // transform results, e.g. a JSON-string layout parsed to its object form)
+  // to the handler — `byName(...).cb(...)` alone would bypass the schema.
+  const callValidated = async (
+    name: string,
+    args: Record<string, unknown>,
+    ctx?: unknown,
+  ): Promise<CallToolResult> => {
+    const tool = byName(name)
+    const schema = tool.definition.schema
+    if (!schema) throw new Error(`tool has no schema: ${name}`)
+    return tool.cb(schema.parse(args) as Record<string, unknown>, ctx)
+  }
+  return { byName, callValidated, store }
 }
 
 const widget = (id: string): WidgetDefinition => ({ id, requires: [], size: "full" })
@@ -67,6 +83,48 @@ describe("registerDashboardTools", () => {
     expect(payload.unknownWidgets).toBeUndefined()
     expect(textBlock(result)).toContain("Saved dashboard")
     expect(textBlock(result)).not.toContain("Warning")
+  })
+
+  it.each([
+    ["single", (layout: unknown) => JSON.stringify(layout)],
+    ["double", (layout: unknown) => JSON.stringify(JSON.stringify(layout))],
+  ])(
+    "save-dashboard persists a %s-encoded string layout as the PARSED structure",
+    async (_name, encode) => {
+      const { callValidated, store } = setup()
+
+      const result = await callValidated("save-dashboard", {
+        name: "Stringified",
+        layout: encode(sampleLayout),
+      })
+      expect(result.isError).toBeUndefined()
+      const { id } = result.structuredContent as { id: string }
+
+      // The store holds the object form — never the wire string.
+      const record = await store.get(id, {})
+      expect(record?.layout).toEqual(sampleLayout)
+
+      // And load-dashboard hands it back as an object.
+      const loaded = await callValidated("load-dashboard", { id })
+      expect(loaded.isError).toBeFalsy()
+      const loadedRecord = JSON.parse(textBlock(loaded)) as { layout: unknown }
+      expect(loadedRecord.layout).toEqual(sampleLayout)
+    },
+  )
+
+  it("save-dashboard's widget warning sees through a string-encoded layout", async () => {
+    const registry = new WidgetRegistry()
+    registry.register(widget("demo:card"))
+    const { callValidated } = setup(registry)
+
+    const result = await callValidated("save-dashboard", {
+      name: "StringifiedGhost",
+      layout: JSON.stringify(JSON.stringify({ rows: [{ row: [{ widget: "ghost:panel" }] }] })),
+    })
+    expect(result.isError).toBeUndefined()
+    expect((result.structuredContent as { unknownWidgets?: string[] }).unknownWidgets).toEqual([
+      "ghost:panel",
+    ])
   })
 
   it("save-dashboard warns (never rejects) on widget ids absent from the registry", async () => {

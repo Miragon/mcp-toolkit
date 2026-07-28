@@ -86,6 +86,38 @@ describe("layoutInputSchema", () => {
     },
   )
 
+  // Observed claude.ai traffic: the model writes the layout as a JSON string
+  // (the advertised string branch), and the host stringifies the argument once
+  // more — the schema must unwrap the nesting, bounded at three parses.
+  it.each([
+    ["flat rows", flatRows],
+    ["rows wrapper", rowsWrapper],
+    ["tabs", tabs],
+  ])("unwraps a DOUBLE-encoded %s layout to the object form", (_name, layout) => {
+    const doubleEncoded = JSON.stringify(JSON.stringify(layout))
+    expect(layoutInputSchema.parse(doubleEncoded)).toEqual(layoutSchema.parse(layout))
+  })
+
+  it.each([
+    ["flat rows", flatRows],
+    ["rows wrapper", rowsWrapper],
+    ["tabs", tabs],
+  ])("unwraps a TRIPLE-encoded %s layout to the object form", (_name, layout) => {
+    const tripleEncoded = JSON.stringify(JSON.stringify(JSON.stringify(layout)))
+    expect(layoutInputSchema.parse(tripleEncoded)).toEqual(layoutSchema.parse(layout))
+  })
+
+  it("rejects a QUADRUPLE-encoded layout (unwrap cap of three parses)", () => {
+    const quadrupleEncoded = JSON.stringify(
+      JSON.stringify(JSON.stringify(JSON.stringify(flatRows))),
+    )
+    const result = layoutInputSchema.safeParse(quadrupleEncoded)
+    expect(result.success).toBe(false)
+    // The cap leaves a string behind, which then fails the piped layoutSchema
+    // — not the JSON-parse error path.
+    expect(JSON.stringify(result.error?.issues)).not.toContain("not valid JSON")
+  })
+
   it("rejects a string that is not valid JSON with a clear message", () => {
     const result = layoutInputSchema.safeParse("{ rows: not json")
     expect(result.success).toBe(false)

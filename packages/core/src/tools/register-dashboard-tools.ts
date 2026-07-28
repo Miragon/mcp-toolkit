@@ -2,7 +2,7 @@ import { type MCPServer, object } from "mcp-use/server"
 import { z } from "zod"
 import type { DashboardStore } from "../framework/dashboard-store.js"
 import { collectLayoutWidgets } from "../framework/view-builders.js"
-import { layoutSchema } from "../framework/layout-schemas.js"
+import { layoutInputSchema, layoutSchema } from "../framework/layout-schemas.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 
 export interface RegisterDashboardToolsOptions {
@@ -31,7 +31,11 @@ const saveSchema = z.object({
   description: z.string().optional(),
   keys: z.record(z.string(), z.unknown()).optional(),
   steps: z.array(stepRefSchema).optional(),
-  layout: layoutSchema,
+  // `layoutInputSchema` (not `layoutSchema`): like `render-view`, also accepts
+  // the layout as a JSON-encoded string (some hosts stringify the type-less
+  // `anyOf` parameter — see layout-schemas.ts). The transform hands the PARSED
+  // structure to the handler, so a string call is persisted as the object form.
+  layout: layoutInputSchema,
   title: z.string().optional().describe("View title rendered above the widget grid."),
 })
 

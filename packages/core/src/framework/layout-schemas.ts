@@ -42,6 +42,14 @@ export const layoutSchema = z
   .describe("Widget layout: flat rows, { rows }, or { tabs }")
 
 /**
+ * Upper bound on how many times the string branch of
+ * {@link layoutInputSchema} re-parses a JSON string whose parse result is
+ * again a string. Real-world traffic needs two (see below); three leaves one
+ * level of headroom while still rejecting absurd nesting depths.
+ */
+const MAX_STRING_UNWRAP_DEPTH = 3
+
+/**
  * Tool-input variant of {@link layoutSchema} for `render-view` /
  * `refresh-view`: the three layout forms plus a JSON-string branch.
  *
@@ -52,6 +60,16 @@ export const layoutSchema = z
  * parses that form and pipes it through {@link layoutSchema}, so stringified
  * calls validate exactly like the object form. The three object branches are
  * reused from {@link layoutSchema} unchanged.
+ *
+ * The parse is a bounded unwrap loop, not a single `JSON.parse`: observed
+ * claude.ai traffic delivers the layout DOUBLE-encoded — the model writes the
+ * layout as a JSON string (because this schema advertises the string branch),
+ * and the host layer then stringifies that value once more when serializing
+ * the arguments. A single parse would yield a string again and fail the
+ * union. The loop re-parses while the result is still a string, capped at
+ * {@link MAX_STRING_UNWRAP_DEPTH} iterations as a guard against absurd
+ * nesting; anything still a string after the cap fails the piped
+ * {@link layoutSchema} like any other non-layout value.
  */
 export const layoutInputSchema = z
   .union([
@@ -59,15 +77,23 @@ export const layoutInputSchema = z
     z
       .string()
       .transform((value, ctx): unknown => {
-        try {
-          return JSON.parse(value)
-        } catch {
-          ctx.addIssue({
-            code: "custom",
-            message: "layout was sent as a string but is not valid JSON",
-          })
-          return z.NEVER
+        let parsed: unknown = value
+        for (
+          let depth = 0;
+          depth < MAX_STRING_UNWRAP_DEPTH && typeof parsed === "string";
+          depth++
+        ) {
+          try {
+            parsed = JSON.parse(parsed)
+          } catch {
+            ctx.addIssue({
+              code: "custom",
+              message: "layout was sent as a string but is not valid JSON",
+            })
+            return z.NEVER
+          }
         }
+        return parsed
       })
       .pipe(layoutSchema)
       .describe(

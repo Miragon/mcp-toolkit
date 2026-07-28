@@ -186,4 +186,28 @@ describe("examples host smoke", () => {
     const sc = stringCall.structuredContent as { layout?: unknown } | undefined
     expect(sc?.layout).toEqual(layout)
   })
+
+  it("accepts a DOUBLE-encoded string layout, equivalent to the object call", async () => {
+    // Observed claude.ai traffic: the model writes the layout as a JSON string
+    // (the advertised string branch) and the host layer stringifies the
+    // argument once more — the server must unwrap the nesting.
+    const layout = [{ row: [{ widget: "smoke:greeting-card", span: 6 }] }]
+    const args = {
+      keys: { "smoke:name": "world" },
+      steps: [{ id: "greeting", step: "smoke:greet" }],
+      title: "Smoke view",
+    }
+
+    const objectCall = await session.callTool("render-view", { ...args, layout })
+    const doubleEncodedCall = await session.callTool("render-view", {
+      ...args,
+      layout: JSON.stringify(JSON.stringify(layout)),
+    })
+
+    expect(objectCall.isError).toBeFalsy()
+    expect(doubleEncodedCall.isError).toBeFalsy()
+    expect(doubleEncodedCall.structuredContent).toEqual(objectCall.structuredContent)
+    const sc = doubleEncodedCall.structuredContent as { layout?: unknown } | undefined
+    expect(sc?.layout).toEqual(layout)
+  })
 })
