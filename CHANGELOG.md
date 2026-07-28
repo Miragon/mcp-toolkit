@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.10.0](https://github.com/Miragon/mcp-toolkit/compare/v0.9.0...v0.10.0) (2026-07-28)
+
+
+### Features
+
+* **core:** pass mcp-use server options through createFrameworkApp ([#103](https://github.com/Miragon/mcp-toolkit/issues/103)) ([0ccde69](https://github.com/Miragon/mcp-toolkit/commit/0ccde69a153ad0a7adbd9e9d0c7fadc5075f4d8a))
+
 ## [0.9.0](https://github.com/Miragon/mcp-toolkit/compare/v0.8.0...v0.9.0) (2026-07-17)
 
 
