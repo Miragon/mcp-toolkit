@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { layoutSchema, rowSchema } from "./layout-schemas.js"
+import { layoutInputSchema, layoutSchema, rowSchema } from "./layout-schemas.js"
 
 describe("rowSchema", () => {
   it("accepts a minimal cell with just `widget`", () => {
@@ -62,5 +62,48 @@ describe("layoutSchema", () => {
     }
     const parsed = layoutSchema.parse(layout)
     expect(parsed).toEqual(layout)
+  })
+})
+
+describe("layoutInputSchema", () => {
+  const flatRows = [{ row: [{ widget: "w1" }] }]
+  const rowsWrapper = { rows: [{ row: [{ widget: "w1", span: 6 }] }] }
+  const tabs = {
+    tabs: [{ label: "All", rows: [{ row: [{ widget: "w1", props: { period: "30d" } }] }] }],
+  }
+
+  it.each([
+    ["flat rows", flatRows],
+    ["rows wrapper", rowsWrapper],
+    ["tabs", tabs],
+  ])(
+    "parses the JSON-string form of a %s layout to the same result as the object form",
+    (_name, layout) => {
+      expect(layoutInputSchema.parse(JSON.stringify(layout))).toEqual(
+        layoutInputSchema.parse(layout),
+      )
+      expect(layoutInputSchema.parse(JSON.stringify(layout))).toEqual(layoutSchema.parse(layout))
+    },
+  )
+
+  it("rejects a string that is not valid JSON with a clear message", () => {
+    const result = layoutInputSchema.safeParse("{ rows: not json")
+    expect(result.success).toBe(false)
+    expect(JSON.stringify(result.error?.issues)).toContain(
+      "layout was sent as a string but is not valid JSON",
+    )
+  })
+
+  it("rejects valid JSON that is not a valid layout shape", () => {
+    const result = layoutInputSchema.safeParse(JSON.stringify({ rows: [{ row: [{}] }] }))
+    expect(result.success).toBe(false)
+    // The failure comes from layoutSchema (missing `widget`), not from JSON parsing.
+    expect(JSON.stringify(result.error?.issues)).not.toContain("not valid JSON")
+  })
+
+  it("still accepts the three object forms directly", () => {
+    for (const layout of [flatRows, rowsWrapper, tabs]) {
+      expect(layoutInputSchema.parse(layout)).toEqual(layoutSchema.parse(layout))
+    }
   })
 })

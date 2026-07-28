@@ -89,7 +89,7 @@ export { getFrameworkManifest } from "./framework/manifest.js"
 export type { FrameworkManifest } from "./framework/manifest.js"
 export { normalizeLayout } from "./framework/layout-types.js"
 export type { LayoutConfig, RowDef } from "./framework/layout-types.js"
-export { layoutSchema, rowSchema } from "./framework/layout-schemas.js"
+export { layoutInputSchema, layoutSchema, rowSchema } from "./framework/layout-schemas.js"
 
 export { resolveActiveModules, parseActiveModules } from "./framework/active-modules.js"
 export type { ActiveModuleSelection } from "./framework/active-modules.js"

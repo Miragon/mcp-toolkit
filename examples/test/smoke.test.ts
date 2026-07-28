@@ -95,6 +95,28 @@ describe("examples host smoke", () => {
     )
   })
 
+  it("advertises the layout JSON-string branch next to the three object forms on the wire", async () => {
+    // Regression guard for the layoutInputSchema string branch: the zod
+    // transform/pipe must survive the zod→JSON-Schema conversion as a plain
+    // `type: "string"` anyOf branch (not `{}`, not a conversion error) while
+    // the three original layout forms stay untouched.
+    const tools = await session.listTools()
+    const renderView = tools.find((t) => t.name === "render-view")
+    expect(renderView, "render-view must be listed").toBeTruthy()
+
+    const layout = (
+      renderView!.inputSchema as {
+        properties?: Record<string, { anyOf?: { type?: string; required?: string[] }[] }>
+      }
+    ).properties?.layout
+    expect(layout?.anyOf, "layout must surface as a top-level anyOf").toBeTruthy()
+
+    const branches = layout!.anyOf!
+    expect(branches.map((b) => b.type)).toEqual(["array", "object", "object", "string"])
+    expect(branches[1]!.required).toEqual(["rows"])
+    expect(branches[2]!.required).toEqual(["tabs"])
+  })
+
   it("render-view returns a structuredContent envelope of the expected shape", async () => {
     const result = await session.callTool("render-view", {
       keys: { "smoke:name": "world" },
@@ -137,5 +159,31 @@ describe("examples host smoke", () => {
     // The refresh envelope echoes the input so the in-iframe refresh re-issues
     // the same call.
     expect(sc!._refreshParams!.layout).toEqual(sc!.layout)
+  })
+
+  it("accepts the layout as a JSON-encoded string, equivalent to the object call", async () => {
+    // Some hosts serialize the type-less `anyOf` layout parameter as a JSON
+    // string; the string branch of layoutInputSchema must make that call
+    // succeed and produce the exact same result as the object form.
+    const layout = [{ row: [{ widget: "smoke:greeting-card", span: 6 }] }]
+    const args = {
+      keys: { "smoke:name": "world" },
+      steps: [{ id: "greeting", step: "smoke:greet" }],
+      title: "Smoke view",
+    }
+
+    const objectCall = await session.callTool("render-view", { ...args, layout })
+    const stringCall = await session.callTool("render-view", {
+      ...args,
+      layout: JSON.stringify(layout),
+    })
+
+    expect(objectCall.isError).toBeFalsy()
+    expect(stringCall.isError).toBeFalsy()
+    // The string was parsed server-side: same rendered view, same refresh
+    // envelope — including the already-parsed (object-form) layout.
+    expect(stringCall.structuredContent).toEqual(objectCall.structuredContent)
+    const sc = stringCall.structuredContent as { layout?: unknown } | undefined
+    expect(sc?.layout).toEqual(layout)
   })
 })

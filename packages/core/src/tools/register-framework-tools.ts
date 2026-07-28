@@ -2,7 +2,7 @@ import fs from "node:fs/promises"
 import { createMcpAppsResource, type MCPServer, RESOURCE_MIME_TYPE, text } from "mcp-use/server"
 import { z } from "zod"
 import { getFrameworkManifest } from "../framework/manifest.js"
-import { layoutSchema } from "../framework/layout-schemas.js"
+import { layoutInputSchema } from "../framework/layout-schemas.js"
 import { renderView } from "../framework/render-view.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
@@ -89,7 +89,10 @@ const renderViewSchema = z.object({
     .describe(
       "Optional pipeline steps to compute keys before rendering. Without steps only the passed-in keys are used.",
     ),
-  layout: layoutSchema,
+  // `layoutInputSchema` (not `layoutSchema`): also accepts the layout as a
+  // JSON-encoded string — hosts confronted with the type-less `anyOf` this
+  // union emits sometimes stringify the parameter (see layout-schemas.ts).
+  layout: layoutInputSchema,
   title: z.string().optional().describe("Optional view title."),
 })
 
