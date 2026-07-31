@@ -57,8 +57,8 @@ one-shot `start` does this for you).
 
 [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter)
 is a self-contained starter — one host, one module with its own tools, one
-widget, and the `mcp-app.html` Vite bundle setup — with pinned versions, CI,
-and the `.npmrc` prepared. Click "Use this template", or:
+widget, and the `mcp-app.html` Vite bundle setup — with pinned versions and CI
+prepared. Click "Use this template", or:
 
 ```sh
 gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter --private --clone
@@ -70,17 +70,9 @@ repo — copying that directory works just as well.
 
 ### By hand
 
-The packages live on GitHub Packages under the restricted `@miragon` scope.
-Add an `.npmrc` next to your `package.json`:
-
-```
-@miragon:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-and export a [personal access token](https://github.com/settings/tokens) with
-`read:packages` as `GITHUB_TOKEN`. Then install — the peer dependencies are
-pinned exactly, so match them:
+The packages live on the public npm registry under the `@miragon` scope — no
+`.npmrc` or token needed. Install — the peer dependencies are pinned exactly,
+so match them:
 
 ```sh
 pnpm add @miragon/mcp-toolkit-core

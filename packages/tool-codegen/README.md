@@ -6,14 +6,8 @@ MCP server's tools/list.
 
 ## Install
 
-Published to GitHub Packages. Point the `@miragon` scope at it in your
-`.npmrc` and export a token with `read:packages` scope as `GITHUB_TOKEN`
-(details: [root README](https://github.com/Miragon/mcp-toolkit/blob/main/README.md#using-the-packages-in-your-own-project)):
-
-```
-@miragon:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
+Published to the public npm registry under the `@miragon` scope — no `.npmrc`
+or token needed.
 
 ```sh
 pnpm add -D @miragon/mcp-toolkit-tool-codegen @miragon/mcp-toolkit-core @modelcontextprotocol/sdk@1.29.0

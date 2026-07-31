@@ -112,11 +112,20 @@ example exercise + docs entry. Don't merge a feature without the docs.
 
 ## Releasing
 
-The packages publish to GitHub Packages (`https://npm.pkg.github.com`,
-scope `@miragon`, restricted access). All three packages share one version,
-tracked in the root `package.json` (release-please bumps them in lockstep).
-Releases are automated via [release-please](https://github.com/googleapis/release-please)
-driven by Conventional Commits — no changeset workflow.
+The packages publish to the public npm registry (`https://registry.npmjs.org`,
+scope `@miragon`, public access) via npm **trusted publishing** (OIDC): no
+`NPM_TOKEN` secret, and each publish carries a provenance attestation. All
+three packages share one version, tracked in the root `package.json`
+(release-please bumps them in lockstep). Releases are automated via
+[release-please](https://github.com/googleapis/release-please) driven by
+Conventional Commits — no changeset workflow.
+
+> Trusted publishing must be configured once per package on npmjs.com
+> (package → Settings → Trusted publishing → GitHub Actions: this repo +
+> `.github/workflows/publish-npm-package.yml`). Until a package exists on npm
+> it has no settings page, so the **very first** version of each package is
+> published manually from a maintainer's machine (`npm login`, then
+> `pnpm publish -r --filter @miragon/mcp-toolkit-core --filter @miragon/mcp-toolkit-tool-codegen --filter @miragon/mcp-toolkit-ui --access public --no-git-checks`).
 
 The flow (`.github/workflows/release-please.yml`):
 
@@ -130,15 +139,19 @@ The flow (`.github/workflows/release-please.yml`):
    `Typecheck + Build` check forever pending.
 2. Merging that release PR makes `release-please` cut a GitHub release and
    push a `v*` tag, setting its `release_created` output to `true`.
-3. The same workflow's `publish` job is gated on
-   `needs.release-please.outputs.release_created == 'true'` and publishes the
-   three packages. It chains off the action output rather than the `v*` tag for
-   a deterministic, single publish per release.
+3. The same workflow's `publish-core` / `publish-tool-codegen` / `publish-ui`
+   jobs are gated on `needs.release-please.outputs.release_created == 'true'`.
+   Each calls the reusable `.github/workflows/publish-npm-package.yml`, which
+   publishes one package to npm via OIDC (with `--provenance`) and **skips**
+   any package whose current version is already on npm — so a partially failed
+   release can be safely re-run by re-dispatching. They chain off the action
+   output rather than the `v*` tag for a deterministic, single publish per
+   release.
 
-`.github/workflows/release.yml` is the **manual fallback**
-(`workflow_dispatch` only): dispatch it to re-publish `main` after a failed
-automatic run, or with `dry_run: true` to validate registry auth without
-uploading.
+Dispatching `release-please.yml` manually with `dry_run: true` runs the
+**dry-run** job only (no Release PR, no release): it typechecks, builds, and
+packs all three packages against the public registry to validate packaging
+without uploading.
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
 additive changes → `feat`, bug fixes → `fix`, observable breaking changes →
