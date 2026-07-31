@@ -1,0 +1,52 @@
+name: Publish npm package
+
+# Reusable workflow: publishes a single package under packages/ to the public
+# npm registry using OIDC trusted publishing (no NPM_TOKEN). Provenance is
+# attached automatically. The `id-token: write` permission and the `npm`
+# environment are what npm's trusted publishing exchanges for a short-lived
+# token — configure the trusted publisher for each package on npmjs.com first
+# (Settings → Trusted publishing → GitHub Actions, this repo + this workflow).
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: Package directory name under packages/
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r run build
+
+      - name: Publish packages/${{ inputs.package }}
+        run: |
+          dir="packages/${{ inputs.package }}"
+          name="$(node -p "require('./$dir/package.json').name")"
+          version="$(node -p "require('./$dir/package.json').version")"
+          if npm view "$name@$version" version > /dev/null 2>&1; then
+            echo "$name@$version already published — skipping"
+          else
+            pnpm publish --filter "$name" --provenance --access public --no-git-checks
+          fi

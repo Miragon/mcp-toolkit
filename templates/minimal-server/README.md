@@ -7,35 +7,24 @@ packages: one host, one module that registers its **own** tools plus a widget
 
 ## Quickstart
 
-You need Node.js 20 or newer and [pnpm](https://pnpm.io).
+You need Node.js 20 or newer and [pnpm](https://pnpm.io). The `@miragon`
+packages are on the public npm registry, so no authentication is required.
 
-1. **Authenticate against GitHub Packages.** The packages live under the
-   restricted `@miragon` scope; the `.npmrc` in this project is already wired
-   to it. Create a [personal access token](https://github.com/settings/tokens)
-   with the `read:packages` scope and export it:
-
-   ```sh
-   export GITHUB_TOKEN=ghp_…
-   ```
-
-2. **Install:**
+1. **Install:**
 
    ```sh
    pnpm install
    ```
 
-3. **Run** (builds the widget bundle, then boots the host):
+2. **Run** (builds the widget bundle, then boots the host):
 
    ```sh
    pnpm start
    ```
 
-4. **See it work:** open <http://localhost:3010/inspector> (the Inspector is
+3. **See it work:** open <http://localhost:3010/inspector> (the Inspector is
    built into mcp-use) and call `show_tasks_board` — the task-board widget
    renders. That is the full loop: an MCP tool returning a rendered UI.
-
-> `pnpm install` fails with a 401/403? `GITHUB_TOKEN` is not set in this
-> shell, or the token is missing the `read:packages` scope.
 
 ## Dev loop
 
@@ -58,7 +47,7 @@ cp env.example .env
 
 ```
 ├── package.json                   # pinned versions; dev / build:bundle / start / typecheck
-├── .npmrc                         # @miragon scope → GitHub Packages
+├── .npmrc                         # save-exact: pin dependency versions
 ├── env.example                    # PORT / MCP_URL — copy to .env
 ├── src/
 │   ├── host.ts                    # createFrameworkApp: plugins, app bundle
@@ -105,10 +94,8 @@ the file using it is covered by an `@source` line.
 ## CI
 
 The included CI (`.github/workflows/ci.yml`) typechecks and builds the widget
-bundle. It installs from the restricted `@miragon` scope: repos in the Miragon
-org can use the built-in workflow token once the packages grant them read
-access; anywhere else, add a `PACKAGES_READ_TOKEN` repo secret (a PAT with
-`read:packages`).
+bundle. The `@miragon` packages are public on npm, so it installs them with no
+token or registry configuration.
 
 ## Where this project comes from
 

@@ -64,16 +64,7 @@ Where to next:
 
 ## Using the packages in your own project
 
-The packages are published to [GitHub Packages](https://github.com/orgs/Miragon/packages?repo_name=mcp-toolkit) (the `@miragon` scope is restricted, so consumers need to authenticate). Inside this monorepo none of this section applies.
-
-In the consuming project, add an `.npmrc` that points the `@miragon` scope at GitHub Packages and supplies a token:
-
-```
-@miragon:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-Then export a [Personal Access Token](https://github.com/settings/tokens) with the `read:packages` scope as `GITHUB_TOKEN` (in CI, the default `secrets.GITHUB_TOKEN` works as long as the workflow has `permissions: { packages: read }`).
+The packages are published to the public [npm registry](https://www.npmjs.com/org/miragon) under the `@miragon` scope — no authentication or `.npmrc` needed to install them. Inside this monorepo none of this section applies.
 
 Install only what you need:
 
@@ -90,7 +81,7 @@ pnpm add -D @miragon/mcp-toolkit-tool-codegen
 
 The peer dependencies are pinned exactly — install `mcp-use@1.34.1`, `@modelcontextprotocol/sdk@1.29.0`, and `zod@4.4.3` alongside (see each package's `peerDependencies` for the authoritative list).
 
-The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) — a self-contained host + module + widget-bundle project with the `.npmrc`, pinned versions, CI, and the `mcp-app.html` Vite setup already wired. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
+The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) — a self-contained host + module + widget-bundle project with pinned versions, CI, and the `mcp-app.html` Vite setup already wired. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
 
 ## Building UIs fast
 

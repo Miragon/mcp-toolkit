@@ -35,8 +35,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "access": "public"
   },
   "peerDependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",

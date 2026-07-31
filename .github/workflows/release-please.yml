@@ -8,7 +8,7 @@ on:
       dry_run:
         type: boolean
         default: false
-        description: "Run release-please without opening a PR or creating a release"
+        description: "Validate packaging/publish without opening a Release PR or releasing"
 
 permissions:
   contents: write
@@ -21,6 +21,7 @@ concurrency:
 jobs:
   release-please:
     name: Open or update Release PR
+    if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -37,17 +38,51 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          skip-github-pull-request: ${{ inputs.dry_run || false }}
-          skip-github-release: ${{ inputs.dry_run || false }}
 
-  publish:
-    name: Publish to GitHub Packages
-    runs-on: ubuntu-latest
+  # One publish job per package, each calling the reusable OIDC workflow. They
+  # publish to the public npm registry with provenance; the reusable workflow
+  # skips any package whose current version is already on npm, so a partial
+  # release can be safely re-run.
+  publish-core:
+    name: Publish core
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     permissions:
       contents: read
-      packages: write
+      id-token: write
+    uses: ./.github/workflows/publish-npm-package.yml
+    with:
+      package: core
+
+  publish-tool-codegen:
+    name: Publish tool-codegen
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish-npm-package.yml
+    with:
+      package: tool-codegen
+
+  publish-ui:
+    name: Publish ui
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish-npm-package.yml
+    with:
+      package: ui
+
+  # Manual fallback: `workflow_dispatch` with dry_run=true validates that the
+  # three packages pack cleanly against the public npm registry, without
+  # releasing or uploading anything.
+  dry-run:
+    name: Dry-run publish
+    if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -55,10 +90,9 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
-          registry-url: "https://npm.pkg.github.com"
-          scope: "@miragon"
+          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
 
@@ -68,12 +102,10 @@ jobs:
 
       - run: pnpm -r run build
 
-      - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pack (dry-run)
         run: |
           pnpm publish -r \
             --filter "@miragon/mcp-toolkit-core" \
             --filter "@miragon/mcp-toolkit-tool-codegen" \
             --filter "@miragon/mcp-toolkit-ui" \
-            --no-git-checks --access restricted
+            --access public --no-git-checks --dry-run
