@@ -37,14 +37,14 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
-    "mcp-use": "1.34.5",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "mcp-use": "1.34.6",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
-    "@types/node": "26.1.1",
-    "mcp-use": "1.34.5",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@types/node": "26.1.2",
+    "mcp-use": "1.34.6",
     "typescript": "6.0.3",
     "vitest": "4.1.10",
     "zod": "4.4.3"
