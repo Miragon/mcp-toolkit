@@ -39,7 +39,7 @@
   },
   "peerDependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.29.0"
+    "@modelcontextprotocol/sdk": "1.30.0"
   },
   "dependencies": {
     "handlebars": "4.7.9",
@@ -47,8 +47,8 @@
   },
   "devDependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.29.0",
-    "@types/node": "26.1.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@types/node": "26.1.2",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
   }
