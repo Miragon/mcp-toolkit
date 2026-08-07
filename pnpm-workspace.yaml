@@ -3,3 +3,21 @@ packages:
   - "examples"
   - "examples/modules/articles"
   - "docs"
+
+# Transitive security fixes that upstream cannot deliver yet.
+# Keep pinned (see .claude/rules/package-json-fixed-versions.md) and drop an
+# entry as soon as the dependency ships the fix in its own range.
+overrides:
+  # vitepress 1.6.4 is the latest release and still requests vite ^5.4.14,
+  # which is stuck below the server.fs.deny bypass fix (>=6.4.3). vite 6.4.3
+  # also pulls esbuild ^0.25.0, closing the dev-server CORS advisory in the
+  # same step. Scoped to vitepress so the vite 8 used by ui/examples is
+  # untouched. Revisit when vitepress 2.x leaves alpha.
+  vitepress>vite: 6.4.3
+
+  # mcp-use 1.34.6 pins hono to an exact 4.12.25, which sits below the CORS
+  # ReDoS fix (>=4.12.34) and three other advisories. hono is the HTTP server
+  # the framework app actually runs on, so this one is live code, not tooling.
+  # Every other consumer in the graph asks for ^4, so lifting it is in-range
+  # for them. Drop this when mcp-use 2.x lands (it asks for ^4.12.27 itself).
+  hono: 4.13.1
