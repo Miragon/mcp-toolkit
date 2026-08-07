@@ -1,4 +1,4 @@
-import { error } from "mcp-use/server"
+import { error } from "mcp-use"
 
 /**
  * Wraps a raw `server.tool()` handler so thrown exceptions surface as the same

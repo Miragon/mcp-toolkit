@@ -1,5 +1,13 @@
 import fs from "node:fs/promises"
-import { createMcpAppsResource, type MCPServer, RESOURCE_MIME_TYPE, text } from "mcp-use/server"
+import { type MCPServer, text } from "mcp-use"
+
+/**
+ * MIME type MCP Apps hosts key off when deciding to render a resource as a
+ * sandboxed view. mcp-use 2.x keeps this behind an internal `views/` module
+ * (`UI_MIME_TYPE`) instead of exporting it, so the toolkit pins the spec value
+ * itself — it is an MCP Apps wire constant, not an implementation detail.
+ */
+const UI_MIME_TYPE = "text/html;profile=mcp-app"
 import { z } from "zod"
 import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutInputSchema } from "../framework/layout-schemas.js"
@@ -249,26 +257,33 @@ export function registerFrameworkTools(
 
   // The resource `_meta.ui.csp` must appear on the LISTING (resources/list)
   // and on the READ contents — ext-apps hosts read it from the contents when
-  // sandboxing the iframe. `createMcpAppsResource` produces exactly the shape
-  // native mcp-use emits (mimeType `text/html;profile=mcp-app` + `_meta.ui`).
+  // sandboxing the iframe.
   const resourceMeta = resourceCsp ? { ui: { csp: resourceCsp } } : undefined
   server.resource(
     {
       name: "mcp-app-html",
       uri: resourceUri,
-      mimeType: RESOURCE_MIME_TYPE,
+      mimeType: UI_MIME_TYPE,
       ...(resourceMeta ? { _meta: resourceMeta } : {}),
     },
     async () => {
       // Read lazily per request so dev servers pick up a rebuilt bundle
       // without a restart (same behaviour as before).
       const html = await fs.readFile(htmlPath, "utf-8")
-      const uiResource = createMcpAppsResource(
-        resourceUri,
-        html,
-        resourceCsp ? { csp: resourceCsp } : undefined,
-      )
-      return { contents: [uiResource.resource] }
+      // mcp-use 2.x dropped `createMcpAppsResource`; shaping this envelope was
+      // its whole job, so emit it directly. `_meta.ui` must stay on the
+      // contents and not just the listing — ext-apps hosts read the CSP from
+      // here when sandboxing the iframe.
+      return {
+        contents: [
+          {
+            uri: resourceUri,
+            mimeType: UI_MIME_TYPE,
+            text: html,
+            ...(resourceCsp ? { _meta: { ui: { csp: resourceCsp } } } : {}),
+          },
+        ],
+      }
     },
   )
 }

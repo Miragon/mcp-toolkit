@@ -1,4 +1,4 @@
-import { type MCPServer } from "mcp-use/server"
+import { type MCPServer } from "mcp-use"
 import { z } from "zod"
 import { getBuilderCatalogue } from "../framework/catalogue.js"
 import type { StepRegistry } from "../registry/step-registry.js"

@@ -2,8 +2,8 @@ import net from "node:net"
 import path from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { createFrameworkApp } from "@miragon/mcp-toolkit-core/tools"
-import { MCPClient, type MCPSession } from "mcp-use/client"
-import type { McpServerInstance } from "mcp-use/server"
+import { MCPClient, type MCPSession } from "@mcp-use/client"
+import type { MCPServer } from "mcp-use"
 import { createPlugin as createOrdersPlugin } from "../modules/orders/plugin.js"
 import type { Customer, OrdersDashboardData } from "../modules/orders/store.js"
 
@@ -52,7 +52,7 @@ interface ViewEnvelope {
 }
 
 describe("orders module smoke", () => {
-  let app: McpServerInstance<false>
+  let app: MCPServer
   let client: MCPClient
   let session: MCPSession
 

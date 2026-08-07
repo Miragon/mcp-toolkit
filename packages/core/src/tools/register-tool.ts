@@ -1,4 +1,4 @@
-import { type MCPServer, array, object, text } from "mcp-use/server"
+import { type MCPServer, object, text } from "mcp-use"
 import { z } from "zod"
 import { withToolErrors } from "./with-tool-errors.js"
 
@@ -105,7 +105,13 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
           return formatted
         }
         if (Array.isArray(result)) {
-          return array(result)
+          // Wrap here rather than delegating to mcp-use's `array()` helper.
+          // Up to 1.34 that helper produced `structuredContent: { data: [...] }`;
+          // the 2.x shim emits the bare array instead, which contradicts the
+          // `z.object({ data: <array> })` outputSchema `wrapArraySchema`
+          // declares — and MCP requires an object there regardless. Owning the
+          // wrap keeps the declared schema and the emitted payload in step.
+          return object(toStructuredContent(result, config.name))
         }
         if (result !== null && typeof result === "object") {
           return object(result as Record<string, unknown>)

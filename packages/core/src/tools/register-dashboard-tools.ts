@@ -1,4 +1,4 @@
-import { type MCPServer, object } from "mcp-use/server"
+import { type MCPServer, object } from "mcp-use"
 import { z } from "zod"
 import type { DashboardStore } from "../framework/dashboard-store.js"
 import { collectLayoutWidgets } from "../framework/view-builders.js"

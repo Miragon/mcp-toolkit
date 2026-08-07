@@ -7,12 +7,14 @@
  * - `toolsList` — filters `tools/list` responses so users only see tools
  *   belonging to modules their role(s) can access.
  * - `toolsCall` — defence-in-depth: blocks a `tools/call` for a tool whose
- *   module isn't allowed for the caller's role(s). Reads the tool name(s) via
- *   the injected `resolveToolNames`/`resolveToolName` (mcp-use 1.28 does not
- *   put them in `ctx.params`); a JSON-RPC batch can carry several `tools/call`
- *   requests, and the guard denies when *any* of them is disallowed. When no
- *   name can be resolved it fails *open* by default (allow) — pass
- *   `failClosed: true` to deny instead.
+ *   module isn't allowed for the caller's role(s). Reads the name straight off
+ *   `ctx.params.name`. When no name is present it fails *open* by default
+ *   (allow) — pass `failClosed: true` to deny instead.
+ *
+ * Batches need no special handling: mcp-use invokes `mcp:tools/call`
+ * middleware once per call, so each entry of a JSON-RPC batch is guarded
+ * individually (verified against 2.0.4 — a two-entry batch fires the guard
+ * twice, with each name).
  *
  * Tool-to-module mapping uses the prefix convention `<module>_<tool>`.
  * Tools without an underscore are always allowed (they're framework or
@@ -42,32 +44,14 @@ export interface RoleFilterMiddlewares {
 
 export interface RoleFilterOptions {
   /**
-   * Resolves the in-flight `tools/call` tool name. Required for the
-   * `toolsCall` guard to function: mcp-use 1.28 populates `ctx.params` with the
-   * tool *arguments*, not `{ name, arguments }`, so `ctx.params?.name` is never
-   * the tool name at runtime (and a tool argument literally called `name` —
-   * e.g. `save-dashboard`'s — would be misread as one). Wire this to
-   * `installToolCallNameCapture(server)` from the `./tools` subpath, which
-   * recovers the name from the JSON-RPC envelope. Falls back to
-   * `ctx.params?.name` when omitted (legacy behaviour).
-   */
-  resolveToolName?: () => string | undefined
-  /**
-   * Resolves *every* `tools/call` name of the in-flight request. A JSON-RPC
-   * batch envelope can carry several `tools/call` requests — a guard that only
-   * checks one of them can be bypassed by the others, so when this resolver is
-   * provided the guard checks each name and denies if *any* is disallowed.
-   * Wire it to the `.all` of `installToolCallNameCapture(server)`'s return.
-   * Takes precedence over `resolveToolName` when it yields at least one name.
-   */
-  resolveToolNames?: () => string[] | undefined
-  /**
-   * When `true`, a `tools/call` whose tool name can't be resolved is *denied*
-   * instead of allowed. Defaults to `false` (fail-open) to preserve the prior
-   * behaviour — opt in for stricter deployments where an unresolved name should
-   * never slip past the module guard. Only meaningful alongside
-   * `resolveToolName`; without a resolver the name is unavailable by design and
-   * enabling this would block every call.
+   * When `true`, a `tools/call` that arrives without a readable tool name is
+   * *denied* instead of allowed. Defaults to `false` (fail-open), matching the
+   * prior behaviour. Opt in for deployments where an unnamed call must never
+   * slip past the module guard.
+   *
+   * Since mcp-use 2.x the name is always present on `ctx.params.name` for a
+   * well-formed call, so this now only fires on malformed input rather than on
+   * the framework's own shape.
    */
   failClosed?: boolean
 }
@@ -76,8 +60,6 @@ export function createRoleFilterMiddleware(
   roleToModules: Record<string, string[]>,
   opts: RoleFilterOptions = {},
 ): RoleFilterMiddlewares {
-  const resolveToolName = opts.resolveToolName
-  const resolveToolNames = opts.resolveToolNames
   const failClosed = opts.failClosed ?? false
   const hasRules = Object.keys(roleToModules).length > 0
 
@@ -103,22 +85,8 @@ export function createRoleFilterMiddleware(
 
   const toolsCall: RoleFilterMiddleware = async (ctx, next) => {
     if (!hasRules) return next()
-    // A JSON-RPC batch can carry several tools/call requests — check them
-    // all; a single-name check would let the remaining batch entries through.
-    const resolvedNames = resolveToolNames?.()
-    const resolved = resolveToolName?.()
-    const fallbackName =
-      typeof resolved === "string"
-        ? resolved
-        : typeof ctx.params?.name === "string"
-          ? ctx.params.name
-          : undefined
-    const toolNames =
-      resolvedNames && resolvedNames.length > 0
-        ? resolvedNames
-        : fallbackName !== undefined
-          ? [fallbackName]
-          : []
+    const name = typeof ctx.params?.name === "string" ? ctx.params.name : undefined
+    const toolNames = name === undefined ? [] : [name]
     if (toolNames.length === 0) {
       if (failClosed) {
         throw new Error(

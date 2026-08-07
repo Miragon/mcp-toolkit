@@ -1,5 +1,3 @@
-import { getRequestContext } from "mcp-use/server"
-
 /**
  * Default backend-selection TTL: how long a session's sticky pick survives
  * without being re-set. `mcp-use` exposes no session-close hook to plugins, so
@@ -24,19 +22,22 @@ export interface ResolvedBackend<TClient, TMeta = undefined> {
 }
 
 /**
- * Reads the active MCP session id for the in-flight tool call.
+ * Fallback session resolver: always `undefined`.
  *
- * `mcp-use` ships an internal session-id helper but it's not part of the
- * public `mcp-use/server` surface — we read the `Mcp-Session-Id` header off
- * the Hono request context that `mcp-use` propagates via AsyncLocalStorage to
- * every tool handler. Returns `undefined` for the stdio transport or when no
- * session header was negotiated (single-backend config keeps working anyway
- * because resolution falls back to the lone default).
+ * Until mcp-use 2.x this read the `Mcp-Session-Id` header off an ambient Hono
+ * context that `mcp-use` propagated through AsyncLocalStorage. 2.x removed
+ * `getRequestContext()` — a request's context now only reaches code that is
+ * handed it, and the transport is session-less by default — so there is no
+ * ambient source left to read.
+ *
+ * Returning `undefined` keeps the documented fail-soft path: resolution falls
+ * back to the lone default backend, so single-backend setups are unaffected.
+ * **Sticky per-session selection across several backends now requires passing
+ * {@link CreateBackendRegistryOptions.getSessionId} explicitly** — from a tool
+ * handler, `(ctx) => ctx.session?.sessionId` is the 2.x equivalent.
  */
 function defaultGetSessionId(): string | undefined {
-  const ctx = getRequestContext()
-  if (!ctx) return undefined
-  return ctx.req.header("Mcp-Session-Id") ?? ctx.req.header("mcp-session-id") ?? undefined
+  return undefined
 }
 
 export interface CreateBackendRegistryOptions {
@@ -49,9 +50,15 @@ export interface CreateBackendRegistryOptions {
    */
   label?: string
   /**
-   * Resolves the current MCP session id. Defaults to reading the
-   * `Mcp-Session-Id` header off the request context. Injectable for tests and
-   * for hosts that key sessions differently.
+   * Resolves the current MCP session id, which keys the sticky per-session
+   * backend selection.
+   *
+   * **Required for multi-backend sticky selection since mcp-use 2.x.** The
+   * default returns `undefined` (see {@link defaultGetSessionId}), which makes
+   * every call fall back to the single default backend. Pass a resolver that
+   * reads the session off your tool handler's context —
+   * `(ctx) => ctx.session?.sessionId` — or off whatever your host keys
+   * sessions by.
    */
   getSessionId?: () => string | undefined
   /**

@@ -1,5 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import { describe, expect, it } from "vitest"
 import { createInMemoryDashboardStore } from "../framework/dashboard-store.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"

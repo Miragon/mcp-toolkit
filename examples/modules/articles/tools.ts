@@ -1,4 +1,4 @@
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import { z } from "zod"
 import { articleSchema, type ArticleStore } from "./store.js"
 

@@ -1,4 +1,4 @@
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import { z } from "zod"
 import type { AppPlugin } from "@miragon/mcp-toolkit-core"
 import { APP_ONLY_META, buildSingleWidgetView, uiMeta } from "@miragon/mcp-toolkit-core"

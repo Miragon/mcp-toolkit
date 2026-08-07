@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import { afterAll, describe, expect, it } from "vitest"
 import { StepRegistry } from "../registry/step-registry.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"

@@ -1,4 +1,4 @@
-import { type MCPServer, type ToolAnnotations } from "mcp-use/server"
+import { type MCPServer, type ToolAnnotations } from "mcp-use"
 import { z } from "zod"
 import { uiMeta, type WidgetToolMetaDefaults } from "../types/meta.js"
 import { withToolErrors } from "./with-tool-errors.js"

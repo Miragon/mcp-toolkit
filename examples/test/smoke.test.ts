@@ -3,8 +3,8 @@ import path from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import type { AppPlugin, PipelineStepDefinition, StepOutput } from "@miragon/mcp-toolkit-core"
 import { createFrameworkApp } from "@miragon/mcp-toolkit-core/tools"
-import { MCPClient, type MCPSession } from "mcp-use/client"
-import type { McpServerInstance } from "mcp-use/server"
+import { MCPClient, type MCPSession } from "@mcp-use/client"
+import type { MCPServer } from "mcp-use"
 
 /**
  * In-process smoke test for the `examples/` host wiring. Boots a real MCP
@@ -59,7 +59,7 @@ function createSmokePlugin(): AppPlugin {
 }
 
 describe("examples host smoke", () => {
-  let app: McpServerInstance<false>
+  let app: MCPServer
   let client: MCPClient
   let session: MCPSession
 

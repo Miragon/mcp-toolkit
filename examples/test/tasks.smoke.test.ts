@@ -2,8 +2,8 @@ import net from "node:net"
 import path from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { createFrameworkApp } from "@miragon/mcp-toolkit-core/tools"
-import { MCPClient, type MCPSession } from "mcp-use/client"
-import type { McpServerInstance } from "mcp-use/server"
+import { MCPClient, type MCPSession } from "@mcp-use/client"
+import type { MCPServer } from "mcp-use"
 import { createPlugin as createTasksPlugin } from "../modules/tasks/plugin.js"
 import type { Task, TasksBoardData } from "../modules/tasks/store.js"
 
@@ -32,7 +32,7 @@ async function getFreePort(): Promise<number> {
 }
 
 describe("tasks module smoke", () => {
-  let app: McpServerInstance<false>
+  let app: MCPServer
   let client: MCPClient
   let session: MCPSession
 

@@ -1,6 +1,6 @@
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
-import type { ToolAnnotations } from "mcp-use/server"
+import type { ToolAnnotations } from "mcp-use"
 import { describe, expect, it } from "vitest"
 import { createWidgetToolRegistrar } from "./register-widget-tool.js"
 

@@ -1,9 +1,5 @@
-import {
-  MCPServer,
-  type McpServerInstance,
-  type OAuthProvider,
-  type ServerConfig,
-} from "mcp-use/server"
+import { MCPServer, type ServerConfig } from "mcp-use"
+import type { OAuthProvider } from "mcp-use/oauth"
 import { loadApps } from "../registry/app-loader.js"
 import { StepRegistry } from "../registry/step-registry.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
@@ -14,7 +10,6 @@ import type { AppConfig, AppPlugin } from "../types/index.js"
 import { registerFrameworkTools, type AppResourceCsp } from "./register-framework-tools.js"
 import { registerCatalogueTool } from "./register-catalogue-tool.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
-import { installToolCallNameCapture } from "./tool-call-name.js"
 import { deriveAppResourceUri } from "./app-resource-uri.js"
 
 export interface CreateFrameworkAppOptionsBase {
@@ -32,18 +27,16 @@ export interface CreateFrameworkAppOptionsBase {
   /**
    * Pass-through of the remaining mcp-use {@link ServerConfig} handed to the
    * `MCPServer` constructor. The main use case is wiring session/stream
-   * backends — e.g. Redis-backed `sessionStore` / `streamManager` so several
-   * server instances can share sessions — but any mcp-use server option
-   * (`stateless`, `cors`, `sessionIdleTimeoutMs`, `instructions`, …) works
-   * without the toolkit having to mirror it. The six toolkit-owned keys
-   * (`name`, `version`, `description`, `host`, `baseUrl`, `oauth`) are
-   * excluded via `Omit` because they are first-class options on this
-   * interface already; `oauth` additionally stays out because it selects the
-   * `MCPServer<true | false>` constructor overload.
+   * options it does not mirror — `cors`, `instructions`, `allowedOrigins`,
+   * `logging`, … — straight through to the `MCPServer` constructor. The
+   * toolkit-owned keys
+   * (`name`, `version`, `description`, `host`, `oauth`) are excluded via
+   * `Omit` because they are first-class options on this interface already;
+   * `oauth` additionally stays out because it carries the `TUser` generic.
    */
   serverOptions?: Omit<
     ServerConfig,
-    "name" | "version" | "description" | "host" | "baseUrl" | "oauth"
+    "name" | "version" | "description" | "host" | "oauth"
   >
   plugins: AppPlugin[]
   middleware?: {
@@ -131,8 +124,9 @@ export interface CreateFrameworkAppOptionsBase {
  * typed as `MCPServer<true>`, so tool callbacks receive a non-nullable
  * `ctx.auth`.
  */
-export interface CreateFrameworkAppOptionsWithOAuth extends CreateFrameworkAppOptionsBase {
-  oauth: OAuthProvider
+export interface CreateFrameworkAppOptionsWithOAuth<TUser = unknown>
+  extends CreateFrameworkAppOptionsBase {
+  oauth: OAuthProvider<TUser>
 }
 
 /**
@@ -144,8 +138,9 @@ export interface CreateFrameworkAppOptionsWithoutOAuth extends CreateFrameworkAp
   oauth?: undefined
 }
 
-export type CreateFrameworkAppOptions =
-  CreateFrameworkAppOptionsWithOAuth | CreateFrameworkAppOptionsWithoutOAuth
+export type CreateFrameworkAppOptions<TUser = unknown> =
+  | CreateFrameworkAppOptionsWithOAuth<TUser>
+  | CreateFrameworkAppOptionsWithoutOAuth
 
 /**
  * Orchestrates a full Miranum-style MCP server: MCPServer construction,
@@ -165,57 +160,71 @@ export type CreateFrameworkAppOptions =
  * Returns the booted server before `.listen()` — the caller decides the port
  * and the moment the server starts accepting traffic.
  */
-export function createFrameworkApp(
-  options: CreateFrameworkAppOptionsWithOAuth,
-): Promise<McpServerInstance<true>>
+export function createFrameworkApp<TUser>(
+  options: CreateFrameworkAppOptionsWithOAuth<TUser>,
+): Promise<MCPServer<TUser>>
 export function createFrameworkApp(
   options: CreateFrameworkAppOptionsWithoutOAuth,
-): Promise<McpServerInstance<false>>
+): Promise<MCPServer>
 // Async without an internal await today: the boot path became fully
 // synchronous when upstream discovery was removed, but the Promise return
 // stays — consumers `await` it, and future boot steps may be async again.
 // eslint-disable-next-line @typescript-eslint/require-await
-export async function createFrameworkApp(
-  options: CreateFrameworkAppOptions,
-): Promise<McpServerInstance<boolean>> {
+export async function createFrameworkApp<TUser>(
+  options: CreateFrameworkAppOptions<TUser>,
+): Promise<MCPServer<TUser>> {
+  // `baseUrl` is deliberately absent: mcp-use 2.x dropped it from
+  // `ServerConfig` and resolves the serving origin from the request (or the
+  // MCP_URL env var). The toolkit keeps the option because it still feeds the
+  // widget resource CSP — see `buildAppResourceCsp` — it just no longer
+  // reaches the MCPServer constructor.
   const baseConfig = {
     name: options.name,
     version: options.version ?? "0.1.0",
     description: options.description,
     host: options.host ?? "localhost",
-    baseUrl: options.baseUrl,
   }
   // `serverOptions` is statically disjoint from `baseConfig` (its type Omits
   // every toolkit-owned key); the spread order is defense-in-depth so the
   // toolkit's first-class options always win at runtime.
-  const server: McpServerInstance<boolean> = options.oauth
-    ? new MCPServer({ ...options.serverOptions, ...baseConfig, oauth: options.oauth })
-    : new MCPServer({ ...options.serverOptions, ...baseConfig })
+  // `ServerConfig<TUser>` is conditional on TUser (`[TUser] extends [never]`
+  // selects between `oauth?: undefined` and a required `oauth`). TypeScript
+  // cannot evaluate that against a still-generic TUser inside this
+  // implementation signature, so the constructor arg is cast here. The two
+  // public overloads above are what callers see, and they carry the real
+  // guarantee.
+  const server = (
+    options.oauth
+      ? new MCPServer({
+          ...options.serverOptions,
+          ...baseConfig,
+          oauth: options.oauth,
+        } as unknown as ServerConfig<TUser>)
+      : new MCPServer({ ...options.serverOptions, ...baseConfig } as unknown as ServerConfig<never>)
+  ) as MCPServer<TUser>
 
   const orgGateId = options.middleware?.orgGate
   if (orgGateId) {
-    server.use("mcp:*", createOrgGateMiddleware(orgGateId))
+    // The middleware is typed structurally on purpose so it stays host-
+    // agnostic; mcp-use 2.x types `ctx.auth` as its own `AuthInfo`, which is
+    // not mutually assignable with that shape. Only `auth.user` is read.
+    server.use("mcp:*", createOrgGateMiddleware(orgGateId) as never)
   }
-
-  // Capture the `tools/call` tool name from the JSON-RPC envelope at the HTTP
-  // layer. mcp-use 1.28 populates `mcp:tools/call` middleware's `ctx.params`
-  // with the tool *arguments*, not `{ name, arguments }`, so the role filter
-  // can't read the name from there. The resolver is request-scoped via
-  // `getRequestContext()` and is safe to install unconditionally.
-  const resolveToolName = installToolCallNameCapture(server)
 
   const roleFilter = options.middleware?.roleFilter
   if (roleFilter && Object.keys(roleFilter).length > 0) {
     const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter, {
-      resolveToolName,
-      // Batch-aware: a JSON-RPC batch envelope can carry several tools/call
-      // requests; the guard must check all of them, not just the first.
-      resolveToolNames: resolveToolName.all,
       failClosed: options.middleware?.roleFilterFailClosed ?? false,
     })
-    server.use("mcp:tools/list", toolsList)
-    server.use("mcp:tools/call", toolsCall)
+    // Cast for the same reason as the org gate above.
+    server.use("mcp:tools/list", toolsList as never)
+    server.use("mcp:tools/call", toolsCall as never)
   }
+
+  // The registrars are typed against the OAuth-less `MCPServer`; a
+  // `MCPServer<TUser>` differs only in the `ctx.auth` its callbacks receive,
+  // which none of them read. They register tools and one resource.
+  const serverForRegistrars = server as unknown as MCPServer
 
   const stepRegistry = new StepRegistry()
   const widgetRegistry = new WidgetRegistry()
@@ -253,7 +262,7 @@ export async function createFrameworkApp(
     options.app.resourceUri ??
     deriveAppResourceUri({ appName: options.name, htmlPath: options.app.htmlPath })
 
-  registerFrameworkTools(server, {
+  registerFrameworkTools(serverForRegistrars, {
     stepRegistry,
     widgetRegistry,
     config: appConfig,
@@ -277,7 +286,7 @@ export async function createFrameworkApp(
   // only when `app.builder` is true. Lean servers leave it off so render-view
   // / the widget core stay the entire surface. See the `app.builder` TSDoc.
   if (options.app.builder) {
-    registerCatalogueTool(server, {
+    registerCatalogueTool(serverForRegistrars, {
       stepRegistry,
       widgetRegistry,
       appConfigs,
@@ -285,7 +294,7 @@ export async function createFrameworkApp(
     })
 
     const dashboardStore = options.app.dashboardStore ?? createInMemoryDashboardStore()
-    registerDashboardTools(server, { store: dashboardStore, widgetRegistry })
+    registerDashboardTools(serverForRegistrars, { store: dashboardStore, widgetRegistry })
   }
 
   return server
