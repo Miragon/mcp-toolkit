@@ -1,10 +1,4 @@
 import { describe, expect, it } from "vitest"
-import {
-  AppsSdkAdapter,
-  McpAppsAdapter,
-  RESOURCE_URI_META_KEY,
-  type UIResourceDefinition,
-} from "mcp-use/server"
 import { APP_ONLY_META, uiMeta } from "./meta.js"
 
 const URI = "ui://app/mcp-app.hash.html"
@@ -83,30 +77,48 @@ describe("uiMeta", () => {
 })
 
 /**
- * Pins our hand-written literals against what mcp-use's own protocol adapters
- * emit for native `mcpApps` widgets. If a future mcp-use bump changes the wire
- * contract, these fail loudly instead of widgets silently hanging on their
- * loading skeleton on ext-apps hosts (the 0.7.x regression).
+ * The wire keys, pinned as literals the toolkit owns.
+ *
+ * This used to compare `uiMeta()` against mcp-use's `McpAppsAdapter` /
+ * `AppsSdkAdapter` output. That coupling bought an automatic upstream check
+ * but tied our contract to types mcp-use is free to move — and did move: 2.x
+ * removed both adapters along with `RESOURCE_URI_META_KEY` and
+ * `UIResourceDefinition`, keeping the equivalents (`buildToolUiMeta`,
+ * `UI_RESOURCE_URI_META_KEY`) in an internal `views/` module with no package
+ * export.
+ *
+ * The regression these tests exist for — a widget tool reaching hosts without
+ * a resource URI, so it renders as JSON or hangs on the loading skeleton (the
+ * 0.7.x regression) — is now guarded where it actually shows up: against the
+ * real `tools/list` output, in `examples/test/tasks.smoke.test.ts`. That is a
+ * stronger check than comparing two implementations, and it survives an
+ * upstream major.
+ *
+ * What is lost: a silent upstream wire-format change no longer fails here.
+ * When bumping mcp-use, diff these keys against the spec and against
+ * `views/constants.js` / `views/wire.js` in the new version.
  */
-describe("uiMeta parity with mcp-use protocol adapters", () => {
-  const definition: UIResourceDefinition = { type: "mcpApps", name: "app", htmlTemplate: "<div/>" }
+describe("uiMeta — dual-protocol wire keys", () => {
   const meta = uiMeta({ resourceUri: URI, title: "app" })
 
-  it("matches the ext-apps flat resource-uri key", () => {
-    expect(meta[RESOURCE_URI_META_KEY]).toBe(URI)
+  it("emits the ext-apps nested key (SEP-1865 `_meta.ui.resourceUri`)", () => {
+    expect(meta.ui).toEqual({ resourceUri: URI })
   })
 
-  it("matches McpAppsAdapter tool metadata (nested ui + flat key)", () => {
-    const native = new McpAppsAdapter().buildToolMetadata(definition, URI)
-    for (const [key, value] of Object.entries(native)) {
-      expect(meta[key], `key ${key}`).toEqual(value)
-    }
+  it("emits the flat ext-apps key hosts still read (`ui/resourceUri`)", () => {
+    expect(meta["ui/resourceUri"]).toBe(URI)
   })
 
-  it("matches AppsSdkAdapter tool metadata (openai/outputTemplate)", () => {
-    const native = new AppsSdkAdapter().buildToolMetadata(definition, URI)
-    for (const [key, value] of Object.entries(native)) {
-      expect(meta[key], `key ${key}`).toEqual(value)
-    }
+  it("emits the Apps-SDK template key (`openai/outputTemplate`)", () => {
+    expect(meta["openai/outputTemplate"]).toBe(URI)
+  })
+
+  it("keeps all three URI spellings pointing at the same resource", () => {
+    const uris = [
+      (meta.ui as { resourceUri?: string }).resourceUri,
+      meta["ui/resourceUri"],
+      meta["openai/outputTemplate"],
+    ]
+    expect(new Set(uris).size).toBe(1)
   })
 })

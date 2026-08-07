@@ -119,35 +119,72 @@ export function useHostBridge(): HostBridge {
  * Use {@link createMcpUseHostBridge} for the standalone factory variant.
  */
 export function useMcpUseHostBridge(): HostBridge {
-  const widget = useWidget()
-  const { callTool, sendFollowUpMessage, openExternal, output, theme, setState } = widget
+  const { callTool, sendFollowUpMessage, openExternal, output, theme, setState } = useWidget()
 
   return useMemo<HostBridge>(
-    () => ({
-      callTool: (name, args) => callTool(name, args),
-      sendFollowup: (prompt) => {
-        void sendFollowUpMessage(prompt).catch((err: unknown) => {
-          console.warn("[host-bridge] sendFollowUpMessage failed:", err)
-        })
-      },
-      openExternal: (url) => {
-        try {
-          openExternal(url)
-        } catch {
-          // No host bridge (local dev preview) — fall back to window.open.
-          if (typeof window !== "undefined") window.open(url, "_blank", "noopener")
-        }
-      },
-      getWidgetData: <T,>() => (output as T | null) ?? null,
-      setModelContext: (text) => {
-        void setState({ __model_context: text }).catch((err: unknown) => {
-          console.warn("[host-bridge] setState (model context) failed:", err)
-        })
-      },
-      theme: theme === "dark" ? "dark" : "light",
-    }),
+    () => toHostBridge({ callTool, sendFollowUpMessage, openExternal, output, theme, setState }),
     [callTool, sendFollowUpMessage, openExternal, output, theme, setState],
   )
+}
+
+/**
+ * Exactly the slice of `mcp-use`'s widget surface {@link toHostBridge} reads —
+ * declared structurally rather than imported from `mcp-use/react`.
+ *
+ * That indirection is the point: the mapping below is the behaviour widgets
+ * depend on, and pinning it against a local interface keeps it testable without
+ * a host, a DOM, or a React renderer. It also localises upstream churn — when
+ * the shape moves, this interface and {@link useMcpUseHostBridge} are what
+ * change, and {@link toHostBridge}'s tests still prove the bridge contract
+ * widgets see is unchanged.
+ */
+export interface McpUseWidgetSurface {
+  /** Invoke a tool on the connected server. */
+  callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>
+  /** Hand a prompt back to the conversation. Rejects are swallowed by the mapping. */
+  sendFollowUpMessage: (prompt: string) => Promise<unknown>
+  /** Open a URL outside the widget frame. Throws when no host mediates links. */
+  openExternal: (url: string) => void
+  /** The tool output the host rendered this widget with, when it pushed one. */
+  output?: unknown
+  /** The host's reported colour scheme, in whatever spelling it uses. */
+  theme?: unknown
+  /** Persist widget state; the model-context write rides on this. */
+  setState: (state: Record<string, unknown>) => Promise<unknown>
+}
+
+/**
+ * Map `mcp-use`'s widget surface onto the host-agnostic {@link HostBridge}.
+ *
+ * Pure and separately exported so the fail-soft behaviour is pinned by tests:
+ * every verb here has a documented failure mode that widgets rely on, and none
+ * of them may start throwing into widget render paths.
+ */
+export function toHostBridge(widget: McpUseWidgetSurface): HostBridge {
+  const { callTool, sendFollowUpMessage, openExternal, output, theme, setState } = widget
+  return {
+    callTool: (name, args) => callTool(name, args),
+    sendFollowup: (prompt) => {
+      void sendFollowUpMessage(prompt).catch((err: unknown) => {
+        console.warn("[host-bridge] sendFollowUpMessage failed:", err)
+      })
+    },
+    openExternal: (url) => {
+      try {
+        openExternal(url)
+      } catch {
+        // No host bridge (local dev preview) — fall back to window.open.
+        if (typeof window !== "undefined") window.open(url, "_blank", "noopener")
+      }
+    },
+    getWidgetData: <T,>() => (output as T | null) ?? null,
+    setModelContext: (text) => {
+      void setState({ __model_context: text }).catch((err: unknown) => {
+        console.warn("[host-bridge] setState (model context) failed:", err)
+      })
+    },
+    theme: theme === "dark" ? "dark" : "light",
+  }
 }
 
 /**

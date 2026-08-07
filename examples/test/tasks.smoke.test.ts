@@ -68,6 +68,50 @@ describe("tasks module smoke", () => {
     )
   })
 
+  /**
+   * The dual-protocol widget contract, asserted on the wire rather than
+   * against mcp-use's own adapters. A widget tool that reaches `tools/list`
+   * without these keys renders as plain JSON on ext-apps hosts and hangs on
+   * the loading skeleton on Apps-SDK hosts — the 0.7.x regression. Checking
+   * the real listing keeps that guard independent of how the framework (or
+   * mcp-use) happens to build the metadata internally.
+   */
+  it("stamps the dual-protocol ui metadata on the widget tool in tools/list", async () => {
+    const tools = await session.listTools()
+    const board = tools.find((t) => t.name === "show_tasks_board")
+    expect(board).toBeDefined()
+
+    const meta = board!._meta
+    expect(meta).toBeDefined()
+
+    // Both spellings must carry the same URI: hosts read either the nested
+    // ext-apps key or the flat legacy one, and Apps-SDK hosts read a third.
+    const nested = (meta!.ui as { resourceUri?: string } | undefined)?.resourceUri
+    expect(nested).toMatch(/^ui:\/\//)
+    expect(meta!["ui/resourceUri"]).toBe(nested)
+    expect(meta!["openai/outputTemplate"]).toBe(nested)
+
+    // Without these an Apps-SDK host renders the result but never the widget.
+    expect(meta!["openai/widgetAccessible"]).toBe(true)
+    expect(meta!["openai/resultCanProduceWidget"]).toBe(true)
+  })
+
+  /**
+   * The `*_data` feeds exist for an already-rendered widget to call. They must
+   * stay app-only: a model-visible data feed invites the host to render raw
+   * JSON, and invites the model to call it instead of the widget tool.
+   */
+  it("keeps the app-only data feed marked app-only and free of a resource uri", async () => {
+    const tools = await session.listTools()
+    const feed = tools.find((t) => t.name === "tasks_board_data")
+    expect(feed).toBeDefined()
+
+    const ui = (feed!._meta as { ui?: { visibility?: string[]; resourceUri?: string } } | undefined)
+      ?.ui
+    expect(ui?.visibility).toEqual(["app"])
+    expect(ui?.resourceUri).toBeUndefined()
+  })
+
   it("list_tasks returns the seeded board as structuredContent", async () => {
     const result = await session.callTool("list_tasks", {})
     expect(result.isError).toBeFalsy()

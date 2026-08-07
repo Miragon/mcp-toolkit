@@ -2,11 +2,118 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   createChatGptHostBridge,
   createStandaloneHostBridge,
+  toHostBridge,
+  type McpUseWidgetSurface,
   type OpenAiAppsSdk,
 } from "./host-bridge.js"
 
 afterEach(() => {
   vi.restoreAllMocks()
+})
+
+/** A widget surface whose verbs all succeed; override per test. */
+function surface(overrides: Partial<McpUseWidgetSurface> = {}): McpUseWidgetSurface {
+  return {
+    callTool: vi.fn().mockResolvedValue({ structuredContent: { ok: true } }),
+    sendFollowUpMessage: vi.fn().mockResolvedValue(undefined),
+    openExternal: vi.fn(),
+    setState: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  }
+}
+
+/**
+ * The `mcp-use` adapter is the one bridge whose upstream shape is not ours, so
+ * these pin the mapping itself: every verb's fail-soft promise, and the exact
+ * wire shape of the model-context write. A widget renders through this — none
+ * of it may start throwing, and `__model_context` is what the host reads.
+ */
+describe("toHostBridge — mcp-use widget surface mapping", () => {
+  it("passes callTool through untouched and resolves with the raw tool response", async () => {
+    const callTool = vi.fn().mockResolvedValue({ structuredContent: { rows: 3 } })
+    const bridge = toHostBridge(surface({ callTool }))
+
+    await expect(bridge.callTool("list_tasks", { limit: 10 })).resolves.toEqual({
+      structuredContent: { rows: 3 },
+    })
+    expect(callTool).toHaveBeenCalledWith("list_tasks", { limit: 10 })
+  })
+
+  it("swallows a rejected sendFollowUpMessage with a warning instead of an unhandled rejection", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const sendFollowUpMessage = vi.fn().mockRejectedValue(new Error("no conversation"))
+    const bridge = toHostBridge(surface({ sendFollowUpMessage }))
+
+    expect(() => bridge.sendFollowup("show me more")).not.toThrow()
+    await vi.waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(
+        "[host-bridge] sendFollowUpMessage failed:",
+        expect.any(Error),
+      )
+    })
+  })
+
+  it("falls back to window.open when the host's openExternal throws", () => {
+    const openExternal = vi.fn(() => {
+      throw new Error("no host bridge")
+    })
+    const open = vi.fn()
+    vi.stubGlobal("window", { open })
+
+    const bridge = toHostBridge(surface({ openExternal }))
+    expect(() => bridge.openExternal("https://example.test")).not.toThrow()
+    expect(open).toHaveBeenCalledWith("https://example.test", "_blank", "noopener")
+
+    vi.unstubAllGlobals()
+  })
+
+  it("does not reach for window.open when the host handles the link", () => {
+    const open = vi.fn()
+    vi.stubGlobal("window", { open })
+
+    const bridge = toHostBridge(surface())
+    bridge.openExternal("https://example.test")
+    expect(open).not.toHaveBeenCalled()
+
+    vi.unstubAllGlobals()
+  })
+
+  it("returns the host-pushed output from getWidgetData, and null when there is none", () => {
+    expect(toHostBridge(surface({ output: { total: 7 } })).getWidgetData()).toEqual({ total: 7 })
+    expect(toHostBridge(surface({ output: undefined })).getWidgetData()).toBeNull()
+    // A host that pushes an explicit null must not surface as undefined.
+    expect(toHostBridge(surface({ output: null })).getWidgetData()).toBeNull()
+  })
+
+  it("writes model context as setState({ __model_context }) — the key the host reads", () => {
+    const setState = vi.fn().mockResolvedValue(undefined)
+    const bridge = toHostBridge(surface({ setState }))
+
+    bridge.setModelContext?.("selected invoice 42")
+    expect(setState).toHaveBeenCalledWith({ __model_context: "selected invoice 42" })
+  })
+
+  it("swallows a rejected setState with a warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const setState = vi.fn().mockRejectedValue(new Error("state unavailable"))
+    const bridge = toHostBridge(surface({ setState }))
+
+    expect(() => bridge.setModelContext?.("x")).not.toThrow()
+    await vi.waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(
+        "[host-bridge] setState (model context) failed:",
+        expect.any(Error),
+      )
+    })
+  })
+
+  it("normalizes the theme: only an exact 'dark' is dark, everything else is light", () => {
+    expect(toHostBridge(surface({ theme: "dark" })).theme).toBe("dark")
+    expect(toHostBridge(surface({ theme: "light" })).theme).toBe("light")
+    // Unknown or absent host spellings must not leak through as-is.
+    expect(toHostBridge(surface({ theme: undefined })).theme).toBe("light")
+    expect(toHostBridge(surface({ theme: "Dark" })).theme).toBe("light")
+  })
 })
 
 describe("createChatGptHostBridge — no window.openai (defensive guards)", () => {
