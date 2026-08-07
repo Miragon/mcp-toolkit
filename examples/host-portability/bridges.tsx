@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 import {
   HostBridgeProvider,
   createChatGptHostBridge,
-  createMcpUseHostBridge,
   createStandaloneHostBridge,
+  toHostBridge,
   type HostBridge,
+  type McpUseWidgetSurface,
   type OpenAiAppsSdk,
 } from "@miragon/mcp-toolkit-ui/app"
 import { AppQueryProvider } from "@miragon/mcp-toolkit-ui"
@@ -33,7 +34,9 @@ export const BRIDGE_OPTIONS: BridgeOption[] = [
   {
     id: "mcp-use",
     label: "mcp-use host",
-    blurb: "The toolkit's own host. createMcpUseHostBridge() reads a window.openai shim.",
+    blurb:
+      "The toolkit's own host: toHostBridge() over a stubbed 2.x view surface " +
+      "(in production, McpUseHostBridgeProvider feeds it the real view hooks).",
   },
   {
     id: "chatgpt",
@@ -50,15 +53,15 @@ export const BRIDGE_OPTIONS: BridgeOption[] = [
 const theme = "light" as const
 
 /**
- * Build the OpenAI Apps SDK shim (`window.openai`) the ChatGPT and mcp-use
- * bridges read from. Routes `callTool` to the fake server and reports every
- * action to `log`. This is a *stub* of the real host object — exactly the
- * surface {@link createChatGptHostBridge} and `mcp-use`'s `useWidget` probe.
+ * Build the OpenAI Apps SDK stub (`window.openai` shape) the ChatGPT bridge
+ * reads from. Routes `callTool` to the fake server and reports every action to
+ * `log`. This is a *stub* of the real host object — exactly the surface
+ * {@link createChatGptHostBridge} probes.
  */
 function buildOpenAiStub(log: LogFn, orderId: string): OpenAiAppsSdk & Record<string, unknown> {
   return {
     theme,
-    // mcp-use's useWidget reads these host-context globals; harmless defaults.
+    // Host-context globals a real Apps-SDK host exposes; harmless defaults.
     displayMode: "inline",
     locale: "en-US",
     maxHeight: 4096,
@@ -81,8 +84,7 @@ function buildOpenAiStub(log: LogFn, orderId: string): OpenAiAppsSdk & Record<st
     },
     requestDisplayMode: (a: { mode: string }) => Promise.resolve({ mode: a.mode }),
     setWidgetState: (state: Record<string, unknown>) => {
-      // mcp-use flushes an empty model context on mount; only surface the
-      // meaningful (non-empty) writes the widget actually makes.
+      // Only surface meaningful (non-empty) model-context writes.
       const ctx = state["__model_context"]
       if (typeof ctx === "string" && ctx.length > 0) log({ kind: "setModelContext", text: ctx })
       return Promise.resolve()
@@ -92,37 +94,35 @@ function buildOpenAiStub(log: LogFn, orderId: string): OpenAiAppsSdk & Record<st
 }
 
 /**
- * mcp-use host stage. Installs a `window.openai` shim so `mcp-use`'s `useWidget`
- * (inside {@link createMcpUseHostBridge}) selects the Apps-SDK provider, then
- * renders the *real* mcp-use adapter — the same path a widget takes in the
- * toolkit's production host. Inner component because `createMcpUseHostBridge`
- * is a hook and must run under the installed shim.
+ * Build the mcp-use bridge from a stubbed 2.x view surface. In the toolkit's
+ * production host, `McpUseHostBridgeProvider` composes the real
+ * `mcp-use/react` view hooks into this same {@link McpUseWidgetSurface} shape;
+ * those hooks only run inside a `bootstrapView`-mounted iframe, so this demo
+ * page stubs the surface and runs it through the *real* mapping —
+ * {@link toHostBridge} — which is the adapter code widgets actually depend on.
  */
-function McpUseStage({ log, orderId }: { log: LogFn; orderId: string }): ReactNode {
-  const [ready, setReady] = useState(false)
-  useEffect(() => {
-    const prev = (window as { openai?: unknown }).openai
-    const stub = buildOpenAiStub(log, orderId)
-    ;(window as { openai?: unknown }).openai = stub
-    window.dispatchEvent(new CustomEvent("openai:set_globals", { detail: { globals: stub } }))
-    setReady(true)
-    return () => {
-      ;(window as { openai?: unknown }).openai = prev
-    }
-  }, [log, orderId])
-
-  if (!ready) return null
-  return <McpUseInner orderId={orderId} />
-}
-
-function McpUseInner({ orderId }: { orderId: string }): ReactNode {
-  // The real adapter, reading the installed window.openai shim via mcp-use.
-  const bridge = createMcpUseHostBridge()
-  return (
-    <HostBridgeProvider bridge={bridge}>
-      <OrderStatusCard orderId={orderId} />
-    </HostBridgeProvider>
-  )
+function buildMcpUseSurfaceBridge(log: LogFn, orderId: string): HostBridge {
+  const surface: McpUseWidgetSurface = {
+    callTool: (name, args) => {
+      log({ kind: "callTool", name, args })
+      return callFakeTool(name, args)
+    },
+    sendFollowUpMessage: (prompt) => {
+      log({ kind: "sendFollowup", prompt })
+      return Promise.resolve()
+    },
+    openExternal: (url) => {
+      log({ kind: "openExternal", url })
+    },
+    output: seedOrder(orderId),
+    theme,
+    setState: (state) => {
+      const ctx = state["__model_context"]
+      if (typeof ctx === "string" && ctx.length > 0) log({ kind: "setModelContext", text: ctx })
+      return Promise.resolve()
+    },
+  }
+  return toHostBridge(surface)
 }
 
 /**
@@ -140,6 +140,9 @@ export function BridgeStage({
   log: LogFn
 }): ReactNode {
   const explicitBridge = useMemo<HostBridge | null>(() => {
+    if (bridgeId === "mcp-use") {
+      return buildMcpUseSurfaceBridge(log, orderId)
+    }
     if (bridgeId === "chatgpt") {
       // Pass the stub explicitly so the adapter doesn't depend on a global.
       return createChatGptHostBridge(buildOpenAiStub(log, orderId))
@@ -163,15 +166,6 @@ export function BridgeStage({
     }
     return null
   }, [bridgeId, orderId, log])
-
-  // mcp-use needs the shim installed first — handled by its own stage.
-  if (bridgeId === "mcp-use") {
-    return (
-      <AppQueryProvider>
-        <McpUseStage log={log} orderId={orderId} />
-      </AppQueryProvider>
-    )
-  }
 
   if (!explicitBridge) return null
   return (

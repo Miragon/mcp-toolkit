@@ -51,12 +51,12 @@ owns its data in-process instead of fetching through a declarative step.
   (All set `openWorldHint: false` — the data is local to this server, a closed world.)
 
 - **One widget tool** `show_tasks_board`: returns `buildSingleWidgetView(...)`
-  with `_meta` from `uiMeta({ resourceUri })`, so the host renders the result as
+  with a native `view` binding (+ `appsSdkMeta` for Apps SDK hosts), so the host renders the result as
   UI instead of returning it. The `resourceUri` is handed to
   `registerWidgetTools` by the framework at boot.
 
 - **One app-only feed** `tasks_board_data`: the same `TasksBoardData` as plain
-  JSON, marked `APP_ONLY_META` so conforming hosts hide it from the LLM while the
+  JSON, marked `visibility: "app"` so conforming hosts hide it from the LLM while the
   widget can still call it for an in-place refresh.
 
 ### 3. `widgets/TasksBoard.tsx` — the hand-built widget
@@ -94,7 +94,7 @@ show_tasks_board (plugin.ts)
   → buildSingleWidgetView({ dataType: "tasks:board", data })
   → structuredContent: ViewStructuredContent
         .context.stepData.result = { _dataType: "tasks:board", data }
-  → host renders the app bundle (uiMeta.resourceUri)
+  → host renders the app bundle (the tool's view binding)
   → adaptDataWidget(TasksBoard, "tasks:board")
         finds the step whose _dataType === "tasks:board"
   → TasksBoard receives that step's data as its `data` prop

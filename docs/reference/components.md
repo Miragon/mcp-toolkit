@@ -533,8 +533,9 @@ For non-default hosts, wrap the widget in
   — any MCP server in a standalone web app. `callTool` is the only required option.
 - `createChatGptHostBridge(sdk?)` — the OpenAI Apps SDK (ChatGPT). Defensive;
   missing host methods degrade to logged no-ops.
-- `createMcpUseHostBridge()` (= `useMcpUseHostBridge()`) — the toolkit's own
-  host (the default when no provider is present).
+- `McpUseHostBridgeProvider` — the toolkit's own host: composes the mcp-use 2.x
+  view hooks into the bridge. Already included in `McpToolkitApp`, so widgets
+  rendered by the toolkit shell need no wrapping.
 
 ## Widget authoring
 
@@ -650,24 +651,25 @@ and a fork-able starting point; pass one to `ThemeProvider`'s `theme` prop.
 You rarely write these when authoring a single widget — you write the widget and
 register it here.
 
-### McpToolkitApp
+### McpToolkitApp / mountMcpToolkitApp
 
-`/app` import. Props: `widgets` (required, `Record<string, WidgetComponent>`),
+`/app` imports. Props: `widgets` (required, `Record<string, WidgetComponent>`),
 `refreshToolName?` (default `"refresh-view"`), `labels?`.
 
 ```tsx
-import { createRoot } from "react-dom/client"
-import { McpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
+import { mountMcpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
 import { OrderCardWidget } from "./widgets/OrderCard.js"
 
 const widgets = { "orders:order-card": OrderCardWidget }
-createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widgets} />)
+mountMcpToolkitApp({ widgets })
 ```
 
-**When to use:** the recommended consumer root for an `mcp-app.html` bundle. It
-wraps `McpAppView` in mcp-use's `McpUseProvider` (host auto-sizing, `StrictMode`,
-error boundary, theme). See the [UI API reference](./api-ui.md) for `McpAppView`,
-`WidgetRenderer` and `LayoutBuilder`.
+**When to use:** the entry point for the widget bundle.
+`mountMcpToolkitApp` mounts via mcp-use's `bootstrapView` (ext-apps handshake,
+error boundary, auto-resize); `McpToolkitApp` is the component it mounts —
+mcp-use `ThemeProvider` + `McpUseHostBridgeProvider` around `McpAppView`. See
+the [UI API reference](./api-ui.md) for `McpAppView`, `WidgetRenderer` and
+`LayoutBuilder`.
 
 ## Dev
 

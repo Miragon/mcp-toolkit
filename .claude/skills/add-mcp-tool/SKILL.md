@@ -5,7 +5,7 @@ description: >-
   "add a tool", "expose X as a tool", "register a new MCP tool", write a new
   createToolRegistrar entry, set tool annotations (readOnly/idempotent/destructive
   hints), add an outputSchema, paginate a list tool, or add an app-only *_data feed
-  (APP_ONLY_META) for a widget. For a whole new server/module use build-mcp-server;
+  (visibility: "app") for a widget. For a whole new server/module use build-mcp-server;
   for the UI use build-mcp-widget.
 ---
 
@@ -103,10 +103,9 @@ The widget then renders `result.items` and uses `total` for its `ListFooter`.
 
 When a widget needs to self-refresh, add a no-UI JSON feed alongside the `show_*`
 tool. Use a raw `server.tool(...)` (so you control the result shape), mark it
-`APP_ONLY_META`, and mirror the payload into both channels:
+`visibility: "app"`, and mirror the payload into both channels:
 
 ```ts
-import { APP_ONLY_META } from "@miragon/mcp-toolkit-core"
 import { withToolErrors } from "@miragon/mcp-toolkit-core/tools"
 
 server.tool(
@@ -114,8 +113,8 @@ server.tool(
     name: "tasks_board_data",
     description: "Internal JSON feed (no UI) backing the board's refresh. Prefer show_tasks_board.",
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-    schema: z.object({}),
-    _meta: APP_ONLY_META, // hidden from the LLM tool surface, still callable from the widget
+    inputSchema: z.object({}),
+    visibility: "app", // hidden from the LLM tool surface, still callable from the widget
   },
   withToolErrors(() =>
     Promise.resolve({

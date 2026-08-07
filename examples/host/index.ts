@@ -28,11 +28,14 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const app = await createFrameworkApp({
   name: "toolkit-example-host",
   version: "0.0.1",
-  baseUrl: process.env.MCP_URL,
+  // The serving origin is request-resolved by mcp-use (or the MCP_URL env
+  // var) — no baseUrl option since the native-views move.
   plugins: [createArticlesPlugin(), createTasksPlugin(), createOrdersPlugin()],
   app: {
-    resourceUri: "ui://toolkit-example/mcp-app.html",
-    htmlPath: path.join(here, "..", "app-bundle", "dist", "index.html"),
+    bundle: {
+      jsPath: path.join(here, "..", "app-bundle", "dist", "mcp-app.js"),
+      cssPath: path.join(here, "..", "app-bundle", "dist", "mcp-app.css"),
+    },
     // This example demonstrates the full visual builder, so opt into it.
     // `builder` is off by default (lean) — setting it true registers
     // `get-builder-catalogue` plus the save/list/load/delete-dashboard tools

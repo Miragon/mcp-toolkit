@@ -94,9 +94,13 @@ const app = await createFrameworkApp({
   // `builder: true` opts into the visual in-iframe builder + dashboard
   // persistence; it is off by default (lean). Widget rendering works either
   // way. See the [view builder](./view-builder.md) concept.
-  app: { resourceUri: "ui://my-mcp/mcp-app.html", htmlPath, builder: true /* … */ },
+  app: { bundle: { jsPath, cssPath }, builder: true /* … */ },
 })
 ```
+
+Prefer owning the server yourself? `installToolkit(server, { modules })` adds
+the same surface to a plain mcp-use project (CLI `views/` convention) — see
+[getting-started](../getting-started.md).
 
 ## Use the parts you need
 

@@ -8,3 +8,6 @@ docs/.vitepress/cache/
 
 # release-please manages CHANGELOG.md formatting
 CHANGELOG.md
+
+# Conductor workspace-local scratch space (gitignored, not ours to format)
+.context/

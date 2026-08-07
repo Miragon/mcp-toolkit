@@ -16,7 +16,7 @@ import type { MCPServer } from "mcp-use"
  * I/O, satisfying a host-bundled widget — no external servers involved.
  */
 
-const FIXTURE_HTML = path.join(import.meta.dirname, "fixtures", "mcp-app.html")
+const FIXTURE_JS = path.join(import.meta.dirname, "fixtures", "mcp-app.js")
 
 /** Reserve a free TCP port by binding to port 0 and releasing it again. */
 async function getFreePort(): Promise<number> {
@@ -70,8 +70,7 @@ describe("examples host smoke", () => {
       host: "127.0.0.1",
       plugins: [createSmokePlugin()],
       app: {
-        resourceUri: "ui://examples-smoke/mcp-app.html",
-        htmlPath: FIXTURE_HTML,
+        bundle: { jsPath: FIXTURE_JS },
       },
     })
     const port = await getFreePort()

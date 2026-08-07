@@ -9,19 +9,19 @@ Published to the public npm registry under the `@miragon` scope — no `.npmrc`
 or token needed.
 
 ```sh
-pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@1.34.1 react@19.2.7 react-dom@19.2.7 tailwindcss@4.3.1
+pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@2.0.4 react@19.2.8 react-dom@19.2.8 tailwindcss@4.3.3
 ```
 
 Peer versions are pinned exactly — install the versions above.
 
 ## Import paths
 
-| Subpath                   | Key exports                                                                                                                                                                           | Constraint                                                                                               |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `@miragon/mcp-toolkit-ui` | Primitives (`Card`, `Table`, `Button`, …), composed components (`KpiGrid`, `WidgetHeader`, `FilterBar`), `useToolQuery`, `createTheme` / `ThemeProvider`, `cn`, `parseViewToolResult` | Free of `mcp-use/react` value imports (langchain transitive) — safe for apps that never mount the shell. |
-| `…-ui/app`                | `McpToolkitApp`, `McpAppView`, `WidgetRenderer`, `useHostBridge`, `adaptDataWidget`, `WidgetFixtureHost`                                                                              | The MCP app shell + host bridge — imports `mcp-use/react`. Never re-exported from the root barrel.       |
-| `…-ui/hooks`              | `useViewToolQuery`, `useViewData`, `useToolQuery`, `useToolMutation`                                                                                                                  | View-tool hooks.                                                                                         |
-| `…-ui/globals.css`        | Tailwind v4 theme + design tokens                                                                                                                                                     | Import once in the app entry.                                                                            |
+| Subpath                   | Key exports                                                                                                                                                                           | Constraint                                                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `@miragon/mcp-toolkit-ui` | Primitives (`Card`, `Table`, `Button`, …), composed components (`KpiGrid`, `WidgetHeader`, `FilterBar`), `useToolQuery`, `createTheme` / `ThemeProvider`, `cn`, `parseViewToolResult` | Free of `mcp-use/react` value imports (the view runtime + its ext-apps transitive) — safe for apps that never mount the shell. |
+| `…-ui/app`                | `mountMcpToolkitApp`, `McpToolkitApp`, `McpAppView`, `WidgetRenderer`, `useHostBridge`, `adaptDataWidget`, `WidgetFixtureHost`                                                        | The MCP app shell + host bridge — imports `mcp-use/react`. Never re-exported from the root barrel.                             |
+| `…-ui/hooks`              | `useViewToolQuery`, `useViewData`, `useToolQuery`, `useToolMutation`                                                                                                                  | View-tool hooks.                                                                                                               |
+| `…-ui/globals.css`        | Tailwind v4 theme + design tokens                                                                                                                                                     | Import once in the app entry.                                                                                                  |
 
 ## Component catalog
 

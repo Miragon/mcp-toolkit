@@ -1,8 +1,9 @@
 # Widgets
 
 Widgets are React components that render data resolved by the pipeline.
-The server ships their definitions; the `mcp-app.html` bundle ships the
-components themselves. The two are matched by widget id at render time.
+The server ships their definitions; the app bundle (`mcp-app.js` /
+`mcp-app.css`) ships the components themselves. The two are matched by
+widget id at render time.
 
 ## Definition
 
@@ -138,12 +139,13 @@ The widget bundle feeds `context.keys` into each widget's `WidgetProps.keys`.
 
 ## Bundling
 
-Every widget ships in the server's own bundle: a single HTML file
-(Vite-built) mounted as an MCP
-resource (`ui://<app>/mcp-app.html`) that statically imports every
-widget. The consumer passes the `{ id: Component }` map to
-`<McpToolkitApp widgets={...} />` and the toolkit handles the host
-iframe plumbing (`mcp-use`'s `McpUseProvider` + `McpAppView` together).
+Every widget ships in the server's own bundle: one Vite-built ES module
+plus stylesheet (`app.bundle` in `createFrameworkApp`) that statically
+imports every widget. mcp-use's native view registry serves it — each
+view-bound tool gets a `ui://views/<tool>.html` resource whose document
+embeds the same bundle. The consumer passes the `{ id: Component }` map
+to `mountMcpToolkitApp({ widgets })` and the toolkit handles the host
+iframe plumbing (`mcp-use`'s `bootstrapView` + `McpToolkitApp` together).
 See [layout-and-rendering](../guides/layout-and-rendering.md).
 
 ## Reference

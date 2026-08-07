@@ -17,7 +17,7 @@ import type { Task, TasksBoardData } from "../modules/tasks/store.js"
  * Runs in CI through the root `pnpm -r --if-present run test`.
  */
 
-const FIXTURE_HTML = path.join(import.meta.dirname, "fixtures", "mcp-app.html")
+const FIXTURE_JS = path.join(import.meta.dirname, "fixtures", "mcp-app.js")
 
 /** Reserve a free TCP port by binding to port 0 and releasing it again. */
 async function getFreePort(): Promise<number> {
@@ -43,8 +43,7 @@ describe("tasks module smoke", () => {
       host: "127.0.0.1",
       plugins: [createTasksPlugin()],
       app: {
-        resourceUri: "ui://tasks-smoke/mcp-app.html",
-        htmlPath: FIXTURE_HTML,
+        bundle: { jsPath: FIXTURE_JS },
       },
     })
     const port = await getFreePort()
@@ -86,8 +85,9 @@ describe("tasks module smoke", () => {
 
     // Both spellings must carry the same URI: hosts read either the nested
     // ext-apps key or the flat legacy one, and Apps-SDK hosts read a third.
+    // The URI is mcp-use's native view resource for the tool-bound view.
     const nested = (meta!.ui as { resourceUri?: string } | undefined)?.resourceUri
-    expect(nested).toMatch(/^ui:\/\//)
+    expect(nested).toBe("ui://views/show_tasks_board.html")
     expect(meta!["ui/resourceUri"]).toBe(nested)
     expect(meta!["openai/outputTemplate"]).toBe(nested)
 
@@ -138,7 +138,7 @@ describe("tasks module smoke", () => {
       priority: "high",
     })
     expect(created.isError).toBeFalsy()
-    const task = created.structuredContent as unknown as Task
+    const task = created.structuredContent as Task
     expect(task).toMatchObject({
       title: "Wire up the smoke test",
       status: "todo",
@@ -146,13 +146,13 @@ describe("tasks module smoke", () => {
     })
 
     const done = await session.callTool("complete_task", { taskId: task.id })
-    const completed = done.structuredContent as unknown as Task
+    const completed = done.structuredContent as Task
     expect(completed.status).toBe("done")
     expect(typeof completed.completedAt).toBe("string")
 
     // The widget feed sees the same store: the created+completed task is counted.
     const board = (await session.callTool("tasks_board_data", {}))
-      .structuredContent as unknown as TasksBoardData
+      .structuredContent as TasksBoardData
     expect(board.tasks.some((t) => t.id === task.id && t.status === "done")).toBe(true)
     expect(board.counts.total).toBe(board.tasks.length)
   })

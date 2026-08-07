@@ -9,6 +9,9 @@ interface CapturedToolDefinition {
   title?: string
   description: string
   annotations?: ToolAnnotations
+  visibility?: string
+  view?: { name: string; description?: string; csp?: Record<string, unknown> }
+  outputSchema?: unknown
   _meta?: Record<string, unknown>
 }
 
@@ -35,27 +38,43 @@ function firstTool(tools: CapturedTool[]): CapturedTool {
   return tool
 }
 
-const RESOURCE_URI = "ui://app/widget.html"
-
 describe("createWidgetToolRegistrar", () => {
-  it("defaults to app-only _meta (resourceUri + visibility)", () => {
+  it("defaults to native app-only visibility with no view binding", () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    const register = createWidgetToolRegistrar(server, {})
     register({
       name: "show_thing",
       title: "Show Thing",
       description: "renders a thing",
       handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
     })
-    expect(firstTool(tools).definition._meta).toEqual({
-      ui: { resourceUri: RESOURCE_URI, visibility: ["app"] },
-    })
-    expect(firstTool(tools).definition.title).toBe("Show Thing")
+    const def = firstTool(tools).definition
+    expect(def.visibility).toBe("app")
+    expect(def.view).toBeUndefined()
+    expect(def._meta).toBeUndefined()
+    expect(def.title).toBe("Show Thing")
   })
 
-  it("emits the dual-protocol widget contract for model-visible tools", () => {
+  it("binds model-visible tools to a view named after the tool", () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    const register = createWidgetToolRegistrar(server, {})
+    register({
+      name: "render_thing",
+      title: "Render Thing",
+      description: "renders a thing",
+      visibility: "model",
+      handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
+    })
+    const def = firstTool(tools).definition
+    expect(def.visibility).toBeUndefined()
+    expect(def.view).toEqual({ name: "render_thing", description: "renders a thing" })
+    // A view binding requires an outputSchema — the registrar defaults one.
+    expect(def.outputSchema).toBeDefined()
+  })
+
+  it("stamps the Apps SDK keys pointing at the tool's view resource", () => {
+    const { server, tools } = createStubServer()
+    const register = createWidgetToolRegistrar(server, {})
     register({
       name: "render_thing",
       title: "Render Thing",
@@ -64,9 +83,7 @@ describe("createWidgetToolRegistrar", () => {
       handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
     })
     expect(firstTool(tools).definition._meta).toEqual({
-      ui: { resourceUri: RESOURCE_URI },
-      "ui/resourceUri": RESOURCE_URI,
-      "openai/outputTemplate": RESOURCE_URI,
+      "openai/outputTemplate": "ui://views/render_thing.html",
       "openai/toolInvocation/invoking": "Loading Render Thing...",
       "openai/toolInvocation/invoked": "Render Thing ready",
       "openai/widgetAccessible": true,
@@ -77,7 +94,7 @@ describe("createWidgetToolRegistrar", () => {
 
   it("derives the invocation strings from the name when no title is given", () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    const register = createWidgetToolRegistrar(server, {})
     register({
       name: "render_thing",
       description: "renders a thing",
@@ -91,7 +108,7 @@ describe("createWidgetToolRegistrar", () => {
 
   it("prefers explicit invoking/invoked strings over the derived defaults", () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    const register = createWidgetToolRegistrar(server, {})
     register({
       name: "render_thing",
       title: "Render Thing",
@@ -106,54 +123,46 @@ describe("createWidgetToolRegistrar", () => {
     expect(meta?.["openai/toolInvocation/invoked"]).toBe("Numbers crunched")
   })
 
-  it("threads the widgetCSP meta default into model-visible tools", () => {
+  it("threads the CSP defaults into the view binding and the Apps SDK meta", () => {
     const { server, tools } = createStubServer()
-    const csp = { connect_domains: ["http://localhost:8400"] }
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI, { widgetCSP: csp })
+    const widgetCSP = { connect_domains: ["https://api.example"] }
+    const viewCsp = { connectDomains: ["https://api.example"] }
+    const register = createWidgetToolRegistrar(server, {}, { widgetCSP, viewCsp })
     register({
       name: "render_thing",
       description: "renders a thing",
       visibility: "model",
       handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
     })
-    expect(firstTool(tools).definition._meta?.["openai/widgetCSP"]).toEqual(csp)
+    const def = firstTool(tools).definition
+    expect(def.view?.csp).toEqual(viewCsp)
+    expect(def._meta?.["openai/widgetCSP"]).toEqual(widgetCSP)
   })
 
-  it("keeps visibility when both app and model surfaces are requested", () => {
+  it("keeps app-only widget tools free of the widget-rendering keys", () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
-    register({
-      name: "dual_thing",
-      description: "renders a thing",
-      visibility: ["app", "model"],
-      handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
-    })
-    // Advertised to the model, so it must not be hidden by the app-only
-    // marker — and being model-visible it carries the widget contract keys.
-    const meta = firstTool(tools).definition._meta
-    expect(meta?.ui).toEqual({ resourceUri: RESOURCE_URI })
-    expect(meta?.["ui/resourceUri"]).toBe(RESOURCE_URI)
-    expect(meta?.["openai/outputTemplate"]).toBe(RESOURCE_URI)
-  })
-
-  it("keeps app-only widget tools free of the dual-protocol keys", () => {
-    const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI, {
-      widgetCSP: { connect_domains: ["http://localhost:8400"] },
-    })
+    const register = createWidgetToolRegistrar(
+      server,
+      {},
+      {
+        widgetCSP: { connect_domains: ["https://api.example"] },
+        viewCsp: { connectDomains: ["https://api.example"] },
+      },
+    )
     register({
       name: "thing_data",
       description: "app-only data feed",
       handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
     })
-    expect(firstTool(tools).definition._meta).toEqual({
-      ui: { resourceUri: RESOURCE_URI, visibility: ["app"] },
-    })
+    const def = firstTool(tools).definition
+    expect(def.visibility).toBe("app")
+    expect(def.view).toBeUndefined()
+    expect(def._meta).toBeUndefined()
   })
 
-  it("forwards annotations and merges extra meta flat under the ui block", () => {
+  it("forwards annotations and merges extra meta on both visibilities", () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    const register = createWidgetToolRegistrar(server, {})
     register({
       name: "annotated_thing",
       description: "renders a thing",
@@ -163,29 +172,27 @@ describe("createWidgetToolRegistrar", () => {
     })
     const def = firstTool(tools).definition
     expect(def.annotations).toEqual({ readOnlyHint: true, idempotentHint: true })
-    expect(def._meta).toEqual({
-      "openai/widgetPrefersBorder": true,
-      ui: { resourceUri: RESOURCE_URI, visibility: ["app"] },
-    })
+    expect(def._meta).toEqual({ "openai/widgetPrefersBorder": true })
   })
 
-  it("does not let extra meta override the registrar's ui block", () => {
+  it("does not let extra meta override the registrar's Apps SDK keys", () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    const register = createWidgetToolRegistrar(server, {})
     register({
       name: "meta_clash",
       description: "renders a thing",
-      meta: { ui: { resourceUri: "ui://hijacked" } },
+      visibility: "model",
+      meta: { "openai/outputTemplate": "ui://hijacked" },
       handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
     })
-    expect(firstTool(tools).definition._meta).toEqual({
-      ui: { resourceUri: RESOURCE_URI, visibility: ["app"] },
-    })
+    expect(firstTool(tools).definition._meta?.["openai/outputTemplate"]).toBe(
+      "ui://views/meta_clash.html",
+    )
   })
 
   it("returns the handler's text + structuredContent on success", async () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    const register = createWidgetToolRegistrar(server, {})
     register({
       name: "show_thing",
       description: "renders a thing",
@@ -199,7 +206,7 @@ describe("createWidgetToolRegistrar", () => {
 
   it("translates thrown errors into the registrar's [code] message format", async () => {
     const { server, tools } = createStubServer()
-    const register = createWidgetToolRegistrar(server, {}, RESOURCE_URI)
+    const register = createWidgetToolRegistrar(server, {})
     register({
       name: "broken",
       description: "renders a thing",

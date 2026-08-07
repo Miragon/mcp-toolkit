@@ -44,7 +44,7 @@ into a layout with `buildComposedView` (from `@miragon/mcp-toolkit-core`). No st
 registry, no validation pass — you have the data, so you just hand it to the layout.
 
 ```ts
-import { buildComposedView, uiMeta } from "@miragon/mcp-toolkit-core"
+import { appsSdkMeta, buildComposedView, viewResourceUri } from "@miragon/mcp-toolkit-core"
 import { withToolErrors } from "@miragon/mcp-toolkit-core/tools"
 
 server.tool(
@@ -53,8 +53,13 @@ server.tool(
     title: "Orders Dashboard",
     description: "Show a customer's orders: a KPI strip next to an orders table.",
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-    schema: z.object({ customerId: z.string().optional() }),
-    _meta: uiMeta({ resourceUri }), // tells the host to render the result as UI
+    inputSchema: z.object({ customerId: z.string().optional() }),
+    view: { name: "show_orders_dashboard" }, // tells the host to render the result as UI
+    outputSchema: z.object({}).passthrough(), // a view binding requires one
+    _meta: appsSdkMeta({
+      resourceUri: viewResourceUri("show_orders_dashboard"),
+      title: "Orders Dashboard",
+    }),
   },
   withToolErrors((args: { customerId?: string }) => {
     const dashboard = store.dashboard(args.customerId ?? "c-1") // ONE pass → { kpi, table }

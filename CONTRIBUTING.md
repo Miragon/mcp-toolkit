@@ -84,13 +84,14 @@ version from `pnpm-lock.yaml` into `package.json`. See
 
 ### File / module boundaries
 
-- `core/tools/*` may import `mcp-use/server`. Anything in `core/src/*`
-  outside `tools/` must stay browser-bundle-safe (no `mcp-use/server`,
-  no `node:*`).
+- `core/tools/*` may import the `mcp-use` server runtime (the root
+  `mcp-use` entry since 2.x). Anything in `core/src/*` outside `tools/`
+  must stay browser-bundle-safe (no `mcp-use` server runtime, no
+  `node:*`).
 - `ui` may import browser-safe `core` runtime (anything in `core/src/*`
   outside `tools/`) as well as `core` types — e.g. `normalizeLayout` from
   `core/src/framework/layout-types.ts`. It must never import `core/tools`,
-  which pulls in `mcp-use/server`.
+  which pulls in the `mcp-use` server runtime.
 - `tool-codegen` is a build-time tool. Don't import it from runtime
   code; widget bundles import from `tool-codegen/runtime` (types only).
 

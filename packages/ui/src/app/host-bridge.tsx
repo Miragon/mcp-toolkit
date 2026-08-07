@@ -1,5 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react"
-import { useWidget } from "mcp-use/react"
+import { createContext, useContext, type ReactNode } from "react"
 
 /**
  * The host capabilities a hand-built widget needs, abstracted away from any one
@@ -20,31 +19,31 @@ export interface HostBridge {
    * with `parseToolResult`. Rejects if the call fails so a widget's own error
    * state (TanStack Query, try/catch) can surface it.
    */
-  callTool(name: string, args: Record<string, unknown>): Promise<unknown>
+  callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>
   /**
    * Hand a natural-language prompt back to the conversation to drive a new model
    * turn (navigate to another widget, ask the agent to analyse something). In
    * hosts without a conversation (standalone web app) this is a no-op unless an
    * `onFollowup` handler is supplied.
    */
-  sendFollowup(prompt: string): void
+  sendFollowup: (prompt: string) => void
   /**
    * Ask the host to open a URL outside the (often sandboxed) widget frame.
    * Falls back to `window.open` only where no host bridge mediates links.
    */
-  openExternal(url: string): void
+  openExternal: (url: string) => void
   /**
    * The structured data this widget was rendered with, if the host pushed any
    * (the tool result's `structuredContent` / `toolOutput`). Returns `null` when
    * the host delivers data another way (e.g. props) or has none.
    */
-  getWidgetData<T>(): T | null
+  getWidgetData: <T>() => T | null
   /**
    * Persist a short text the model should see on the next turn (selection,
    * filter, current view). Optional: not every host exposes model context, and
    * a standalone web app has no model at all — callers must guard its absence.
    */
-  setModelContext?(text: string): void
+  setModelContext?: (text: string) => void
   /** The host's colour-scheme preference, when it reports one. */
   theme?: "light" | "dark"
 }
@@ -54,12 +53,9 @@ const HostBridgeContext = createContext<HostBridge | null>(null)
 /**
  * Provide an explicit {@link HostBridge} to a subtree. Wrap a portable widget in
  * the adapter for the host it is running in — {@link createChatGptHostBridge},
- * {@link createStandaloneHostBridge}, or {@link createMcpUseHostBridge} — and
- * every `useHostBridge()` below resolves to it.
- *
- * Omitting the provider is supported: {@link useHostBridge} (and, for backward
- * compatibility, `useHostActions`) then fall back to the `mcp-use`/react default
- * bridge so existing widgets keep working without any wrapping.
+ * {@link createStandaloneHostBridge}, or (inside the toolkit's own mcp-use
+ * view) the `McpUseHostBridgeProvider` — and every `useHostBridge()` below
+ * resolves to it.
  */
 export function HostBridgeProvider({
   bridge,
@@ -82,49 +78,30 @@ export function useHostBridgeOrNull(): HostBridge | null {
 }
 
 /**
- * The {@link HostBridge} for the current subtree. Resolution order:
+ * The {@link HostBridge} for the current subtree — the nearest
+ * {@link HostBridgeProvider}'s bridge.
  *
- * 1. An explicit bridge from the nearest {@link HostBridgeProvider}.
- * 2. The default `mcp-use`/react bridge ({@link createMcpUseHostBridge}), so a
- *    widget mounted in our own host needs no provider.
+ * A provider is always present in the supported mounts: the toolkit shell
+ * (`McpToolkitApp` via `McpUseHostBridgeProvider`) installs the `mcp-use`
+ * bridge for every widget it renders, the `WidgetFixtureHost` harness installs
+ * a standalone bridge, and ChatGPT / standalone apps wrap their root in
+ * {@link createChatGptHostBridge} / {@link createStandaloneHostBridge}.
  *
- * The `mcp-use` hooks the default bridge wraps must run under an `mcp-use`
- * provider/host context; outside one (e.g. a bare unit test render) wrap the
- * widget in a `HostBridgeProvider` with a {@link createStandaloneHostBridge}
- * instead. This hook never returns `null`: a portable widget can always assume a
- * bridge exists.
+ * Since mcp-use 2.x there is no provider-less fallback: the `mcp-use` hooks
+ * only work inside a `bootstrapView`-mounted view, so a bare render without a
+ * provider cannot silently degrade — this hook throws with a pointer to the
+ * adapters instead.
  */
 export function useHostBridge(): HostBridge {
   const explicit = useContext(HostBridgeContext)
-  // Always call the default-bridge hook (Rules of Hooks): it's cheap and only
-  // *used* when no explicit bridge is provided. The mcp-use hooks underneath are
-  // host-context readers, safe to call even when their result goes unused.
-  const fallback = useMcpUseHostBridge()
-  return explicit ?? fallback
-}
-
-/**
- * Build a {@link HostBridge} backed by `mcp-use`/react — the default for widgets
- * running in the toolkit's own host. Wraps `useWidget()` (host actions,
- * `toolOutput`, `theme`) and `useCallTool` so it preserves exactly the behaviour
- * widgets had before the bridge abstraction:
- *
- * - `openExternal` routes through the host's `openExternal` and falls back to
- *   `window.open` when no host bridge is wired (local dev preview) — mirroring
- *   the original `useHostActions.openLink`.
- * - `sendFollowup` routes through `sendFollowUpMessage` and swallows rejections
- *   with a `console.warn`, as `useHostActions` did.
- *
- * Must be called inside an `mcp-use` host context (it calls `mcp-use` hooks).
- * Use {@link createMcpUseHostBridge} for the standalone factory variant.
- */
-export function useMcpUseHostBridge(): HostBridge {
-  const { callTool, sendFollowUpMessage, openExternal, output, theme, setState } = useWidget()
-
-  return useMemo<HostBridge>(
-    () => toHostBridge({ callTool, sendFollowUpMessage, openExternal, output, theme, setState }),
-    [callTool, sendFollowUpMessage, openExternal, output, theme, setState],
-  )
+  if (!explicit) {
+    throw new Error(
+      "[host-bridge] useHostBridge() found no HostBridgeProvider. Wrap the widget in " +
+        "McpToolkitApp / McpUseHostBridgeProvider (toolkit host), WidgetFixtureHost (dev), " +
+        "or a HostBridgeProvider with createChatGptHostBridge / createStandaloneHostBridge.",
+    )
+  }
+  return explicit
 }
 
 /**
@@ -134,9 +111,11 @@ export function useMcpUseHostBridge(): HostBridge {
  * That indirection is the point: the mapping below is the behaviour widgets
  * depend on, and pinning it against a local interface keeps it testable without
  * a host, a DOM, or a React renderer. It also localises upstream churn — when
- * the shape moves, this interface and {@link useMcpUseHostBridge} are what
- * change, and {@link toHostBridge}'s tests still prove the bridge contract
- * widgets see is unchanged.
+ * the shape moves, this interface and the `McpUseHostBridgeProvider` (which
+ * composes the mcp-use 2.x view hooks into this surface) are what change, and
+ * {@link toHostBridge}'s tests still prove the bridge contract widgets see is
+ * unchanged. The 1.x `useWidget()` satisfied it directly; the 2.x composition
+ * lives in `mcp-use-host-bridge.tsx`.
  */
 export interface McpUseWidgetSurface {
   /** Invoke a tool on the connected server. */
@@ -186,19 +165,6 @@ export function toHostBridge(widget: McpUseWidgetSurface): HostBridge {
     theme: theme === "dark" ? "dark" : "light",
   }
 }
-
-/**
- * Factory form of {@link useMcpUseHostBridge} for symmetry with the other
- * adapters. Because the `mcp-use` bridge is hook-driven (it reads live host
- * context), the "factory" is really the hook itself — call it from a component.
- *
- * @example
- * function MyWidget() {
- *   const bridge = createMcpUseHostBridge() // === useMcpUseHostBridge()
- *   // …or rely on useHostBridge()'s default and skip the provider entirely.
- * }
- */
-export const createMcpUseHostBridge = useMcpUseHostBridge
 
 /**
  * Minimal structural view of the OpenAI Apps SDK `window.openai` object this

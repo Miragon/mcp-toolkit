@@ -9,20 +9,20 @@ Published to the public npm registry under the `@miragon` scope — no `.npmrc`
 or token needed.
 
 ```sh
-pnpm add @miragon/mcp-toolkit-core @modelcontextprotocol/sdk@1.29.0 mcp-use@1.34.1 zod@4.4.3
+pnpm add @miragon/mcp-toolkit-core @modelcontextprotocol/sdk@1.30.0 mcp-use@2.0.4 zod@4.4.3
 ```
 
 Peer versions are pinned exactly — install the versions above.
 
 ## Import paths
 
-| Subpath                     | Key exports                                                                                                                      | Constraint                                                                                      |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `@miragon/mcp-toolkit-core` | `executePipeline`, `renderView`, `buildSingleWidgetView`, `buildComposedView`, `StepRegistry`, `WidgetRegistry`, `uiMeta`, types | Browser-safe: no `mcp-use/server`, no `node:*`. The barrel widget bundles import from.          |
-| `…-core/tools`              | `createFrameworkApp`, `createToolRegistrar`, `createWidgetToolRegistrar`, `registerFrameworkTools`, dashboard-store impls        | Server-only — imports `mcp-use/server`. Keep out of browser bundles.                            |
-| `…-core/rest`               | `createRestClient`, `createRestTool`, `RestError`                                                                                | REST tool helpers; register the resulting `ToolConfig` via `createToolRegistrar` from `/tools`. |
+| Subpath                     | Key exports                                                                                                                                              | Constraint                                                                                      |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `@miragon/mcp-toolkit-core` | `executePipeline`, `renderView`, `buildSingleWidgetView`, `buildComposedView`, `StepRegistry`, `WidgetRegistry`, `appsSdkMeta`, `viewResourceUri`, types | Browser-safe: no `mcp-use` server runtime, no `node:*`. The barrel widget bundles import from.  |
+| `…-core/tools`              | `installToolkit`, `createFrameworkApp`, `createToolRegistrar`, `createWidgetToolRegistrar`, `registerFrameworkTools`, dashboard-store impls              | Server-only — imports the `mcp-use` server runtime. Keep out of browser bundles.                |
+| `…-core/rest`               | `createRestClient`, `createRestTool`, `RestError`                                                                                                        | REST tool helpers; register the resulting `ToolConfig` via `createToolRegistrar` from `/tools`. |
 
-`createFrameworkApp` / `createToolRegistrar` live **only** in
+`installToolkit` / `createFrameworkApp` / `createToolRegistrar` live **only** in
 `@miragon/mcp-toolkit-core/tools` — never in the root barrel.
 
 ## Links

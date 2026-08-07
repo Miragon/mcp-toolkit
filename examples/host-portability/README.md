@@ -39,11 +39,11 @@ interface HostBridge {
 }
 ```
 
-Three adapter factories map it onto a host:
+Three adapters map it onto a host:
 
-| Factory                                       | Host                   | What it wraps                                                                                                    |
+| Adapter                                       | Host                   | What it wraps                                                                                                    |
 | --------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `createMcpUseHostBridge()`                    | toolkit's mcp-use host | `mcp-use/react`'s `useWidget` (the **default** — `useHostBridge()` falls back to it when no provider is present) |
+| `McpUseHostBridgeProvider`                    | toolkit's mcp-use host | the mcp-use 2.x view hooks via `toHostBridge` (already included in `McpToolkitApp`; this demo stubs the surface) |
 | `createChatGptHostBridge(sdk?)`               | ChatGPT / Apps SDK     | `window.openai`, probed **defensively** — a missing method degrades to a logged no-op, never a crash             |
 | `createStandaloneHostBridge({ callTool, … })` | your own web app       | an **injected** `callTool` (e.g. a `@modelcontextprotocol/sdk` client)                                           |
 

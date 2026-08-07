@@ -22,7 +22,7 @@ examples/
 ├── app-bundle/                 host's widget-bundle Vite project
 ├── widget-playground/          Storybook-style harness — develop widgets in isolation
 ├── host-portability/           one widget, three hosts (mcp-use / ChatGPT / standalone)
-└── layouts/                    YAML inputs for render-view smoke tests
+└── layouts/                    example render-view layouts in YAML (docs illustrations)
 ```
 
 Every module is a local plugin compiled into the host — self-contained, no

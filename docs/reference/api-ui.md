@@ -94,37 +94,38 @@ bundle.
 
 ### Root component
 
-`McpToolkitApp` is the recommended consumer-facing root. It wraps
-`McpAppView` in `mcp-use`'s `McpUseProvider`, which installs:
-
-- host auto-sizing (`ui/notifications/size-changed` for MCP Apps hosts
-  like Claude Desktop; `notifyIntrinsicHeight` for ChatGPT's Apps SDK),
-- `StrictMode`, a default `ErrorBoundary`, and theme plumbing.
+`mountMcpToolkitApp` is the bundle entry point since mcp-use 2.x. It hands
+`McpToolkitApp` to `bootstrapView`, which owns the mount: it connects the
+ext-apps postMessage bridge to the host, installs an error boundary, and
+auto-reports size changes. `McpToolkitApp` itself composes mcp-use's
+`ThemeProvider` (host theme/style variables) and `McpUseHostBridgeProvider`
+(the `HostBridge` every toolkit widget resolves via `useHostBridge()`) around
+`McpAppView`.
 
 ```tsx
-import { createRoot } from "react-dom/client"
-import { McpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
+import { mountMcpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
 import { ArticleCard } from "./widgets/ArticleCard.js"
 
 const widgets = { "articles:article-card": ArticleCard }
 
-createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widgets} />)
+mountMcpToolkitApp({ widgets })
 ```
 
 ### Exports
 
-| Symbol                | Signature                                                                                                                                                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `McpToolkitApp`       | `(props: McpAppViewProps) → JSX.Element`. `<McpUseProvider><McpAppView {...props} /></McpUseProvider>`.                                                                                                                                                                               |
-| `McpAppView`          | `(props: McpAppViewProps) → JSX.Element`. Top-level view. Renders `WidgetRenderer`; a Build button (shown only when `builderAvailable` — see `builderEnabled` below) toggles local build mode into `LayoutBuilder`. Use directly only if you already own the `McpUseProvider` wiring. |
-| `McpAppViewProps`     | `{ widgets, refreshToolName?, builderEnabled?, labels? }`. See table below.                                                                                                                                                                                                           |
-| `McpAppViewLabels`    | Override strings: `loading`, `refresh`, `refreshing`, `enterFullscreen`, `exitFullscreen`. Defaults: English.                                                                                                                                                                         |
-| `WidgetRenderer`      | Lower-level component — renders a normalised layout given the widgets map. Used internally by `McpAppView`.                                                                                                                                                                           |
-| `WidgetRendererProps` | `{ layout, keys, stepData?, errors, widgets }`.                                                                                                                                                                                                                                       |
-| `WidgetComponent`     | `ComponentType<WidgetProps>`.                                                                                                                                                                                                                                                         |
-| `LayoutBuilder`       | `(props: LayoutBuilderProps) → JSX.Element`. Interactive composer (palette + WYSIWYG canvas + tabs + save dialog). Mounted by `McpAppView` when the user toggles local build mode (Build button); exported so you can embed it directly in a custom shell.                            |
-| `LayoutBuilderProps`  | `{ initialLayout?, title?, initialKeys?, initialSteps?, context, reachableWidgets, widgets, callTool, refreshToolName?, renderToolName?, saveToolName?, dashboardId?, labels?, onRendered?, onSaved? }`.                                                                              |
-| `LayoutBuilderLabels` | Override strings for every user-facing caption in the builder (palette header, buttons, save dialog, …). Defaults: English.                                                                                                                                                           |
+| Symbol                | Signature                                                                                                                                                                                                                                                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mountMcpToolkitApp`  | `(props: McpAppViewProps) → void`. Bundle entry point: mounts `McpToolkitApp` via mcp-use's `bootstrapView` (ext-apps handshake, error boundary, auto-resize).                                                                                                                                                   |
+| `McpToolkitApp`       | `(props: McpAppViewProps) → JSX.Element`. `ThemeProvider` + `McpUseHostBridgeProvider` around `McpAppView`. Must render under a `bootstrapView` mount — use `mountMcpToolkitApp` unless composing a custom view.                                                                                                 |
+| `McpAppView`          | `(props: McpAppViewProps) → JSX.Element`. Top-level view. Renders `WidgetRenderer`; a Build button (shown only when `builderAvailable` — see `builderEnabled` below) toggles local build mode into `LayoutBuilder`. Requires the mcp-use view hooks and a `HostBridge` provider — both wired by `McpToolkitApp`. |
+| `McpAppViewProps`     | `{ widgets, refreshToolName?, builderEnabled?, labels? }`. See table below.                                                                                                                                                                                                                                      |
+| `McpAppViewLabels`    | Override strings: `loading`, `refresh`, `refreshing`, `enterFullscreen`, `exitFullscreen`. Defaults: English.                                                                                                                                                                                                    |
+| `WidgetRenderer`      | Lower-level component — renders a normalised layout given the widgets map. Used internally by `McpAppView`.                                                                                                                                                                                                      |
+| `WidgetRendererProps` | `{ layout, keys, stepData?, errors, widgets }`.                                                                                                                                                                                                                                                                  |
+| `WidgetComponent`     | `ComponentType<WidgetProps>`.                                                                                                                                                                                                                                                                                    |
+| `LayoutBuilder`       | `(props: LayoutBuilderProps) → JSX.Element`. Interactive composer (palette + WYSIWYG canvas + tabs + save dialog). Mounted by `McpAppView` when the user toggles local build mode (Build button); exported so you can embed it directly in a custom shell.                                                       |
+| `LayoutBuilderProps`  | `{ initialLayout?, title?, initialKeys?, initialSteps?, context, reachableWidgets, widgets, callTool, refreshToolName?, renderToolName?, saveToolName?, dashboardId?, labels?, onRendered?, onSaved? }`.                                                                                                         |
+| `LayoutBuilderLabels` | Override strings for every user-facing caption in the builder (palette header, buttons, save dialog, …). Defaults: English.                                                                                                                                                                                      |
 
 ### Host bridge
 
@@ -132,16 +133,19 @@ The seam that lets one hand-built widget run in the mcp-use host, ChatGPT (Apps
 SDK), or a standalone web app against an existing MCP server. See the
 [host-portability concept](../concepts/host-portability.md).
 
-| Symbol                                           | Signature                                                                                                                                                                                                    |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `HostBridge`                                     | `{ callTool(name, args), sendFollowup(prompt), openExternal(url), getWidgetData<T>(): T \| null, setModelContext?(text), theme?: "light" \| "dark" }`. The host-agnostic surface a portable widget talks to. |
-| `useHostBridge`                                  | `() → HostBridge`. Never returns `null` — falls back to the mcp-use bridge inside the toolkit's own host.                                                                                                    |
-| `useHostBridgeOrNull`                            | `() → HostBridge \| null`. Returns `null` when no provider/host is present (branch on availability).                                                                                                         |
-| `HostBridgeProvider`                             | `({ bridge, children }) → JSX.Element`. Provides an explicit bridge to the subtree.                                                                                                                          |
-| `createMcpUseHostBridge` / `useMcpUseHostBridge` | `() → HostBridge`. The toolkit's own bridge over `mcp-use/react`. The default when no provider is present.                                                                                                   |
-| `createChatGptHostBridge`                        | `(sdk?: OpenAiAppsSdk \| null) → HostBridge`. Maps the bridge verbs onto the OpenAI Apps SDK (ChatGPT). Defensive — missing host methods degrade to logged no-ops.                                           |
-| `createStandaloneHostBridge`                     | `(opts: StandaloneHostBridgeOptions) → HostBridge`. `{ callTool, getData?, onFollowup?, onOpenExternal?, onModelContext?, theme? }` — `callTool` usually wraps a `@modelcontextprotocol/sdk` client.         |
-| `OpenAiAppsSdk` / `StandaloneHostBridgeOptions`  | Types for the two non-mcp-use bridge factories.                                                                                                                                                              |
+| Symbol                                          | Signature                                                                                                                                                                                                    |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `HostBridge`                                    | `{ callTool(name, args), sendFollowup(prompt), openExternal(url), getWidgetData<T>(): T \| null, setModelContext?(text), theme?: "light" \| "dark" }`. The host-agnostic surface a portable widget talks to. |
+| `useHostBridge`                                 | `() → HostBridge`. Resolves the nearest `HostBridgeProvider`; throws (with a pointer to the adapters) when none is present. Inside the toolkit's own host, `McpToolkitApp` installs the provider.            |
+| `useHostBridgeOrNull`                           | `() → HostBridge \| null`. Returns `null` when no provider/host is present (branch on availability).                                                                                                         |
+| `HostBridgeProvider`                            | `({ bridge, children }) → JSX.Element`. Provides an explicit bridge to the subtree.                                                                                                                          |
+| `McpUseHostBridgeProvider`                      | `({ children }) → JSX.Element`. Composes the mcp-use 2.x view hooks into the bridge and provides it (plus the view-scope flag). Must render under `bootstrapView`; `McpToolkitApp` includes it.              |
+| `useIsInsideMcpUseView`                         | `() → boolean`. `true` under a `McpUseHostBridgeProvider` — branch before using `mcp-use/react` primitives that throw outside a view (e.g. `ModelContext`).                                                  |
+| `toHostBridge`                                  | `(surface: McpUseWidgetSurface) → HostBridge`. Pure mapping from the structural mcp-use widget surface onto the bridge contract — the tested seam `McpUseHostBridgeProvider` feeds with live hooks.          |
+| `createChatGptHostBridge`                       | `(sdk?: OpenAiAppsSdk \| null) → HostBridge`. Maps the bridge verbs onto the OpenAI Apps SDK (ChatGPT). Defensive — missing host methods degrade to logged no-ops.                                           |
+| `createStandaloneHostBridge`                    | `(opts: StandaloneHostBridgeOptions) → HostBridge`. `{ callTool, getData?, onFollowup?, onOpenExternal?, onModelContext?, theme? }` — `callTool` usually wraps a `@modelcontextprotocol/sdk` client.         |
+| `McpUseWidgetSurface`                           | Structural slice of the mcp-use widget surface `toHostBridge` reads (`callTool`, `sendFollowUpMessage`, `openExternal`, `output`, `theme`, `setState`).                                                      |
+| `OpenAiAppsSdk` / `StandaloneHostBridgeOptions` | Types for the two non-mcp-use bridge factories.                                                                                                                                                              |
 
 ### Host actions + data adapter
 
@@ -159,13 +163,13 @@ A Storybook-style harness for developing a widget with fixture data and a mocked
 host — no backend. See the
 [developing-widgets-in-isolation guide](../guides/developing-widgets-in-isolation.md).
 
-| Symbol                                                                                                  | Signature                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WidgetFixtureHost`                                                                                     | `(props: WidgetFixtureHostProps) → JSX.Element`. Renders one widget with fixture data + a mocked host bridge; logs host actions and surfaces the reported `<ModelContext>`. |
-| `FixtureCallToolRegistry`                                                                               | The in-memory `callTool` registry the fixture host serves tool results from.                                                                                                |
-| `buildFixtureWidgetProps`                                                                               | `(data, dataType?) → WidgetProps`. Builds the props envelope the fixture host passes to a widget (exported for unit-testing the shape).                                     |
-| `useFixtureHost`                                                                                        | Hook into the active fixture-host context.                                                                                                                                  |
-| `WidgetFixtureHostProps` / `FixtureWidget` / `FixtureToolEntry` / `FixtureToolResult` / `HostActionLog` | Fixture-host types. `HostActionLog` is the union of logged host actions (`callTool`, `sendFollowUpMessage`, `openExternal`, `requestDisplayMode`, `setWidgetState`).        |
+| Symbol                                                                                                  | Signature                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WidgetFixtureHost`                                                                                     | `(props: WidgetFixtureHostProps) → JSX.Element`. Renders one widget with fixture data + a simulated `HostBridge`; logs host actions and surfaces the reported model context. Simulates the host-portable pattern only — direct `mcp-use/react` hook usage needs a real view. |
+| `FixtureCallToolRegistry`                                                                               | The in-memory `callTool` registry the fixture host serves tool results from.                                                                                                                                                                                                 |
+| `buildFixtureWidgetProps`                                                                               | `(data, dataType?) → WidgetProps`. Builds the props envelope the fixture host passes to a widget (exported for unit-testing the shape).                                                                                                                                      |
+| `useFixtureHost`                                                                                        | Hook into the active fixture-host context.                                                                                                                                                                                                                                   |
+| `WidgetFixtureHostProps` / `FixtureWidget` / `FixtureToolEntry` / `FixtureToolResult` / `HostActionLog` | Fixture-host types. `HostActionLog` is the union of logged host actions; since 2.x only `callTool`, `sendFollowUpMessage`, and `openExternal` fire (the other members stay for log-renderer compatibility).                                                                  |
 
 ### `McpAppViewProps` in detail
 

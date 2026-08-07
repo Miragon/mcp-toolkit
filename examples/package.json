@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Standalone playground for the MCP toolkit. Not published — consumed locally via pnpm workspace.",
+  "description": "Standalone playground for the MCP toolkit. Not published \u2014 consumed locally via pnpm workspace.",
   "scripts": {
     "dev:host": "tsx --env-file-if-exists=.env host/index.ts",
     "dev:playground": "tsx host/playground.ts",
@@ -19,7 +19,10 @@
     "generate": "pnpm --filter articles-example run generate",
     "generate:check": "pnpm --filter articles-example run generate:check",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:standalone": "mcp-use dev --path standalone-host --no-open",
+    "build:standalone": "mcp-use build --path standalone-host",
+    "start:standalone": "pnpm run build:standalone && mcp-use start --path standalone-host"
   },
   "dependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
@@ -29,7 +32,6 @@
     "mcp-use": "2.0.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -43,7 +45,6 @@
     "tsx": "4.23.1",
     "typescript": "6.0.3",
     "vite": "8.1.5",
-    "vite-plugin-singlefile": "2.3.3",
     "vitest": "4.1.10"
   }
 }

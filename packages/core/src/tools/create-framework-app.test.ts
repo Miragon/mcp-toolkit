@@ -19,7 +19,10 @@ async function toolNames(server: MCPServer): Promise<string[]> {
   const response = await server.getHandler()(
     new Request("http://local/mcp", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
     }),
   )
@@ -40,9 +43,10 @@ function options(builder?: boolean): CreateFrameworkAppOptionsWithoutOAuth {
     // No plugins: keeps the boot hermetic.
     plugins: [],
     app: {
-      // Pin the resource URI so we don't hash a (missing) bundle file.
-      resourceUri: "ui://builder-gate-test/mcp-app.html",
-      htmlPath: "/nonexistent/mcp-app.html",
+      // A missing bundle is the documented fail-soft path: boot warns and
+      // primes empty view documents instead of throwing (dev-server-before-
+      // first-build). Exactly what a hermetic boot test wants.
+      bundle: { jsPath: "/nonexistent/mcp-app.js" },
       ...(builder === undefined ? {} : { builder }),
     },
   }

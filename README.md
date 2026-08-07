@@ -4,11 +4,11 @@ Shared framework runtime and UI primitives for MCP servers built on top of [mcp-
 
 This monorepo ships three packages that are consumed by multiple MCP server projects (currently `miranum-ai` and `automation-mcp`):
 
-| Package                                                        | Description                                                                                                                                                                                                                      |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@miragon/mcp-toolkit-core`](./packages/core)                 | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM.                                                 |
-| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen) | Build-time codegen + runtime glue for type-safe MCP tool calls: `TypedCallTool` and a CLI (`mcp-tool-codegen`) that generates TypeScript types and React Query hooks from an MCP server's `tools/list`.                          |
-| [`@miragon/mcp-toolkit-ui`](./packages/ui)                     | React UI: shadcn primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing) for bundling widgets into an `mcp-app.html` resource. |
+| Package                                                        | Description                                                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@miragon/mcp-toolkit-core`](./packages/core)                 | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM.                                                                                                             |
+| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen) | Build-time codegen + runtime glue for type-safe MCP tool calls: `TypedCallTool` and a CLI (`mcp-tool-codegen`) that generates TypeScript types and React Query hooks from an MCP server's `tools/list`.                                                                                      |
+| [`@miragon/mcp-toolkit-ui`](./packages/ui)                     | React UI: shadcn primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing) for bundling widgets into the app bundle served through mcp-use's native `ui://views/<name>.html` view resources. |
 
 Every toolkit server is self-contained — its own tools, steps, widgets, and UI bundle; aggregating several MCP servers into one surface is an external MCP gateway's job (e.g. [agentgateway](https://agentgateway.dev)) — see the [architecture concept](./docs/concepts/architecture.md).
 
@@ -79,7 +79,7 @@ pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-ui
 pnpm add -D @miragon/mcp-toolkit-tool-codegen
 ```
 
-The peer dependencies are pinned exactly — install `mcp-use@1.34.1`, `@modelcontextprotocol/sdk@1.29.0`, and `zod@4.4.3` alongside (see each package's `peerDependencies` for the authoritative list).
+The peer dependencies are pinned exactly — install `mcp-use@2.0.4`, `@modelcontextprotocol/sdk@1.30.0`, and `zod@4.4.3` alongside (see each package's `peerDependencies` for the authoritative list).
 
 The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) — a self-contained host + module + widget-bundle project with pinned versions, CI, and the `mcp-app.html` Vite setup already wired. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
 

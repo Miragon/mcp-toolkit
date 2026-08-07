@@ -39,16 +39,15 @@ export interface AppPlugin<TServer = unknown> {
   appConfig?: Record<string, unknown>
   registerTools?: (server: TServer) => void
   /**
-   * Registers the plugin's widget tools against the shared app resource.
-   * The optional `metaDefaults` carry app-level widget `_meta` defaults
-   * (currently the Apps SDK CSP) — forward them into
-   * `createWidgetToolRegistrar` / `uiMeta` so every widget tool advertises
-   * the same contract as the framework's own `render-view`. Implementations
-   * may ignore the parameter; their tools then simply omit those keys.
+   * Registers the plugin's widget tools. Model-visible widget tools bind a
+   * view named after the tool (see `createWidgetToolRegistrar`);
+   * `createFrameworkApp` collects those bindings and primes the view registry
+   * with the shared app bundle. The optional `metaDefaults` carry app-level
+   * widget defaults (the Apps SDK CSP and its camelCase view-CSP sibling) —
+   * forward them into `createWidgetToolRegistrar` so every widget tool
+   * advertises the same contract as the framework's own `render-view`.
+   * Implementations may ignore the parameter; their tools then simply omit
+   * those keys.
    */
-  registerWidgetTools?: (
-    server: TServer,
-    resourceUri: string,
-    metaDefaults?: WidgetToolMetaDefaults,
-  ) => void
+  registerWidgetTools?: (server: TServer, metaDefaults?: WidgetToolMetaDefaults) => void
 }

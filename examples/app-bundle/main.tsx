@@ -1,5 +1,4 @@
-import { createRoot } from "react-dom/client"
-import { McpToolkitApp, adaptDataWidget } from "@miragon/mcp-toolkit-ui/app"
+import { mountMcpToolkitApp, adaptDataWidget } from "@miragon/mcp-toolkit-ui/app"
 import { ArticleCard } from "../modules/articles/widgets/ArticleCard.js"
 import { TasksBoard } from "../modules/tasks/widgets/TasksBoard.js"
 import type { TasksBoardData } from "../modules/tasks/store.js"
@@ -42,6 +41,7 @@ const widgets = {
   ),
 }
 
-const root = document.getElementById("root")
-if (!root) throw new Error("missing #root")
-createRoot(root).render(<McpToolkitApp widgets={widgets} />)
+// Since mcp-use 2.x the view runtime owns the mount: `mountMcpToolkitApp`
+// wraps `bootstrapView`, which creates the root, connects the ext-apps
+// postMessage bridge to the host, and auto-reports size changes.
+mountMcpToolkitApp({ widgets })

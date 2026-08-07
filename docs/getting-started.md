@@ -57,7 +57,7 @@ one-shot `start` does this for you).
 
 [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter)
 is a self-contained starter — one host, one module with its own tools, one
-widget, and the `mcp-app.html` Vite bundle setup — with pinned versions and CI
+widget, and the widget-bundle Vite setup — with pinned versions and CI
 prepared. Click "Use this template", or:
 
 ```sh
@@ -76,10 +76,42 @@ so match them:
 
 ```sh
 pnpm add @miragon/mcp-toolkit-core
-pnpm add @modelcontextprotocol/sdk@1.29.0 mcp-use@1.34.1 zod@4.4.3
+pnpm add @modelcontextprotocol/sdk@1.30.0 mcp-use@2.0.4 zod@4.4.3
 ```
 
-A minimal host:
+### The standard path — a plain mcp-use project, toolkit on top
+
+You own a normal [mcp-use](https://mcp-use.com) project (own `MCPServer`,
+`views/` convention, `mcp-use dev` / `build` / `start`); `installToolkit`
+adds the composition features:
+
+```ts
+// index.ts
+import { MCPServer } from "mcp-use"
+import { installToolkit } from "@miragon/mcp-toolkit-core/tools"
+import { createPlugin as createTasksPlugin } from "./modules/tasks/plugin.js"
+
+const server = new MCPServer({ name: "my-mcp", version: "0.1.0" })
+
+server.tool({ name: "echo", ... }, handler) // your plain mcp-use tools
+
+installToolkit(server, { modules: [createTasksPlugin()] })
+
+export default server
+```
+
+Add `views/render-view/view.tsx` (plus one `views/<tool>/view.tsx` per
+model-visible widget tool), each rendering `McpToolkitApp` with your widget
+map — the CLI discovers, builds, and serves them by convention. The runnable
+reference is
+[`examples/standalone-host`](../examples/standalone-host/README.md).
+
+### The Node adapter — `createFrameworkApp`
+
+When the server must run in your own process (embedded in existing
+infrastructure, custom entrypoints) or ship its views inline in the MCP
+resources (e.g. behind gateways that only forward the JSON-RPC endpoint),
+use the batteries-included wrapper instead:
 
 ```ts
 import path from "node:path"
@@ -92,32 +124,34 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const app = await createFrameworkApp({
   name: "my-mcp",
   version: "0.1.0",
-  baseUrl: process.env.MCP_URL,
   plugins: [createTasksPlugin()], // your AppPlugins
   app: {
-    resourceUri: "ui://my-mcp/mcp-app.html",
-    htmlPath: path.join(here, "mcp-app.html"),
+    bundle: {
+      jsPath: path.join(here, "dist", "mcp-app.js"),
+      cssPath: path.join(here, "dist", "mcp-app.css"),
+    },
   },
 })
 
 await app.listen(Number(process.env.PORT ?? 3010))
 ```
 
-That boots a self-contained MCP server with the framework tool trio
-(`get-framework-manifest`, `render-view`, `refresh-view`) and an `mcp-app-html`
-resource serving the widget bundle. Aggregating several such servers into one
-surface is an external MCP gateway's job (e.g.
+Both paths boot the same framework surface — the tool trio
+(`get-framework-manifest`, `render-view`, `refresh-view`) plus mcp-use's
+natively registered view resources (`ui://views/<tool>.html`); they differ
+only in who builds and serves the views. Aggregating several such servers
+into one surface is an external MCP gateway's job (e.g.
 [agentgateway](https://agentgateway.dev)) — see
 [architecture](concepts/architecture.md).
 
-Two things the snippet leans on:
+Things the snippets lean on:
 
 - **The plugin** — a module that registers its own tools and a widget. See the
   [app-plugins concept](concepts/app-plugins.md); the runnable
   reference is [`examples/modules/tasks`](../examples/modules/tasks/README.md).
-- **The widget bundle** — `htmlPath` must point at a built single-file
-  `mcp-app.html` that maps widget ids to React components. The template ships
-  this Vite setup; in-repo the reference is
+- **The widget bundle** (adapter path only) — `app.bundle` must point at a
+  built ES module (and stylesheet) that maps widget ids to React components.
+  The template ships this Vite setup; in-repo the reference is
   [`examples/app-bundle`](../examples/app-bundle/).
 
 Import paths are deliberate: server-side factories come from

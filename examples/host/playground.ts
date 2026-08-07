@@ -26,14 +26,17 @@ const app = await createFrameworkApp({
     "Live playground for @miragon/mcp-toolkit: call a tool, get a rendered widget, " +
     "compose a multi-widget dashboard, chain a render-view pipeline, and save a " +
     "dashboard with the builder. Demo data resets on restart.",
-  baseUrl: process.env.MCP_URL,
+  // The serving origin is request-resolved by mcp-use (or the MCP_URL env
+  // var) — no baseUrl option since the native-views move.
   plugins: [createTasksPlugin(), createOrdersPlugin()],
   // Note: `dev:playground` deliberately does NOT load examples/.env (unlike
   // `dev:host`) — the full host's .env sets PORT 3010, which would collide
   // with a locally running dev:host.
   app: {
-    // resourceUri stays derived (content-hashed) so every deploy busts caches.
-    htmlPath: path.join(here, "..", "app-bundle", "dist", "index.html"),
+    bundle: {
+      jsPath: path.join(here, "..", "app-bundle", "dist", "mcp-app.js"),
+      cssPath: path.join(here, "..", "app-bundle", "dist", "mcp-app.css"),
+    },
     builder: true,
   },
 })

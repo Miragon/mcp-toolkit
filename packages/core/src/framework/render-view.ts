@@ -54,7 +54,10 @@ export async function renderView(options: RenderViewOptions) {
             text: `Pipeline validation failed: ${validation.issues.join("; ")}`,
           },
         ],
-        isError: true,
+        // Literal `true` (not widened to boolean): with `render-view` bound to
+        // a view its outputSchema makes mcp-use's callback type demand either
+        // `structuredContent` or an explicit `isError: true` result.
+        isError: true as const,
       }
     }
   }

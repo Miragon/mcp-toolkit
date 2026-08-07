@@ -34,7 +34,7 @@ data contract, and to iterate on it in isolation.
 - **End-to-end module** — when you also own the server, the
   [`tasks` module](../../../examples/modules/tasks/README.md) is the full worked
   example: domain tools via `createToolRegistrar`, a `show_tasks_board` widget
-  tool (`buildSingleWidgetView` + `uiMeta`), an app-only `tasks_board_data` feed,
+  tool (`buildSingleWidgetView` + a native view binding), an app-only `tasks_board_data` feed,
   and the `TasksBoard` widget — wired into the host and the app bundle.
 
 Do **not** duplicate the catalog here. Open it, pick components, follow the steps.
@@ -260,9 +260,10 @@ shape.
    every `callTool` / `openExternal` / `sendFollowup`.
 
 Under the hood, each story renders inside `WidgetFixtureHost` (from
-`@miragon/mcp-toolkit-ui/app`), which installs a `window.openai` shim and an
-`AppQueryProvider` so both the mcp-use bridge and `useToolQuery` resolve against
-the same in-memory fixture registry. See
+`@miragon/mcp-toolkit-ui/app`), which installs a simulated `HostBridge` and an
+`AppQueryProvider` so `useHostBridge` and `useToolQuery` resolve against the
+same in-memory fixture registry. It does not simulate direct `mcp-use/react`
+hook usage — which the portable pattern avoids anyway. See
 [`examples/widget-playground/README.md`](../../../examples/widget-playground/README.md).
 
 For a unit test, render through `WidgetFixtureHost` directly, or build the props

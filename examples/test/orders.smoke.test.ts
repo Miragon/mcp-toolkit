@@ -25,7 +25,7 @@ import type { Customer, OrdersDashboardData } from "../modules/orders/store.js"
  * drives it with an MCP client. Runs in CI through the root `pnpm -r test`.
  */
 
-const FIXTURE_HTML = path.join(import.meta.dirname, "fixtures", "mcp-app.html")
+const FIXTURE_JS = path.join(import.meta.dirname, "fixtures", "mcp-app.js")
 
 /** Reserve a free TCP port by binding to port 0 and releasing it again. */
 async function getFreePort(): Promise<number> {
@@ -63,8 +63,7 @@ describe("orders module smoke", () => {
       host: "127.0.0.1",
       plugins: [createOrdersPlugin()],
       app: {
-        resourceUri: "ui://orders-smoke/mcp-app.html",
-        htmlPath: FIXTURE_HTML,
+        bundle: { jsPath: FIXTURE_JS },
       },
     })
     const port = await getFreePort()
@@ -84,7 +83,7 @@ describe("orders module smoke", () => {
   it("advertises the module's own tools in tools/list", async () => {
     const names = (await session.listTools()).map((t) => t.name)
     expect(names).toEqual(expect.arrayContaining(["list_customers", "show_orders_dashboard"]))
-    // `orders_dashboard_data` is app-only (APP_ONLY_META) — conforming hosts hide
+    // `orders_dashboard_data` is app-only (visibility: "app") — conforming hosts hide
     // it from the LLM tool surface, so we don't assert it appears in tools/list.
   })
 

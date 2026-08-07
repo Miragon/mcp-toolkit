@@ -1,5 +1,6 @@
-import { type MCPServer, object } from "mcp-use"
+import { type MCPServer } from "mcp-use"
 import { z } from "zod"
+import { objectResult } from "./tool-results.js"
 import type { DashboardStore } from "../framework/dashboard-store.js"
 import { collectLayoutWidgets } from "../framework/view-builders.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
@@ -73,7 +74,7 @@ export function registerDashboardTools(
       title: "Save Dashboard",
       description:
         "Persists a dashboard (render-view input bundle + name). Pass an existing `id` to update, omit to create. The builder UI's Save button invokes this tool.",
-      schema: saveSchema,
+      inputSchema: saveSchema,
     },
     async (params, ctx) => {
       // Warn (never reject) on unknown widget ids — usually a typo. A save is
@@ -122,7 +123,7 @@ export function registerDashboardTools(
     },
     async (_params, ctx) => {
       const items = await store.list({ userId: extractUserId(ctx) })
-      return object({ items })
+      return objectResult({ items })
     },
   )
 
@@ -132,7 +133,7 @@ export function registerDashboardTools(
       title: "Load Dashboard",
       description:
         "Returns the full dashboard bundle. The returned `{ keys, steps, layout, title }` fields can be handed straight to `render-view`.",
-      schema: idSchema,
+      inputSchema: idSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ id }, ctx) => {
@@ -161,7 +162,7 @@ export function registerDashboardTools(
           isError: true,
         }
       }
-      return object(record as unknown as Record<string, unknown>)
+      return objectResult(record as unknown as Record<string, unknown>)
     },
   )
 
@@ -170,7 +171,7 @@ export function registerDashboardTools(
       name: "delete-dashboard",
       title: "Delete Dashboard",
       description: "Permanently removes a dashboard by id.",
-      schema: idSchema,
+      inputSchema: idSchema,
     },
     async ({ id }, ctx) => {
       const deleted = await store.delete(id, { userId: extractUserId(ctx) })

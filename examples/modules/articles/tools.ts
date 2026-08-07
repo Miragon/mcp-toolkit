@@ -25,7 +25,7 @@ export function registerArticleTools(
     {
       name: `${prefix}list-articles`,
       description: "Returns all articles. The output schema lets the codegen emit a typed result.",
-      schema: z.object({}),
+      inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
       outputSchema: z.object({
         articles: z.array(articleSchema),
@@ -45,7 +45,7 @@ export function registerArticleTools(
     {
       name: `${prefix}get-article`,
       description: "Fetch a single article by id.",
-      schema: z.object({
+      inputSchema: z.object({
         id: z.string().describe("The article id returned by list-articles."),
       }),
       annotations: { readOnlyHint: true },

@@ -1,6 +1,6 @@
 import { type MCPServer, type ToolAnnotations } from "mcp-use"
 import { z } from "zod"
-import { uiMeta, type WidgetToolMetaDefaults } from "../types/meta.js"
+import { appsSdkMeta, viewResourceUri, type WidgetToolMetaDefaults } from "../types/meta.js"
 import { withToolErrors } from "./with-tool-errors.js"
 import type { ToolArgs } from "./register-tool.js"
 
@@ -15,11 +15,12 @@ interface WidgetToolResult {
 }
 
 /**
- * Tool visibility per SEP-1865 (`_meta.ui.visibility`). `"app"` hides the tool
- * from the LLM tool surface while keeping it callable from a widget; `"model"`
- * exposes it to the LLM. Pass an array to advertise both surfaces.
+ * Who may call or see the tool. `"app"` hides the tool from the LLM tool
+ * surface while keeping it callable from a widget (emitted natively by
+ * mcp-use as `_meta.ui.visibility: ["app"]`); `"model"` exposes it to the LLM
+ * and binds a view so the host renders its result.
  */
-export type WidgetToolVisibility = "app" | "model" | ("app" | "model")[]
+export type WidgetToolVisibility = "app" | "model"
 
 export interface WidgetToolConfig<TClient, TShape extends ZodRawShape = ZodRawShape> {
   name: string
@@ -29,15 +30,23 @@ export interface WidgetToolConfig<TClient, TShape extends ZodRawShape = ZodRawSh
   /** MCP tool annotations (e.g. `readOnlyHint`) advertised to the host. */
   annotations?: ToolAnnotations
   /**
-   * SEP-1865 visibility. Defaults to `"app"` (the historical behaviour — widget
-   * tools are app-only). Use `"model"` to expose the tool to the LLM; in that
-   * case the `_meta.ui` carries only `{ resourceUri }` and no `visibility`.
+   * Defaults to `"app"` (the historical behaviour — widget tools are
+   * app-only). Use `"model"` for a widget-RENDERING tool: it is bound to its
+   * own view (named after the tool) and gets the Apps SDK `openai/*` keys.
    */
   visibility?: WidgetToolVisibility
   /**
+   * Structured-output schema. Model-visible (view-bound) tools require one —
+   * mcp-use refuses a `view` binding without it — so the registrar defaults
+   * to a passthrough object matching `WidgetToolResult.structuredContent`.
+   * Declare a precise schema to give hosts and view hooks typed output.
+   */
+  outputSchema?: z.ZodTypeAny
+  /**
    * Extra `_meta` entries merged flat into the emitted `_meta`, alongside the
-   * `ui` block this registrar builds. The `ui` key is reserved for the
-   * registrar; collisions are overwritten by the registrar's `ui`.
+   * `openai/*` block this registrar builds (collisions: the registrar wins).
+   * The `ui` namespace is owned by mcp-use (derived from `view`/`visibility`)
+   * and must not be stamped here.
    */
   meta?: Record<string, unknown>
   /**
@@ -55,59 +64,86 @@ export interface WidgetToolConfig<TClient, TShape extends ZodRawShape = ZodRawSh
   handler: (client: TClient, params: ToolArgs<TShape>) => Promise<WidgetToolResult>
 }
 
-/** Normalizes the {@link WidgetToolConfig.visibility} option into a flag set. */
-function resolveVisibility(visibility: WidgetToolVisibility | undefined): {
-  app: boolean
-  model: boolean
-} {
-  const list =
-    visibility === undefined ? ["app"] : Array.isArray(visibility) ? visibility : [visibility]
-  return { app: list.includes("app"), model: list.includes("model") }
-}
-
+/**
+ * Registrar for widget tools against mcp-use's native view binding.
+ *
+ * Model-visible tools are bound to a view named after the tool
+ * (`view: { name: <tool name> }`); mcp-use derives the MCP Apps wire keys
+ * (`_meta.ui.resourceUri`, flat `ui/resourceUri`) from that binding, and the
+ * registrar adds the Apps SDK `openai/*` keys pointing at the same resource
+ * (`viewResourceUri(<tool name>)`). App-only tools carry the native
+ * `visibility: "app"` and no view — their results feed an already-rendered
+ * widget via `callTool`.
+ *
+ * `createFrameworkApp` collects every `view` binding registered this way and
+ * primes the view registry with the shared app bundle, so each bound name
+ * resolves to the same compiled widget code.
+ */
 export function createWidgetToolRegistrar<TClient>(
   server: MCPServer,
   client: TClient,
-  resourceUri: string,
   metaDefaults?: WidgetToolMetaDefaults,
 ) {
   return function register<TShape extends ZodRawShape = ZodRawShape>(
     config: WidgetToolConfig<TClient, TShape>,
   ) {
-    const { app, model } = resolveVisibility(config.visibility)
-    // `"model"`-visible tools must not carry the app-only `visibility` marker so
-    // the LLM still sees them; otherwise mark app-only. The `resourceUri` is
-    // always present so the host knows which bundle renders the result.
-    // Model-visible tools additionally get the dual-protocol widget contract
-    // (flat `ui/resourceUri` + `openai/*` keys) ext-apps hosts key on.
-    const ui = uiMeta({
-      resourceUri,
-      appOnly: app && !model,
-      title: config.title ?? config.name,
-      invoking: config.invoking,
-      invoked: config.invoked,
-      widgetDescription: config.description,
-      widgetCSP: metaDefaults?.widgetCSP,
+    const model = config.visibility === "model"
+    const definition = {
+      name: config.name,
+      title: config.title,
+      description: config.description,
+      inputSchema: config.inputSchema ? z.object(config.inputSchema) : undefined,
+      annotations: config.annotations,
+    }
+
+    const callback = withToolErrors(async (looseParams: LooseToolArgs) => {
+      // The SDK validates params against the schema above, so the loose
+      // callback param is safely the handler's precise `ToolArgs<TShape>`.
+      const result = await config.handler(client, looseParams as ToolArgs<TShape>)
+      return {
+        content: [{ type: "text" as const, text: result.text }],
+        structuredContent: result.structuredContent,
+      }
     })
+
+    if (!model) {
+      server.tool(
+        {
+          ...definition,
+          visibility: "app",
+          outputSchema: config.outputSchema,
+          ...(config.meta ? { _meta: config.meta } : {}),
+        },
+        callback,
+      )
+      return
+    }
 
     server.tool(
       {
-        name: config.name,
-        title: config.title,
-        description: config.description,
-        schema: config.inputSchema ? z.object(config.inputSchema) : undefined,
-        annotations: config.annotations,
-        _meta: { ...config.meta, ...ui },
+        ...definition,
+        view: {
+          name: config.name,
+          description: config.description,
+          ...(metaDefaults?.viewCsp ? { csp: metaDefaults.viewCsp } : {}),
+        },
+        // A view binding requires an outputSchema; `passthrough` matches the
+        // free-form `WidgetToolResult.structuredContent` without stripping
+        // keys on SDK-side validation.
+        outputSchema: config.outputSchema ?? z.object({}).passthrough(),
+        _meta: {
+          ...config.meta,
+          ...appsSdkMeta({
+            resourceUri: viewResourceUri(config.name),
+            title: config.title ?? config.name,
+            invoking: config.invoking,
+            invoked: config.invoked,
+            widgetDescription: config.description,
+            widgetCSP: metaDefaults?.widgetCSP,
+          }),
+        },
       },
-      // The SDK validates params against the schema above, so the loose
-      // callback param is safely the handler's precise `ToolArgs<TShape>`.
-      withToolErrors(async (looseParams: LooseToolArgs) => {
-        const result = await config.handler(client, looseParams as ToolArgs<TShape>)
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-          structuredContent: result.structuredContent,
-        }
-      }),
+      callback,
     )
   }
 }
