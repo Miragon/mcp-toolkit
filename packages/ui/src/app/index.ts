@@ -13,7 +13,7 @@ export type { LayoutBuilderProps, LayoutBuilderLabels } from "./layout-builder.j
 
 // App-level value modules that import `mcp-use/react` (ModelContext, the 2.x
 // view hooks) — exported from this subpath only, never the root barrel.
-export { adaptDataWidget } from "./adapt-data-widget.js"
+export { adaptDataWidget, HostModelContext } from "./adapt-data-widget.js"
 export type { DescribeForModel } from "./adapt-data-widget.js"
 export { useHostActions, buildShowWidgetIntent } from "./use-host-actions.js"
 export type { HostActions } from "./use-host-actions.js"

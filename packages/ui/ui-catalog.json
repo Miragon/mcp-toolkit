@@ -989,10 +989,32 @@
           "name": "describeForModel",
           "type": "DescribeForModel<T>",
           "required": false,
-          "description": "(data, props) => string. Wraps the widget in <ModelContext> so the model knows what the user is looking at."
+          "description": "(data, props) => string. Wraps the widget in <HostModelContext> so the model knows what the user is looking at."
         }
       ],
       "whenToUse": "Register a hand-built ({ data }) widget as a framework WidgetComponent. The adapter finds the matching step in context.steps[_dataType].data and forwards result.data as the data prop, and spreads per-cell layout props. Lets render-view and *_show_* tools share one widget."
+    },
+    {
+      "name": "HostModelContext",
+      "export": "HostModelContext",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "component",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "content",
+          "type": "string",
+          "required": true,
+          "description": "The model-facing description of what the user is looking at (view identity, filters, headline numbers)."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "The widget subtree the description belongs to."
+        }
+      ],
+      "whenToUse": "Report model context from a widget that self-fetches (cockpit views) — the host-portable replacement for mcp-use/react's ModelContext. Inside an mcp-use view it renders the native aggregating ModelContext; in every other mount (widget playground, ChatGPT, standalone) it routes through the HostBridge's setModelContext. NEVER import ModelContext from mcp-use/react in a widget: it throws outside a bootstrapView mount."
     },
     {
       "name": "DescribeForModel",

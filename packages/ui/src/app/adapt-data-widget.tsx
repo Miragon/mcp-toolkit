@@ -17,15 +17,29 @@ export type DescribeForModel<T> = (
 ) => string
 
 /**
- * Model-context reporting that works on every host. mcp-use 2.x's
- * `ModelContext` registers with the view runtime and THROWS outside a
- * `bootstrapView` mount, so it is only rendered inside an mcp-use view (where
- * it aggregates nested nodes into one tree). Everywhere else — ChatGPT via
- * `createChatGptHostBridge`, the `WidgetFixtureHost` harness, standalone apps —
- * the description flows through the bridge's `setModelContext` instead
- * (last-writer-wins; fine for the single-widget mounts those hosts render).
+ * Model-context reporting that works on every host — the host-portable
+ * replacement for rendering `mcp-use/react`'s `ModelContext` directly.
+ *
+ * mcp-use 2.x's `ModelContext` registers with the view runtime and THROWS
+ * outside a `bootstrapView` mount, so it is only rendered inside an mcp-use
+ * view (where it aggregates nested nodes into one tree). Everywhere else —
+ * ChatGPT via `createChatGptHostBridge`, the `WidgetFixtureHost` harness,
+ * standalone apps — the description flows through the bridge's
+ * `setModelContext` instead (last-writer-wins; fine for the single-widget
+ * mounts those hosts render).
+ *
+ * Widgets that self-fetch and report their own context (cockpit views like
+ * `TasksBoard`) must use this instead of importing `ModelContext` from
+ * `mcp-use/react` — the direct import crashes the widget in every non-view
+ * mount, starting with the widget playground.
  */
-function SafeModelContext({ content, children }: { content: string; children: ReactNode }) {
+export function HostModelContext({
+  content,
+  children,
+}: {
+  content: string
+  children: ReactNode
+}): ReactNode {
   const insideView = useIsInsideMcpUseView()
   if (insideView) return <ModelContext content={content}>{children}</ModelContext>
   return <BridgeModelContext content={content}>{children}</BridgeModelContext>
@@ -54,11 +68,11 @@ function BridgeModelContext({ content, children }: { content: string; children: 
  * times in one view with different scoping (e.g. one tab per process key).
  *
  * When `describeForModel` is provided the adapter wraps the widget in a
- * `SafeModelContext` so the model knows what the user is looking at (view
+ * `HostModelContext` so the model knows what the user is looking at (view
  * identity, active filters, headline numbers) without per-widget boilerplate.
  * The description is only rendered once the step data is present; widgets that
  * self-fetch when the adapter has no data (cockpit views) must render their own
- * `<ModelContext>` instead.
+ * `<HostModelContext>` instead.
  */
 export function adaptDataWidget<T>(
   Widget: ComponentType<{ data: T | null } & Record<string, unknown>>,
@@ -71,9 +85,9 @@ export function adaptDataWidget<T>(
     const widget = <Widget {...(widgetProps ?? {})} data={data} />
     if (data == null || !describeForModel) return widget
     return (
-      <SafeModelContext content={describeForModel(data, widgetProps ?? {})}>
+      <HostModelContext content={describeForModel(data, widgetProps ?? {})}>
         {widget}
-      </SafeModelContext>
+      </HostModelContext>
     )
   }
   AdaptedWidget.displayName = `Adapted(${Widget.displayName ?? Widget.name ?? "Widget"})`

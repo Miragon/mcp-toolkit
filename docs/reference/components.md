@@ -564,8 +564,26 @@ export const IncidentPanelWidget = adaptDataWidget(
 `WidgetComponent`. The adapter finds the matching step in
 `context.steps[_dataType].data`, forwards `result.data` as the `data` prop, and
 spreads per-cell layout `props`. Lets `render-view` and `*_show_*` tools share
-one widget. With `describeForModel` it wraps the widget in `<ModelContext>` so
-the model knows what the user is looking at.
+one widget. With `describeForModel` it wraps the widget in `<HostModelContext>`
+so the model knows what the user is looking at.
+
+### HostModelContext
+
+`<HostModelContext content={string}>{widget}</HostModelContext>` — host-portable
+model-context reporting.
+
+```tsx
+import { HostModelContext } from "@miragon/mcp-toolkit-ui/app"
+
+return <HostModelContext content={describeBoard(board)}>{board}</HostModelContext>
+```
+
+**When to use:** a widget that self-fetches (cockpit views) and reports its own
+context instead of going through `adaptDataWidget`'s `describeForModel`. Inside
+an mcp-use view it renders the native aggregating `ModelContext`; in every other
+mount (widget playground, ChatGPT, standalone) it routes through the
+`HostBridge`'s `setModelContext`. Never import `ModelContext` from
+`mcp-use/react` in a widget — it throws outside a `bootstrapView` mount.
 
 ### DescribeForModel
 

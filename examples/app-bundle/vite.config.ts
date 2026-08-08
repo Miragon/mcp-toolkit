@@ -17,6 +17,15 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   root: here,
   plugins: [react(), tailwindcss()],
+  resolve: {
+    // One copy of each, no matter how pnpm peer-splits them across the
+    // workspace. Since 2.x the mcp-use/react view runtime keeps its
+    // bootstrapView context in module scope, so a second bundled copy (the
+    // shell resolving via packages/ui, a widget via examples) throws
+    // "mcp-use/react hooks require a browser view mounted by bootstrapView"
+    // at render time even though the view IS mounted.
+    dedupe: ["mcp-use", "react", "react-dom"],
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,
