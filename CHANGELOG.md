@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [0.11.0](https://github.com/Miragon/mcp-toolkit/compare/v0.10.1...v0.11.0) (2026-08-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core,ui,examples:** migrate to mcp-use 2.x native views ([#114](https://github.com/Miragon/mcp-toolkit/issues/114))
+
+### Features
+
+* **core,ui,examples:** migrate to mcp-use 2.x native views ([#114](https://github.com/Miragon/mcp-toolkit/issues/114)) ([95e5cdb](https://github.com/Miragon/mcp-toolkit/commit/95e5cdbff3d26a63c2db58466fdb2816f22b2009))
+
 ## [0.10.1](https://github.com/Miragon/mcp-toolkit/compare/v0.10.0...v0.10.1) (2026-07-28)
 
 
