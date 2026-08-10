@@ -6,12 +6,19 @@ The **standard path** for new servers: you own a normal
 `installToolkit` adds the toolkit's composition features on top.
 
 ```
+package.json                  name + main — the CLI reads both from the project dir
 index.ts                      export default server; own tools + installToolkit(...)
-widgets.tsx                   the shared widget map (one place for widget code)
-styles.css                    Tailwind entry (globals + widget sources)
 views/render-view/…           the composer view — CLI convention: dir name = view.name
 views/show_tasks_board/…      the tasks module's widget tool view
+views/shared/widgets.tsx      the shared widget map (one place for widget code)
+views/shared/styles.css       Tailwind entry (globals + widget sources)
 ```
+
+Shared browser modules live **under `views/`** (`views/shared/`) on purpose:
+the CLI dev server routes only `views/*` (plus Vite's internal paths) through
+its Vite middleware, so a module imported from outside `views/` — e.g. a
+root-level `widgets.tsx` — 404s in dev. Server-side code (`index.ts`, the
+modules it imports) is unaffected; it runs in Node, not over HTTP.
 
 What `installToolkit` contributes here: `get-framework-manifest`,
 `render-view` (bound to its own view), the app-only `refresh-view`, plus the

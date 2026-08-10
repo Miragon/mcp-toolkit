@@ -1,6 +1,6 @@
 import { McpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
-import { widgets } from "../../widgets.js"
-import "../../styles.css"
+import { widgets } from "../shared/widgets.js"
+import "../shared/styles.css"
 
 /**
  * The toolkit composer as a plain mcp-use view. The CLI discovers this file

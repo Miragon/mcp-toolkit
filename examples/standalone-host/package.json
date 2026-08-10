@@ -1,0 +1,8 @@
+{
+  "name": "standalone-host-example",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "description": "Plain mcp-use project with the toolkit installed on top — run through the mcp-use CLI from examples/ (dev:standalone / build:standalone / start:standalone). Dependencies resolve through the examples workspace package; this manifest exists because the CLI reads `name` and `main` from the project directory."
+}

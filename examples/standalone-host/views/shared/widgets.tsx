@@ -1,6 +1,6 @@
 import { adaptDataWidget } from "@miragon/mcp-toolkit-ui/app"
-import { TasksBoard } from "../modules/tasks/widgets/TasksBoard.js"
-import type { TasksBoardData } from "../modules/tasks/store.js"
+import { TasksBoard } from "../../../modules/tasks/widgets/TasksBoard.js"
+import type { TasksBoardData } from "../../../modules/tasks/store.js"
 
 /**
  * The shared widget map every view in this project renders. One place for

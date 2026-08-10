@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Standalone playground for the MCP toolkit. Not published \u2014 consumed locally via pnpm workspace.",
+  "description": "Standalone playground for the MCP toolkit. Not published — consumed locally via pnpm workspace.",
   "scripts": {
     "dev:host": "tsx --env-file-if-exists=.env host/index.ts",
     "dev:playground": "tsx host/playground.ts",
@@ -29,6 +29,7 @@
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0",
+    "lucide-react": "0.562.0",
     "mcp-use": "2.0.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
