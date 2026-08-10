@@ -8,7 +8,9 @@ becomes the standard way to develop and serve a toolkit server. The guide
 below walks every breaking change with before/after snippets.
 
 **Who this is for:** consumers of `@miragon/mcp-toolkit-core` /
-`@miragon/mcp-toolkit-ui` 0.10.x (built against mcp-use 1.34).
+`@miragon/mcp-toolkit-ui` 0.10.x (built against mcp-use 1.34). The mcp-use
+2.x line first shipped as 0.11.0 and is promoted unchanged to **1.0.0** —
+if you are already on 0.11.0, there is nothing further to migrate.
 
 ## 1. Bump the dependencies
 
