@@ -2,6 +2,11 @@
   "name": "@miragon/mcp-toolkit-core",
   "version": "1.0.0",
   "description": "Framework runtime for MCP servers: plugin contract, step/widget registries, pipeline executor, render-view helpers.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Miragon/mcp-toolkit.git",
+    "directory": "packages/core"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "dist/index.js",

@@ -9,6 +9,10 @@ on:
         type: boolean
         default: false
         description: "Validate packaging/publish without opening a Release PR or releasing"
+      force_publish:
+        type: boolean
+        default: false
+        description: "Publish the versions currently in package.json even without a new release (recovers a failed publish)"
 
 permissions:
   contents: write
@@ -46,7 +50,7 @@ jobs:
   publish-core:
     name: Publish core
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish) }}
     permissions:
       contents: read
       id-token: write
@@ -57,7 +61,7 @@ jobs:
   publish-tool-codegen:
     name: Publish tool-codegen
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish) }}
     permissions:
       contents: read
       id-token: write
@@ -68,7 +72,7 @@ jobs:
   publish-ui:
     name: Publish ui
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish) }}
     permissions:
       contents: read
       id-token: write
