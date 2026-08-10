@@ -14,6 +14,7 @@
     "lint:fix": "pnpm -r run lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "verify:publish-metadata": "node scripts/check-publish-metadata.mjs",
     "docs:dev": "pnpm --filter @miragon/mcp-toolkit-docs run dev",
     "docs:build": "pnpm --filter @miragon/mcp-toolkit-docs run build",
     "docs:preview": "pnpm --filter @miragon/mcp-toolkit-docs run preview",
