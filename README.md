@@ -21,29 +21,41 @@ instructions and an auto-connected inspector, and follow the
 views → pipelines → builder.
 
 Locally, no npm auth needed — `pnpm install` links the workspace packages. The
-fastest way to see the toolkit working is the [examples workspace](./examples):
+standard dev loop is the one mcp-use itself propagates — a plain mcp-use
+project with the toolkit installed on top, run through the mcp-use CLI:
 
 ```sh
 corepack enable                          # the repo pins pnpm via `packageManager`
 pnpm install                             # `prepare` scripts build the package dists
+pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone
+```
+
+That boots [`examples/standalone-host`](./examples/standalone-host) via
+`mcp-use dev`: views are built by the CLI with HMR, and the **built-in
+inspector** (the URL is printed on start, `…/mcp/inspector`) renders the
+widgets live — call `show_tasks_board` there and you have the full loop: an
+MCP tool returning a rendered widget. Edit a widget source and the view
+hot-reloads.
+
+The full three-module host (articles, tasks, orders — the `createFrameworkApp`
+**Node adapter** path with the visual builder) is:
+
+```sh
 cp examples/env.example examples/.env    # first time only
 pnpm --filter @miragon/mcp-toolkit-examples start
 ```
 
-`start` builds the widget bundle and starts the host on `:3010`, serving the
-three self-owned example modules (articles, tasks, orders). Then:
+`start` builds the widget bundle and serves on `:3010` — connect a client to
+`http://localhost:3010/mcp` (the endpoint's landing page shows per-client
+install commands), or smoke-test from the shell:
 
-- open the built-in mcp-use inspector at <http://localhost:3010/inspector> and
-  call `show_tasks_board`, or
-- smoke-test from the shell:
+```sh
+curl -sX POST http://localhost:3010/mcp -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
+```
 
-  ```sh
-  curl -sX POST http://localhost:3010/mcp -H 'content-type: application/json' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
-  ```
-
-For visible pixels without any server or `.env`, run the widget playground —
-isolated widget development against fixture data:
+For fixture-driven widget iteration without any server (edge states, theme
+matrix), the optional widget playground remains:
 
 ```sh
 pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground

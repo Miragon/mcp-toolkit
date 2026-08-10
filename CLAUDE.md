@@ -34,10 +34,15 @@ against, so reach for the existing building blocks instead of re-deriving them:
   (data contract → primitives → host-portable `useHostBridge` → iterate in the
   playground → verify). Invoke it when building a widget or rendering a tool
   result as UI.
-- **Iterate loop** — develop a widget in isolation with fixture data and a mocked
-  host via `WidgetFixtureHost`; add a `Story` to
+- **Iterate loop** — the standard loop is the mcp-use CLI: run
+  `pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone` and exercise
+  the widget through the built-in inspector (`…/mcp/inspector`, HMR on the
+  widget sources; see [`examples/standalone-host`](examples/standalone-host/README.md)).
+  For fixture-driven isolation (edge states, theme matrix, no server), add a
+  `Story` to
   [`examples/widget-playground/stories.ts`](examples/widget-playground/stories.ts)
-  and run `pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground`.
+  and run `pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground`
+  (`WidgetFixtureHost`).
 - **Reference widgets** —
   [`OrderStatusCard`](examples/host-portability/OrderStatusCard.tsx) (host-portable)
   and [`CustomerCard`](examples/widget-playground/CustomerCard.tsx).

@@ -1,5 +1,14 @@
 # Developing widgets in isolation
 
+::: tip The standard loop is the mcp-use CLI
+Day-to-day widget development runs through `mcp-use dev` and its built-in
+inspector — real server, HMR on the widget sources; see
+[getting started](../getting-started.md). This guide covers the **optional
+fixture harness** for the cases the real server won't easily produce: edge
+states (empty lists, errors, huge data), the theme/brand matrix, and work
+without any server at all.
+:::
+
 Hand-built widgets are where the design quality lives, so they deserve a tight
 feedback loop. `WidgetFixtureHost` is a "Storybook for MCP widgets": it renders a
 single widget with fixture data and a mocked host, so you can build and polish it
@@ -17,9 +26,9 @@ pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground
 `WidgetFixtureHost` (from `@miragon/mcp-toolkit-ui/app`) stands in for the host so
 a widget renders exactly as it would in production, minus the infrastructure:
 
-- **`callTool`** is served from an in-memory `FixtureCallToolRegistry`, wired into
-  _both_ `mcp-use`'s `useCallTool` and the toolkit's `useToolQuery` — so a widget
-  that self-fetches resolves against your fixtures.
+- **`callTool`** is served from an in-memory `FixtureCallToolRegistry`, wired
+  into the simulated `HostBridge` and the toolkit's `useToolQuery` — so a
+  widget that self-fetches resolves against your fixtures.
 - **Host actions** (`openExternal`, `sendFollowUpMessage`, …) are logged to
   `onHostAction` instead of dispatched.
 - **The `<ModelContext>` string** the widget reports is captured and surfaced

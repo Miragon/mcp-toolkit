@@ -11,7 +11,9 @@ Not published. Private workspace package; dependencies resolve via
 
 ```
 examples/
-├── host/                       createFrameworkApp wiring
+├── standalone-host/            THE STANDARD PATH — plain mcp-use project + installToolkit,
+│                                 run through the mcp-use CLI (dev:standalone, built-in inspector)
+├── host/                       createFrameworkApp wiring (the Node-adapter path)
 │   ├── index.ts                  full host — all three modules + builder
 │   └── playground.ts             public playground — tasks + orders only
 ├── modules/

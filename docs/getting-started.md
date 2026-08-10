@@ -18,28 +18,36 @@ From the repo root:
 ```sh
 corepack enable                          # the repo pins pnpm via `packageManager`
 pnpm install                             # `prepare` scripts build the package dists
+pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone
+```
+
+`dev:standalone` is the standard loop — the workflow mcp-use itself
+propagates: [`examples/standalone-host`](../examples/standalone-host/README.md)
+is a plain mcp-use project with `installToolkit` on top, run through
+`mcp-use dev`. The CLI builds the views with HMR and prints the **built-in
+inspector** URL (`…/mcp/inspector`) — call `show_tasks_board` there. That is
+the full loop: an MCP tool returning a rendered widget, hot-reloading as you
+edit the widget sources.
+
+The full three-module host (articles, tasks, orders — the `createFrameworkApp`
+Node-adapter path with the visual builder) is:
+
+```sh
 cp examples/env.example examples/.env    # first time only
 pnpm --filter @miragon/mcp-toolkit-examples start
 ```
 
-`start` builds the widget bundle and starts the host on `:3010`. The host
-serves three self-owned modules (articles, tasks, orders) — see
-[examples/README.md](../examples/README.md) for what each one proves.
+`start` builds the widget bundle and serves on `:3010` — see
+[examples/README.md](../examples/README.md) for what each module proves.
+Smoke-test it from the shell:
 
-Now look at it:
+```sh
+curl -sX POST http://localhost:3010/mcp -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
+```
 
-- **Inspector** — open `http://localhost:3010/inspector` (built into mcp-use)
-  and call `show_tasks_board`. That is the full loop: an MCP tool returning a
-  rendered widget.
-- **Shell** — list the tool surface:
-
-  ```sh
-  curl -sX POST http://localhost:3010/mcp -H 'content-type: application/json' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
-  ```
-
-For UI work without any server or `.env`, use the widget playground
-(fixture data, mocked host):
+For fixture-driven UI work without any server or `.env`, the optional widget
+playground remains (fixture data, simulated host):
 
 ```sh
 pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
@@ -48,7 +56,8 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
 ::: tip Running processes individually
 `dev:host` alone expects the widget bundle to exist — run
 `pnpm --filter @miragon/mcp-toolkit-examples build:bundle` once first (the
-one-shot `start` does this for you).
+one-shot `start` does this for you). And since the mcp-use 2.x move the
+Node-adapter host reads the bundle once at boot: after a rebuild, restart it.
 :::
 
 ## Start your own project
