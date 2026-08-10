@@ -5,7 +5,6 @@
   "packages": {
     ".": {
       "package-name": "mcp-toolkit",
-      "release-as": "1.0.0",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
