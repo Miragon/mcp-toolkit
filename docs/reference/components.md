@@ -533,8 +533,9 @@ For non-default hosts, wrap the widget in
   — any MCP server in a standalone web app. `callTool` is the only required option.
 - `createChatGptHostBridge(sdk?)` — the OpenAI Apps SDK (ChatGPT). Defensive;
   missing host methods degrade to logged no-ops.
-- `createMcpUseHostBridge()` (= `useMcpUseHostBridge()`) — the toolkit's own
-  host (the default when no provider is present).
+- `McpUseHostBridgeProvider` — the toolkit's own host: composes the mcp-use 2.x
+  view hooks into the bridge. Already included in `McpToolkitApp`, so widgets
+  rendered by the toolkit shell need no wrapping.
 
 ## Widget authoring
 
@@ -563,8 +564,26 @@ export const IncidentPanelWidget = adaptDataWidget(
 `WidgetComponent`. The adapter finds the matching step in
 `context.steps[_dataType].data`, forwards `result.data` as the `data` prop, and
 spreads per-cell layout `props`. Lets `render-view` and `*_show_*` tools share
-one widget. With `describeForModel` it wraps the widget in `<ModelContext>` so
-the model knows what the user is looking at.
+one widget. With `describeForModel` it wraps the widget in `<HostModelContext>`
+so the model knows what the user is looking at.
+
+### HostModelContext
+
+`<HostModelContext content={string}>{widget}</HostModelContext>` — host-portable
+model-context reporting.
+
+```tsx
+import { HostModelContext } from "@miragon/mcp-toolkit-ui/app"
+
+return <HostModelContext content={describeBoard(board)}>{board}</HostModelContext>
+```
+
+**When to use:** a widget that self-fetches (cockpit views) and reports its own
+context instead of going through `adaptDataWidget`'s `describeForModel`. Inside
+an mcp-use view it renders the native aggregating `ModelContext`; in every other
+mount (widget playground, ChatGPT, standalone) it routes through the
+`HostBridge`'s `setModelContext`. Never import `ModelContext` from
+`mcp-use/react` in a widget — it throws outside a `bootstrapView` mount.
 
 ### DescribeForModel
 
@@ -650,24 +669,25 @@ and a fork-able starting point; pass one to `ThemeProvider`'s `theme` prop.
 You rarely write these when authoring a single widget — you write the widget and
 register it here.
 
-### McpToolkitApp
+### McpToolkitApp / mountMcpToolkitApp
 
-`/app` import. Props: `widgets` (required, `Record<string, WidgetComponent>`),
+`/app` imports. Props: `widgets` (required, `Record<string, WidgetComponent>`),
 `refreshToolName?` (default `"refresh-view"`), `labels?`.
 
 ```tsx
-import { createRoot } from "react-dom/client"
-import { McpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
+import { mountMcpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
 import { OrderCardWidget } from "./widgets/OrderCard.js"
 
 const widgets = { "orders:order-card": OrderCardWidget }
-createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widgets} />)
+mountMcpToolkitApp({ widgets })
 ```
 
-**When to use:** the recommended consumer root for an `mcp-app.html` bundle. It
-wraps `McpAppView` in mcp-use's `McpUseProvider` (host auto-sizing, `StrictMode`,
-error boundary, theme). See the [UI API reference](./api-ui.md) for `McpAppView`,
-`WidgetRenderer` and `LayoutBuilder`.
+**When to use:** the entry point for the widget bundle.
+`mountMcpToolkitApp` mounts via mcp-use's `bootstrapView` (ext-apps handshake,
+error boundary, auto-resize); `McpToolkitApp` is the component it mounts —
+mcp-use `ThemeProvider` + `McpUseHostBridgeProvider` around `McpAppView`. See
+the [UI API reference](./api-ui.md) for `McpAppView`, `WidgetRenderer` and
+`LayoutBuilder`.
 
 ## Dev
 

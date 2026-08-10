@@ -53,12 +53,12 @@ export function buildShowWidgetIntent(toolName: string, description: string): st
  * because they cross the UI→chat boundary for different reasons — see above).
  *
  * Relationship to {@link useHostBridge}: this hook resolves the active bridge
- * through `useHostBridge()`, so it honours an explicit `HostBridgeProvider`
- * (ChatGPT / standalone) when one is present, and otherwise falls back to the
- * default `mcp-use` bridge — exactly the behaviour widgets had before the bridge
- * abstraction existed, so no existing widget or test breaks. Prefer
- * `useHostBridge` directly in new portable widgets; `useHostActions` stays for
- * its named affordances and backward compatibility.
+ * through `useHostBridge()`, so it uses whatever the nearest
+ * `HostBridgeProvider` supplies — the toolkit shell installs the `mcp-use`
+ * bridge via `McpUseHostBridgeProvider`, ChatGPT / standalone mounts wrap
+ * their root themselves — and, like `useHostBridge`, it throws when no
+ * provider is present. Prefer `useHostBridge` directly in new portable
+ * widgets; `useHostActions` stays for its named affordances.
  */
 export function useHostActions(): HostActions {
   const bridge = useHostBridge()

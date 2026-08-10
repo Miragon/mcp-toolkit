@@ -90,6 +90,10 @@ export default defineConfig({
           collapsed: false,
           items: [
             {
+              text: "Migrating to mcp-use 2.x",
+              link: "/guides/migrating-to-mcp-use-2",
+            },
+            {
               text: "Developing widgets in isolation",
               link: "/guides/developing-widgets-in-isolation",
             },

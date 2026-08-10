@@ -17,8 +17,7 @@ import { createFrameworkApp, createFileSystemDashboardStore } from "@miragon/mcp
 const app = await createFrameworkApp({
   // … other options …
   app: {
-    resourceUri: "ui://example/mcp-app.html",
-    htmlPath: "/abs/path/to/mcp-app.html",
+    bundle: { jsPath: "/abs/path/to/mcp-app.js", cssPath: "/abs/path/to/mcp-app.css" },
     builder: true, // opt into the builder + dashboard CRUD (off by default)
     dashboardStore: createFileSystemDashboardStore({ dir: ".dashboards" }),
   },

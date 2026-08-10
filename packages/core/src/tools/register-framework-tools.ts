@@ -1,30 +1,23 @@
-import fs from "node:fs/promises"
-import { createMcpAppsResource, type MCPServer, RESOURCE_MIME_TYPE, text } from "mcp-use/server"
+import { type MCPServer } from "mcp-use"
 import { z } from "zod"
+import { textResult } from "./tool-results.js"
 import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutInputSchema } from "../framework/layout-schemas.js"
 import { renderView } from "../framework/render-view.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
-import { uiMeta, type WidgetCspMeta } from "../types/meta.js"
+import {
+  appsSdkMeta,
+  viewResourceUri,
+  type AppResourceCsp,
+  type WidgetCspMeta,
+} from "../types/meta.js"
 
-/**
- * CSP advertised on the widget resource, in the SEP-1865 camelCase shape
- * (`_meta.ui.csp`). All entries are full origins (e.g. `https://server.example`).
- * The Apps SDK tool-meta variant (`openai/widgetCSP`, snake_cased) is derived
- * from the same value.
- */
-export interface AppResourceCsp {
-  /** Origins allowed for fetch/XHR/WebSocket from inside the widget iframe. */
-  connectDomains?: string[]
-  /** Origins allowed for images, scripts, stylesheets, fonts. */
-  resourceDomains?: string[]
-  /** Allowed iframe origins. */
-  frameDomains?: string[]
-  /** Allowed `base-uri` origins. */
-  baseUriDomains?: string[]
-}
+export type { AppResourceCsp } from "../types/meta.js"
+
+/** View name (and thus `ui://views/render-view.html` URI) bound to `render-view`. */
+export const RENDER_VIEW_NAME = "render-view"
 
 export interface RegisterFrameworkToolsOptions {
   stepRegistry: StepRegistry
@@ -32,14 +25,6 @@ export interface RegisterFrameworkToolsOptions {
   config: AppConfig
   appConfigs: Record<string, Record<string, unknown>>
   plugins: AppPlugin[]
-  /**
-   * The MCP UI resource URI that hosts the widget bundle (typically the
-   * compiled `mcp-app.html`). Referenced by `render-view` / `refresh-view`
-   * via the `_meta.ui.resourceUri` convention.
-   */
-  resourceUri: string
-  /** Absolute path to the bundled `mcp-app.html` served behind `resourceUri`. */
-  htmlPath: string
   /**
    * Tool name for the refresh hook the UI calls to re-run the pipeline.
    * The `@miragon/mcp-toolkit-ui` default matches this — change both in
@@ -56,18 +41,10 @@ export interface RegisterFrameworkToolsOptions {
    */
   builderAvailable?: boolean
   /**
-   * Public base URL the server advertises. Its origin is auto-injected into
-   * the resource CSP's connect/resource/baseUri domains — mirroring native
-   * mcp-use's server-origin enrichment — so widgets can reach the server
-   * origin without CSP violations. Without it (and without {@link csp}) the
-   * resource advertises no CSP, which ext-apps hosts treat as the secure
-   * "no network" default; fine for a fully inlined bundle.
-   */
-  baseUrl?: string
-  /**
-   * Additional CSP origins advertised on the widget resource
-   * (`_meta.ui.csp`) and, snake_cased, on widget tools (`openai/widgetCSP`).
-   * Merged with the origin derived from {@link baseUrl}.
+   * Additional CSP origins advertised on the view resources (`_meta.ui.csp`,
+   * via each tool's `view.csp`) and, snake_cased, on widget tools
+   * (`openai/widgetCSP`). The server origin is appended by mcp-use itself at
+   * emission time, so this only needs third-party origins (e.g. a CDN).
    */
   csp?: AppResourceCsp
 }
@@ -112,38 +89,6 @@ function extractUserId(ctx: unknown): string | undefined {
   return typeof user?.userId === "string" ? user.userId : undefined
 }
 
-function withOrigin(list: string[] | undefined, origin: string): string[] {
-  if (!list) return [origin]
-  return list.includes(origin) ? list : [...list, origin]
-}
-
-/**
- * Merges the configured CSP with the server origin derived from `baseUrl`
- * (injected into connect/resource/baseUri domains, deduplicated) — the same
- * enrichment native mcp-use applies to its widget definitions. Returns
- * `undefined` when there is nothing to advertise.
- */
-export function buildAppResourceCsp(
-  baseUrl: string | undefined,
-  csp: AppResourceCsp | undefined,
-): AppResourceCsp | undefined {
-  let origin: string | undefined
-  if (baseUrl) {
-    try {
-      origin = new URL(baseUrl).origin
-    } catch {
-      // Invalid baseUrl — skip origin injection rather than failing boot.
-    }
-  }
-  if (!origin) return csp
-  return {
-    ...csp,
-    connectDomains: withOrigin(csp?.connectDomains, origin),
-    resourceDomains: withOrigin(csp?.resourceDomains, origin),
-    baseUriDomains: withOrigin(csp?.baseUriDomains, origin),
-  }
-}
-
 /** Converts the camelCase resource CSP into the snake_cased `openai/widgetCSP` shape. */
 function toWidgetCspMeta(csp: AppResourceCsp): WidgetCspMeta {
   const meta: WidgetCspMeta = {}
@@ -156,12 +101,15 @@ function toWidgetCspMeta(csp: AppResourceCsp): WidgetCspMeta {
 
 /**
  * Registers the framework-level MCP tools that make up a Miranum-style MCP
- * app: the manifest tool, the `render-view` / `refresh-view` pair, the widget
- * bundle resource, plus any widget-action tools each plugin contributes.
+ * app: the manifest tool, the `render-view` / `refresh-view` pair, plus any
+ * widget-action tools each plugin contributes. `render-view` is bound to its
+ * own view ({@link RENDER_VIEW_NAME}); the view resource itself is emitted by
+ * mcp-use from the registry `createFrameworkApp` primes with the app bundle.
  *
  * Intended to be called from `createFrameworkApp`, but exposed directly so
  * consumers that build their own server can still opt into the framework
- * tools without the rest of the boot helper.
+ * tools without the rest of the boot helper — such consumers must prime the
+ * view registry themselves (see `createFrameworkApp`).
  */
 export function registerFrameworkTools(
   server: MCPServer,
@@ -173,16 +121,12 @@ export function registerFrameworkTools(
     config,
     appConfigs,
     plugins,
-    resourceUri,
-    htmlPath,
     refreshToolName = "refresh-view",
     builderAvailable = false,
-    baseUrl,
     csp,
   } = options
 
-  const resourceCsp = buildAppResourceCsp(baseUrl, csp)
-  const widgetCSP = resourceCsp ? toWidgetCspMeta(resourceCsp) : undefined
+  const widgetCSP = csp ? toWidgetCspMeta(csp) : undefined
 
   server.tool(
     {
@@ -194,7 +138,7 @@ export function registerFrameworkTools(
     // eslint-disable-next-line @typescript-eslint/require-await
     async () => {
       const manifest = getFrameworkManifest(stepRegistry, widgetRegistry, config)
-      return text(JSON.stringify(manifest, null, 2))
+      return textResult(JSON.stringify(manifest, null, 2))
     },
   )
 
@@ -219,9 +163,18 @@ export function registerFrameworkTools(
       title: "Render View",
       description:
         "Builds a UI from pipeline steps and widgets. IMPORTANT: call get-framework-manifest first to learn which step-ids and widget-ids are available — only use ids listed there. Each widget entry's optional `propsSchema` (JSON Schema) describes the per-instance `props` you can set on a layout cell to scope or configure that widget (e.g. one tab per `processDefinitionKey`).",
-      schema: renderViewSchema,
-      _meta: uiMeta({
-        resourceUri,
+      inputSchema: renderViewSchema,
+      view: {
+        name: RENDER_VIEW_NAME,
+        description: "Interactive view composed of pipeline-driven widgets",
+        ...(csp ? { csp } : {}),
+      },
+      // The view envelope is dynamic (steps/layout are call-time arguments);
+      // `passthrough` satisfies the view binding's outputSchema requirement
+      // without stripping envelope keys on SDK-side validation.
+      outputSchema: z.object({}).passthrough(),
+      _meta: appsSdkMeta({
+        resourceUri: viewResourceUri(RENDER_VIEW_NAME),
         title: "Render View",
         invoking: "Rendering view...",
         invoked: "View rendered",
@@ -233,7 +186,7 @@ export function registerFrameworkTools(
   )
 
   for (const plugin of plugins) {
-    plugin.registerWidgetTools?.(server, resourceUri, { widgetCSP })
+    plugin.registerWidgetTools?.(server, { widgetCSP, viewCsp: csp })
   }
 
   server.tool(
@@ -241,34 +194,12 @@ export function registerFrameworkTools(
       name: refreshToolName,
       title: "Refresh View",
       description: "Re-runs the pipeline with the stored parameters.",
-      schema: renderViewSchema,
-      _meta: uiMeta({ resourceUri, appOnly: true }),
+      inputSchema: renderViewSchema,
+      // App-only: called by the already-rendered view, never by the model —
+      // and no view binding, since its result replaces state inside the
+      // existing iframe rather than rendering a new one.
+      visibility: "app",
     },
     renderHandler,
-  )
-
-  // The resource `_meta.ui.csp` must appear on the LISTING (resources/list)
-  // and on the READ contents — ext-apps hosts read it from the contents when
-  // sandboxing the iframe. `createMcpAppsResource` produces exactly the shape
-  // native mcp-use emits (mimeType `text/html;profile=mcp-app` + `_meta.ui`).
-  const resourceMeta = resourceCsp ? { ui: { csp: resourceCsp } } : undefined
-  server.resource(
-    {
-      name: "mcp-app-html",
-      uri: resourceUri,
-      mimeType: RESOURCE_MIME_TYPE,
-      ...(resourceMeta ? { _meta: resourceMeta } : {}),
-    },
-    async () => {
-      // Read lazily per request so dev servers pick up a rebuilt bundle
-      // without a restart (same behaviour as before).
-      const html = await fs.readFile(htmlPath, "utf-8")
-      const uiResource = createMcpAppsResource(
-        resourceUri,
-        html,
-        resourceCsp ? { csp: resourceCsp } : undefined,
-      )
-      return { contents: [uiResource.resource] }
-    },
   )
 }

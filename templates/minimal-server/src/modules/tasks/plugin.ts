@@ -1,3 +1,7 @@
+// Stays on the 1.x subpath: this template scaffolds against the *published*
+// @miragon packages (see package.json), which pin mcp-use 1.34.x — the root
+// `mcp-use` entry exports no server surface there. Migrate the import together
+// with the template's dependency bump once the 2.x-compatible toolkit ships.
 import type { MCPServer } from "mcp-use/server"
 import { z } from "zod"
 import type { AppPlugin } from "@miragon/mcp-toolkit-core"

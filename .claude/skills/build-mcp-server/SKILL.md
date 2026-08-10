@@ -6,9 +6,9 @@ description: >-
   "build/create an MCP server", "stand up an MCP server with tools and a UI",
   "add a module with its own tools" (createToolRegistrar), "expose a
   tool plus a widget", wire an AppPlugin into createFrameworkApp, add an app-only
-  *_data feed (APP_ONLY_META), write a show_* widget tool (buildSingleWidgetView /
-  uiMeta), or bundle a widget into mcp-app.html. The worked example is the `tasks`
-  module.
+  *_data feed (visibility: "app"), write a show_* widget tool (buildSingleWidgetView
+  + a native view binding), or bundle a widget into the app bundle. The worked
+  example is the `tasks` module.
 ---
 
 # Build an MCP server with `@miragon/mcp-toolkit`
@@ -34,24 +34,36 @@ an external MCP gateway's job, e.g. agentgateway).
   client, [`white-label-client`](../white-label-client/SKILL.md).
 
 Boundaries that apply (see `CLAUDE.md`): **ESM with `.js` import extensions**;
-server code imports `mcp-use/server` and `@miragon/mcp-toolkit-core/tools`; pure
+server code imports `mcp-use` and `@miragon/mcp-toolkit-core/tools`; pure
 domain logic (filters, tallies) is **Vitest-tested**, tool/React glue is not.
+
+## Two entry points
+
+- **Standard**: a plain mcp-use project (own `MCPServer`, `views/` convention,
+  `mcp-use dev`/`build`/`start`) with `installToolkit(server, { modules })` on
+  top — see `examples/standalone-host/`. Views: one `views/<tool>/view.tsx`
+  per view-bound tool, each rendering `McpToolkitApp` with the widget map.
+- **Node adapter**: `createFrameworkApp` (used below) when the server runs in
+  your own process or ships views inline from a self-built bundle.
+
+Both register the same framework surface; they differ only in who builds and
+serves the views.
 
 ## The shape of a server
 
 ```
-host  →  createFrameworkApp({ plugins: [myPlugin()], app: { resourceUri, htmlPath } })
+host  →  createFrameworkApp({ plugins: [myPlugin()], app: { bundle: { jsPath, cssPath } } })
 plugin →  AppPlugin { definition, registerTools, registerWidgetTools }
             registerTools        →  createToolRegistrar  →  list_tasks / create_task / …
-            registerWidgetTools  →  show_tasks_board (buildSingleWidgetView + uiMeta)
-                                 →  tasks_board_data    (APP_ONLY_META JSON feed)
+            registerWidgetTools  →  show_tasks_board (buildSingleWidgetView + view binding)
+                                 →  tasks_board_data    (visibility: "app" JSON feed)
 bundle →  app-bundle/main.tsx maps "tasks:board" → adaptDataWidget(TasksBoard)
 ```
 
 ## Step 1 — The host (`createFrameworkApp`)
 
-The host is your chassis: it loads plugins and mounts the `mcp-app.html` bundle
-as a resource. From
+The host is your chassis: it loads plugins and primes the view registry with the
+widget bundle. From
 [`examples/host/index.ts`](../../../examples/host/index.ts):
 
 ```ts
@@ -64,12 +76,16 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const app = await createFrameworkApp({
   name: "toolkit-example-host",
   version: "0.0.1",
-  baseUrl: process.env.MCP_URL, // public URL the resource mounts under
+  // No `baseUrl`: mcp-use resolves the serving origin from the request (or
+  // the MCP_URL env var) and injects it into the view resource CSP itself.
   plugins: [createTasksPlugin()], // one or more AppPlugins — add yours here
   app: {
-    // The UI resource: a single bundled HTML file the host serves and widgets render into.
-    resourceUri: "ui://toolkit-example/mcp-app.html",
-    htmlPath: path.join(here, "..", "app-bundle", "dist", "index.html"),
+    // The widget bundle: one ES module + stylesheet; mcp-use's native view
+    // registry serves it as ui://views/<tool>.html per view-bound tool.
+    bundle: {
+      jsPath: path.join(here, "..", "app-bundle", "dist", "mcp-app.js"),
+      cssPath: path.join(here, "..", "app-bundle", "dist", "mcp-app.css"),
+    },
     // Opt into the visual in-iframe builder + dashboard persistence (off by
     // default — lean servers omit this). Without `builder: true` the
     // `dashboardStore` below is ignored and no builder/dashboard tools exist.
@@ -80,8 +96,6 @@ const app = await createFrameworkApp({
 await app.listen(Number(process.env.PORT ?? 3010))
 ```
 
-`resourceUri` may be omitted — the framework derives `ui://<name>/mcp-app.<hash>.html`
-by content-hashing `htmlPath`.
 The visual builder + dashboard CRUD (`get-builder-catalogue`, `save/list/load/
 delete-dashboard`) are **opt-in** via `app: { builder: true }`; widget rendering
 (`render-view`) always works without it.
@@ -119,7 +133,7 @@ return value into `structuredContent` (a bare array auto-wraps to `{ data: [...]
 From [`examples/modules/tasks/plugin.ts`](../../../examples/modules/tasks/plugin.ts):
 
 ```ts
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import { z } from "zod"
 import { createToolRegistrar } from "@miragon/mcp-toolkit-core/tools"
 
@@ -158,16 +172,16 @@ envelopes), use the sibling skill [`add-mcp-tool`](../add-mcp-tool/SKILL.md).
 
 ## Step 4 — A widget tool + an app-only data feed
 
-Two more tools live in `registerWidgetTools`, which the framework hands the app's
-`resourceUri` at boot.
+Two more tools live in `registerWidgetTools`, which the framework calls at boot
+(passing app-level `metaDefaults` such as the CSP).
 
 **(a) The widget tool** computes the data now and renders it through the same
 `McpAppView` shell as `render-view`. `buildSingleWidgetView` wraps the data in the
-`ViewStructuredContent` envelope; `uiMeta({ resourceUri })` tells the host to
-render the result as UI instead of returning it:
+`ViewStructuredContent` envelope; the native `view` binding tells the host to
+render the result as UI, and `appsSdkMeta` covers Apps SDK hosts:
 
 ```ts
-import { buildSingleWidgetView, uiMeta } from "@miragon/mcp-toolkit-core"
+import { appsSdkMeta, buildSingleWidgetView, viewResourceUri } from "@miragon/mcp-toolkit-core"
 import { withToolErrors } from "@miragon/mcp-toolkit-core/tools"
 
 server.tool(
@@ -176,8 +190,10 @@ server.tool(
     title: "Task Board",
     description: "Show the task board; use it whenever the user wants to see their tasks.",
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-    schema: z.object({}),
-    _meta: uiMeta({ resourceUri }), // render this result as UI
+    inputSchema: z.object({}),
+    view: { name: "show_tasks_board" }, // render this result as UI
+    outputSchema: z.object({}).passthrough(), // a view binding requires one
+    _meta: appsSdkMeta({ resourceUri: viewResourceUri("show_tasks_board"), title: "Task Board" }),
   },
   withToolErrors(() => {
     const board = store.board()
@@ -194,26 +210,24 @@ server.tool(
 )
 ```
 
-> Thinner alternative: `createWidgetToolRegistrar(server, client, resourceUri)`
-> builds the `uiMeta` for you and takes a handler returning `{ text, structuredContent }` —
+> Thinner alternative: `createWidgetToolRegistrar(server, client, metaDefaults?)`
+> builds the view binding + Apps SDK meta for you and takes a handler returning `{ text, structuredContent }` —
 > reach for it when you assemble the `structuredContent` yourself instead of via
 > `buildSingleWidgetView`.
 
 **(b) The app-only feed** returns the same data as plain JSON so the widget can
-self-refresh via `callTool`. `APP_ONLY_META` hides it from the LLM tool surface
-while keeping it callable from inside the widget iframe:
+self-refresh via `callTool`. The native `visibility: "app"` hides it from the LLM
+tool surface while keeping it callable from inside the widget iframe:
 
 ```ts
-import { APP_ONLY_META } from "@miragon/mcp-toolkit-core"
-
 server.tool(
   {
     name: "tasks_board_data",
     title: "Task board data (internal)",
     description: "Internal JSON feed (no UI) backing the board's refresh. Prefer show_tasks_board.",
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-    schema: z.object({}),
-    _meta: APP_ONLY_META, // hidden from the LLM, still callable from the widget
+    inputSchema: z.object({}),
+    visibility: "app", // hidden from the LLM, still callable from the widget
   },
   // rawData mirrors the payload into BOTH content[].text and structuredContent so
   // text-first and structured-first decoders agree — a widget tool's UI result
@@ -238,8 +252,7 @@ export function createPlugin(): AppPlugin {
     // mcp-use-free); at runtime it is the host's MCPServer, so narrow it here —
     // the single documented cast in the module.
     registerTools: (server) => registerTaskTools(server as MCPServer, store),
-    registerWidgetTools: (server, resourceUri) =>
-      registerTaskWidgetTools(server as MCPServer, store, resourceUri),
+    registerWidgetTools: (server) => registerTaskWidgetTools(server as MCPServer, store),
   }
 }
 ```
@@ -256,14 +269,17 @@ Because `TasksBoard` is a single-data `({ data })` widget, wrap it with
 `adaptDataWidget` on the same `dataType`:
 
 ```tsx
-import { McpToolkitApp, adaptDataWidget } from "@miragon/mcp-toolkit-ui/app"
+import { mountMcpToolkitApp, adaptDataWidget } from "@miragon/mcp-toolkit-ui/app"
 import { TasksBoard } from "../modules/tasks/widgets/TasksBoard.js"
 import type { TasksBoardData } from "../modules/tasks/store.js"
 
 const widgets = {
   "tasks:board": adaptDataWidget<TasksBoardData>(TasksBoard, "tasks:board"),
 }
-createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widgets} />)
+// `mountMcpToolkitApp` wraps mcp-use's `bootstrapView`, which owns the mount:
+// it creates the root, connects the ext-apps bridge, and auto-reports size.
+// A bare `createRoot` render throws — the view hooks need that mount.
+mountMcpToolkitApp({ widgets })
 ```
 
 ## Step 7 — Run & verify
@@ -271,7 +287,7 @@ createRoot(document.getElementById("root")!).render(<McpToolkitApp widgets={widg
 ```sh
 # 1. First time only: the host reads its config from examples/.env
 cp examples/env.example examples/.env
-# 2. Build the widget bundle (htmlPath above points at app-bundle/dist/index.html)
+# 2. Build the widget bundle (app.bundle above points at app-bundle/dist/mcp-app.{js,css})
 pnpm --filter @miragon/mcp-toolkit-examples build:bundle
 # 3. Boot the host
 pnpm --filter @miragon/mcp-toolkit-examples dev:host
@@ -306,8 +322,8 @@ pnpm -r build && pnpm -r typecheck && pnpm -r test && pnpm -r lint
 - [ ] `AppDefinition` declares the module name + widget(s) (`requires` / `consumes` / `size`).
 - [ ] Domain logic lives in a pure, Vitest-tested store/repo — not in the handlers.
 - [ ] Each tool via `createToolRegistrar`: `.describe()` on every field, MCP `annotations`, `outputSchema`.
-- [ ] A `show_*` widget tool returns `buildSingleWidgetView` + `uiMeta({ resourceUri })`.
-- [ ] An app-only `*_data` feed (`APP_ONLY_META`) backs the widget's self-refresh.
+- [ ] A `show_*` widget tool returns `buildSingleWidgetView` and binds its `view` (+ `appsSdkMeta`).
+- [ ] An app-only `*_data` feed (`visibility: "app"`) backs the widget's self-refresh.
 - [ ] `createPlugin()` closes the registrars over one store; `server as MCPServer` is the only cast.
 - [ ] The widget is registered in the bundle (`adaptDataWidget` for `({ data })` widgets).
 - [ ] `tools/list` shows the tools; `show_*` renders; repo gates green.

@@ -6,17 +6,17 @@ Project-specific guidance for AI agents and humans working in this repo.
 
 Kept in sync with the same rule in `CONTRIBUTING.md`:
 
-- `core/tools/*` may import `mcp-use/server`. Anything in `core/src/*`
-  outside `tools/` must stay browser-bundle-safe (no `mcp-use/server`, no
-  `node:*`).
+- `core/tools/*` may import the `mcp-use` server runtime (the root `mcp-use`
+  entry since 2.x). Anything in `core/src/*` outside `tools/` must stay
+  browser-bundle-safe (no `mcp-use` server runtime, no `node:*`).
 - `ui` may import browser-safe `core` runtime (anything in `core/src/*`
   outside `tools/`) as well as `core` types — e.g. `normalizeLayout` from
   `core/src/framework/layout-types.ts`. It must never import `core/tools`,
-  which pulls in `mcp-use/server`.
+  which pulls in the `mcp-use` server runtime.
 - The `ui` root barrel (`packages/ui/src/index.ts`) must stay free of
-  `mcp-use/react` value imports (they pull in a langchain transitive). Symbols
-  that import `mcp-use/react` as a value are exported from the `./app` /
-  `./hooks` subpaths, never the root.
+  `mcp-use/react` value imports (they pull in the 2.x view runtime and its
+  ext-apps transitive). Symbols that import `mcp-use/react` as a value are
+  exported from the `./app` / `./hooks` subpaths, never the root.
 - `tool-codegen` is build-time. Don't import it from runtime code; widget
   bundles import from `tool-codegen/runtime` (types only).
 
@@ -34,10 +34,15 @@ against, so reach for the existing building blocks instead of re-deriving them:
   (data contract → primitives → host-portable `useHostBridge` → iterate in the
   playground → verify). Invoke it when building a widget or rendering a tool
   result as UI.
-- **Iterate loop** — develop a widget in isolation with fixture data and a mocked
-  host via `WidgetFixtureHost`; add a `Story` to
+- **Iterate loop** — the standard loop is the mcp-use CLI: run
+  `pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone` and exercise
+  the widget through the built-in inspector (`…/mcp/inspector`, HMR on the
+  widget sources; see [`examples/standalone-host`](examples/standalone-host/README.md)).
+  For fixture-driven isolation (edge states, theme matrix, no server), add a
+  `Story` to
   [`examples/widget-playground/stories.ts`](examples/widget-playground/stories.ts)
-  and run `pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground`.
+  and run `pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground`
+  (`WidgetFixtureHost`).
 - **Reference widgets** —
   [`OrderStatusCard`](examples/host-portability/OrderStatusCard.tsx) (host-portable)
   and [`CustomerCard`](examples/widget-playground/CustomerCard.tsx).
@@ -48,12 +53,13 @@ Repo-specific agent skills in `.claude/skills/` encode the house patterns with
 runnable snippets — invoke the matching one before hand-rolling:
 
 - **[`build-mcp-server`](.claude/skills/build-mcp-server/SKILL.md)** — stand up an
-  MCP server: a host via `createFrameworkApp` plus a module that registers its
-  **own** tools (`createToolRegistrar`) and a widget. The worked example is the
-  [`tasks` module](examples/modules/tasks/README.md).
+  MCP server: a plain mcp-use project with `installToolkit` on top (standard),
+  or a host via `createFrameworkApp` (Node adapter), plus a module that
+  registers its **own** tools (`createToolRegistrar`) and a widget. The worked
+  example is the [`tasks` module](examples/modules/tasks/README.md).
 - **[`add-mcp-tool`](.claude/skills/add-mcp-tool/SKILL.md)** — add one tool to an
   existing module: schema `.describe()`, annotations, `outputSchema`, pagination
-  envelope, app-only `*_data` feed.
+  envelope, app-only `*_data` feed (`visibility: "app"`).
 - **[`build-mcp-widget`](.claude/skills/build-mcp-widget/SKILL.md)** — build a
   widget against `@miragon/mcp-toolkit-ui`: data contract → primitives →
   host-portable `useHostBridge` → iterate in the playground → verify.

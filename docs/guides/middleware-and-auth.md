@@ -29,7 +29,7 @@ tool handler            ← plugin.registerTools / framework tools
 with WorkOS:
 
 ```ts
-import { oauthWorkOSProvider } from "mcp-use/server"
+import { oauthWorkOSProvider } from "mcp-use/oauth/workos"
 
 await createFrameworkApp({
   ...,

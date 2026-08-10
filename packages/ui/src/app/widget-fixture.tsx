@@ -1,25 +1,7 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-  type ComponentType,
-  type ReactNode,
-} from "react"
-import { useWidget } from "mcp-use/react"
+import { createContext, useContext, useMemo, type ComponentType, type ReactNode } from "react"
 import type { PipelineContext, StepResult, WidgetProps } from "@miragon/mcp-toolkit-core"
 import { AppQueryProvider } from "../providers/query-provider.js"
 import { HostBridgeProvider, createStandaloneHostBridge } from "./host-bridge.js"
-
-/**
- * Key `mcp-use` writes the serialized model-context string under when it flushes
- * to `window.openai.setWidgetState`. Mirrors `MODEL_CONTEXT_KEY` in
- * `mcp-use/react` (not exported, so duplicated here). The harness intercepts
- * `setWidgetState` and reads this field to surface what the model would see.
- */
-const MODEL_CONTEXT_KEY = "__model_context"
 
 /**
  * Minimal shape of a tool-call response the harness hands back to widgets.
@@ -132,8 +114,11 @@ function toToolResult(raw: unknown): FixtureToolResult {
 
 /**
  * A host action a widget asked the host to perform, surfaced to the harness so
- * it can render an activity log. Mirrors the `mcp-use` bridge verbs that
- * {@link useHostActions} and `useWidget` route through `window.openai`.
+ * it can render an activity log. The `HostBridge` verbs (`callTool`,
+ * `sendFollowup`, `openExternal`) fire in the harness; `requestDisplayMode` /
+ * `setWidgetState` remain in the union for log-renderer compatibility but no
+ * longer fire — they belonged to the 1.x `window.openai` shim this harness
+ * used to install.
  */
 export type HostActionLog =
   | { type: "callTool"; name: string; args: Record<string, unknown> }
@@ -158,9 +143,10 @@ export function useFixtureHost(): FixtureHostValue | null {
 }
 
 /**
- * Default host-context globals a widget sees in the harness. Chosen to be
- * harmless and inert: inline display, light theme, desktop, no safe-area
- * insets. Overridable per-mount via {@link WidgetFixtureHostProps.globals}.
+ * Default host-context values the harness reports. Only `theme` is read since
+ * the mcp-use 2.x move (the other host globals were consumed by the 1.x
+ * `window.openai` shim); the object keeps its shape so existing playground
+ * setups that spread overrides keep compiling.
  */
 const DEFAULT_GLOBALS = {
   theme: "light",
@@ -173,67 +159,6 @@ const DEFAULT_GLOBALS = {
     capabilities: { hover: true, touch: false },
   },
 } as const
-
-/**
- * Build the `window.openai` shim the `mcp-use` React hooks read from. Routes
- * `callTool` through the fixture registry and reports every other bridge verb
- * to `onHostAction`. Returns `null` outside a browser-like environment (SSR)
- * so the harness degrades to a plain render rather than throwing.
- */
-function buildOpenAiShim(
-  registry: FixtureCallToolRegistry,
-  toolOutput: Record<string, unknown> | null,
-  toolInput: Record<string, unknown>,
-  globals: Record<string, unknown>,
-  onHostAction?: (action: HostActionLog) => void,
-  onModelContext?: (text: string) => void,
-): Record<string, unknown> | null {
-  if (typeof window === "undefined") return null
-  return {
-    ...DEFAULT_GLOBALS,
-    ...globals,
-    toolInput,
-    toolOutput,
-    toolResponseMetadata: null,
-    widgetState: null,
-    callTool: async (name: string, args: Record<string, unknown>) => {
-      onHostAction?.({ type: "callTool", name, args })
-      return registry.call(name, args)
-    },
-    sendFollowUpMessage: (args: { prompt: string }) => {
-      onHostAction?.({ type: "sendFollowUpMessage", prompt: args.prompt })
-      return Promise.resolve()
-    },
-    openExternal: (payload: { href: string }) => {
-      onHostAction?.({ type: "openExternal", href: payload.href })
-    },
-    requestDisplayMode: (args: { mode: string }) => {
-      onHostAction?.({ type: "requestDisplayMode", mode: args.mode })
-      return Promise.resolve({ mode: args.mode })
-    },
-    setWidgetState: (state: Record<string, unknown>) => {
-      onHostAction?.({ type: "setWidgetState", state })
-      // `mcp-use` flushes the serialized `<ModelContext>` tree through
-      // setWidgetState under MODEL_CONTEXT_KEY — surface it as the model view.
-      const ctx = state?.[MODEL_CONTEXT_KEY]
-      if (typeof ctx === "string") onModelContext?.(ctx)
-      return Promise.resolve()
-    },
-    notifyIntrinsicHeight: () => Promise.resolve(),
-  }
-}
-
-/**
- * Renders nothing but mounts a `useWidget()` so `mcp-use` registers its
- * model-context flush handler — even for widgets that never call `useWidget`
- * themselves (e.g. a simple `({ keys })` card). Without this, a widget's
- * `<ModelContext>` would render but never flush, and `onModelContext` would
- * stay silent. The flush routes through our `setWidgetState` shim above.
- */
-function ModelContextPump(): null {
-  useWidget()
-  return null
-}
 
 /**
  * Either an `adaptDataWidget`-style component (receives {@link WidgetProps}) or
@@ -262,13 +187,14 @@ export interface WidgetFixtureHostProps {
   dataType?: string
   /**
    * Tool fixtures keyed by tool name. Each value is a static result or a
-   * handler — see {@link FixtureToolEntry}. Drives both `mcp-use`'s
-   * `useCallTool` and the toolkit's `useToolQuery`.
+   * handler — see {@link FixtureToolEntry}. Drives the simulated
+   * `HostBridge.callTool` and the toolkit's `useToolQuery`.
    */
   tools?: Record<string, FixtureToolEntry>
   /**
-   * Host context globals to override (theme, displayMode, locale, …). Merged
-   * over {@link DEFAULT_GLOBALS}.
+   * Host context overrides, merged over {@link DEFAULT_GLOBALS}. Since the
+   * mcp-use 2.x move only `theme` influences the simulated host; the other
+   * keys are accepted for compatibility with existing playground setups.
    */
   globals?: Record<string, unknown>
   /**
@@ -313,25 +239,24 @@ export function buildFixtureWidgetProps(
  * without booting a real MCP host or backend.
  *
  * ### What it mocks
- * - **`window.openai`** — the `mcp-use` Apps-SDK bridge `useWidget`/`useCallTool`
- *   read from. Installed on mount, removed on unmount. `callTool` is routed to a
- *   {@link FixtureCallToolRegistry} built from `tools`; `sendFollowUpMessage`,
- *   `openExternal`, etc. are reported to `onHostAction`.
+ * - **A {@link HostBridge}** — a `createStandaloneHostBridge` over the fixture
+ *   registry and callbacks, provided via `HostBridgeProvider`. `callTool`
+ *   resolves against the {@link FixtureCallToolRegistry} built from `tools`;
+ *   `sendFollowup` / `openExternal` are reported to `onHostAction`;
+ *   `setModelContext` feeds `onModelContext`, so you can *see* what the model
+ *   would (adapted widgets report through this bridge outside a real view).
  * - **The toolkit `AppQueryProvider`** — so widgets that fetch via `useToolQuery`
  *   (e.g. generated `use*` hooks) resolve against the same registry.
- * - **`ModelContext`** — a flush handler captures the serialized context string
- *   and forwards it to `onModelContext`, so you can *see* what the model would.
- * - **A {@link HostBridge}** — a `createStandaloneHostBridge` over the same
- *   registry and callbacks, provided via `HostBridgeProvider`, so widgets
- *   written against `useHostBridge` (the host-portable pattern) are simulated
- *   from the same single source as the `window.openai` shim above.
  *
  * ### Boundaries
- * `mcp-use`'s hooks select their provider from `window.openai` presence; this
- * harness deliberately drives the Apps-SDK path (sets `window.openai`) rather
- * than the `postMessage` bridge, which only activates inside a cross-origin
- * iframe. The shim is intentionally minimal — it is not a host, and host
- * features beyond the bridge verbs above are out of scope.
+ * The harness simulates the **host-portable pattern** (`useHostBridge`,
+ * `useToolQuery`) — the surface the toolkit's skills teach. It does not
+ * simulate the mcp-use 2.x view runtime: since 2.x the `mcp-use/react` hooks
+ * only run under a `bootstrapView`-mounted view speaking the ext-apps
+ * postMessage protocol (the 1.x `window.openai` shim this harness used to
+ * install has no equivalent seam). A widget that calls `mcp-use/react` hooks
+ * directly must be exercised against a real host — or rewritten against
+ * `useHostBridge`, which is the portable contract anyway.
  */
 export function WidgetFixtureHost({
   widget: Widget,
@@ -346,38 +271,7 @@ export function WidgetFixtureHost({
   // edits in the playground take effect without a full remount.
   const registry = useMemo(() => new FixtureCallToolRegistry(tools), [tools])
 
-  // Latest callbacks without re-installing the shim on every render. Updated in
-  // an effect (not during render) so the shim's closures always see the newest
-  // handler while the `window.openai` install effect stays stable.
-  const onHostActionRef = useRef(onHostAction)
-  const onModelContextRef = useRef(onModelContext)
-  useEffect(() => {
-    onHostActionRef.current = onHostAction
-    onModelContextRef.current = onModelContext
-  })
-
   const widgetProps = useMemo(() => buildFixtureWidgetProps(data, dataType), [data, dataType])
-
-  // Install the `window.openai` shim for the lifetime of this mount. Wake any
-  // already-mounted `mcp-use` hooks via the `set_globals` event they listen for.
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const shim = buildOpenAiShim(
-      registry,
-      data ?? null,
-      data ?? {},
-      globals ?? {},
-      (action) => onHostActionRef.current?.(action),
-      (text) => onModelContextRef.current?.(text),
-    )
-    if (!shim) return
-    const prev = (window as { openai?: unknown }).openai
-    ;(window as { openai?: unknown }).openai = shim
-    window.dispatchEvent(new CustomEvent("openai:set_globals", { detail: { globals: shim } }))
-    return () => {
-      ;(window as { openai?: unknown }).openai = prev
-    }
-  }, [registry, data, globals])
 
   const callTool = useMemo(
     () => async (name: string, args: object) =>
@@ -385,15 +279,12 @@ export function WidgetFixtureHost({
     [registry],
   )
 
-  // A standalone host bridge over the same registry + callbacks, so portable
-  // widgets written against `useHostBridge` (rather than the `mcp-use` host
-  // hooks) are simulated from the *same* source as the `window.openai` shim.
-  // It logs through the same `HostActionLog` channel, so the playground's
-  // activity log shows tool calls, follow-ups, and links identically whether the
-  // widget uses the mcp-use path or the host bridge. Reading globals.theme keeps
-  // the bridge's reported theme in sync with the shim. Depends on the callback
-  // props directly (not the refs) — a fresh Provider value on callback change is
-  // fine for a dev harness, and keeps the bridge's closures pure of ref reads.
+  // The standalone host bridge is the harness's single simulation source: it
+  // logs every verb through the `HostActionLog` channel for the playground's
+  // activity log. Depends on the callback props directly — a fresh Provider
+  // value on callback change is fine for a dev harness. Only `globals.theme`
+  // still influences the simulated host (the remaining globals fed the 1.x
+  // `window.openai` shim).
   const bridgeTheme = (globals?.theme ?? DEFAULT_GLOBALS.theme) === "dark" ? "dark" : "light"
   const bridge = useMemo(
     () =>
@@ -413,24 +304,12 @@ export function WidgetFixtureHost({
 
   const value = useMemo<FixtureHostValue>(() => ({ registry }), [registry])
 
-  // Mount the model-context pump only on the client. The pump calls `mcp-use`'s
-  // `useWidget`, whose `useSyncExternalStore` lacks a server snapshot and throws
-  // under `react-dom/server` — gating it keeps the harness (and any widget
-  // rendered through it) SSR-safe. `useSyncExternalStore` with a `false` server
-  // snapshot is the idiomatic "are we on the client?" check (no setState-in-effect).
-  const isClient = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  )
-
   // Spread `widgetProps` (keys/context) AND a `data` alias so both adapted
   // widgets and raw `({ data })` widgets read their fixture from one mount.
   const RenderWidget = Widget as ComponentType<Record<string, unknown>>
 
   return (
     <FixtureHostContext.Provider value={value}>
-      {isClient && <ModelContextPump />}
       <HostBridgeProvider bridge={bridge}>
         <AppQueryProvider callTool={callTool}>
           <RenderWidget {...widgetProps} data={data} />

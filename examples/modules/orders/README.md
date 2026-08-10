@@ -84,7 +84,7 @@ const view = buildComposedView({
 return { content: view.content, structuredContent: view.structuredContent }
 ```
 
-The `_meta` from `uiMeta({ resourceUri })` tells the host to render the result as
+The native `view` binding (+ `appsSdkMeta` for Apps SDK hosts) tells the host to render the result as
 UI. The layout is a **12-column grid**: `span: 5` + `span: 7` puts the KPI strip
 and the table side by side in one row.
 
@@ -98,7 +98,7 @@ show_orders_dashboard(customerId)            (plugin.ts)
         .layout = { rows: [{ row: [kpi(5), table(7)] }] }
         .context.stepData.kpi   = { _dataType: "orders:dashboard", data }
         .context.stepData.table = { _dataType: "orders:dashboard", data }
-  → host renders the app bundle (uiMeta.resourceUri)
+  → host renders the app bundle (the tool's view binding)
   → adaptDataWidget(OrdersKpi,  "orders:dashboard") → renders data.kpi
   → adaptDataWidget(OrdersTable,"orders:dashboard") → renders data.table
 ```

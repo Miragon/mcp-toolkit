@@ -5,5 +5,10 @@ export type { AppDefinition, AppPlugin } from "./app.js"
 export type { PipelineConfig, PipelineStepRef } from "./pipeline.js"
 export type { AppConfig, AppConfigEntry, ValidationResult } from "./config.js"
 export type { ViewStructuredContent, StepDataEntry, RefreshParams } from "./view-data.js"
-export { APP_ONLY_META, uiMeta } from "./meta.js"
-export type { UiMetaOptions, UiToolMeta, WidgetCspMeta, WidgetToolMetaDefaults } from "./meta.js"
+export { appsSdkMeta, viewResourceUri, VIEW_RESOURCE_URI_PREFIX } from "./meta.js"
+export type {
+  AppsSdkMetaOptions,
+  AppResourceCsp,
+  WidgetCspMeta,
+  WidgetToolMetaDefaults,
+} from "./meta.js"

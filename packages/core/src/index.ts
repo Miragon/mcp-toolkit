@@ -18,8 +18,8 @@ export type {
   StepDataEntry,
   RefreshParams,
 } from "./types/index.js"
-export { APP_ONLY_META, uiMeta } from "./types/index.js"
-export type { UiMetaOptions } from "./types/index.js"
+export { appsSdkMeta, viewResourceUri, VIEW_RESOURCE_URI_PREFIX } from "./types/index.js"
+export type { AppsSdkMetaOptions, AppResourceCsp } from "./types/index.js"
 
 // Localization engine — a dependency-free translator shared by the server (tool
 // summaries) and the UI (widget strings). Browser-safe, so it belongs in the

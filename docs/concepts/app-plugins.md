@@ -10,7 +10,7 @@ interface AppPlugin<TServer = MCPServer> {
   definition: AppDefinition
   appConfig?: Record<string, unknown>
   registerTools?: (server: TServer) => void
-  registerWidgetTools?: (server: TServer, resourceUri: string) => void
+  registerWidgetTools?: (server: TServer, metaDefaults?: WidgetToolMetaDefaults) => void
 }
 
 interface AppDefinition {
@@ -30,8 +30,10 @@ interface AppDefinition {
    step its plugin's `appConfig`. If the config carries a `callTool` closure
    (injected by the plugin itself), the per-request `userId` is pre-bound as a
    hidden 3rd argument, so steps keep a 2-arg signature.
-4. **After framework tools** — `plugin.registerWidgetTools?.(server, resourceUri)`
-   registers any widget-action tools (optional).
+4. **After framework tools** — `plugin.registerWidgetTools?.(server, metaDefaults)`
+   registers any widget-action tools (optional). Model-visible widget tools
+   bind a view named after the tool; `createFrameworkApp` collects those
+   bindings and primes mcp-use's view registry with the shared app bundle.
 
 ## Two common shapes
 
@@ -47,8 +49,8 @@ export function createPlugin(): AppPlugin {
     registerTools(server) {
       server.tool({ name: "invoice_create", ... }, async (args) => { ... })
     },
-    registerWidgetTools(server, resourceUri) {
-      server.tool({ name: "invoice_refresh", _meta: { ui: { resourceUri } } }, ...)
+    registerWidgetTools(server) {
+      server.tool({ name: "invoice_refresh", visibility: "app", ... }, ...)
     },
   }
 }

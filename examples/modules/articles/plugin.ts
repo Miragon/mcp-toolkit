@@ -1,4 +1,4 @@
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import type { AppPlugin } from "@miragon/mcp-toolkit-core"
 import type { ArticlesCallTool } from "./generated/tools.js"
 import { definition } from "./definition.js"

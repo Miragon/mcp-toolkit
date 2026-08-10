@@ -40,15 +40,16 @@ interface HostBridge {
 Each adapter maps the bridge verbs onto one host and fails soft where the host
 cannot honour them:
 
-| Factory                                       | Host                   | Wraps                                                                                           |
+| Adapter                                       | Host                   | Wraps                                                                                           |
 | --------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
-| `createMcpUseHostBridge()`                    | toolkit's mcp-use host | `mcp-use/react`'s `useWidget`. The **default** — `useHostBridge()` falls back to it.            |
+| `McpUseHostBridgeProvider`                    | toolkit's mcp-use host | the mcp-use 2.x view hooks, mapped through `toHostBridge`. Included in `McpToolkitApp`.         |
 | `createChatGptHostBridge(sdk?)`               | ChatGPT / Apps SDK     | `window.openai`, probed **defensively** — a missing method becomes a logged no-op, not a crash. |
 | `createStandaloneHostBridge({ callTool, … })` | your own web app       | an **injected** `callTool` (e.g. a `@modelcontextprotocol/sdk` client).                         |
 
-The mcp-use adapter is hook-driven (it reads live host context), so its
-"factory" is really `useMcpUseHostBridge`, aliased as `createMcpUseHostBridge`
-for symmetry. The ChatGPT adapter probes every `window.openai` method before use
+The mcp-use adapter is a provider component rather than a factory: the 2.x view
+hooks it composes only run under a `bootstrapView`-mounted view, and the pure
+mapping onto the bridge contract (`toHostBridge`) is exported and unit-tested on
+its own. The ChatGPT adapter probes every `window.openai` method before use
 because the Apps SDK surface drifts across versions — the goal is that the _same_
 widget keeps working even as that surface changes.
 

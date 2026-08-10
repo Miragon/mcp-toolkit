@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react"
-import { ModelContext } from "mcp-use/react"
 import {
   Badge,
   Button,
@@ -20,7 +19,11 @@ import {
   type FilterChip,
   type ToneVariant,
 } from "@miragon/mcp-toolkit-ui"
-import { buildShowWidgetIntent, useHostActions } from "@miragon/mcp-toolkit-ui/app"
+import {
+  HostModelContext,
+  buildShowWidgetIntent,
+  useHostActions,
+} from "@miragon/mcp-toolkit-ui/app"
 import type { Task, TaskPriority, TaskStatus, TasksBoardData } from "../store.js"
 import { SHOW_TASKS_BOARD, TASKS_BOARD_DATA } from "../tool-names.js"
 
@@ -203,9 +206,11 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
   }
 
   return (
-    // The widget self-fetches, so it reports its own ModelContext (rather than
-    // relying on `adaptDataWidget`'s central `describeForModel`).
-    <ModelContext content={describeBoard(board)}>
+    // The widget self-fetches, so it reports its own model context (rather
+    // than relying on `adaptDataWidget`'s central `describeForModel`).
+    // `HostModelContext`, not mcp-use's `ModelContext`: the direct import
+    // throws outside a bootstrapView mount (e.g. the widget playground).
+    <HostModelContext content={describeBoard(board)}>
       <div className="bg-card text-card-foreground mx-auto flex max-w-3xl flex-col gap-6 p-6">
         <WidgetHeader
           icon="✓"
@@ -345,6 +350,6 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
           />
         </div>
       </div>
-    </ModelContext>
+    </HostModelContext>
   )
 }

@@ -38,15 +38,18 @@
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
-    "mcp-use": "1.34.6",
+    "mcp-use": "2.0.4",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "26.1.2",
-    "mcp-use": "1.34.6",
+    "mcp-use": "2.0.4",
     "typescript": "6.0.3",
     "vitest": "4.1.10",
     "zod": "4.4.3"
+  },
+  "engines": {
+    "node": ">=22.22.2"
   }
 }

@@ -1,7 +1,7 @@
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import { z } from "zod"
 import type { AppPlugin, ComposedViewInput, LayoutConfig } from "@miragon/mcp-toolkit-core"
-import { APP_ONLY_META, buildComposedView, uiMeta } from "@miragon/mcp-toolkit-core"
+import { appsSdkMeta, buildComposedView, viewResourceUri } from "@miragon/mcp-toolkit-core"
 import { createToolRegistrar, withToolErrors } from "@miragon/mcp-toolkit-core/tools"
 import { definition } from "./definition.js"
 import { LIST_CUSTOMERS, ORDERS_DASHBOARD_DATA, SHOW_ORDERS_DASHBOARD } from "./tool-names.js"
@@ -119,8 +119,8 @@ function registerOrderTools(server: MCPServer, store: OrderStore) {
   })
 }
 
-// ── Widget tool + app-only data feed (need the app's resource URI) ───────────
-function registerOrderWidgetTools(server: MCPServer, store: OrderStore, resourceUri: string) {
+// ── Widget tool + app-only data feed ─────────────────────────────────────────
+function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
   // THE HEADLINE: the eager multi-widget dashboard. Compute the whole view-model
   // now (one store pass), then compose two widgets into one layout with
   // `buildComposedView`. No pipeline, no key threading — just "here are N widgets
@@ -132,7 +132,7 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore, resource
       description:
         "Show the orders dashboard for a customer: a KPI strip (per-status counts + revenue) next to a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-      schema: z.object({
+      inputSchema: z.object({
         customerId: z
           .string()
           .optional()
@@ -140,7 +140,12 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore, resource
             `Customer to scope the dashboard to (as returned by ${LIST_CUSTOMERS}). Defaults to "${DEFAULT_CUSTOMER_ID}".`,
           ),
       }),
-      _meta: uiMeta({ resourceUri }),
+      view: { name: SHOW_ORDERS_DASHBOARD },
+      outputSchema: z.object({}).passthrough(),
+      _meta: appsSdkMeta({
+        resourceUri: viewResourceUri(SHOW_ORDERS_DASHBOARD),
+        title: "Orders Dashboard",
+      }),
     },
     withToolErrors((args: { customerId?: string }) => {
       const customerId = args.customerId ?? DEFAULT_CUSTOMER_ID
@@ -170,9 +175,9 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore, resource
     }),
   )
 
-  // App-only JSON feed (no UI) the widgets self-fetch on refresh. Marked
-  // `APP_ONLY_META` so conforming hosts hide it from the LLM tool surface while
-  // keeping it callable from inside the widget iframe via `callTool`.
+  // App-only JSON feed (no UI) the widgets self-fetch on refresh. The native
+  // `visibility: "app"` hides it from the LLM tool surface on conforming hosts
+  // while keeping it callable from inside the widget iframe via `callTool`.
   server.tool(
     {
       name: ORDERS_DASHBOARD_DATA,
@@ -180,10 +185,10 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore, resource
       description:
         "Internal JSON feed (no UI) backing the orders dashboard widgets' in-place refresh. Prefer show_orders_dashboard.",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-      schema: z.object({
+      inputSchema: z.object({
         customerId: z.string().optional().describe("Customer to fetch the dashboard for."),
       }),
-      _meta: APP_ONLY_META,
+      visibility: "app",
     },
     withToolErrors((args: { customerId?: string }) =>
       Promise.resolve(rawData(store.dashboard(args.customerId ?? DEFAULT_CUSTOMER_ID))),
@@ -209,8 +214,7 @@ export function createPlugin(): AppPlugin {
     // mcp-use-free); at runtime it is always the host's `MCPServer`, so we narrow
     // it here — the single, documented cast in this module.
     registerTools: (server) => registerOrderTools(server as MCPServer, store),
-    registerWidgetTools: (server, resourceUri) =>
-      registerOrderWidgetTools(server as MCPServer, store, resourceUri),
+    registerWidgetTools: (server) => registerOrderWidgetTools(server as MCPServer, store),
   }
 }
 

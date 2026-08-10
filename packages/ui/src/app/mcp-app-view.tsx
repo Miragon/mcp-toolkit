@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react"
-import { useWidget } from "mcp-use/react"
+import { useDisplayMode, useHostContext, useToolContext } from "mcp-use/react"
 import { Maximize2, Minimize2, Pencil, RefreshCw } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import { useToolResultRecovery } from "../hooks/use-tool-result-recovery.js"
 import { parseToolResult } from "../lib/parse-tool-result.js"
+import { useHostBridge } from "./host-bridge.js"
 import { LayoutBuilder } from "./layout-builder.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
 
@@ -106,24 +107,24 @@ export function McpAppView({
   labels,
 }: McpAppViewProps) {
   const effectiveLabels = { ...DEFAULT_LABELS, ...labels }
-  const {
-    props: initialViewData,
-    isPending,
-    callTool,
-    displayMode: currentDisplayMode,
-    requestDisplayMode,
-    safeArea,
-    toolInput,
-    hostContext,
-  } = useWidget<ViewData>()
+  // Since mcp-use 2.x the shell reads the view channels through the dedicated
+  // hooks (all require the surrounding `bootstrapView` mount that
+  // `mountMcpToolkitApp` provides) and calls tools through the HostBridge that
+  // `McpUseHostBridgeProvider` installs.
+  const tool = useToolContext()
+  const { displayMode, requestDisplayMode } = useDisplayMode()
+  const { safeArea, hostContext } = useHostContext()
+  const bridge = useHostBridge()
+  const callTool = useCallback(
+    (name: string, args: Record<string, unknown>) => bridge.callTool(name, args),
+    [bridge],
+  )
+
+  const isPending = tool.status === "pending"
+  const initialViewData = tool.status === "ready" ? (tool.toolOutput as ViewData) : undefined
+  const toolInput = tool.toolInput
 
   const [viewData, setViewData] = useState<ViewData | null>(null)
-  const [displayMode, setDisplayMode] = useState<string>(currentDisplayMode ?? "inline")
-  const [prevCurrentDisplayMode, setPrevCurrentDisplayMode] = useState(currentDisplayMode)
-  if (currentDisplayMode !== prevCurrentDisplayMode) {
-    setPrevCurrentDisplayMode(currentDisplayMode)
-    if (currentDisplayMode) setDisplayMode(currentDisplayMode)
-  }
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   // In-iframe build mode is purely a UI state — the LLM never sees the
@@ -152,10 +153,13 @@ export function McpAppView({
   }
 
   // Hosts that strip `structuredContent` from the tool-result notification
-  // (claude.ai / Claude Desktop) leave `initialViewData` empty forever; the
-  // recovery re-executes the originating tool once via `callTool` (responses
-  // carry `structuredContent` intact) and fills the gap. Conforming hosts
-  // deliver a valid payload up front, so this never fires there.
+  // (claude.ai / Claude Desktop) never latch a result under mcp-use 2.x — the
+  // `useToolContext` latch ignores content-only results, so `isPending` stays
+  // true forever. The recovery therefore also arms itself on a grace timer
+  // once the originating tool is known, re-executes it via `callTool`
+  // (responses carry `structuredContent` intact), and fills the gap.
+  // Conforming hosts deliver a valid payload up front, so it never fires
+  // there.
   const recovery = useToolResultRecovery<ViewData>({
     resultReady: !isPending,
     props: initialViewData,
@@ -174,8 +178,10 @@ export function McpAppView({
   const toggleFullscreen = useCallback(async () => {
     const newMode = displayMode === "fullscreen" ? "inline" : "fullscreen"
     try {
-      const result = await requestDisplayMode(newMode)
-      setDisplayMode(result.mode)
+      // Advisory since 2.x: the promise only confirms the host processed the
+      // request. `displayMode` from `useDisplayMode` updates reactively when
+      // (and only when) the host actually applies the change.
+      await requestDisplayMode({ mode: newMode })
     } catch (e) {
       console.error("Failed to toggle display mode:", e)
     }
@@ -245,7 +251,10 @@ export function McpAppView({
     [],
   )
 
-  if (isPending || !viewData) {
+  // `isPending` must not gate the render: on hosts that strip
+  // `structuredContent` the 2.x latch stays "pending" forever, and recovered
+  // viewData still has to replace the skeleton.
+  if (!viewData) {
     return (
       <div className="flex flex-col gap-4 p-4">
         <Skeleton className="h-8 w-48" />
@@ -268,17 +277,17 @@ export function McpAppView({
       style={{
         // Fullscreen: the widget owns the viewport, so we take the full window
         // and handle our own scrolling. Inline: the host (Claude, ChatGPT) owns
-        // sizing + scrolling and is notified of our intrinsic height via
-        // `McpUseProvider`, so we let content dictate height and avoid setting
-        // overflowY (which would clip our own content inside a host that's
-        // already auto-sized to us).
+        // sizing + scrolling and observes our intrinsic height via
+        // `bootstrapView`'s auto-resize, so we let content dictate height and
+        // avoid setting overflowY (which would clip our own content inside a
+        // host that's already auto-sized to us).
         ...(displayMode === "fullscreen"
           ? { minHeight: "100vh", overflowY: "auto" as const }
           : null),
-        paddingTop: safeArea?.insets?.top,
-        paddingRight: safeArea?.insets?.right,
-        paddingBottom: safeArea?.insets?.bottom,
-        paddingLeft: safeArea?.insets?.left,
+        paddingTop: safeArea.top,
+        paddingRight: safeArea.right,
+        paddingBottom: safeArea.bottom,
+        paddingLeft: safeArea.left,
       }}
     >
       {showHeader && (

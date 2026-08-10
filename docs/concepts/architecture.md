@@ -5,8 +5,9 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with two layers:
 1. **App plugins** — register domain tools, widget tools, pipeline steps, widgets.
 2. **Framework tools** — always-on: LLM-facing `get-framework-manifest`
    and `render-view`; app-only (iframe internal, never in LLM
-   `tools/list`) `refresh-view`. Plus the `mcp-app-html`
-   widget bundle resource. **Opt-in** (only when `app.builder === true`,
+   `tools/list`) `refresh-view`. Plus one natively registered
+   `ui://views/<tool>.html` resource per view-bound tool, all embedding
+   the shared widget bundle. **Opt-in** (only when `app.builder === true`,
    default off): the `save-/list-/load-/delete-dashboard` CRUD quartet
    backed by a pluggable `DashboardStore`, plus the app-only
    `get-builder-catalogue` that powers the in-iframe builder. Lean
@@ -30,7 +31,7 @@ A Miranum-style MCP server is an mcp-use `MCPServer` with two layers:
 │                    │  catalogue                                   │  │
 │                    └──────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────────┐    │
-│  │ resources: ui://<app>/mcp-app.html (widget bundle)           │    │
+│  │ resources: ui://views/<tool>.html (shared widget bundle)     │    │
 │  └──────────────────────────────────────────────────────────────┘    │
 └────┬─────────────────────────────────────────────────────────────────┘
      │ pipeline: step.execute(ctx, appConfig)
@@ -67,7 +68,7 @@ own.
    - Merges the returned `keys` into the running context.
 4. The view payload returned to the client has `structuredContent` with
    `{ layout, context: { keys, stepIds, stepData, errors }, _refreshParams }`.
-5. The widget bundle (`mcp-app.html`) renders each widget in the layout by
+5. The widget bundle (`mcp-app.js`) renders each widget in the layout by
    reading its `WidgetDefinition.requires` against `context.keys`.
 
 ## Request flow — server-internal tool call from a step

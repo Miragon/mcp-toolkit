@@ -25,7 +25,8 @@ COPY examples examples
 # Install examples + its workspace deps; `prepare` builds the package dists.
 RUN pnpm install --frozen-lockfile --filter "@miragon/mcp-toolkit-examples..."
 
-# The single-file widget bundle the host serves as the mcp-app.html resource.
+# The widget bundle (mcp-app.js + mcp-app.css) the host embeds into mcp-use's
+# native ui://views/<tool>.html resources at boot.
 RUN pnpm --filter @miragon/mcp-toolkit-examples build:bundle
 
 # NODE_ENV=production: in-memory sessions (no .mcp-use writes) and no local

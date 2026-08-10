@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable catalog of prompt-relevant @miragon/mcp-toolkit-ui building blocks. Hand-maintained, source of truth is packages/ui/src/. A Vitest drift-guard (src/ui-catalog.test.ts) asserts every `export` named here is actually exported from its `importPath` barrel, so this file cannot silently drift from the code. Consumed by the docs/reference/components.md page and the build-mcp-widget skill. Versioned by the @miragon/mcp-toolkit-ui tarball it ships in \u2014 it carries no version field of its own. `importPath` is one of: '@miragon/mcp-toolkit-ui' (root barrel, mcp-use/react-free), '@miragon/mcp-toolkit-ui/app' (MCP app shell, imports mcp-use/react), '@miragon/mcp-toolkit-ui/hooks' (view-tool hooks).",
+  "$comment": "Machine-readable catalog of prompt-relevant @miragon/mcp-toolkit-ui building blocks. Hand-maintained, source of truth is packages/ui/src/. A Vitest drift-guard (src/ui-catalog.test.ts) asserts every `export` named here is actually exported from its `importPath` barrel, so this file cannot silently drift from the code. Consumed by the docs/reference/components.md page and the build-mcp-widget skill. Versioned by the @miragon/mcp-toolkit-ui tarball it ships in — it carries no version field of its own. `importPath` is one of: '@miragon/mcp-toolkit-ui' (root barrel, mcp-use/react-free), '@miragon/mcp-toolkit-ui/app' (MCP app shell, imports mcp-use/react), '@miragon/mcp-toolkit-ui/hooks' (view-tool hooks).",
   "importPaths": {
     "root": "@miragon/mcp-toolkit-ui",
     "app": "@miragon/mcp-toolkit-ui/app",
@@ -316,7 +316,7 @@
           "description": "Size the placeholder (e.g. 'h-20 w-full')."
         }
       ],
-      "whenToUse": "Loading placeholder while a self-fetch is in flight \u2014 avoids layout shift on first paint."
+      "whenToUse": "Loading placeholder while a self-fetch is in flight — avoids layout shift on first paint."
     },
     {
       "name": "Separator",
@@ -368,7 +368,7 @@
           "name": "span",
           "type": "number",
           "required": false,
-          "description": "Column span 1\u201312. Default 12 (full width); out-of-range falls back to full width."
+          "description": "Column span 1–12. Default 12 (full width); out-of-range falls back to full width."
         },
         {
           "name": "children",
@@ -396,7 +396,7 @@
           "name": "cells",
           "type": "KpiCell[]",
           "required": true,
-          "description": "Metric cells flowed as columns (1\u20136, clamped). Each: { label, value, fraction?, trend?, trendDirection?, tone?, onClick?, ariaLabel? }. A cell with onClick renders as a button (drill into a detail view)."
+          "description": "Metric cells flowed as columns (1–6, clamped). Each: { label, value, fraction?, trend?, trendDirection?, tone?, onClick?, ariaLabel? }. A cell with onClick renders as a button (drill into a detail view)."
         },
         {
           "name": "boxed",
@@ -433,7 +433,7 @@
           "description": "Pill label. Defaults to 'Live'."
         }
       ],
-      "whenToUse": "Signal live/real-time data in a widget header \u2014 a tinted pill with a pulsing dot."
+      "whenToUse": "Signal live/real-time data in a widget header — a tinted pill with a pulsing dot."
     },
     {
       "name": "CountPill",
@@ -594,7 +594,7 @@
           "name": "searchPlaceholder",
           "type": "string",
           "required": false,
-          "description": "Placeholder for the search input. Default 'Filter\u2026'."
+          "description": "Placeholder for the search input. Default 'Filter…'."
         }
       ],
       "whenToUse": "Filter a list/table of widget items with a search box + chip row. Pair with useDebouncedValue so a server-side filter only re-queries once typing pauses."
@@ -616,13 +616,13 @@
           "name": "onDrill",
           "type": "() => void",
           "required": true,
-          "description": "Drill/navigation handler \u2014 wire to in-widget navigation (e.g. useHostActions().showWidget)."
+          "description": "Drill/navigation handler — wire to in-widget navigation (e.g. useHostActions().showWidget)."
         },
         {
           "name": "icon",
           "type": "ReactNode",
           "required": false,
-          "description": "Optional leading glyph; the trailing \u2192 is always rendered."
+          "description": "Optional leading glyph; the trailing → is always rendered."
         },
         {
           "name": "size",
@@ -805,7 +805,7 @@
           "description": "Gate the query."
         }
       ],
-      "whenToUse": "Self-fetch from a *_show_* widget tool. Unwraps the McpAppView view envelope via parseViewToolResult (single-step \u2192 flat data, multi-step \u2192 keyed by step id) \u2014 the envelope-aware sibling of useToolQuery."
+      "whenToUse": "Self-fetch from a *_show_* widget tool. Unwraps the McpAppView view envelope via parseViewToolResult (single-step → flat data, multi-step → keyed by step id) — the envelope-aware sibling of useToolQuery."
     },
     {
       "name": "useViewData",
@@ -863,7 +863,7 @@
       "kind": "hook",
       "group": "host-hooks",
       "props": [],
-      "whenToUse": "THE host seam for portable widgets. Returns a HostBridge { callTool, sendFollowup, openExternal, getWidgetData, setModelContext?, theme? }. Use this instead of mcp-use/react or window.openai directly so the same widget runs in the mcp-use host, ChatGPT, or standalone. Never returns null."
+      "whenToUse": "THE host seam for portable widgets. Returns a HostBridge { callTool, sendFollowup, openExternal, getWidgetData, setModelContext?, theme? }. Use this instead of mcp-use/react or window.openai directly so the same widget runs in the mcp-use host, ChatGPT, or standalone. Requires a provider: McpToolkitApp (toolkit host), WidgetFixtureHost (dev), or an explicit HostBridgeProvider."
     },
     {
       "name": "useHostActions",
@@ -894,7 +894,7 @@
           "description": "Natural-language description of what to show."
         }
       ],
-      "whenToUse": "Build the intent string for host.showWidget(...) \u2014 appends a '(use <toolName>)' hint so the agent picks the right tool unambiguously."
+      "whenToUse": "Build the intent string for host.showWidget(...) — appends a '(use <toolName>)' hint so the agent picks the right tool unambiguously."
     },
     {
       "name": "HostBridgeProvider",
@@ -907,7 +907,7 @@
           "name": "bridge",
           "type": "HostBridge",
           "required": true,
-          "description": "The explicit bridge to provide (createChatGptHostBridge / createStandaloneHostBridge / createMcpUseHostBridge)."
+          "description": "The explicit bridge to provide (createChatGptHostBridge / createStandaloneHostBridge, or toHostBridge over a custom surface)."
         },
         {
           "name": "children",
@@ -916,7 +916,23 @@
           "description": "Subtree whose useHostBridge() resolves to this bridge."
         }
       ],
-      "whenToUse": "Wrap a portable widget in the bridge for the host it runs in. Omit it inside the toolkit's own host (useHostBridge falls back to the mcp-use bridge)."
+      "whenToUse": "Wrap a portable widget in the bridge for the host it runs in. Inside the toolkit's own host you do not need it — McpToolkitApp installs the mcp-use bridge via McpUseHostBridgeProvider."
+    },
+    {
+      "name": "McpUseHostBridgeProvider",
+      "export": "McpUseHostBridgeProvider",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "component",
+      "group": "host-hooks",
+      "props": [
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "Subtree whose useHostBridge() resolves to the mcp-use bridge."
+        }
+      ],
+      "whenToUse": "Composes the mcp-use 2.x view hooks into the HostBridge and provides it. Already included in McpToolkitApp — reach for it only when building a custom shell under your own bootstrapView call. Throws outside a bootstrapView-mounted view."
     },
     {
       "name": "createStandaloneHostBridge",
@@ -948,7 +964,7 @@
           "description": "Explicit window.openai for testing; defaults to the real one."
         }
       ],
-      "whenToUse": "Build a HostBridge mapping the bridge verbs onto the OpenAI Apps SDK (ChatGPT). Defensive \u2014 missing host methods degrade to logged no-ops."
+      "whenToUse": "Build a HostBridge mapping the bridge verbs onto the OpenAI Apps SDK (ChatGPT). Defensive — missing host methods degrade to logged no-ops."
     },
     {
       "name": "adaptDataWidget",
@@ -961,7 +977,7 @@
           "name": "Widget",
           "type": "ComponentType<{ data: T | null } & Record<string, unknown>>",
           "required": true,
-          "description": "A single-data widget \u2014 write it as ({ data }) and it stays host-agnostic."
+          "description": "A single-data widget — write it as ({ data }) and it stays host-agnostic."
         },
         {
           "name": "dataType",
@@ -973,10 +989,32 @@
           "name": "describeForModel",
           "type": "DescribeForModel<T>",
           "required": false,
-          "description": "(data, props) => string. Wraps the widget in <ModelContext> so the model knows what the user is looking at."
+          "description": "(data, props) => string. Wraps the widget in <HostModelContext> so the model knows what the user is looking at."
         }
       ],
       "whenToUse": "Register a hand-built ({ data }) widget as a framework WidgetComponent. The adapter finds the matching step in context.steps[_dataType].data and forwards result.data as the data prop, and spreads per-cell layout props. Lets render-view and *_show_* tools share one widget."
+    },
+    {
+      "name": "HostModelContext",
+      "export": "HostModelContext",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "component",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "content",
+          "type": "string",
+          "required": true,
+          "description": "The model-facing description of what the user is looking at (view identity, filters, headline numbers)."
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "The widget subtree the description belongs to."
+        }
+      ],
+      "whenToUse": "Report model context from a widget that self-fetches (cockpit views) — the host-portable replacement for mcp-use/react's ModelContext. Inside an mcp-use view it renders the native aggregating ModelContext; in every other mount (widget playground, ChatGPT, standalone) it routes through the HostBridge's setModelContext. NEVER import ModelContext from mcp-use/react in a widget: it throws outside a bootstrapView mount."
     },
     {
       "name": "DescribeForModel",
@@ -992,7 +1030,7 @@
           "description": "The describeForModel callback signature for adaptDataWidget."
         }
       ],
-      "whenToUse": "Type the model-context line builder you pass to adaptDataWidget \u2014 report view identity, active filters, and headline numbers so the agent has context on the next turn."
+      "whenToUse": "Type the model-context line builder you pass to adaptDataWidget — report view identity, active filters, and headline numbers so the agent has context on the next turn."
     },
     {
       "name": "parseToolResult",
@@ -1014,7 +1052,7 @@
           "description": "Channel preference. Default 'structured' (structuredContent-first)."
         }
       ],
-      "whenToUse": "Decode a raw callTool result to its data payload. Structured-first: isError \u2192 throw, then structuredContent, then JSON-decoded text, then raw. useToolQuery decodes through this for you."
+      "whenToUse": "Decode a raw callTool result to its data payload. Structured-first: isError → throw, then structuredContent, then JSON-decoded text, then raw. useToolQuery decodes through this for you."
     },
     {
       "name": "parseViewToolResult",
@@ -1030,7 +1068,7 @@
           "description": "The raw result of a *_show_* widget tool."
         }
       ],
-      "whenToUse": "Unwrap a *_show_* view envelope (context.stepData) to the flat widget data: single-step \u2192 that step's data; multi-step \u2192 object keyed by step id. Non-envelope results pass through parseToolResult."
+      "whenToUse": "Unwrap a *_show_* view envelope (context.stepData) to the flat widget data: single-step → that step's data; multi-step → object keyed by step id. Non-envelope results pass through parseToolResult."
     },
     {
       "name": "cn",
@@ -1108,7 +1146,7 @@
           "description": "Subtree that inherits the theme's CSS variables and dark class."
         }
       ],
-      "whenToUse": "Wrap a widget (or a whole app) to apply a ThemeDefinition. Renders a wrapper carrying the theme's CSS variables inline (overriding :root) and toggles the .dark class on the scope per mode. React + DOM only \u2014 no host required."
+      "whenToUse": "Wrap a widget (or a whole app) to apply a ThemeDefinition. Renders a wrapper carrying the theme's CSS variables inline (overriding :root) and toggles the .dark class on the scope per mode. React + DOM only — no host required."
     },
     {
       "name": "useTheme",
@@ -1126,7 +1164,7 @@
       "kind": "object",
       "group": "theming",
       "props": [],
-      "whenToUse": "Ready-made white-label themes (themePresets.miragon, .violet, .emerald) \u2014 a demonstration of createTheme and a fork-able starting point. Pass one to ThemeProvider's theme prop."
+      "whenToUse": "Ready-made white-label themes (themePresets.miragon, .violet, .emerald) — a demonstration of createTheme and a fork-able starting point. Pass one to ThemeProvider's theme prop."
     },
     {
       "name": "LocaleProvider",
@@ -1154,7 +1192,7 @@
           "description": "Subtree whose widgets read the locale via useLocale/useTranslate."
         }
       ],
-      "whenToUse": "Wrap a widget (or a whole app) to provide the active locale + an optional translator. Widgets read it with useLocale/useTranslate. Pure React (no host required), mirroring ThemeProvider \u2014 pairs with createTranslator from @miragon/mcp-toolkit-core."
+      "whenToUse": "Wrap a widget (or a whole app) to provide the active locale + an optional translator. Widgets read it with useLocale/useTranslate. Pure React (no host required), mirroring ThemeProvider — pairs with createTranslator from @miragon/mcp-toolkit-core."
     },
     {
       "name": "useLocale",
@@ -1200,7 +1238,23 @@
           "description": "Override UI strings (loading, refresh, fullscreen)."
         }
       ],
-      "whenToUse": "The recommended consumer root for an mcp-app.html bundle. Wraps McpAppView in mcp-use's McpUseProvider (host auto-sizing, StrictMode, error boundary, theme). You usually do NOT write this when authoring a single widget \u2014 you write the widget and register it here."
+      "whenToUse": "The consumer root for the widget bundle — mount it with mountMcpToolkitApp, which wraps mcp-use's bootstrapView (ext-apps handshake, error boundary, auto-resize). Composes ThemeProvider and McpUseHostBridgeProvider around McpAppView. You usually do NOT write this when authoring a single widget; you register the widget in its widgets map."
+    },
+    {
+      "name": "mountMcpToolkitApp",
+      "export": "mountMcpToolkitApp",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "function",
+      "group": "app-shell",
+      "props": [
+        {
+          "name": "props",
+          "type": "McpAppViewProps",
+          "required": true,
+          "description": "Same props as McpToolkitApp (widgets, refreshToolName?, builderEnabled?, labels?)."
+        }
+      ],
+      "whenToUse": "The bundle entry point since mcp-use 2.x: mounts McpToolkitApp via bootstrapView (ext-apps handshake, error boundary, auto-resize). Call it once in main.tsx instead of createRoot().render()."
     },
     {
       "name": "WidgetFixtureHost",
@@ -1243,7 +1297,7 @@
           "name": "onModelContext",
           "type": "(text: string) => void",
           "required": false,
-          "description": "Receives the serialized <ModelContext> the widget reports \u2014 see what the model would see."
+          "description": "Receives the serialized <ModelContext> the widget reports — see what the model would see."
         },
         {
           "name": "onHostAction",
@@ -1252,7 +1306,7 @@
           "description": "Receives every host action (tool call, link, follow-up)."
         }
       ],
-      "whenToUse": "Storybook-style harness: render ONE widget with fixture data and a mocked host (no backend, no real host). This is the prompt \u2192 see \u2192 iterate loop; add a Story to examples/widget-playground/stories.ts."
+      "whenToUse": "Storybook-style harness: render ONE widget with fixture data and a simulated HostBridge (no backend, no real host). This is the prompt → see → iterate loop; add a Story to examples/widget-playground/stories.ts."
     },
     {
       "name": "buildFixtureWidgetProps",
@@ -1274,7 +1328,7 @@
           "description": "Seed the single pipeline step under this _dataType for adaptDataWidget components."
         }
       ],
-      "whenToUse": "Build the WidgetProps envelope the fixture host passes to a widget \u2014 exported mainly for unit testing the envelope shape without rendering React."
+      "whenToUse": "Build the WidgetProps envelope the fixture host passes to a widget — exported mainly for unit testing the envelope shape without rendering React."
     }
   ]
 }

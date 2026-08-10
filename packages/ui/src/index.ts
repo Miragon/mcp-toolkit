@@ -126,7 +126,7 @@ export type { LocaleContextValue, LocaleProviderProps, BoundTranslate } from "./
 // NOTE: MCP App shell (McpAppView, WidgetRenderer) is exported from the
 // `./app` subpath only. Keeping it out of the main barrel prevents consumers
 // that only need primitives (e.g. an admin portal) from pulling `mcp-use/react`
-// and its langchain transitive peer into their Vite bundle.
+// — the 2.x view runtime and its ext-apps transitive — into their Vite bundle.
 
 // Utils
 export { cn } from "./lib/utils.js"

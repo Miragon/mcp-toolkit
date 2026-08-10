@@ -1,4 +1,4 @@
-import type { McpServerInstance, SessionStore } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import { describe, expect, it } from "vitest"
 import {
   createFrameworkApp,
@@ -7,12 +7,32 @@ import {
 import { parseDashboardRecord } from "./index.js"
 
 /**
- * `registeredTools` on the booted MCPServer is an array of the registered
- * tool *names* — exactly what we need to assert which tools the framework
- * surface exposes for a given `app.builder` setting.
+ * Ask the booted server for its tool surface the way a client would.
+ *
+ * mcp-use 2.x dropped the `registeredTools` array this used to read, and its
+ * transport is session-less, so a single `tools/list` through the server's own
+ * fetch boundary needs no handshake and no socket. Asserting on the real
+ * listing is also the stronger check: it covers registration *and* everything
+ * the middleware chain does to the listing on the way out.
  */
-function toolNames(server: McpServerInstance<boolean>): string[] {
-  return (server as unknown as { registeredTools: string[] }).registeredTools
+async function toolNames(server: MCPServer): Promise<string[]> {
+  const response = await server.getHandler()(
+    new Request("http://local/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    }),
+  )
+  const body = await response.text()
+  // Streamable HTTP answers as SSE; the JSON-RPC payload is the `data:` line.
+  const line = body.split("\n").find((l) => l.startsWith("data: "))
+  const payload = JSON.parse(line ? line.slice(6) : body) as {
+    result?: { tools?: { name: string }[] }
+  }
+  return (payload.result?.tools ?? []).map((t) => t.name)
 }
 
 /** Builds hermetic options with the given `app.builder` setting (or omit). */
@@ -23,9 +43,10 @@ function options(builder?: boolean): CreateFrameworkAppOptionsWithoutOAuth {
     // No plugins: keeps the boot hermetic.
     plugins: [],
     app: {
-      // Pin the resource URI so we don't hash a (missing) bundle file.
-      resourceUri: "ui://builder-gate-test/mcp-app.html",
-      htmlPath: "/nonexistent/mcp-app.html",
+      // A missing bundle is the documented fail-soft path: boot warns and
+      // primes empty view documents instead of throwing (dev-server-before-
+      // first-build). Exactly what a hermetic boot test wants.
+      bundle: { jsPath: "/nonexistent/mcp-app.js" },
       ...(builder === undefined ? {} : { builder }),
     },
   }
@@ -45,7 +66,7 @@ const BUILDER_TOOLS = [
 describe("createFrameworkApp — app.builder gate", () => {
   it("registers the core widget tools but NOT the builder/dashboard tools by default (builder omitted)", async () => {
     const server = await createFrameworkApp(options())
-    const names = toolNames(server)
+    const names = await toolNames(server)
 
     for (const t of CORE_TOOLS) expect(names).toContain(t)
     for (const t of BUILDER_TOOLS) expect(names).not.toContain(t)
@@ -53,7 +74,7 @@ describe("createFrameworkApp — app.builder gate", () => {
 
   it("does not register the builder/dashboard tools when builder is explicitly false", async () => {
     const server = await createFrameworkApp(options(false))
-    const names = toolNames(server)
+    const names = await toolNames(server)
 
     for (const t of CORE_TOOLS) expect(names).toContain(t)
     for (const t of BUILDER_TOOLS) expect(names).not.toContain(t)
@@ -61,7 +82,7 @@ describe("createFrameworkApp — app.builder gate", () => {
 
   it("registers the core tools AND the builder/dashboard tools when builder is true", async () => {
     const server = await createFrameworkApp(options(true))
-    const names = toolNames(server)
+    const names = await toolNames(server)
 
     for (const t of CORE_TOOLS) expect(names).toContain(t)
     for (const t of BUILDER_TOOLS) expect(names).toContain(t)
@@ -69,26 +90,55 @@ describe("createFrameworkApp — app.builder gate", () => {
 })
 
 describe("createFrameworkApp — serverOptions pass-through", () => {
+  /**
+   * Observed on the wire rather than by reading the server's config object.
+   *
+   * mcp-use 2.x stopped exposing `config`, and reaching for it through a cast
+   * would pin an internal. Everything this guarantee is about shows up in an
+   * `initialize` exchange anyway: `instructions` is a pass-through option the
+   * toolkit does not mirror, `serverInfo.name` is a toolkit-owned key that has
+   * to win the spread, and the CORS response header only appears if the `cors`
+   * object reached the constructor.
+   */
   it("hands serverOptions to the MCPServer while the toolkit-owned keys win", async () => {
-    const sessionStore: SessionStore = {
-      get: () => Promise.resolve(null),
-      set: () => Promise.resolve(),
-      delete: () => Promise.resolve(),
-      has: () => Promise.resolve(false),
-      keys: () => Promise.resolve([]),
-    }
+    const cors = { enabled: true, origin: "https://example.test" }
     const server = await createFrameworkApp({
       ...options(),
-      serverOptions: { instructions: "test-instructions", sessionStore },
+      serverOptions: { instructions: "test-instructions", cors },
     })
 
-    // Options the toolkit doesn't mirror reach the mcp-use server config …
-    expect(server.config.instructions).toBe("test-instructions")
-    // … and injected backends arrive by reference, not as a copy.
-    expect(server.config.sessionStore).toBe(sessionStore)
+    const response = await server.getHandler()(
+      new Request("http://local/mcp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          Origin: "https://example.test",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "test", version: "1" },
+          },
+        }),
+      }),
+    )
+    const body = await response.text()
+    const line = body.split("\n").find((l) => l.startsWith("data: "))
+    const payload = JSON.parse(line ? line.slice(6) : body) as {
+      result?: { instructions?: string; serverInfo?: { name?: string } }
+    }
+
+    // An option the toolkit doesn't mirror reaches the mcp-use server …
+    expect(payload.result?.instructions).toBe("test-instructions")
+    // … including an object one, proven by the header it produces.
+    expect(response.headers.get("access-control-allow-origin")).toBe("https://example.test")
     // Toolkit-owned keys stay authoritative (spread order: toolkit wins).
-    expect(server.config.name).toBe("builder-gate-test")
-    expect(server.config.host).toBe("localhost")
+    expect(payload.result?.serverInfo?.name).toBe("builder-gate-test")
   })
 })
 

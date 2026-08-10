@@ -6,7 +6,8 @@ description: >-
   write a *_show_* widget, or turn structuredContent into a React component in
   this repo. Encodes the data contract (tool result -> ViewStructuredContent ->
   data prop), the component catalog, host-portable authoring (useHostBridge), and
-  the widget-playground iterate loop.
+  the iterate loop (mcp-use dev's built-in inspector, plus the optional
+  widget-playground fixture harness).
 ---
 
 # Build an MCP widget against `@miragon/mcp-toolkit-ui`
@@ -34,7 +35,7 @@ data contract, and to iterate on it in isolation.
 - **End-to-end module** — when you also own the server, the
   [`tasks` module](../../../examples/modules/tasks/README.md) is the full worked
   example: domain tools via `createToolRegistrar`, a `show_tasks_board` widget
-  tool (`buildSingleWidgetView` + `uiMeta`), an app-only `tasks_board_data` feed,
+  tool (`buildSingleWidgetView` + a native view binding), an app-only `tasks_board_data` feed,
   and the `TasksBoard` widget — wired into the host and the app bundle.
 
 Do **not** duplicate the catalog here. Open it, pick components, follow the steps.
@@ -224,11 +225,28 @@ If your tool calls are read/write data fetches rather than imperative bridge
 calls, prefer the hooks from Step 1 (`useToolQuery` / `useToolMutation` /
 `useViewData`) — they wrap the bridge and give you caching + loading/error state.
 
-## Step 4 — Iterate in isolation (the prompt → see → loop)
+## Step 4 — Iterate (the prompt → see → loop)
 
-Develop the widget in the **widget-playground** with fixture data and a mocked
-host — no backend, no real host. This is where you actually see your prompt take
-shape.
+The **standard loop is the mcp-use CLI** — the same workflow mcp-use itself
+propagates. Run the standalone host and exercise the widget through the
+built-in inspector against the real server:
+
+```bash
+pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone
+```
+
+`mcp-use dev` builds the views with HMR and prints the inspector URL
+(`…/mcp/inspector`). Call the widget's `show_*` tool there — the view renders
+exactly as a host will render it, and edits to the widget sources hot-reload.
+Shared browser modules (the widget map, the Tailwind entry) live under
+`views/shared/` — the dev server only routes `views/*`; see
+[`examples/standalone-host/README.md`](../../../examples/standalone-host/README.md).
+
+### Optional: fixture-driven isolation (widget-playground)
+
+For states the real server won't easily produce (empty lists, errors, huge
+data), the theme/brand matrix, or work without any server, use the
+**widget-playground** — fixture data and a simulated host.
 
 1. Add a `Story` to
    [`examples/widget-playground/stories.ts`](../../../examples/widget-playground/stories.ts):
@@ -260,9 +278,10 @@ shape.
    every `callTool` / `openExternal` / `sendFollowup`.
 
 Under the hood, each story renders inside `WidgetFixtureHost` (from
-`@miragon/mcp-toolkit-ui/app`), which installs a `window.openai` shim and an
-`AppQueryProvider` so both the mcp-use bridge and `useToolQuery` resolve against
-the same in-memory fixture registry. See
+`@miragon/mcp-toolkit-ui/app`), which installs a simulated `HostBridge` and an
+`AppQueryProvider` so `useHostBridge` and `useToolQuery` resolve against the
+same in-memory fixture registry. It does not simulate direct `mcp-use/react`
+hook usage — which the portable pattern avoids anyway. See
 [`examples/widget-playground/README.md`](../../../examples/widget-playground/README.md).
 
 For a unit test, render through `WidgetFixtureHost` directly, or build the props
@@ -273,7 +292,7 @@ envelope with `buildFixtureWidgetProps(data, dataType?)`.
 ```bash
 cd /tmp/mcp-toolkit   # or the repo root
 pnpm --filter @miragon/mcp-toolkit-ui run typecheck   # widget + toolkit types
-pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground  # see it render
+pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone  # render it in the inspector
 ```
 
 Before committing, the repo's full gates must be green:

@@ -1,6 +1,8 @@
-import type { ComponentType } from "react"
+import { useEffect, type ComponentType, type ReactNode } from "react"
 import { ModelContext } from "mcp-use/react"
 import type { WidgetProps } from "@miragon/mcp-toolkit-core"
+import { useHostBridgeOrNull } from "./host-bridge.js"
+import { useIsInsideMcpUseView } from "./mcp-use-host-bridge.js"
 import type { WidgetComponent } from "./widget-renderer.js"
 
 /**
@@ -13,6 +15,44 @@ export type DescribeForModel<T> = (
   data: NonNullable<T>,
   props: Readonly<Record<string, unknown>>,
 ) => string
+
+/**
+ * Model-context reporting that works on every host — the host-portable
+ * replacement for rendering `mcp-use/react`'s `ModelContext` directly.
+ *
+ * mcp-use 2.x's `ModelContext` registers with the view runtime and THROWS
+ * outside a `bootstrapView` mount, so it is only rendered inside an mcp-use
+ * view (where it aggregates nested nodes into one tree). Everywhere else —
+ * ChatGPT via `createChatGptHostBridge`, the `WidgetFixtureHost` harness,
+ * standalone apps — the description flows through the bridge's
+ * `setModelContext` instead (last-writer-wins; fine for the single-widget
+ * mounts those hosts render).
+ *
+ * Widgets that self-fetch and report their own context (cockpit views like
+ * `TasksBoard`) must use this instead of importing `ModelContext` from
+ * `mcp-use/react` — the direct import crashes the widget in every non-view
+ * mount, starting with the widget playground.
+ */
+export function HostModelContext({
+  content,
+  children,
+}: {
+  content: string
+  children: ReactNode
+}): ReactNode {
+  const insideView = useIsInsideMcpUseView()
+  if (insideView) return <ModelContext content={content}>{children}</ModelContext>
+  return <BridgeModelContext content={content}>{children}</BridgeModelContext>
+}
+
+function BridgeModelContext({ content, children }: { content: string; children: ReactNode }) {
+  const bridge = useHostBridgeOrNull()
+  const setModelContext = bridge?.setModelContext
+  useEffect(() => {
+    setModelContext?.(content)
+  }, [setModelContext, content])
+  return children
+}
 
 /**
  * Wraps a "single-data" widget component (signature `({ data }: { data: T | null })`)
@@ -28,11 +68,11 @@ export type DescribeForModel<T> = (
  * times in one view with different scoping (e.g. one tab per process key).
  *
  * When `describeForModel` is provided the adapter wraps the widget in a
- * `ModelContext` so the model knows what the user is looking at (view identity,
- * active filters, headline numbers) without per-widget boilerplate. The
- * description is only rendered once the step data is present; widgets that
+ * `HostModelContext` so the model knows what the user is looking at (view
+ * identity, active filters, headline numbers) without per-widget boilerplate.
+ * The description is only rendered once the step data is present; widgets that
  * self-fetch when the adapter has no data (cockpit views) must render their own
- * `<ModelContext>` instead.
+ * `<HostModelContext>` instead.
  */
 export function adaptDataWidget<T>(
   Widget: ComponentType<{ data: T | null } & Record<string, unknown>>,
@@ -44,7 +84,11 @@ export function adaptDataWidget<T>(
     const data = (stepResult?.data ?? null) as T | null
     const widget = <Widget {...(widgetProps ?? {})} data={data} />
     if (data == null || !describeForModel) return widget
-    return <ModelContext content={describeForModel(data, widgetProps ?? {})}>{widget}</ModelContext>
+    return (
+      <HostModelContext content={describeForModel(data, widgetProps ?? {})}>
+        {widget}
+      </HostModelContext>
+    )
   }
   AdaptedWidget.displayName = `Adapted(${Widget.displayName ?? Widget.name ?? "Widget"})`
   return AdaptedWidget
