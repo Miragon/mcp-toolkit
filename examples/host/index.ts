@@ -31,6 +31,11 @@ const app = await createFrameworkApp({
   // The serving origin is request-resolved by mcp-use (or the MCP_URL env
   // var) — no baseUrl option since the native-views move.
   plugins: [createArticlesPlugin(), createTasksPlugin(), createOrdersPlugin()],
+  // CORS with mcp-use's defaults (reflect the request Origin, no credentials)
+  // so the landing page's "Open in Inspector" link (the hosted inspector, a
+  // cross-origin browser client) can connect — 2.x ships with CORS off
+  // unless opted in.
+  serverOptions: { cors: {} },
   app: {
     bundle: {
       jsPath: path.join(here, "..", "app-bundle", "dist", "mcp-app.js"),

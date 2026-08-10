@@ -29,6 +29,12 @@ const app = await createFrameworkApp({
   // The serving origin is request-resolved by mcp-use (or the MCP_URL env
   // var) — no baseUrl option since the native-views move.
   plugins: [createTasksPlugin(), createOrdersPlugin()],
+  // CORS with mcp-use's defaults (reflect the request Origin, no credentials):
+  // the landing page's "Open in Inspector" link points browsers at the hosted
+  // inspector, whose cross-origin fetches need the preflight answered — 2.x
+  // ships with CORS off unless opted in. A public demo surface accepts any
+  // origin on purpose.
+  serverOptions: { cors: {} },
   // Note: `dev:playground` deliberately does NOT load examples/.env (unlike
   // `dev:host`) — the full host's .env sets PORT 3010, which would collide
   // with a locally running dev:host.
