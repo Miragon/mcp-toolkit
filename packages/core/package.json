@@ -33,6 +33,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src --max-warnings 0",
     "lint:fix": "eslint src --fix",
     "prepare": "tsc -p tsconfig.build.json",
@@ -48,6 +49,7 @@
   "devDependencies": {
     "@modelcontextprotocol/server": "2.0.0",
     "@types/node": "26.1.2",
+    "@vitest/coverage-v8": "4.1.10",
     "mcp-use": "2.1.0",
     "typescript": "6.0.3",
     "vitest": "4.1.10",

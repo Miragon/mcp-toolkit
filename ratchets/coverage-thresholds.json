@@ -1,0 +1,6 @@
+{
+  "$comment": "Per-package coverage floors = floor(baseline 2026-08-11) - 2 (FITNESS.md). RAISE-ONLY: values only go up, entries are never removed — scripts/check-ratchets.mjs (phase 2b) enforces the direction; the single escape is the 'Ratchet-Exception: <reason>' commit trailer. Enforced by each package's vitest.config.ts via pnpm test:coverage.",
+  "core": { "statements": 91, "branches": 86, "functions": 89, "lines": 93 },
+  "ui": { "statements": 27, "branches": 23, "functions": 16, "lines": 26 },
+  "tool-codegen": { "statements": 17, "branches": 10, "functions": 32, "lines": 18 }
+}

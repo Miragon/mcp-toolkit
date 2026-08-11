@@ -237,3 +237,22 @@ describe("tool-description gate helper", () => {
     expect(findUndescribedFields(undefined)).toEqual([])
   })
 })
+
+describe("ratchet metric budgets fire (phase 2)", () => {
+  it("max-lines flags a 401-effective-line file", { timeout: PROBE_TIMEOUT }, async () => {
+    const probe = "packages/core/src/__fitness-probe__long.ts"
+    const body = Array.from({ length: 401 }, (_, i) => `export const line${i} = ${i}`).join("\n")
+    const { messages } = await withProbeFiles({ [probe]: body }, () => eslintProbe([probe]))
+    expect(messages.some((m) => m.ruleId === "max-lines")).toBe(true)
+  })
+
+  it("complexity flags a 16-branch function", { timeout: PROBE_TIMEOUT }, async () => {
+    const probe = "packages/core/src/__fitness-probe__complex.ts"
+    const branches = Array.from({ length: 16 }, (_, i) => `  if (n === ${i}) return ${i}`).join(
+      "\n",
+    )
+    const body = `export function probe(n: number): number {\n${branches}\n  return -1\n}`
+    const { messages } = await withProbeFiles({ [probe]: body }, () => eslintProbe([probe]))
+    expect(messages.some((m) => m.ruleId === "complexity")).toBe(true)
+  })
+})

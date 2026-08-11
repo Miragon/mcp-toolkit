@@ -1,6 +1,7 @@
 import js from "@eslint/js"
 import tseslint from "typescript-eslint"
 import reactHooks from "eslint-plugin-react-hooks"
+import eslintRatchets from "./ratchets/eslint-ratchets.json" with { type: "json" }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared fitness-gate building blocks (see FITNESS.md).
@@ -104,6 +105,39 @@ const banToolCodegenPattern = {
   message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
   allowTypeImports: true,
 }
+
+// ── Ratchet metrics (FITNESS.md, phase 2) ──
+// Budgets for NEW code: cyclomatic complexity 15, 400 effective lines.
+// Files over budget at introduction are frozen at their measured value in
+// ratchets/eslint-ratchets.json — SHRINK-ONLY: entries may be lowered or
+// removed, never raised or added (enforced by scripts/check-ratchets.mjs in
+// phase 2b). Fix the file (split it — the builder-model/builder-reducer
+// extraction is the house pattern), don't touch the budget.
+const COMPLEXITY_BUDGET = 15
+const MAX_EFFECTIVE_LINES = 400
+const maxLinesOptions = (max) => ["error", { max, skipBlankLines: true, skipComments: true }]
+// scripts/tighten-ratchets.mjs re-measures with the overrides disabled so the
+// global budgets report the true current values.
+const measuringRatchets = process.env.FITNESS_RATCHET_MEASURE === "1"
+const ratchetedFiles = measuringRatchets
+  ? []
+  : [
+      ...new Set([
+        ...Object.keys(eslintRatchets["max-lines"]),
+        ...Object.keys(eslintRatchets.complexity),
+      ]),
+    ]
+const ratchetOverrides = ratchetedFiles.map((file) => ({
+  files: [file],
+  rules: {
+    ...(file in eslintRatchets["max-lines"]
+      ? { "max-lines": maxLinesOptions(eslintRatchets["max-lines"][file]) }
+      : {}),
+    ...(file in eslintRatchets.complexity
+      ? { complexity: ["error", { max: eslintRatchets.complexity[file] }] }
+      : {}),
+  },
+}))
 
 export default tseslint.config(
   // examples/test/fixtures holds pre-built JS stand-ins (mcp-app.js) that the
@@ -289,4 +323,17 @@ export default tseslint.config(
       "no-restricted-syntax": ["error", ...baseSyntaxRestrictions, ...widgetSyntaxRestrictions],
     },
   },
+
+  // ── Ratchet metric budgets (see the constants above) ──
+  // Data files are exempt, not frozen: stories.ts is fixture data
+  // (ui-catalog.json is JSON and never linted).
+  {
+    files: ["packages/*/src/**/*.{ts,tsx}", "examples/**/*.{ts,tsx}", "templates/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.ts", "**/*.test.tsx", "examples/widget-playground/stories.ts"],
+    rules: {
+      complexity: ["error", { max: COMPLEXITY_BUDGET }],
+      "max-lines": maxLinesOptions(MAX_EFFECTIVE_LINES),
+    },
+  },
+  ...ratchetOverrides,
 )
