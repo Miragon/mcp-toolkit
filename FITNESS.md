@@ -23,8 +23,8 @@ is unenforced.
 - **Numbers carry their scope.** A diff-based score must never read as a
   repo-wide one; unmeasured surfaces are named as unmeasured.
 - **Form metrics never replace behaviour tests.** Coverage over the wrong
-  promises is 0% safety; the golden-contract and eval gates exist for the
-  behaviour half.
+  promises is 0% safety; the golden-contract gates exist for the behaviour
+  half.
 
 ## Baseline (measured 2026-08-11)
 
@@ -91,7 +91,12 @@ installed. Introduced in Phases 1 and 4.
 The `mutate` allowlist per `packages/*/stryker.config.json` IS the tested
 surface (grow-only): tool-codegen's `cli.ts` stays outside (only `parseArgs`
 is pinned so far; grow it with the remaining CLI tests). React/JSX render surfaces are NOT measured by mutation —
-the render-coverage ratchet (phase 5c) is the compensating control.
+the compensating control (phase 5c) is live: every catalogued
+component/composite needs a RENDER_CASES SSR entry
+(packages/ui/src/render-cases.tsx) or a justified row in
+ratchets/render-allowlist.json (shrink-only, 2 entries: the two
+components that mount mcp-use view hooks and cannot SSR); every module
+widget needs a widget-playground story (render-coverage.smoke.test.ts).
 
 ### knip ignore reasons (shrink-only list in knip.json)
 
@@ -157,7 +162,6 @@ turning red".
 | parsers/coercions hold under arbitrary input                                                                                                                                             | fast-check property tests (layout-schemas, parse-tool-result, translator, codegen determinism)                                                       | 5c    |
 | new tests are not flaky                                                                                                                                                                  | 3× run of changed test files (PR), 3× full suite (nightly); `retry` stays 0 repo-wide                                                                | 5c    |
 | one verification command                                                                                                                                                                 | `pnpm verify` = `scripts/gates.mjs` manifest; CI jobs run `--only=<ids>` subsets of the same manifest                                                | 5c    |
-| tool descriptions actually steer a model                                                                                                                                                 | evals (6 deterministic-scored cases × 3 runs, nightly, pass-rate ratcheted, non-blocking for PRs)                                                    | 5d    |
 
 ## Deliberately unenforced (honest list, revisit triggers)
 
@@ -168,5 +172,10 @@ turning red".
   compensating control. Revisit when the builder API is declared stable.
 - **Browser E2E against ChatGPT/mcp-use hosts** — host UIs are external; wire
   goldens + host-bridge unit tests are the boundary.
+- **LLM evals of tool-description steering** — deliberately not pursued
+  (decision 2026-08-11: recurring model calls + API-key infrastructure are
+  out of scope for this repo). The tools/list goldens pin the descriptions'
+  CONTENT; their effect on a model stays unmeasured — an intentional,
+  recorded gap, not an oversight.
 - **Builder chrome colours** (`packages/ui/src/app/builder/*` amber/emerald) —
   outside the widget colour gate for now; revisit in Phase 3.

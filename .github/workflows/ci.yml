@@ -29,22 +29,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm -r run typecheck
-
-      - name: Starter-template typecheck (templates/ is outside the workspace)
-        run: pnpm --filter @miragon/mcp-toolkit-examples run typecheck:template
-
-      - run: pnpm -r run build
-
-      - run: pnpm depcruise:dist
-
-      - name: Package exports gate (publint + attw against built artifacts)
-        run: node scripts/check-package-exports.mjs
-
-      - run: pnpm -r --if-present run test:coverage
-
-      - name: Codegen drift check (committed generated/ vs current generator)
-        run: pnpm --filter @miragon/mcp-toolkit-examples run generate:check:ci
+      - name: Verify (build-side gates — same manifest as pnpm verify)
+        run: node scripts/verify.mjs --only=typecheck,template,build,depcruise-dist,exports,test,codegen-drift
 
       - name: Upload coverage summaries (consumed by the fitness-report job)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -75,22 +61,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Ratchet self-protection (thresholds only move one way)
-        run: node scripts/check-ratchets.mjs
-
-      - name: Test-erosion gate (deleted tests, shrinking counts, retry creep)
-        run: node scripts/check-test-erosion.mjs
-
-      - run: pnpm -r run lint
-
-      - run: pnpm lint:templates
-
-      - run: pnpm depcruise
-
-      - name: Dead-code gate (knip — files, dependencies, unlisted)
-        run: pnpm knip:gate
-
-      - run: pnpm format:check
+      - name: Verify (quality-side gates — same manifest as pnpm verify)
+        run: node scripts/verify.mjs --only=pins,ratchets,erosion,depcruise,knip,flaky-changed,lint,lint-templates,format
 
       - name: Analysis reports for the fitness-report job
         run: |

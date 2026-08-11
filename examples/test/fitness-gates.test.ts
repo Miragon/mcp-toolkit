@@ -259,9 +259,7 @@ describe("ratchet metric budgets fire (phase 2)", () => {
 
 describe("knip dead-code gate fires (phase 4)", () => {
   it("flags an unreferenced file", { timeout: PROBE_TIMEOUT }, async () => {
-    // Planted in a package source tree: the root workspace's scripts/ dir is
-    // masked by the lint-staged glob plugin, so the gate's real protection
-    // surface is packages/ + examples/.
+    // Planted in a package source tree — the surface consumers actually get.
     const probe = "packages/core/src/__fitness-probe__dead.ts"
     const { code, stdout } = await withProbeFiles(
       { [probe]: "export const dead = true\n" },
@@ -271,6 +269,19 @@ describe("knip dead-code gate fires (phase 4)", () => {
     )
     expect(code).not.toBe(0)
     expect(stdout).toContain("__fitness-probe__dead.ts")
+  })
+
+  it("flags an unreferenced gate script too", { timeout: PROBE_TIMEOUT }, async () => {
+    // scripts/ is only protected while knip.json lists its entries one by
+    // one: an "entry": ["scripts/*.mjs"] glob makes every dead script an
+    // entry and this probe goes unnoticed (measured — the gate then exits 0
+    // on it). This case is what keeps the glob from coming back.
+    const probe = "scripts/__fitness-probe__dead.mjs"
+    const { code, stdout } = await withProbeFiles({ [probe]: "export const dead = true\n" }, () =>
+      runBin("knip", ["--no-gitignore", "--include", "files,dependencies,unlisted"]),
+    )
+    expect(code).not.toBe(0)
+    expect(stdout).toContain("__fitness-probe__dead.mjs")
   })
 })
 
@@ -325,5 +336,25 @@ describe("test-erosion counter (phase 5a)", () => {
     // acceptable, the gate compares totals of the SAME counter on both sides
     expect(countTestCases("// it (comment)")).toBe(1)
     expect(countTestCases("")).toBe(0)
+  })
+})
+
+describe("flakiness gate grouping (phase 5c)", () => {
+  it("groups changed test files by suite, package-relative", async () => {
+    const { groupChangedTests } = await import("../../scripts/check-flakiness.mjs")
+    expect(
+      groupChangedTests([
+        "packages/core/src/rest/client.test.ts",
+        "packages/ui/src/lib/tone-utils.test.ts",
+        "examples/test/smoke.test.ts",
+        "packages/core/src/rest/client.ts", // not a test
+        "docs/whatever.test.ts", // no suite
+      ]),
+    ).toEqual([
+      { filter: "@miragon/mcp-toolkit-core", files: ["src/rest/client.test.ts"] },
+      { filter: "@miragon/mcp-toolkit-ui", files: ["src/lib/tone-utils.test.ts"] },
+      { filter: "@miragon/mcp-toolkit-examples", files: ["test/smoke.test.ts"] },
+    ])
+    expect(groupChangedTests([])).toEqual([])
   })
 })

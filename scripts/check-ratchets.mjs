@@ -111,6 +111,19 @@ export function compareRatchets(relPath, oldJson, newJson) {
     return violations
   }
 
+  if (kind === "render-allowlist.json") {
+    const names = (j) => new Set((j?.components ?? []).map((c) => c.name))
+    const oldNames = names(oldJson)
+    for (const name of names(newJson)) {
+      if (!oldNames.has(name)) {
+        violations.push(
+          `${relPath} -> new entry "${name}". The render allowlist is shrink-only — add a RENDER_CASES entry in packages/ui/src/render-cases.tsx (SSR) instead of exempting the component.`,
+        )
+      }
+    }
+    return violations
+  }
+
   if (kind === "knip.json") {
     const collectIgnores = (node, prefix, into) => {
       if (!node || typeof node !== "object") return
@@ -161,6 +174,7 @@ export function monitoredFiles(root) {
   const files = [
     "ratchets/eslint-ratchets.json",
     "ratchets/coverage-thresholds.json",
+    "ratchets/render-allowlist.json",
     "packages/ui/ui-catalog.allowlist.json",
     "knip.json",
   ]

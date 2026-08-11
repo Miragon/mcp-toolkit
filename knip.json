@@ -2,7 +2,13 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": [],
+      "entry": [
+        "scripts/check-flakiness.mjs",
+        "scripts/check-package-exports.mjs",
+        "scripts/check-pins.mjs",
+        "scripts/check-ratchets.mjs",
+        "scripts/check-test-erosion.mjs"
+      ],
       "project": ["scripts/**/*.mjs", "*.mjs"]
     },
     "packages/core": {
