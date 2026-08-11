@@ -45,8 +45,9 @@ export default tseslint.config(
 
   // core: browser-bundle-safe outside tools/, and no reverse dependency on ui.
   // (tools/ is a server-only subpath kept out of the root barrel; a value
-  // import of mcp-use/server anywhere else would leak it into the browser
-  // graph.)
+  // import of the mcp-use server runtime anywhere else would leak it into the
+  // browser graph. Since 2.x that runtime is the ROOT `mcp-use` entry — the
+  // `mcp-use/server` subpath this rule used to name no longer exists.)
   {
     files: ["packages/core/src/**/*.ts"],
     ignores: ["packages/core/src/tools/**", "**/*.test.ts"],
@@ -56,9 +57,9 @@ export default tseslint.config(
         {
           paths: [
             {
-              name: "mcp-use/server",
+              name: "mcp-use",
               message:
-                "core/src outside tools/ must stay browser-bundle-safe. Import mcp-use/server only from core/tools (type-only imports are fine).",
+                "core/src outside tools/ must stay browser-bundle-safe. Value-import mcp-use (the 2.x server runtime) only from core/tools (type-only imports are fine).",
               allowTypeImports: true,
             },
           ],
@@ -78,8 +79,8 @@ export default tseslint.config(
     },
   },
 
-  // ui: never reach into core/tools (pulls mcp-use/server) or build-time
-  // tool-codegen.
+  // ui: never reach into core/tools (pulls the mcp-use server runtime) or
+  // build-time tool-codegen.
   {
     files: ["packages/ui/src/**/*.{ts,tsx}"],
     ignores: ["**/*.test.ts", "**/*.test.tsx"],
@@ -91,7 +92,7 @@ export default tseslint.config(
             {
               name: "@miragon/mcp-toolkit-core/tools",
               message:
-                "ui must never import core/tools — it pulls mcp-use/server into the browser graph.",
+                "ui must never import core/tools — it pulls the mcp-use server runtime into the browser graph.",
             },
           ],
           patterns: [
