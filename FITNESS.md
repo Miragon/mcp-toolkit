@@ -103,6 +103,8 @@ the render-coverage ratchet (phase 5c) is the compensating control.
   (templates/minimal-server/README.md).
 - `@miragon/mcp-toolkit-core` (tool-codegen devDep): satisfies the package's
   own peerDependency during development.
+- `@arethetypeswrong/cli` (root): the `attw` binary is invoked via spawnSync
+  in `scripts/check-package-exports.mjs` — invisible to knip's import graph.
 
 Known blind spot: the root `scripts/` dir is masked from knip's unused-file
 detection by the lint-staged glob plugin; packages/ + examples/ are the

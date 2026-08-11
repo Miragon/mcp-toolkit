@@ -1,6 +1,8 @@
 import js from "@eslint/js"
 import tseslint from "typescript-eslint"
 import reactHooks from "eslint-plugin-react-hooks"
+import vitest from "@vitest/eslint-plugin"
+import eslintComments from "@eslint-community/eslint-plugin-eslint-comments"
 import eslintRatchets from "./ratchets/eslint-ratchets.json" with { type: "json" }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -321,6 +323,31 @@ export default tseslint.config(
     ],
     rules: {
       "no-restricted-syntax": ["error", ...baseSyntaxRestrictions, ...widgetSyntaxRestrictions],
+    },
+  },
+
+  // ── Anti-erosion gates for test files (FITNESS.md, phase 5a) ──
+  // A flaky assertion is an invitation to weaken it; a skipped test is a
+  // deleted test with better optics. Focused/disabled tests and constant
+  // assertions are errors, and every eslint-disable inside a test needs a
+  // written reason (`-- <why>`), so each escape is visible in the diff.
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    plugins: { vitest, "@eslint-community/eslint-comments": eslintComments },
+    rules: {
+      "vitest/no-focused-tests": "error",
+      "vitest/no-disabled-tests": "error",
+      "vitest/expect-expect": "error",
+      "@eslint-community/eslint-comments/require-description": ["error", { ignore: [] }],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.name='expect'][arguments.0.type='Literal'][arguments.0.regex=undefined]",
+          message:
+            "expect(<literal>) asserts a constant — it can never fail and only inflates counts. Assert real behaviour or delete the line.",
+        },
+      ],
     },
   },
 

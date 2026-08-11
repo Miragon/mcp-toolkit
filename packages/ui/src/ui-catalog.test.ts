@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import catalog from "../ui-catalog.json" with { type: "json" }
+import allowlist from "../ui-catalog.allowlist.json" with { type: "json" }
 import * as rootBarrel from "./index.js"
 import * as appBarrel from "./app/index.js"
 import * as hooksBarrel from "./hooks/index.js"
@@ -107,6 +108,57 @@ describe("ui-catalog.json", () => {
       expect(entry.group, `${entry.name} group`).toBeTruthy()
       expect(entry.whenToUse, `${entry.name} whenToUse`).toBeTruthy()
       expect(Array.isArray(entry.props), `${entry.name} props`).toBe(true)
+    }
+  })
+
+  // ── Reverse direction (FITNESS.md, phase 5a) ──
+  // The catalog ships in the tarball and is LLM-consumer surface: a NEW
+  // export that reaches a barrel without a catalog entry (or a justified
+  // allowlist row) is invisible to every prompting agent — and previously
+  // fell through this guard, which only checked catalog → barrel.
+
+  /** Every value export a catalog entry or its parts account for. */
+  function cataloguedExports(): Set<string> {
+    const names = new Set<string>()
+    for (const entry of catalogData.components) {
+      names.add(entry.export)
+      for (const part of entry.parts ?? []) names.add(part)
+    }
+    return names
+  }
+
+  /** Exported for the difference logic to stay testable (see fitness gates). */
+  function uncataloguedExports(barrel: Record<string, unknown>): string[] {
+    const catalogued = cataloguedExports()
+    const allowed = new Set(allowlist.allow.map((a) => a.export))
+    return Object.keys(barrel)
+      .filter((name) => !catalogued.has(name) && !allowed.has(name))
+      .sort()
+  }
+
+  it("no uncatalogued export escapes the barrels (catalog ∪ allowlist)", () => {
+    for (const [importPath, barrel] of Object.entries(BARRELS)) {
+      const escaped = uncataloguedExports(barrel)
+      expect(
+        escaped,
+        `New export(s) [${escaped.join(", ")}] from ${importPath} are neither in ui-catalog.json nor in ui-catalog.allowlist.json. Catalogue them (name/export/importPath/kind/group/props/whenToUse — the catalog ships to LLM consumers) or add a justified allowlist row. The allowlist is shrink-only.`,
+      ).toEqual([])
+    }
+  })
+
+  it("allowlist hygiene: entries carry reasons and still exist in a barrel", () => {
+    const allExports = new Set(Object.values(BARRELS).flatMap((b) => Object.keys(b)))
+    const catalogued = cataloguedExports()
+    for (const row of allowlist.allow) {
+      expect(row.reason, `${row.export} needs a reason`).toBeTruthy()
+      expect(
+        allExports.has(row.export),
+        `${row.export} is allowlisted but no barrel exports it — remove the row (shrink-only)`,
+      ).toBe(true)
+      expect(
+        catalogued.has(row.export),
+        `${row.export} is BOTH catalogued and allowlisted — remove the stale allowlist row`,
+      ).toBe(false)
     }
   })
 })

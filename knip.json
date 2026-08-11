@@ -33,5 +33,10 @@
     }
   },
   "ignore": [],
-  "ignoreDependencies": ["tailwindcss", "lucide-react", "@miragon/mcp-toolkit-core"]
+  "ignoreDependencies": [
+    "tailwindcss",
+    "lucide-react",
+    "@miragon/mcp-toolkit-core",
+    "@arethetypeswrong/cli"
+  ]
 }

@@ -78,9 +78,10 @@ runnable snippets — invoke the matching one before hand-rolling:
 
 ## Testing policy
 
-The repo moves fast. We test only what is supposed to be **stable** — the parts
-where silent drift hurts downstream consumers. Use Vitest. Colocate the test
-next to the source it covers (`foo.ts` → `foo.test.ts`).
+We test what is supposed to be **stable** — the parts where silent drift hurts
+downstream consumers. Use Vitest. Colocate the test next to the source it
+covers (`foo.ts` → `foo.test.ts`). Machine-enforced gates for this policy live
+in [`FITNESS.md`](FITNESS.md).
 
 ### MUST have tests
 
@@ -92,32 +93,49 @@ next to the source it covers (`foo.ts` → `foo.test.ts`).
   mapping is the build-time-↔-runtime contract.
 - **Fail-soft boundaries**: a function documented as "logs warning, doesn't
   throw" needs a test proving it doesn't throw on the bad path.
+- **Every externally consumed surface is frozen by a golden**: the tools/list
+  wire shape (descriptions, annotations, schema texts, `_meta`), the
+  `get-framework-manifest` payload, each package's runtime export surface,
+  and the ui catalog (both directions). Goldens change ONLY via
+  `GOLDEN_UPDATE=1` locally + a committed, reviewed JSON diff — never by
+  hand-editing (`examples/test/golden/`, `examples/test/helpers/golden.ts`).
+- **Every example module ships a loopback smoke test** in `examples/test/`
+  (CONTRIBUTING.md: "the lightest-weight regression guard the toolkit has").
+- **Security / fail-soft middleware boundaries** get error-path tests
+  (org-gate is the reference case, phase 5b).
 
-### SHOULD NOT have tests yet
+### Deliberate non-goals (recorded renunciations, each with a revisit trigger)
 
-- React rendering and widget glue (UI layer is moving).
-- Plugin lifecycle and OAuth state machines (still being shaped — revisit
-  once the flow stabilises).
-- Middleware internals (better covered by integration tests once the auth
-  model is settled).
-
-Loopback smoke tests in `examples/test/` are the exception to none of this:
-they are the repo's lightest-weight regression guard (see CONTRIBUTING.md
-"Examples-driven development") — every example module ships with one.
+- **DOM/interaction tests (jsdom/@testing-library)** — SSR via
+  `renderToStaticMarkup` is the house path; the render-coverage ratchet
+  (phase 5c) is the compensating control, and the mutation score explicitly
+  does NOT measure this surface. Revisit when the builder API is declared
+  stable.
+- **Browser E2E against ChatGPT/mcp-use hosts** — host UIs are external; the
+  wire goldens + host-bridge unit tests are the boundary. Revisit if a host
+  regression escapes them.
+- **OAuth flows against a real IdP** — covered by middleware error-path
+  tests only. Revisit when the auth model settles.
+- **Builder React components** (Workspace, PipelineStrip, CatalogueSheet, …)
+  — only their extracted pure parts (builder-model, builder-reducer) are
+  MUST-tested. Same revisit trigger as jsdom.
 
 ### When you change tested code
 
 - Update the test in the same PR. If the contract genuinely changed, replace
   the test with one that pins the new contract — don't delete it to make CI
-  green.
+  green (enforced: `scripts/check-test-erosion.mjs`).
 - Don't loosen an assertion to dodge a failure. Either the code is wrong, or
   the contract has shifted and the test should describe the new contract.
+  Focused/disabled tests and constant assertions are lint errors; an
+  `eslint-disable` inside a test needs a written reason.
 
 ### When you add a new package or public export
 
 - New schema → new schema test.
 - New pure utility → new test.
-- Anything else → judgment call, lean toward "not yet".
+- New runtime export → the export-surface golden fails until you update it;
+  add the docs row (`docs/reference/api-*.md`) in the same PR.
 
 If you need to test a private helper, **export it** rather than reaching into
 the module. An explicit export is a clearer contract than a clever test.

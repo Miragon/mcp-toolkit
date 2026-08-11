@@ -36,7 +36,7 @@ describe("getBuilderCatalogue", () => {
       dataType: "sales:customer",
       requires: ["sales:customerId"],
       produces: ["sales:customer"],
-      // eslint-disable-next-line @typescript-eslint/require-await
+      // eslint-disable-next-line @typescript-eslint/require-await -- PipelineStepDefinition.execute is async by contract
       async execute(ctx) {
         return {
           _app: "sales",
@@ -106,7 +106,7 @@ describe("getBuilderCatalogue", () => {
       dataType: "sales:customer",
       requires: ["sales:customerId"],
       produces: ["sales:customer"],
-      // eslint-disable-next-line @typescript-eslint/require-await
+      // eslint-disable-next-line @typescript-eslint/require-await -- PipelineStepDefinition.execute is async by contract
       async execute() {
         throw new Error("should not run without required keys")
       },

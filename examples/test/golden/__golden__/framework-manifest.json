@@ -1,0 +1,68 @@
+{
+  "activeApps": ["tasks", "orders"],
+  "keyContracts": [
+    {
+      "consumedBy": ["orders:list-customer-orders"],
+      "key": "orders:customer",
+      "optionallyConsumedBy": [],
+      "producedBy": ["orders:resolve-customer"]
+    },
+    {
+      "consumedBy": [],
+      "key": "orders:orderList",
+      "optionallyConsumedBy": [],
+      "producedBy": ["orders:list-customer-orders"]
+    },
+    {
+      "consumedBy": ["orders:resolve-customer"],
+      "key": "orders:customerId",
+      "optionallyConsumedBy": [],
+      "producedBy": []
+    }
+  ],
+  "pipelines": [],
+  "steps": [
+    {
+      "app": "orders",
+      "dataType": "orders:customer",
+      "description": "Resolve a customer by id so downstream steps can scope to it.",
+      "id": "orders:resolve-customer",
+      "produces": ["orders:customer"],
+      "requires": ["orders:customerId"]
+    },
+    {
+      "app": "orders",
+      "dataType": "orders:dashboard",
+      "description": "List a resolved customer's orders and build the dashboard view-model.",
+      "id": "orders:list-customer-orders",
+      "produces": ["orders:orderList"],
+      "requires": ["orders:customer"]
+    }
+  ],
+  "widgets": [
+    {
+      "app": "tasks",
+      "consumes": ["tasks:board"],
+      "description": "A task board: KPI counts by status, filterable task list, agentic add/complete.",
+      "id": "tasks:board",
+      "requires": [],
+      "size": "full"
+    },
+    {
+      "app": "orders",
+      "consumes": ["orders:dashboard"],
+      "description": "KPI strip: per-status order counts and revenue for one customer.",
+      "id": "orders:kpi",
+      "requires": ["orders:customer"],
+      "size": "half"
+    },
+    {
+      "app": "orders",
+      "consumes": ["orders:dashboard"],
+      "description": "Table of a customer's orders with status and amounts.",
+      "id": "orders:table",
+      "requires": ["orders:customer"],
+      "size": "half"
+    }
+  ]
+}
