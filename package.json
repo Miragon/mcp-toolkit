@@ -17,7 +17,7 @@
     "fitness:tighten": "node scripts/tighten-ratchets.mjs",
     "depcruise": "depcruise --config .dependency-cruiser.cjs packages examples",
     "depcruise:dist": "depcruise --config .dependency-cruiser.dist.cjs packages/core/dist/index.js packages/ui/dist/index.js",
-    "verify": "pnpm typecheck && pnpm build && pnpm depcruise && pnpm depcruise:dist && pnpm test:coverage && pnpm lint && pnpm lint:templates && pnpm format:check",
+    "verify": "pnpm typecheck && pnpm build && pnpm depcruise && pnpm depcruise:dist && node scripts/check-ratchets.mjs && pnpm test:coverage && pnpm lint && pnpm lint:templates && pnpm format:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:dev": "pnpm --filter @miragon/mcp-toolkit-docs run dev",
