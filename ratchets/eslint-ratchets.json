@@ -7,9 +7,6 @@
   "complexity": {
     "packages/ui/src/app/builder/builder-reducer.ts": 40,
     "packages/ui/src/app/mcp-app-view.tsx": 30,
-    "packages/ui/src/app/layout-builder.tsx": 20,
-    "packages/core/src/rest/client.ts": 20,
-    "packages/tool-codegen/src/cli.ts": 20,
-    "packages/core/src/middleware/role-filter.ts": 20
+    "packages/ui/src/app/layout-builder.tsx": 20
   }
 }
