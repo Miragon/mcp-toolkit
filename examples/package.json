@@ -30,13 +30,13 @@
     "@miragon/mcp-toolkit-ui": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0",
     "lucide-react": "0.562.0",
-    "mcp-use": "2.0.4",
+    "mcp-use": "2.1.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@mcp-use/client": "2.0.1",
+    "@mcp-use/client": "2.1.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "26.1.2",
     "@types/react": "19.2.18",

@@ -1,6 +1,6 @@
 # Migrating to mcp-use 2.x
 
-This release moves the toolkit from mcp-use **1.34** to **2.0.4** and onto
+This release moves the toolkit from mcp-use **1.34** to **2.1.0** and onto
 mcp-use's **native view system**: views are first-class (`ToolDefinition.view`
 / `.visibility`), mcp-use owns the `ui://views/<name>.html` resources and the
 `_meta.ui` wire keys, and the mcp-use CLI (`mcp-use dev` / `build` / `start`)
@@ -16,7 +16,7 @@ if you are already on 0.11.0, there is nothing further to migrate.
 
 | Package                     | Before   | After                 |
 | --------------------------- | -------- | --------------------- |
-| `mcp-use`                   | `1.34.1` | `2.0.4`               |
+| `mcp-use`                   | `1.34.1` | `2.1.0`               |
 | `@modelcontextprotocol/sdk` | `1.29.0` | `1.30.0`              |
 | `zod`                       | `4.4.3`  | `4.4.3` (unchanged)   |
 | Node.js                     | —        | `>=22.22.2` (engines) |
@@ -292,7 +292,7 @@ better, rewritten against `useHostBridge`.
 
 ## 7. Migration checklist
 
-- [ ] Bump `mcp-use` to `2.0.4`, `@modelcontextprotocol/sdk` to `1.30.0`; Node `>=22.22.2`.
+- [ ] Bump `mcp-use` to `2.1.0`, `@modelcontextprotocol/sdk` to `1.30.0`; Node `>=22.22.2`.
 - [ ] Pin `lucide-react@0.562.0` next to the toolkit (one version across the graph).
 - [ ] `mcp-use/server` imports → `mcp-use`; `text`/`object`/`error` → `textResult`/`objectResult`/`errorResult`.
 - [ ] Pick a path: `installToolkit` + `views/` + CLI (standard) or `createFrameworkApp` + `app.bundle` (adapter).

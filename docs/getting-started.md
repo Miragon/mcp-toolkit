@@ -85,7 +85,7 @@ so match them:
 
 ```sh
 pnpm add @miragon/mcp-toolkit-core
-pnpm add @modelcontextprotocol/sdk@1.30.0 mcp-use@2.0.4 zod@4.4.3
+pnpm add @modelcontextprotocol/sdk@1.30.0 mcp-use@2.1.0 zod@4.4.3
 ```
 
 ### The standard path — a plain mcp-use project, toolkit on top
