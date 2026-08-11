@@ -95,13 +95,21 @@ Styling: `views/shared/styles.css` imports the toolkit's
 `@miragon/mcp-toolkit-ui/globals.css` (Tailwind theme + tokens) and adds
 `@source` lines so Tailwind generates classes used outside the CSS file's own
 tree. If a class "does nothing" in the rendered widget, check that the file
-using it is covered by an `@source` line.
+using it is covered by an `@source` line. `tailwindcss` is a dev dependency
+because `@miragon/mcp-toolkit-ui` declares it as a peer; the Vite plugin that
+compiles it ships inside the mcp-use CLI, so this project needs no Vite
+dependency or config of its own.
 
-Version pinning: `mcp-use` here must match the exact peer of the pinned
-`@miragon/mcp-toolkit-core` (see its `peerDependencies`) — keep the two in
-step when bumping either. `lucide-react` is pinned alongside on purpose: a
-second copy in the graph splits mcp-use into two peer instances and crashes
-widgets at render time (see the toolkit's migration guide).
+Version pinning: `mcp-use`, `react`, `react-dom` and `zod` here must match the
+exact peers of the pinned `@miragon` packages (see their `peerDependencies`) —
+keep them in step when bumping either side. `lucide-react` is pinned alongside
+on purpose: a second copy in the graph splits mcp-use into two peer instances
+and crashes widgets at render time (see the toolkit's migration guide).
+
+Between toolkit releases the `@miragon` pins here still point at the previous
+release, so `pnpm install` can report an unmet `mcp-use` peer until the next
+release lifts them. It is a warning, not a break — install, typecheck and
+`mcp-use build` all succeed.
 
 ## CI
 
