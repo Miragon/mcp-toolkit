@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [1.1.0](https://github.com/Miragon/mcp-toolkit/compare/v1.0.1...v1.1.0) (2026-08-11)
+
+
+### Features
+
+* **deps:** bump mcp-use to 2.1.0 ([#124](https://github.com/Miragon/mcp-toolkit/issues/124)) ([a854a5e](https://github.com/Miragon/mcp-toolkit/commit/a854a5e22d68f1c86f16af0c155490eb08520064))
+* **template,deps:** move the starter to the 2.x CLI layout and drop the MCP SDK 1.x dependency ([#126](https://github.com/Miragon/mcp-toolkit/issues/126)) ([01685b9](https://github.com/Miragon/mcp-toolkit/commit/01685b96ce59734ff18de67e084af86f14be9a64))
+
 ## [1.0.1](https://github.com/Miragon/mcp-toolkit/compare/v1.0.0...v1.0.1) (2026-08-10)
 
 
