@@ -1,7 +1,7 @@
 import { type MCPServer } from "mcp-use"
 import { z } from "zod"
 import { objectResult } from "./tool-results.js"
-import type { DashboardStore } from "../framework/dashboard-store.js"
+import type { DashboardStore } from "./dashboard-store.js"
 import { collectLayoutWidgets } from "../framework/view-builders.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
@@ -18,9 +18,12 @@ export interface RegisterDashboardToolsOptions {
 }
 
 const stepRefSchema = z.object({
-  id: z.string(),
-  step: z.string(),
-  optional: z.boolean().optional(),
+  id: z.string().describe("Context key under which the step's result is stored, e.g. 'invoice'."),
+  step: z.string().describe("Registered step id, e.g. 'lexoffice:load-invoice'."),
+  optional: z
+    .boolean()
+    .optional()
+    .describe("If true, a failure of this step skips it instead of failing the whole view."),
 })
 
 const saveSchema = z.object({
@@ -29,9 +32,17 @@ const saveSchema = z.object({
     .optional()
     .describe("Existing dashboard id to update. Omit to create a new record."),
   name: z.string().describe("Human-readable dashboard name shown in lists."),
-  description: z.string().optional(),
-  keys: z.record(z.string(), z.unknown()).optional(),
-  steps: z.array(stepRefSchema).optional(),
+  description: z.string().optional().describe("Optional free-text summary shown in lists."),
+  keys: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe(
+      "Keys the saved view passes to render-view on load, e.g. { 'orders:customerId': '…' }.",
+    ),
+  steps: z
+    .array(stepRefSchema)
+    .optional()
+    .describe("Pipeline steps the saved view re-runs on load, same shape as render-view's steps."),
   layout: layoutSchema,
   title: z.string().optional().describe("View title rendered above the widget grid."),
 })

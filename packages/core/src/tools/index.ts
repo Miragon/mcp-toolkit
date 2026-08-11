@@ -38,7 +38,7 @@ export {
   resolveSavedRecord,
   parseDashboardRecord,
   DASHBOARD_SCHEMA_VERSION,
-} from "../framework/dashboard-store.js"
+} from "./dashboard-store.js"
 export type {
   DashboardStore,
   DashboardRecord,
@@ -46,4 +46,4 @@ export type {
   DashboardSummary,
   DashboardListFilter,
   FileSystemDashboardStoreOptions,
-} from "../framework/dashboard-store.js"
+} from "./dashboard-store.js"

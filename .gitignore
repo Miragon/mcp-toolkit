@@ -13,3 +13,6 @@ dist
 .claude/logs/
 docs/.vitepress/dist
 docs/.vitepress/cache
+
+# transient fitness-gate probe files (examples/test/fitness-gates.test.ts)
+__fitness-probe__*

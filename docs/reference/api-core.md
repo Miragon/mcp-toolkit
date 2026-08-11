@@ -147,10 +147,10 @@ packages/core/src/
 ├── types/            runtime-safe types
 ├── engine/           pipeline-executor, context-builder
 ├── registry/         step-registry, widget-registry, app-loader
-├── framework/        render-view, catalogue, manifest, layout-*, dashboard-store, active-modules
+├── framework/        render-view, catalogue, manifest, layout-*, active-modules
 ├── middleware/       org-gate, role-filter
 ├── rest/             createRestClient + createRestTool + RestError
-└── tools/            registrars — import the mcp-use server runtime
+└── tools/            registrars, dashboard-store — import the mcp-use server runtime / node:*
 ```
 
 ## See also
