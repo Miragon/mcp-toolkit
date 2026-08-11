@@ -13,7 +13,7 @@ export default defineConfig({
       // Raise-only ratchet (FITNESS.md phase 2) — raise the floor, never
       // lower it; scripts/check-ratchets.mjs (phase 2b) enforces the
       // direction.
-      thresholds: thresholds.core,
+      thresholds: thresholds["tool-codegen"],
     },
   },
 })
