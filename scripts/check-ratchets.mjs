@@ -133,12 +133,31 @@ export function compareRatchets(relPath, oldJson, newJson) {
     return violations
   }
 
+  if (kind === "ui-catalog.allowlist.json") {
+    const exportsOf = (json) =>
+      new Set((Array.isArray(json?.allow) ? json.allow : []).map((row) => String(row?.export)))
+    const oldExports = exportsOf(oldJson)
+    for (const name of exportsOf(newJson)) {
+      if (!oldExports.has(name)) {
+        violations.push(
+          `${relPath} -> new allowlist entry "${name}". The ui-catalog allowlist is shrink-only — add a ui-catalog.json entry instead (the catalog is what prompting agents read), or don't export the symbol from a barrel.`,
+        )
+      }
+    }
+    return violations
+  }
+
   return violations
 }
 
 /** All monitored ratchet files, present or not. */
 export function monitoredFiles(root) {
-  const files = ["ratchets/eslint-ratchets.json", "ratchets/coverage-thresholds.json", "knip.json"]
+  const files = [
+    "ratchets/eslint-ratchets.json",
+    "ratchets/coverage-thresholds.json",
+    "packages/ui/ui-catalog.allowlist.json",
+    "knip.json",
+  ]
   const packagesDir = path.join(root, "packages")
   if (fs.existsSync(packagesDir)) {
     for (const pkg of fs.readdirSync(packagesDir)) {
