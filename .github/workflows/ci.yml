@@ -37,6 +37,9 @@ jobs:
 
       - run: pnpm -r --if-present run test:coverage
 
+      - name: Codegen drift check (committed generated/ vs current generator)
+        run: pnpm --filter @miragon/mcp-toolkit-examples run generate:check:ci
+
   quality:
     name: Lint + Format
     runs-on: ubuntu-latest

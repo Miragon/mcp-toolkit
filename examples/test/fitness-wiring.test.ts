@@ -17,6 +17,7 @@ describe("ci.yml runs every fitness gate", () => {
     "pnpm lint:templates", // templates are outside pnpm -r
     "pnpm depcruise", // source-level dependency rules
     "node scripts/check-ratchets.mjs", // ratchet self-protection
+    "run generate:check:ci", // codegen drift vs committed generated/
     "pnpm format:check",
     "pnpm -r run lint",
     "pnpm -r run typecheck",
