@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url"
 import { generateTools, writeCodegenOutput, type CodegenConfig } from "./codegen.js"
 import { fetchUpstreamTools, type FetchToolsOptions } from "./fetch-tools.js"
 
-interface ParsedArgs {
+export interface ParsedArgs {
   command: "generate" | "inspect" | "help"
   config?: string
   check: boolean
@@ -45,7 +45,7 @@ const FLAG_SETTERS: Record<string, (args: ParsedArgs, next: NextArg) => void> = 
   "-h": setHelp,
 }
 
-function parseArgs(argv: string[]): ParsedArgs {
+export function parseArgs(argv: string[]): ParsedArgs {
   const args: ParsedArgs = { command: "help", check: false }
   const [command, ...rest] = argv
   if (command === "generate" || command === "inspect") args.command = command
@@ -200,4 +200,7 @@ async function main(): Promise<void> {
   }
 }
 
-void main()
+// Only run when executed as the CLI entry (bin/tsx), not when imported by
+// tests — importing must stay side-effect-free so parseArgs is testable.
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+if (isMain) void main()
