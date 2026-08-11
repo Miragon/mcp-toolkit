@@ -43,13 +43,13 @@
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
-    "mcp-use": "2.0.4",
+    "mcp-use": "2.1.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "26.1.2",
-    "mcp-use": "2.0.4",
+    "mcp-use": "2.1.0",
     "typescript": "6.0.3",
     "vitest": "4.1.10",
     "zod": "4.4.3"
