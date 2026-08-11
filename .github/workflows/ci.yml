@@ -42,6 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # full history: scripts/check-ratchets.mjs diffs against the
+          # merge-base and refuses to run on a shallow clone
+          fetch-depth: 0
 
       - name: Enforce pinned dependencies
         uses: miragon/pin-npm-dependencies@58fe24377aef66748a1444ff69ab05e3f938a798 # v1.2.1
@@ -54,6 +58,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Ratchet self-protection (thresholds only move one way)
+        run: node scripts/check-ratchets.mjs
 
       - run: pnpm -r run lint
 
