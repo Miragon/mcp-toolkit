@@ -12,9 +12,20 @@ function loadThresholds(pkg: string): Record<string, number> {
   for (let i = 0; i < 8; i++) {
     const file = path.join(dir, "ratchets", "coverage-thresholds.json")
     if (fs.existsSync(file)) {
-      return (JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, Record<string, number>>)[
-        pkg
-      ]
+      const all = JSON.parse(fs.readFileSync(file, "utf8")) as Record<
+        string,
+        Record<string, number> | undefined
+      >
+      const entry = all[pkg]
+      // A missing package entry would hand vitest `thresholds: undefined` —
+      // coverage silently unenforced, the exact failure this loader exists to
+      // prevent.
+      if (!entry) {
+        throw new Error(
+          `ratchets/coverage-thresholds.json has no entry for "${pkg}" — the coverage ratchet must never be dropped silently`,
+        )
+      }
+      return entry
     }
     dir = path.dirname(dir)
   }
