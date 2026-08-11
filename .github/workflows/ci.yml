@@ -35,7 +35,7 @@ jobs:
 
       - run: pnpm depcruise:dist
 
-      - run: pnpm -r --if-present run test
+      - run: pnpm -r --if-present run test:coverage
 
   quality:
     name: Lint + Format
