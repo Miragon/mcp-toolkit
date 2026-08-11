@@ -256,3 +256,20 @@ describe("ratchet metric budgets fire (phase 2)", () => {
     expect(messages.some((m) => m.ruleId === "complexity")).toBe(true)
   })
 })
+
+describe("knip dead-code gate fires (phase 4)", () => {
+  it("flags an unreferenced file", { timeout: PROBE_TIMEOUT }, async () => {
+    // Planted in a package source tree: the root workspace's scripts/ dir is
+    // masked by the lint-staged glob plugin, so the gate's real protection
+    // surface is packages/ + examples/.
+    const probe = "packages/core/src/__fitness-probe__dead.ts"
+    const { code, stdout } = await withProbeFiles(
+      { [probe]: "export const dead = true\n" },
+      // --no-gitignore: the probe prefix is deliberately git-ignored, and
+      // knip skips git-ignored files by default
+      () => runBin("knip", ["--no-gitignore", "--include", "files,dependencies,unlisted"]),
+    )
+    expect(code).not.toBe(0)
+    expect(stdout).toContain("__fitness-probe__dead.ts")
+  })
+})

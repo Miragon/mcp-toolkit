@@ -80,6 +80,34 @@ drift-guarded by `ui-catalog.test.ts`), `examples/widget-playground/stories.ts`
 Mutation score, dead code/dependencies, dependency-graph cycles — no tooling
 installed. Introduced in Phases 1 and 4.
 
+### Mutation baseline (measured 2026-08-11, phase 4 — full allowlists)
+
+| Package      | Score  | Mutants (killed/survived/no-cov) | `break` (raise-only) |
+| ------------ | ------ | -------------------------------- | -------------------- |
+| core         | 75.29% | 1054 / 280 / 66                  | 70                   |
+| ui           | 90.10% | 473 / 45 / 7                     | 85                   |
+| tool-codegen | 66.67% | 48 / 15 / 9                      | 61                   |
+
+The `mutate` allowlist per `packages/*/stryker.config.json` IS the tested
+surface (grow-only): core's untested `register-catalogue-tool.ts` and
+tool-codegen's partly-tested `cli.ts` are deliberately outside until phase 5b
+lands their tests. React/JSX render surfaces are NOT measured by mutation —
+the render-coverage ratchet (phase 5c) is the compensating control.
+
+### knip ignore reasons (shrink-only list in knip.json)
+
+- `tailwindcss` (root): peer of `prettier-plugin-tailwindcss`, invisible to knip.
+- `lucide-react` (examples): imported by `OrderStatusCard.tsx` (knip misses the
+  hoisted resolution) AND a deliberate single-copy pin — a second copy in the
+  graph splits mcp-use into two peer instances and crashes widgets
+  (templates/minimal-server/README.md).
+- `@miragon/mcp-toolkit-core` (tool-codegen devDep): satisfies the package's
+  own peerDependency during development.
+
+Known blind spot: the root `scripts/` dir is masked from knip's unused-file
+detection by the lint-staged glob plugin; packages/ + examples/ are the
+protected surface (proven by the gate self-test).
+
 ### Product promises covered by no test (the behaviour gap)
 
 1. **The LLM-facing tool surface** — no tool's `description`, `title`,

@@ -20,6 +20,8 @@ module.exports = {
         "\\.test\\.(ts|tsx)$",
         "examples/test/fixtures",
         "^packages/[^/]+/dist/",
+        // Stryker sandbox copies (crashed runs can leave them behind)
+        "\\.stryker-tmp",
         "^examples/.*/dist/",
         // Workspace declaration files (vite-env.d.ts etc.) carry only
         // type-level references (e.g. "vite/client") — no runtime edges.
