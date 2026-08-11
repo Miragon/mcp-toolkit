@@ -23,7 +23,7 @@
     "knip:report": "knip --no-exit-code --reporter json",
     "mutation:diff": "node scripts/mutation-diff.mjs",
     "fitness": "node scripts/fitness-report.mjs",
-    "verify": "pnpm typecheck && pnpm --filter @miragon/mcp-toolkit-examples run typecheck:template && pnpm build && pnpm depcruise && pnpm depcruise:dist && node scripts/check-package-exports.mjs && node scripts/check-ratchets.mjs && node scripts/check-test-erosion.mjs && pnpm knip:gate && pnpm test:coverage && pnpm --filter @miragon/mcp-toolkit-examples run generate:check:ci && pnpm lint && pnpm lint:templates && pnpm format:check",
+    "verify": "node scripts/verify.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:dev": "pnpm --filter @miragon/mcp-toolkit-docs run dev",

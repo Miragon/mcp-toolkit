@@ -196,3 +196,30 @@ describe("stryker negated-glob direction (found by the phase-5b false positive)"
     ).toEqual([])
   })
 })
+
+describe("render-allowlist policy (shrink-only)", () => {
+  const oldJson = { components: [{ name: "Dialog", reason: "portal cannot SSR" }] }
+
+  it("flags a new entry", () => {
+    const violations = compareRatchets("ratchets/render-allowlist.json", oldJson, {
+      components: [
+        { name: "Dialog", reason: "portal cannot SSR" },
+        { name: "Table", reason: "lazy" },
+      ],
+    })
+    expect(violations).toHaveLength(1)
+    expect(violations[0]).toContain('"Table"')
+    expect(violations[0]).toContain("RENDER_CASES")
+  })
+
+  it("accepts shrinking and introduction", () => {
+    expect(compareRatchets("ratchets/render-allowlist.json", oldJson, { components: [] })).toEqual(
+      [],
+    )
+    expect(
+      compareRatchets("ratchets/render-allowlist.json", null, {
+        components: [{ name: "X", reason: "r" }],
+      }),
+    ).toEqual([])
+  })
+})

@@ -1,0 +1,13 @@
+{
+  "$comment": "Catalogued ui components with NO SSR render case in packages/ui/src/render-cases.tsx (FITNESS.md phase 5c). SHRINK-ONLY: lower or remove entries, never add — scripts/check-ratchets.mjs enforces the direction; the single escape is the 'Ratchet-Exception: <reason>' commit trailer. Every entry needs a reason explaining why an SSR render (react-dom/server, no jsdom) is genuinely impossible; the completeness gate in packages/ui/src/render-smoke.test.tsx checks catalog coverage and this file's hygiene.",
+  "components": [
+    {
+      "name": "McpUseHostBridgeProvider",
+      "reason": "Composes the mcp-use 2.x view hooks (useSendFollowUp, useToolContext, useViewState, ...), which throw outside a bootstrapView-mounted view. There is no SSR-reachable mount without the ext-apps postMessage host; the bridge mapping itself is pinned by the pure toHostBridge unit tests in host-bridge.test.ts."
+    },
+    {
+      "name": "McpToolkitApp",
+      "reason": "Wraps every render in mcp-use/react's ThemeProvider + McpUseHostBridgeProvider, whose view hooks throw outside a bootstrapView mount — the same impossibility as McpUseHostBridgeProvider. Its inner McpAppView surface is exercised end-to-end by the examples real-bundle smoke test."
+    }
+  ]
+}

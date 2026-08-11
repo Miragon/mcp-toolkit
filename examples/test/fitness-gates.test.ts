@@ -327,3 +327,23 @@ describe("test-erosion counter (phase 5a)", () => {
     expect(countTestCases("")).toBe(0)
   })
 })
+
+describe("flakiness gate grouping (phase 5c)", () => {
+  it("groups changed test files by suite, package-relative", async () => {
+    const { groupChangedTests } = await import("../../scripts/check-flakiness.mjs")
+    expect(
+      groupChangedTests([
+        "packages/core/src/rest/client.test.ts",
+        "packages/ui/src/lib/tone-utils.test.ts",
+        "examples/test/smoke.test.ts",
+        "packages/core/src/rest/client.ts", // not a test
+        "docs/whatever.test.ts", // no suite
+      ]),
+    ).toEqual([
+      { filter: "@miragon/mcp-toolkit-core", files: ["src/rest/client.test.ts"] },
+      { filter: "@miragon/mcp-toolkit-ui", files: ["src/lib/tone-utils.test.ts"] },
+      { filter: "@miragon/mcp-toolkit-examples", files: ["test/smoke.test.ts"] },
+    ])
+    expect(groupChangedTests([])).toEqual([])
+  })
+})

@@ -7,10 +7,10 @@
     "lines": 95
   },
   "ui": {
-    "statements": 27,
-    "branches": 23,
-    "functions": 16,
-    "lines": 26
+    "statements": 37,
+    "branches": 34,
+    "functions": 38,
+    "lines": 38
   },
   "tool-codegen": {
     "statements": 44,
