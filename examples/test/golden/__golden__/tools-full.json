@@ -1,0 +1,1057 @@
+[
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Mark a task as done by its id. Idempotent: completing an already-done task is a no-op. Returns the updated task.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "taskId": {
+          "description": "Id of the task to complete (as returned by list_tasks).",
+          "type": "string"
+        }
+      },
+      "required": ["taskId"],
+      "type": "object"
+    },
+    "name": "complete_task",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "completedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ISO-8601 completion timestamp, or null while the task is open."
+        },
+        "createdAt": {
+          "description": "ISO-8601 creation timestamp.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable task id.",
+          "type": "string"
+        },
+        "priority": {
+          "description": "Relative urgency of the task.",
+          "enum": ["low", "medium", "high"],
+          "type": "string"
+        },
+        "status": {
+          "description": "Lifecycle state: 'todo' (open), 'doing' (in progress), or 'done' (completed).",
+          "enum": ["todo", "doing", "done"],
+          "type": "string"
+        },
+        "title": {
+          "description": "Human-readable task title.",
+          "type": "string"
+        }
+      },
+      "required": ["id", "title", "status", "priority", "createdAt", "completedAt"],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Create a new task (it starts in the 'todo' status). Returns the created task.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "priority": {
+          "description": "Priority of the new task. Defaults to 'medium'.",
+          "enum": ["low", "medium", "high"],
+          "type": "string"
+        },
+        "title": {
+          "description": "Title of the task to create (required, non-empty).",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": ["title"],
+      "type": "object"
+    },
+    "name": "create_task",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "completedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ISO-8601 completion timestamp, or null while the task is open."
+        },
+        "createdAt": {
+          "description": "ISO-8601 creation timestamp.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable task id.",
+          "type": "string"
+        },
+        "priority": {
+          "description": "Relative urgency of the task.",
+          "enum": ["low", "medium", "high"],
+          "type": "string"
+        },
+        "status": {
+          "description": "Lifecycle state: 'todo' (open), 'doing' (in progress), or 'done' (completed).",
+          "enum": ["todo", "doing", "done"],
+          "type": "string"
+        },
+        "title": {
+          "description": "Human-readable task title.",
+          "type": "string"
+        }
+      },
+      "required": ["id", "title", "status", "priority", "createdAt", "completedAt"],
+      "type": "object"
+    }
+  },
+  {
+    "description": "Permanently removes a dashboard by id.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "id": {
+          "description": "Dashboard id as returned by `save-dashboard` or `list-dashboards`.",
+          "type": "string"
+        }
+      },
+      "required": ["id"],
+      "type": "object"
+    },
+    "name": "delete-dashboard",
+    "title": "Delete Dashboard"
+  },
+  {
+    "_meta": {
+      "ui": {
+        "visibility": ["app"]
+      }
+    },
+    "description": "App-only. Returns the live pipeline context plus the reachable / unreachable widgets, available steps and key catalogue for the current keys + steps. Used by the in-iframe LayoutBuilder.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "keys": {
+          "additionalProperties": {},
+          "description": "Keys already present in the view — used to compute step/widget reachability.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "steps": {
+          "description": "Steps already configured in the view — their produced keys count as reachable.",
+          "items": {
+            "properties": {
+              "id": {
+                "description": "Context key under which the step's result is stored, e.g. 'invoice'.",
+                "type": "string"
+              },
+              "optional": {
+                "description": "If true, a failure of this step skips it instead of failing the whole view.",
+                "type": "boolean"
+              },
+              "step": {
+                "description": "Registered step id, e.g. 'lexoffice:load-invoice'.",
+                "type": "string"
+              }
+            },
+            "required": ["id", "step"],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "name": "get-builder-catalogue",
+    "title": "Get Builder Catalogue"
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "description": "Returns all active apps, available pipeline steps, widgets, and their key contracts. Call this first to discover which step-ids and widget-ids exist — and which `props` each widget accepts (see each widget's `propsSchema`) — before building a view.",
+    "inputSchema": {
+      "properties": {},
+      "type": "object"
+    },
+    "name": "get-framework-manifest"
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List the customers the orders dashboard / pipeline can be scoped to. Returns id, name, and tier. Use a returned id as customerId for show_orders_dashboard or as the orders:customerId key for render-view.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {},
+      "type": "object"
+    },
+    "name": "list_customers",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "description": "Stable customer id (e.g. 'c-1'); use it to scope the dashboard.",
+                "type": "string"
+              },
+              "name": {
+                "description": "Customer display name.",
+                "type": "string"
+              },
+              "tier": {
+                "description": "Service tier, surfaced as a KPI badge.",
+                "enum": ["standard", "premium"],
+                "type": "string"
+              }
+            },
+            "required": ["id", "name", "tier"],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["data"],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List tasks, optionally filtered by status and/or priority. Returns id, title, status, priority, and timestamps.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "priority": {
+          "description": "Only tasks with this priority.",
+          "enum": ["low", "medium", "high"],
+          "type": "string"
+        },
+        "status": {
+          "description": "Only tasks in this status.",
+          "enum": ["todo", "doing", "done"],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "list_tasks",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "ISO-8601 completion timestamp, or null while the task is open."
+              },
+              "createdAt": {
+                "description": "ISO-8601 creation timestamp.",
+                "type": "string"
+              },
+              "id": {
+                "description": "Stable task id.",
+                "type": "string"
+              },
+              "priority": {
+                "description": "Relative urgency of the task.",
+                "enum": ["low", "medium", "high"],
+                "type": "string"
+              },
+              "status": {
+                "description": "Lifecycle state: 'todo' (open), 'doing' (in progress), or 'done' (completed).",
+                "enum": ["todo", "doing", "done"],
+                "type": "string"
+              },
+              "title": {
+                "description": "Human-readable task title.",
+                "type": "string"
+              }
+            },
+            "required": ["id", "title", "status", "priority", "createdAt", "completedAt"],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["data"],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "description": "Returns the dashboards visible to the caller (scoped by userId when auth is enabled). Metadata only — fetch a full record via `load-dashboard`.",
+    "inputSchema": {
+      "properties": {},
+      "type": "object"
+    },
+    "name": "list-dashboards",
+    "title": "List Dashboards"
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "description": "Returns the full dashboard bundle. The returned `{ keys, steps, layout, title }` fields can be handed straight to `render-view`.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "id": {
+          "description": "Dashboard id as returned by `save-dashboard` or `list-dashboards`.",
+          "type": "string"
+        }
+      },
+      "required": ["id"],
+      "type": "object"
+    },
+    "name": "load-dashboard",
+    "title": "Load Dashboard"
+  },
+  {
+    "_meta": {
+      "ui": {
+        "visibility": ["app"]
+      }
+    },
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Internal JSON feed (no UI) backing the orders dashboard widgets' in-place refresh. Prefer show_orders_dashboard.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "customerId": {
+          "description": "Customer to fetch the dashboard for.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "orders_dashboard_data",
+    "title": "Orders dashboard data (internal)"
+  },
+  {
+    "_meta": {
+      "ui": {
+        "visibility": ["app"]
+      }
+    },
+    "description": "Re-runs the pipeline with the stored parameters.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "keys": {
+          "additionalProperties": {},
+          "description": "Keys the widgets will receive, e.g. { 'lexoffice:invoiceId': '…' }.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "description": "Flat rows (legacy form)",
+              "items": {
+                "properties": {
+                  "row": {
+                    "items": {
+                      "properties": {
+                        "props": {
+                          "additionalProperties": {},
+                          "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        "span": {
+                          "description": "Grid columns (1-12)",
+                          "type": "number"
+                        },
+                        "widget": {
+                          "description": "Widget ID from the framework manifest. Must be registered.",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["widget"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": ["row"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "description": "Explicit rows wrapper",
+              "properties": {
+                "rows": {
+                  "items": {
+                    "properties": {
+                      "row": {
+                        "items": {
+                          "properties": {
+                            "props": {
+                              "additionalProperties": {},
+                              "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "type": "object"
+                            },
+                            "span": {
+                              "description": "Grid columns (1-12)",
+                              "type": "number"
+                            },
+                            "widget": {
+                              "description": "Widget ID from the framework manifest. Must be registered.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["widget"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": ["row"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": ["rows"],
+              "type": "object"
+            },
+            {
+              "description": "Tabs — widgets grouped in tabs",
+              "properties": {
+                "tabs": {
+                  "items": {
+                    "properties": {
+                      "label": {
+                        "description": "Tab label",
+                        "type": "string"
+                      },
+                      "rows": {
+                        "items": {
+                          "properties": {
+                            "row": {
+                              "items": {
+                                "properties": {
+                                  "props": {
+                                    "additionalProperties": {},
+                                    "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "type": "object"
+                                  },
+                                  "span": {
+                                    "description": "Grid columns (1-12)",
+                                    "type": "number"
+                                  },
+                                  "widget": {
+                                    "description": "Widget ID from the framework manifest. Must be registered.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["widget"],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            }
+                          },
+                          "required": ["row"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": ["label", "rows"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": ["tabs"],
+              "type": "object"
+            },
+            {
+              "description": "Layout as a JSON-encoded string (some hosts serialize complex parameters this way); parsed and validated like the object form.",
+              "type": "string"
+            }
+          ],
+          "description": "Widget layout: flat rows, { rows }, or { tabs } — or the same as a JSON-encoded string"
+        },
+        "steps": {
+          "description": "Optional pipeline steps to compute keys before rendering. Without steps only the passed-in keys are used.",
+          "items": {
+            "properties": {
+              "id": {
+                "description": "Context key under which the step's result is stored, e.g. 'invoice'.",
+                "type": "string"
+              },
+              "optional": {
+                "description": "If true, a failure of this step skips it instead of failing the whole view.",
+                "type": "boolean"
+              },
+              "step": {
+                "description": "Registered step id, e.g. 'lexoffice:load-invoice'.",
+                "type": "string"
+              }
+            },
+            "required": ["id", "step"],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "Optional view title.",
+          "type": "string"
+        }
+      },
+      "required": ["layout"],
+      "type": "object"
+    },
+    "name": "refresh-view",
+    "title": "Refresh View"
+  },
+  {
+    "_meta": {
+      "openai/outputTemplate": "ui://views/render-view.html",
+      "openai/resultCanProduceWidget": true,
+      "openai/toolInvocation/invoked": "View rendered",
+      "openai/toolInvocation/invoking": "Rendering view...",
+      "openai/widgetAccessible": true,
+      "openai/widgetDescription": "Interactive view composed of pipeline-driven widgets",
+      "ui": {
+        "resourceUri": "ui://views/render-view.html"
+      },
+      "ui/resourceUri": "ui://views/render-view.html"
+    },
+    "description": "Builds a UI from pipeline steps and widgets. IMPORTANT: call get-framework-manifest first to learn which step-ids and widget-ids are available — only use ids listed there. Each widget entry's optional `propsSchema` (JSON Schema) describes the per-instance `props` you can set on a layout cell to scope or configure that widget (e.g. one tab per `processDefinitionKey`).",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "keys": {
+          "additionalProperties": {},
+          "description": "Keys the widgets will receive, e.g. { 'lexoffice:invoiceId': '…' }.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "description": "Flat rows (legacy form)",
+              "items": {
+                "properties": {
+                  "row": {
+                    "items": {
+                      "properties": {
+                        "props": {
+                          "additionalProperties": {},
+                          "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        "span": {
+                          "description": "Grid columns (1-12)",
+                          "type": "number"
+                        },
+                        "widget": {
+                          "description": "Widget ID from the framework manifest. Must be registered.",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["widget"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": ["row"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "description": "Explicit rows wrapper",
+              "properties": {
+                "rows": {
+                  "items": {
+                    "properties": {
+                      "row": {
+                        "items": {
+                          "properties": {
+                            "props": {
+                              "additionalProperties": {},
+                              "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "type": "object"
+                            },
+                            "span": {
+                              "description": "Grid columns (1-12)",
+                              "type": "number"
+                            },
+                            "widget": {
+                              "description": "Widget ID from the framework manifest. Must be registered.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["widget"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": ["row"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": ["rows"],
+              "type": "object"
+            },
+            {
+              "description": "Tabs — widgets grouped in tabs",
+              "properties": {
+                "tabs": {
+                  "items": {
+                    "properties": {
+                      "label": {
+                        "description": "Tab label",
+                        "type": "string"
+                      },
+                      "rows": {
+                        "items": {
+                          "properties": {
+                            "row": {
+                              "items": {
+                                "properties": {
+                                  "props": {
+                                    "additionalProperties": {},
+                                    "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "type": "object"
+                                  },
+                                  "span": {
+                                    "description": "Grid columns (1-12)",
+                                    "type": "number"
+                                  },
+                                  "widget": {
+                                    "description": "Widget ID from the framework manifest. Must be registered.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["widget"],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            }
+                          },
+                          "required": ["row"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": ["label", "rows"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": ["tabs"],
+              "type": "object"
+            },
+            {
+              "description": "Layout as a JSON-encoded string (some hosts serialize complex parameters this way); parsed and validated like the object form.",
+              "type": "string"
+            }
+          ],
+          "description": "Widget layout: flat rows, { rows }, or { tabs } — or the same as a JSON-encoded string"
+        },
+        "steps": {
+          "description": "Optional pipeline steps to compute keys before rendering. Without steps only the passed-in keys are used.",
+          "items": {
+            "properties": {
+              "id": {
+                "description": "Context key under which the step's result is stored, e.g. 'invoice'.",
+                "type": "string"
+              },
+              "optional": {
+                "description": "If true, a failure of this step skips it instead of failing the whole view.",
+                "type": "boolean"
+              },
+              "step": {
+                "description": "Registered step id, e.g. 'lexoffice:load-invoice'.",
+                "type": "string"
+              }
+            },
+            "required": ["id", "step"],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "Optional view title.",
+          "type": "string"
+        }
+      },
+      "required": ["layout"],
+      "type": "object"
+    },
+    "name": "render-view",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": {},
+      "properties": {},
+      "type": "object"
+    },
+    "title": "Render View"
+  },
+  {
+    "description": "Persists a dashboard (render-view input bundle + name). Pass an existing `id` to update, omit to create. The builder UI's Save button invokes this tool.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "description": {
+          "description": "Optional free-text summary shown in lists.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Existing dashboard id to update. Omit to create a new record.",
+          "type": "string"
+        },
+        "keys": {
+          "additionalProperties": {},
+          "description": "Keys the saved view passes to render-view on load, e.g. { 'orders:customerId': '…' }.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "description": "Flat rows (legacy form)",
+              "items": {
+                "properties": {
+                  "row": {
+                    "items": {
+                      "properties": {
+                        "props": {
+                          "additionalProperties": {},
+                          "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        "span": {
+                          "description": "Grid columns (1-12)",
+                          "type": "number"
+                        },
+                        "widget": {
+                          "description": "Widget ID from the framework manifest. Must be registered.",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["widget"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": ["row"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "description": "Explicit rows wrapper",
+              "properties": {
+                "rows": {
+                  "items": {
+                    "properties": {
+                      "row": {
+                        "items": {
+                          "properties": {
+                            "props": {
+                              "additionalProperties": {},
+                              "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "type": "object"
+                            },
+                            "span": {
+                              "description": "Grid columns (1-12)",
+                              "type": "number"
+                            },
+                            "widget": {
+                              "description": "Widget ID from the framework manifest. Must be registered.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["widget"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": ["row"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": ["rows"],
+              "type": "object"
+            },
+            {
+              "description": "Tabs — widgets grouped in tabs",
+              "properties": {
+                "tabs": {
+                  "items": {
+                    "properties": {
+                      "label": {
+                        "description": "Tab label",
+                        "type": "string"
+                      },
+                      "rows": {
+                        "items": {
+                          "properties": {
+                            "row": {
+                              "items": {
+                                "properties": {
+                                  "props": {
+                                    "additionalProperties": {},
+                                    "description": "Optional per-instance props passed to the widget at render time. Lets the same widget appear multiple times in one view with different scoping (e.g. `{ processDefinitionKey: 'miraveloLeasing' }` for a per-process dashboard tab).",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "type": "object"
+                                  },
+                                  "span": {
+                                    "description": "Grid columns (1-12)",
+                                    "type": "number"
+                                  },
+                                  "widget": {
+                                    "description": "Widget ID from the framework manifest. Must be registered.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["widget"],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            }
+                          },
+                          "required": ["row"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": ["label", "rows"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": ["tabs"],
+              "type": "object"
+            }
+          ],
+          "description": "Widget layout: flat rows, { rows }, or { tabs }"
+        },
+        "name": {
+          "description": "Human-readable dashboard name shown in lists.",
+          "type": "string"
+        },
+        "steps": {
+          "description": "Pipeline steps the saved view re-runs on load, same shape as render-view's steps.",
+          "items": {
+            "properties": {
+              "id": {
+                "description": "Context key under which the step's result is stored, e.g. 'invoice'.",
+                "type": "string"
+              },
+              "optional": {
+                "description": "If true, a failure of this step skips it instead of failing the whole view.",
+                "type": "boolean"
+              },
+              "step": {
+                "description": "Registered step id, e.g. 'lexoffice:load-invoice'.",
+                "type": "string"
+              }
+            },
+            "required": ["id", "step"],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "View title rendered above the widget grid.",
+          "type": "string"
+        }
+      },
+      "required": ["name", "layout"],
+      "type": "object"
+    },
+    "name": "save-dashboard",
+    "title": "Save Dashboard"
+  },
+  {
+    "_meta": {
+      "openai/outputTemplate": "ui://views/show_orders_dashboard.html",
+      "openai/resultCanProduceWidget": true,
+      "openai/toolInvocation/invoked": "Orders Dashboard ready",
+      "openai/toolInvocation/invoking": "Loading Orders Dashboard...",
+      "openai/widgetAccessible": true,
+      "ui": {
+        "resourceUri": "ui://views/show_orders_dashboard.html"
+      },
+      "ui/resourceUri": "ui://views/show_orders_dashboard.html"
+    },
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Show the orders dashboard for a customer: a KPI strip (per-status counts + revenue) next to a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "customerId": {
+          "description": "Customer to scope the dashboard to (as returned by list_customers). Defaults to \"c-1\".",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "show_orders_dashboard",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": {},
+      "properties": {},
+      "type": "object"
+    },
+    "title": "Orders Dashboard"
+  },
+  {
+    "_meta": {
+      "openai/outputTemplate": "ui://views/show_tasks_board.html",
+      "openai/resultCanProduceWidget": true,
+      "openai/toolInvocation/invoked": "Task Board ready",
+      "openai/toolInvocation/invoking": "Loading Task Board...",
+      "openai/widgetAccessible": true,
+      "ui": {
+        "resourceUri": "ui://views/show_tasks_board.html"
+      },
+      "ui/resourceUri": "ui://views/show_tasks_board.html"
+    },
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Show the task board: KPI counts by status and a filterable task list. The board view; use it whenever the user wants to see their tasks.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {},
+      "type": "object"
+    },
+    "name": "show_tasks_board",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": {},
+      "properties": {},
+      "type": "object"
+    },
+    "title": "Task Board"
+  },
+  {
+    "_meta": {
+      "ui": {
+        "visibility": ["app"]
+      }
+    },
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Internal JSON feed (no UI) backing the task board widget's in-place refresh. Prefer show_tasks_board.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {},
+      "type": "object"
+    },
+    "name": "tasks_board_data",
+    "title": "Task board data (internal)"
+  }
+]

@@ -23,7 +23,7 @@
     "knip:report": "knip --no-exit-code --reporter json",
     "mutation:diff": "node scripts/mutation-diff.mjs",
     "fitness": "node scripts/fitness-report.mjs",
-    "verify": "pnpm typecheck && pnpm build && pnpm depcruise && pnpm depcruise:dist && node scripts/check-ratchets.mjs && pnpm knip:gate && pnpm test:coverage && pnpm --filter @miragon/mcp-toolkit-examples run generate:check:ci && pnpm lint && pnpm lint:templates && pnpm format:check",
+    "verify": "pnpm typecheck && pnpm build && pnpm depcruise && pnpm depcruise:dist && node scripts/check-package-exports.mjs && node scripts/check-ratchets.mjs && node scripts/check-test-erosion.mjs && pnpm knip:gate && pnpm test:coverage && pnpm --filter @miragon/mcp-toolkit-examples run generate:check:ci && pnpm lint && pnpm lint:templates && pnpm format:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:dev": "pnpm --filter @miragon/mcp-toolkit-docs run dev",
@@ -32,7 +32,10 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@eslint-community/eslint-plugin-eslint-comments": "4.7.2",
     "@eslint/js": "10.0.1",
+    "@vitest/eslint-plugin": "1.6.27",
     "dependency-cruiser": "18.2.0",
     "eslint": "10.8.0",
     "eslint-plugin-react-hooks": "7.1.1",
@@ -42,6 +45,7 @@
     "picomatch": "4.0.5",
     "prettier": "3.9.6",
     "prettier-plugin-tailwindcss": "0.8.1",
+    "publint": "0.3.23",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0"

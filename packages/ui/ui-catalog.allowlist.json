@@ -1,0 +1,97 @@
+{
+  "$comment": "Runtime exports deliberately NOT in ui-catalog.json (the prompt-facing catalog). SHRINK-ONLY: remove entries by cataloguing or un-exporting the symbol; every ADDITION is a reviewable diff and needs a reason. Guarded by ui-catalog.test.ts ('no uncatalogued export escapes').",
+  "allow": [
+    {
+      "export": "DialogOverlay",
+      "reason": "primitive sub-part below catalog granularity (Dialog is catalogued)"
+    },
+    {
+      "export": "DialogPortal",
+      "reason": "primitive sub-part below catalog granularity (Dialog is catalogued)"
+    },
+    {
+      "export": "SelectScrollDownButton",
+      "reason": "primitive sub-part below catalog granularity (Select is catalogued)"
+    },
+    {
+      "export": "SelectScrollUpButton",
+      "reason": "primitive sub-part below catalog granularity (Select is catalogued)"
+    },
+    {
+      "export": "badgeVariants",
+      "reason": "cva class factory — styling internal, not a building block"
+    },
+    {
+      "export": "buttonVariants",
+      "reason": "cva class factory — styling internal, not a building block"
+    },
+    {
+      "export": "AppQueryProvider",
+      "reason": "provider plumbing documented in docs/reference/api-ui.md, not widget-prompt material"
+    },
+    {
+      "export": "queryClient",
+      "reason": "provider plumbing documented in docs/reference/api-ui.md, not widget-prompt material"
+    },
+    {
+      "export": "useCallTool",
+      "reason": "provider plumbing documented in docs/reference/api-ui.md, not widget-prompt material"
+    },
+    {
+      "export": "McpAppView",
+      "reason": "app-shell/host integration (api-ui.md), not a widget building block"
+    },
+    {
+      "export": "LayoutBuilder",
+      "reason": "app-shell/host integration (api-ui.md), not a widget building block"
+    },
+    {
+      "export": "WidgetRenderer",
+      "reason": "app-shell/host integration (api-ui.md), not a widget building block"
+    },
+    {
+      "export": "WidgetErrorBoundary",
+      "reason": "app-shell/host integration (api-ui.md), not a widget building block"
+    },
+    {
+      "export": "RenderedWidget",
+      "reason": "app-shell/host integration (api-ui.md), not a widget building block"
+    },
+    {
+      "export": "contextHasNoData",
+      "reason": "app-shell/host integration (api-ui.md), not a widget building block"
+    },
+    {
+      "export": "toHostBridge",
+      "reason": "bridge construction for host authors (api-ui.md), widgets use useHostBridge"
+    },
+    {
+      "export": "useHostBridgeOrNull",
+      "reason": "bridge probing for host authors (api-ui.md), widgets use useHostBridge"
+    },
+    {
+      "export": "useIsInsideMcpUseView",
+      "reason": "bridge probing for host authors (api-ui.md), widgets use useHostBridge"
+    },
+    {
+      "export": "FixtureCallToolRegistry",
+      "reason": "fixture-host tooling (api-ui.md), not widget-prompt material"
+    },
+    {
+      "export": "useFixtureHost",
+      "reason": "fixture-host tooling (api-ui.md), not widget-prompt material"
+    },
+    {
+      "export": "useToolResultRecovery",
+      "reason": "host recovery utility (api-ui.md), not widget-prompt material"
+    },
+    {
+      "export": "resolveRecoveryToolName",
+      "reason": "host recovery utility (api-ui.md), not widget-prompt material"
+    },
+    {
+      "export": "decodeRecoveredResult",
+      "reason": "host recovery utility (api-ui.md), not widget-prompt material"
+    }
+  ]
+}

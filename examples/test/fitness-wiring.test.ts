@@ -17,6 +17,8 @@ describe("ci.yml runs every fitness gate", () => {
     "pnpm lint:templates", // templates are outside pnpm -r
     "pnpm depcruise", // source-level dependency rules
     "node scripts/check-ratchets.mjs", // ratchet self-protection
+    "node scripts/check-test-erosion.mjs", // anti-erosion diff gate
+    "node scripts/check-package-exports.mjs", // publint + attw vs dist
     "run generate:check:ci", // codegen drift vs committed generated/
     "pnpm knip:gate", // dead code / unused deps / unlisted deps
     "node scripts/mutation-diff.mjs", // PR-scoped mutation gate
@@ -60,6 +62,8 @@ describe("ci.yml runs every fitness gate", () => {
       "lint",
       "lint:templates",
       "check-ratchets",
+      "check-test-erosion",
+      "check-package-exports",
       "knip:gate",
       "format:check",
     ]) {
