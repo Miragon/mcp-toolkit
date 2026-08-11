@@ -7,6 +7,7 @@ import { OrdersKpi } from "../modules/orders/widgets/OrdersKpi.js"
 import { OrdersTable } from "../modules/orders/widgets/OrdersTable.js"
 import type { OrdersDashboardData } from "../modules/orders/store.js"
 import { MetricsShowcase } from "./widgets/MetricsShowcase.js"
+import { OrderStatusCard, type Order } from "../host-portability/OrderStatusCard.js"
 
 /**
  * A single playground entry: a widget plus everything the {@link WidgetFixtureHost}
@@ -131,6 +132,29 @@ const ORDERS_DASHBOARD: OrdersDashboardData = {
   },
 }
 
+/** Zero-task board for the empty-state story — same shape, nothing to show. */
+const EMPTY_TASKS_BOARD: TasksBoardData = {
+  generatedAt: "2026-06-10T12:00:00.000Z",
+  counts: { total: 0, todo: 0, doing: 0, done: 0 },
+  tasks: [],
+}
+
+/**
+ * The `get_order` shape the host-portability bridges push/serve. The fixture
+ * host hands the whole `data` object to `bridge.getWidgetData()`, which is
+ * exactly how OrderStatusCard seeds its first paint.
+ */
+const ORDER: Order = {
+  id: "ORD-4471",
+  customer: "Miravelo Leasing GmbH",
+  status: "shipped",
+  total: 1249.5,
+  currency: "EUR",
+  items: 3,
+  eta: "2026-06-14",
+  trackingUrl: "https://tracking.example/ORD-4471",
+}
+
 export const STORIES: Story[] = [
   {
     id: "tasks-board",
@@ -210,5 +234,33 @@ export const STORIES: Story[] = [
     widget: OrdersTable as FixtureWidget,
     data: ORDERS_DASHBOARD as unknown as Record<string, unknown>,
     dataType: "orders:dashboard",
+  },
+  {
+    id: "tasks-board-empty",
+    label: "TasksBoard (empty)",
+    description:
+      "Empty state of the task board: zero counts in the KPI strip and the 'No tasks match the current filter.' row — proves the widget renders without a single task.",
+    widget: TasksBoard as FixtureWidget,
+    data: EMPTY_TASKS_BOARD as unknown as Record<string, unknown>,
+    tools: {
+      tasks_board_data: () => EMPTY_TASKS_BOARD,
+    },
+  },
+  {
+    id: "order-status-card",
+    label: "OrderStatusCard",
+    description:
+      "Host-portable reference widget (examples/host-portability). Seeds its first paint from the bridge's host-pushed data (getWidgetData), refreshes via callTool('get_order'), and demos sendFollowup / openExternal from the action row.",
+    widget: OrderStatusCard as FixtureWidget,
+    // The fixture object IS the Order: the harness bridge returns it verbatim
+    // from getWidgetData(), so the card renders without a tool call.
+    data: ORDER as unknown as Record<string, unknown>,
+    tools: {
+      // The Refresh button re-fetches through the bridge; echo the requested id.
+      get_order: (args: Record<string, unknown>) => ({
+        ...ORDER,
+        id: typeof args.id === "string" ? args.id : ORDER.id,
+      }),
+    },
   },
 ]

@@ -57,6 +57,7 @@
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@types/node": "26.1.2",
     "@vitest/coverage-v8": "4.1.10",
+    "fast-check": "4.9.0",
     "mcp-use": "2.1.0",
     "typescript": "6.0.3",
     "vitest": "4.1.10",

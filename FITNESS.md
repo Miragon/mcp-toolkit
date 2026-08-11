@@ -91,7 +91,12 @@ installed. Introduced in Phases 1 and 4.
 The `mutate` allowlist per `packages/*/stryker.config.json` IS the tested
 surface (grow-only): tool-codegen's `cli.ts` stays outside (only `parseArgs`
 is pinned so far; grow it with the remaining CLI tests). React/JSX render surfaces are NOT measured by mutation —
-the render-coverage ratchet (phase 5c) is the compensating control.
+the compensating control (phase 5c) is live: every catalogued
+component/composite needs a RENDER_CASES SSR entry
+(packages/ui/src/render-cases.tsx) or a justified row in
+ratchets/render-allowlist.json (shrink-only, 2 entries: the two
+components that mount mcp-use view hooks and cannot SSR); every module
+widget needs a widget-playground story (render-coverage.smoke.test.ts).
 
 ### knip ignore reasons (shrink-only list in knip.json)
 
