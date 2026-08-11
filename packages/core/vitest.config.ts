@@ -1,5 +1,27 @@
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 import { defineConfig } from "vitest/config"
-import thresholds from "../../ratchets/coverage-thresholds.json"
+
+// Raise-only ratchet (FITNESS.md phase 2) — raise the floor, never lower it;
+// scripts/check-ratchets.mjs (phase 2b) enforces the direction. Resolved by
+// walking up from this config so it also works inside Stryker's sandbox copy
+// (phase 4), and throws when missing: the ratchet must never drop silently.
+function loadThresholds(pkg: string): Record<string, number> {
+  let dir = path.dirname(fileURLToPath(import.meta.url))
+  for (let i = 0; i < 8; i++) {
+    const file = path.join(dir, "ratchets", "coverage-thresholds.json")
+    if (fs.existsSync(file)) {
+      return (JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, Record<string, number>>)[
+        pkg
+      ]
+    }
+    dir = path.dirname(dir)
+  }
+  throw new Error(
+    "ratchets/coverage-thresholds.json not found — the coverage ratchet must never be dropped silently",
+  )
+}
 
 export default defineConfig({
   test: {
@@ -10,10 +32,7 @@ export default defineConfig({
       include: ["src/**"],
       exclude: ["src/**/*.test.*"],
       reporter: ["text-summary", "json-summary"],
-      // Raise-only ratchet (FITNESS.md phase 2) — raise the floor, never
-      // lower it; scripts/check-ratchets.mjs (phase 2b) enforces the
-      // direction.
-      thresholds: thresholds.core,
+      thresholds: loadThresholds("core"),
     },
   },
 })

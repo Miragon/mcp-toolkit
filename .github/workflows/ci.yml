@@ -40,6 +40,13 @@ jobs:
       - name: Codegen drift check (committed generated/ vs current generator)
         run: pnpm --filter @miragon/mcp-toolkit-examples run generate:check:ci
 
+      - name: Upload coverage summaries (consumed by the fitness-report job)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-summaries
+          path: packages/*/coverage/coverage-summary.json
+          if-no-files-found: warn
+
   quality:
     name: Lint + Format
     runs-on: ubuntu-latest
@@ -71,4 +78,90 @@ jobs:
 
       - run: pnpm depcruise
 
+      - name: Dead-code gate (knip — files, dependencies, unlisted)
+        run: pnpm knip:gate
+
       - run: pnpm format:check
+
+      - name: Analysis reports for the fitness-report job
+        run: |
+          mkdir -p reports
+          pnpm depcruise:report
+          pnpm knip:report > reports/knip.json
+
+      - name: Upload analysis reports
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: analysis-reports
+          path: reports/
+          if-no-files-found: warn
+
+  mutation:
+    name: Mutation diff gate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Mutate changed allowlisted files (cap 25, loud skip)
+        run: node scripts/mutation-diff.mjs
+
+      - name: Upload mutation reports
+        # runs on failure too — a red mutation report is exactly what the
+        # fitness report must show; !cancelled() (not always()) so a
+        # cancelled run doesn't spawn the upload
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutation-reports
+          path: |
+            packages/*/reports/mutation/mutation.json
+            reports/mutation/SKIPPED.json
+          if-no-files-found: warn
+
+  fitness-report:
+    name: Fitness report
+    needs: [build, quality, mutation]
+    # !cancelled(): run even when a needed job failed or was skipped (push
+    # builds have no mutation job) — but never after a cancel-in-progress
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download coverage summaries
+        # optional: an artifact may not exist (failed producer) — the report
+        # renders "no run" instead of failing
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-summaries
+          path: packages/
+
+      - name: Download mutation reports
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: mutation-reports
+          path: .
+
+      - name: Download analysis reports
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: analysis-reports
+          path: reports/
+
+      - name: Render the fitness report into the job summary
+        run: node scripts/fitness-report.mjs
