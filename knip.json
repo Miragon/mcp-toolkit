@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [],
+      "project": ["scripts/**/*.mjs", "*.mjs"]
+    },
+    "packages/core": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/ui": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/tool-codegen": {
+      "project": ["src/**/*.ts"]
+    },
+    "examples": {
+      "entry": [
+        "host/*.ts",
+        "app-bundle/main.tsx",
+        "standalone-host/index.ts",
+        "standalone-host/views/**/view.tsx",
+        "dump-tools-list.ts"
+      ],
+      "project": ["**/*.{ts,tsx}"]
+    },
+    "examples/modules/articles": {
+      "entry": ["codegen.config.ts", "codegen-source.ts"],
+      "project": ["**/*.{ts,tsx}"]
+    },
+    "docs": {
+      "project": [".vitepress/**/*.ts"]
+    }
+  },
+  "ignore": [],
+  "ignoreDependencies": ["tailwindcss", "lucide-react", "@miragon/mcp-toolkit-core"]
+}

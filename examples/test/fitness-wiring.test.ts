@@ -18,6 +18,9 @@ describe("ci.yml runs every fitness gate", () => {
     "pnpm depcruise", // source-level dependency rules
     "node scripts/check-ratchets.mjs", // ratchet self-protection
     "run generate:check:ci", // codegen drift vs committed generated/
+    "pnpm knip:gate", // dead code / unused deps / unlisted deps
+    "node scripts/mutation-diff.mjs", // PR-scoped mutation gate
+    "node scripts/fitness-report.mjs", // aggregated report job
     "pnpm format:check",
     "pnpm -r run lint",
     "pnpm -r run typecheck",
@@ -57,6 +60,7 @@ describe("ci.yml runs every fitness gate", () => {
       "lint",
       "lint:templates",
       "check-ratchets",
+      "knip:gate",
       "format:check",
     ]) {
       expect(

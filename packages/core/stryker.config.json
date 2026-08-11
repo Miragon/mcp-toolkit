@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "mutate": [
+    "src/engine/*.ts",
+    "src/framework/*.ts",
+    "src/i18n/translator.ts",
+    "src/middleware/role-filter.ts",
+    "src/registry/*.ts",
+    "src/rest/*.ts",
+    "src/tools/*.ts",
+    "src/types/meta.ts",
+    "!src/**/*.test.ts",
+    "!src/**/index.ts",
+    "!src/rest/errors.ts",
+    "!src/tools/register-catalogue-tool.ts"
+  ],
+  "incremental": false,
+  "tempDirName": ".stryker-tmp",
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": 70
+  },
+  "reporters": ["progress", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "plugins": ["@stryker-mutator/vitest-runner"]
+}

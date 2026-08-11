@@ -17,3 +17,5 @@ docs/.vitepress/cache
 # transient fitness-gate probe files (examples/test/fitness-gates.test.ts)
 __fitness-probe__*
 coverage
+.stryker-tmp
+reports

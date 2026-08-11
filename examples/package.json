@@ -30,7 +30,6 @@
   },
   "dependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
-    "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
     "lucide-react": "0.562.0",
     "mcp-use": "2.1.0",
