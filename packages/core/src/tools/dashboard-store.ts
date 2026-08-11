@@ -3,8 +3,8 @@ import path from "node:path"
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import type { PipelineStepRef } from "../types/pipeline.js"
-import type { LayoutConfig } from "./layout-types.js"
-import { layoutSchema } from "./layout-schemas.js"
+import type { LayoutConfig } from "../framework/layout-types.js"
+import { layoutSchema } from "../framework/layout-schemas.js"
 
 /**
  * Current on-disk schema version stamped onto every saved record. Bump this

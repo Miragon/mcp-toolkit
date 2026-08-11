@@ -33,6 +33,8 @@ jobs:
 
       - run: pnpm -r run build
 
+      - run: pnpm depcruise:dist
+
       - run: pnpm -r --if-present run test
 
   quality:
@@ -54,5 +56,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm -r run lint
+
+      - run: pnpm lint:templates
+
+      - run: pnpm depcruise
 
       - run: pnpm format:check

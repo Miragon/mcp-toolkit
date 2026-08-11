@@ -2,11 +2,113 @@ import js from "@eslint/js"
 import tseslint from "typescript-eslint"
 import reactHooks from "eslint-plugin-react-hooks"
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared fitness-gate building blocks (see FITNESS.md).
+//
+// Flat-config trap: when several config blocks match the same file, a later
+// block's value for a rule REPLACES the earlier one — it does not merge.
+// Every composed rule below therefore declares its FULL value per file scope,
+// built from these shared arrays, so no scope silently loses a gate.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Relative imports carry the compiled extension (ESM output references .js).
+// tsc with moduleResolution "bundler" cannot enforce this; this selector can.
+const extensionMessage =
+  'Relative imports carry the compiled extension in this ESM repo: "./foo" → "./foo.js" (also for type imports).'
+const noExtensionlessRelativeImports = [
+  "ImportDeclaration",
+  "ExportNamedDeclaration",
+  "ExportAllDeclaration",
+  "ImportExpression",
+].map((node) => ({
+  selector: `${node}[source.value=/^\\.\\.?\\u002F/]:not([source.value=/\\.(js|json|css)$/])`,
+  message: extensionMessage,
+}))
+
+// mcp-use owns the _meta.ui namespace and overwrites it on tools/list — a
+// hand-stamped key silently disappears.
+const metaUiMessage =
+  "Never stamp _meta.ui.* by hand — mcp-use owns that namespace and overwrites it on tools/list. Emit it natively via the tool's view/visibility fields; use appsSdkMeta(...) for the openai/* half."
+const noHandStampedMetaUi = [
+  'Property[key.name="_meta"] > ObjectExpression > Property[key.name="ui"]',
+  'Property[key.name="_meta"] > ObjectExpression > Property[key.value=/^ui(\\u002F|$)/]',
+  'Property[key.value="_meta"] > ObjectExpression > Property[key.name="ui"]',
+  'Property[key.value="_meta"] > ObjectExpression > Property[key.value=/^ui(\\u002F|$)/]',
+].map((selector) => ({ selector, message: metaUiMessage }))
+
+const baseSyntaxRestrictions = [...noExtensionlessRelativeImports, ...noHandStampedMetaUi]
+
+// Widget host discipline: a widget reaches the host ONLY through
+// useHostBridge() (host-portability contract), decodes tool results only via
+// parseToolResult, and styles only with theme tokens (white-label contract).
+const paletteRegex =
+  "/(^|[\\s\"'`])(bg|text|border|ring|fill|stroke|from|via|to)-(red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone)-[0-9]/"
+const paletteMessage =
+  "Hard-coded Tailwind palette colours break white-labeling — use theme tokens (text-primary, bg-card, text-muted-foreground, …) or the tone system (TONE_SOFT/TONE_DOT/TONE_TEXT) from @miragon/mcp-toolkit-ui."
+const widgetSyntaxRestrictions = [
+  {
+    selector: 'ImportDeclaration[source.value="mcp-use/react"][importKind!="type"]',
+    message:
+      "Widgets reach the host ONLY through useHostBridge() from @miragon/mcp-toolkit-ui/app — never mcp-use/react (its hooks throw outside a bootstrapView mount).",
+  },
+  {
+    selector: 'MemberExpression[object.name="window"][property.name="openai"]',
+    message:
+      "Never touch window.openai directly — useHostBridge() abstracts the host (createChatGptHostBridge wraps window.openai defensively).",
+  },
+  {
+    selector: 'CallExpression[callee.object.name="window"][callee.property.name="open"]',
+    message:
+      "Never call window.open directly in a widget — use openExternal(url) from useHostBridge().",
+  },
+  {
+    selector: 'MemberExpression[computed=true][property.value=0][object.property.name="content"]',
+    message:
+      "Never decode a tool result via content[0].text — use parseToolResult / parseViewToolResult from @miragon/mcp-toolkit-ui.",
+  },
+  {
+    selector: `JSXAttribute[name.name="className"] Literal[value=${paletteRegex}]`,
+    message: paletteMessage,
+  },
+  {
+    selector: `JSXAttribute[name.name="className"] TemplateElement[value.raw=${paletteRegex}]`,
+    message: paletteMessage,
+  },
+  {
+    selector: 'JSXAttribute[name.name="className"] Literal[value=/rounded-\\[/]',
+    message:
+      "Arbitrary radius values break the token contract — use the rounded-sm/md/lg/xl tokens.",
+  },
+  {
+    selector: 'JSXAttribute[name.name="style"] Literal[value=/#[0-9a-fA-F]{3}/]',
+    message: paletteMessage,
+  },
+]
+
+// no-restricted-imports entries shared between the ui blocks (see the
+// flat-config trap note above — each block re-declares the full set).
+const banCoreTools = {
+  name: "@miragon/mcp-toolkit-core/tools",
+  message:
+    "ui must never import core/tools — it pulls the mcp-use server runtime into the browser graph.",
+}
+const banModelContext = {
+  name: "mcp-use/react",
+  importNames: ["ModelContext"],
+  message:
+    "ModelContext from mcp-use/react throws outside a bootstrapView mount. Use HostModelContext from @miragon/mcp-toolkit-ui/app.",
+  allowTypeImports: true,
+}
+const banToolCodegenPattern = {
+  group: ["@miragon/mcp-toolkit-tool-codegen"],
+  message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
+  allowTypeImports: true,
+}
+
 export default tseslint.config(
-  // templates/ is a standalone consumer project outside the pnpm workspace —
-  // its deps aren't installed here, so type-aware linting can't resolve them.
-  // It is typechecked and built in its mirror repo's CI (mcp-toolkit-starter).
-  { ignores: ["**/dist/**", "**/node_modules/**", "templates/**"] },
+  // examples/test/fixtures holds pre-built JS stand-ins (mcp-app.js) that the
+  // project service cannot type — data, not code.
+  { ignores: ["**/dist/**", "**/node_modules/**", "examples/test/fixtures/**"] },
 
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
@@ -31,6 +133,17 @@ export default tseslint.config(
     },
   },
 
+  // templates/ is a standalone consumer project outside the pnpm workspace —
+  // its deps aren't installed here, so type-aware linting can't resolve them
+  // (it is typechecked and built in its mirror repo's CI, mcp-toolkit-starter).
+  // The syntax-level fitness gates below DO apply; `pnpm lint:templates` runs
+  // them (templates is outside the workspace, so `pnpm -r run lint` never
+  // reaches it).
+  {
+    files: ["templates/**/*.{ts,tsx}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+
   // React hooks rules — UI package only
   {
     files: ["packages/ui/src/**/*.{ts,tsx}"],
@@ -39,9 +152,12 @@ export default tseslint.config(
   },
 
   // ── Module-boundary enforcement (mirrors CLAUDE.md "Module boundaries") ──
-  // These were doc-only conventions; encode the ones that break consumer
-  // bundles when violated so drift fails CI instead of shipping. Type-only
-  // imports are allowed where the concern is a *runtime* leak (they're erased).
+  // These eslint rules match literal import specifiers, which gives instant
+  // in-editor feedback but silently degrades when an upstream entrypoint is
+  // renamed (the pre-#127 failure). The dependency-cruiser configs
+  // (.dependency-cruiser.cjs / .dependency-cruiser.dist.cjs) hold the
+  // resolved-path + transitive versions of the same boundaries and are the
+  // authoritative gate.
 
   // core: browser-bundle-safe outside tools/, and no reverse dependency on ui.
   // (tools/ is a server-only subpath kept out of the root barrel; a value
@@ -68,11 +184,7 @@ export default tseslint.config(
               group: ["@miragon/mcp-toolkit-ui", "@miragon/mcp-toolkit-ui/*"],
               message: "core is the bottom of the dependency graph; core must not import ui.",
             },
-            {
-              group: ["@miragon/mcp-toolkit-tool-codegen"],
-              message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
-              allowTypeImports: true,
-            },
+            banToolCodegenPattern,
           ],
         },
       ],
@@ -80,35 +192,32 @@ export default tseslint.config(
   },
 
   // ui: never reach into core/tools (pulls the mcp-use server runtime) or
-  // build-time tool-codegen.
+  // build-time tool-codegen; never the throwing native ModelContext.
   {
     files: ["packages/ui/src/**/*.{ts,tsx}"],
-    ignores: ["**/*.test.ts", "**/*.test.tsx"],
+    ignores: ["**/*.test.ts", "**/*.test.tsx", "packages/ui/src/index.ts"],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",
-        {
-          paths: [
-            {
-              name: "@miragon/mcp-toolkit-core/tools",
-              message:
-                "ui must never import core/tools — it pulls the mcp-use server runtime into the browser graph.",
-            },
-          ],
-          patterns: [
-            {
-              group: ["@miragon/mcp-toolkit-tool-codegen"],
-              message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
-              allowTypeImports: true,
-            },
-          ],
-        },
+        { paths: [banCoreTools, banModelContext], patterns: [banToolCodegenPattern] },
       ],
     },
   },
 
-  // ui root barrel: must stay free of mcp-use/react VALUE imports (they pull a
-  // langchain transitive). Such symbols ship from ./app / ./hooks, never root.
+  // …except the one adapter that BUILDS HostModelContext from the native one.
+  {
+    files: ["packages/ui/src/app/adapt-data-widget.tsx"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        { paths: [banCoreTools], patterns: [banToolCodegenPattern] },
+      ],
+    },
+  },
+
+  // ui root barrel: must stay free of ALL mcp-use/react value imports (they
+  // pull the 2.x view runtime and its ext-apps transitive). Such symbols ship
+  // from ./app / ./hooks, never the root.
   {
     files: ["packages/ui/src/index.ts"],
     rules: {
@@ -116,6 +225,7 @@ export default tseslint.config(
         "error",
         {
           paths: [
+            banCoreTools,
             {
               name: "mcp-use/react",
               message:
@@ -123,8 +233,60 @@ export default tseslint.config(
               allowTypeImports: true,
             },
           ],
+          patterns: [banToolCodegenPattern],
         },
       ],
+    },
+  },
+
+  // examples: same build-time and ModelContext discipline as the packages.
+  // (Tests are exempt: the drift/gate tests import tool-codegen on purpose.)
+  {
+    files: ["examples/**/*.{ts,tsx}"],
+    ignores: ["examples/test/**", "**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        { paths: [banModelContext], patterns: [banToolCodegenPattern] },
+      ],
+    },
+  },
+
+  // templates views are widget code shipped to consumers: full widget
+  // discipline plus the browser-graph import bans.
+  {
+    files: ["templates/**/views/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        { paths: [banCoreTools, banModelContext], patterns: [banToolCodegenPattern] },
+      ],
+    },
+  },
+
+  // ── Syntax-level fitness gates ──
+  // Base restrictions for all first-party source (tests exempt: they assert
+  // wire shapes like _meta["ui/resourceUri"] on purpose).
+  {
+    files: ["packages/*/src/**/*.{ts,tsx}", "examples/**/*.{ts,tsx}", "templates/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.ts", "**/*.test.tsx", "examples/test/**"],
+    rules: {
+      "no-restricted-syntax": ["error", ...baseSyntaxRestrictions],
+    },
+  },
+
+  // Widget scopes get the base restrictions PLUS host/styling discipline.
+  // (Full re-declaration — a later block replaces, never merges.)
+  {
+    files: [
+      "examples/modules/*/widgets/**/*.{ts,tsx}",
+      "examples/host-portability/OrderStatusCard.tsx",
+      "examples/widget-playground/CustomerCard.tsx",
+      "examples/widget-playground/MetricsShowcase.tsx",
+      "templates/**/views/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", ...baseSyntaxRestrictions, ...widgetSyntaxRestrictions],
     },
   },
 )

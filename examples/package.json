@@ -19,6 +19,8 @@
     "generate": "pnpm --filter articles-example run generate",
     "generate:check": "pnpm --filter articles-example run generate:check",
     "test": "vitest run",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "dev:standalone": "mcp-use dev --path standalone-host --no-open",
     "build:standalone": "mcp-use build --path standalone-host",

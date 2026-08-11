@@ -13,14 +13,23 @@ export interface RegisterCatalogueToolOptions {
 }
 
 const stepRefSchema = z.object({
-  id: z.string(),
-  step: z.string(),
-  optional: z.boolean().optional(),
+  id: z.string().describe("Context key under which the step's result is stored, e.g. 'invoice'."),
+  step: z.string().describe("Registered step id, e.g. 'lexoffice:load-invoice'."),
+  optional: z
+    .boolean()
+    .optional()
+    .describe("If true, a failure of this step skips it instead of failing the whole view."),
 })
 
 const catalogueSchema = z.object({
-  keys: z.record(z.string(), z.unknown()).optional(),
-  steps: z.array(stepRefSchema).optional(),
+  keys: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("Keys already present in the view — used to compute step/widget reachability."),
+  steps: z
+    .array(stepRefSchema)
+    .optional()
+    .describe("Steps already configured in the view — their produced keys count as reachable."),
 })
 
 function extractUserId(ctx: unknown): string | undefined {

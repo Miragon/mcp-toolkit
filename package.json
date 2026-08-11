@@ -12,6 +12,10 @@
     "clean": "pnpm -r exec rm -rf dist",
     "lint": "pnpm -r run lint",
     "lint:fix": "pnpm -r run lint:fix",
+    "lint:templates": "eslint templates --max-warnings 0",
+    "depcruise": "depcruise --config .dependency-cruiser.cjs packages examples",
+    "depcruise:dist": "depcruise --config .dependency-cruiser.dist.cjs packages/core/dist/index.js packages/ui/dist/index.js",
+    "verify": "pnpm typecheck && pnpm build && pnpm depcruise && pnpm depcruise:dist && pnpm test && pnpm lint && pnpm lint:templates && pnpm format:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:dev": "pnpm --filter @miragon/mcp-toolkit-docs run dev",
@@ -21,6 +25,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "dependency-cruiser": "18.2.0",
     "eslint": "10.8.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "husky": "9.1.7",

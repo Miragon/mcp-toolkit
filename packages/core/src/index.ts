@@ -84,7 +84,7 @@ export type {
   DashboardSummary,
   DashboardListFilter,
   FileSystemDashboardStoreOptions,
-} from "./framework/dashboard-store.js"
+} from "./tools/dashboard-store.js"
 export { getFrameworkManifest } from "./framework/manifest.js"
 export type { FrameworkManifest } from "./framework/manifest.js"
 export { normalizeLayout } from "./framework/layout-types.js"

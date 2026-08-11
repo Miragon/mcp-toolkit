@@ -1,3 +1,7 @@
+/* eslint-disable no-restricted-syntax --
+ * Deliberate exception to the theme-token gate: this fixture is the repo's
+ * dependency-free counter-example (see the doc comment below) — inline hex
+ * styles ARE the point. Real widgets use theme tokens; see TasksBoard.tsx. */
 import { useState } from "react"
 
 /**

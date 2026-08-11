@@ -9,7 +9,7 @@ import {
 import type { OAuthProvider } from "mcp-use/oauth"
 import { createOrgGateMiddleware } from "../middleware/org-gate.js"
 import { createRoleFilterMiddleware } from "../middleware/role-filter.js"
-import type { DashboardStore } from "../framework/dashboard-store.js"
+import type { DashboardStore } from "./dashboard-store.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
 import type { AppResourceCsp } from "../types/meta.js"
 import { installToolkit } from "./install-toolkit.js"

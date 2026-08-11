@@ -52,7 +52,10 @@ export interface RegisterFrameworkToolsOptions {
 const stepRefSchema = z.object({
   id: z.string().describe("Context key under which the step's result is stored, e.g. 'invoice'."),
   step: z.string().describe("Registered step id, e.g. 'lexoffice:load-invoice'."),
-  optional: z.boolean().optional(),
+  optional: z
+    .boolean()
+    .optional()
+    .describe("If true, a failure of this step skips it instead of failing the whole view."),
 })
 
 const renderViewSchema = z.object({
