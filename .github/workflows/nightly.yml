@@ -1,0 +1,55 @@
+name: Nightly
+
+# Deep gates too slow (or too network-dependent) for the PR loop
+# (FITNESS.md, phase 5b):
+#   - pack-and-install of the starter template against the packed tarballs
+#     (the PR loop only typechecks it against workspace sources),
+#   - the mcp-use CLI build of examples/standalone-host (views/ convention),
+#   - a 3× full-suite flakiness sweep (`retry` stays 0 repo-wide).
+
+on:
+  schedule:
+    - cron: "43 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  deep-gates:
+    name: Template install + standalone build + flakiness sweep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r run build
+
+      - name: Template pack-and-install gate (starter installs + typechecks from tarballs)
+        run: node scripts/check-template-install.mjs
+
+      - name: Standalone build gate (runs `mcp-use build` on examples/standalone-host itself)
+        run: node scripts/check-standalone-dist.mjs
+
+      - name: Flakiness sweep (3× full suite — a divergence fails the run, retry stays 0)
+        run: |
+          for i in 1 2 3; do
+            echo "──── flakiness sweep: full-suite run ${i}/3 ────"
+            if ! pnpm -r --if-present run test; then
+              echo "flakiness sweep FAILED on run ${i}/3 — the suite diverged across identical runs; fix the nondeterminism, never add retries."
+              exit 1
+            fi
+          done
+          echo "flakiness sweep OK: 3/3 identical green runs"

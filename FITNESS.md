@@ -82,16 +82,15 @@ installed. Introduced in Phases 1 and 4.
 
 ### Mutation baseline (measured 2026-08-11, phase 4 — full allowlists)
 
-| Package      | Score  | Mutants (killed/survived/no-cov) | `break` (raise-only) |
-| ------------ | ------ | -------------------------------- | -------------------- |
-| core         | 75.29% | 1054 / 280 / 66                  | 70                   |
-| ui           | 90.10% | 473 / 45 / 7                     | 85                   |
-| tool-codegen | 66.67% | 48 / 15 / 9                      | 61                   |
+| Package      | Score                                            | Mutants (killed/survived/no-cov) | `break` (raise-only) |
+| ------------ | ------------------------------------------------ | -------------------------------- | -------------------- |
+| core         | 75.58% (5b, catalogue tool joined the allowlist) | 1479 mutants                     | 70                   |
+| ui           | 90.10%                                           | 525 mutants                      | 85                   |
+| tool-codegen | 68.32% (5b, fetch-tools joined the allowlist)    | 101 mutants                      | 63                   |
 
 The `mutate` allowlist per `packages/*/stryker.config.json` IS the tested
-surface (grow-only): core's untested `register-catalogue-tool.ts` and
-tool-codegen's partly-tested `cli.ts` are deliberately outside until phase 5b
-lands their tests. React/JSX render surfaces are NOT measured by mutation —
+surface (grow-only): tool-codegen's `cli.ts` stays outside (only `parseArgs`
+is pinned so far; grow it with the remaining CLI tests). React/JSX render surfaces are NOT measured by mutation —
 the render-coverage ratchet (phase 5c) is the compensating control.
 
 ### knip ignore reasons (shrink-only list in knip.json)

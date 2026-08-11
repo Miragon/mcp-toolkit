@@ -183,4 +183,31 @@ describe("tasks module smoke", () => {
     const result = await session.callTool("complete_task", { taskId: "does-not-exist" })
     expect(result.isError).toBe(true)
   })
+
+  /**
+   * The summary contract (docs/concepts + the build-mcp-server skill): a widget
+   * tool's text channel carries a SHORT model-facing summary — the full data
+   * lives only in `structuredContent.context.stepData`. A text channel that
+   * dumps the task list invites the model to read it instead of the widget.
+   */
+  it("show_tasks_board's text channel is a short summary, never the full task list", async () => {
+    const result = await session.callTool("show_tasks_board", {})
+    expect(result.isError).toBeFalsy()
+
+    const text = (result.content as { type: string; text?: string }[])
+      .filter((c) => c.type === "text")
+      .map((c) => c.text ?? "")
+      .join("\n")
+    expect(text.length).toBeGreaterThan(0)
+    expect(text.length).toBeLessThan(300)
+
+    const sc = result.structuredContent as {
+      context?: { stepData: Record<string, { data?: unknown }> }
+    }
+    const board = sc.context!.stepData.result!.data as TasksBoardData
+    const titles = board.tasks.map((t) => t.title)
+    expect(titles.length).toBeGreaterThan(1)
+    // The text channel must never mirror the full list the widget renders.
+    expect(titles.every((title) => text.includes(title))).toBe(false)
+  })
 })

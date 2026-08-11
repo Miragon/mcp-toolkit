@@ -24,6 +24,7 @@
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
+    "typecheck:template": "tsc --noEmit -p tsconfig.template-check.json",
     "dev:standalone": "mcp-use dev --path standalone-host --no-open",
     "build:standalone": "mcp-use build --path standalone-host",
     "start:standalone": "pnpm run build:standalone && mcp-use start --path standalone-host"

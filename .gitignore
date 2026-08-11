@@ -19,3 +19,4 @@ __fitness-probe__*
 coverage
 .stryker-tmp
 reports
+mcp-env.d.ts

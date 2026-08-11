@@ -15,8 +15,7 @@
     "src/types/meta.ts",
     "!src/**/*.test.ts",
     "!src/**/index.ts",
-    "!src/rest/errors.ts",
-    "!src/tools/register-catalogue-tool.ts"
+    "!src/rest/errors.ts"
   ],
   "incremental": false,
   "tempDirName": ".stryker-tmp",

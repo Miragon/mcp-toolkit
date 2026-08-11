@@ -165,3 +165,34 @@ describe("introduction is allowed", () => {
     )
   })
 })
+
+describe("stryker negated-glob direction (found by the phase-5b false positive)", () => {
+  const oldJson = { mutate: ["src/*.ts", "!src/untested.ts"], thresholds: { break: 60 } }
+
+  it("removing a negation GROWS the surface — allowed without a break raise", () => {
+    expect(
+      compareRatchets("packages/core/stryker.config.json", oldJson, {
+        mutate: ["src/*.ts"],
+        thresholds: { break: 60 },
+      }),
+    ).toEqual([])
+  })
+
+  it("adding a negation SHRINKS the surface — violation without a break raise", () => {
+    const violations = compareRatchets("packages/core/stryker.config.json", oldJson, {
+      mutate: ["src/*.ts", "!src/untested.ts", "!src/also-out.ts"],
+      thresholds: { break: 60 },
+    })
+    expect(violations).toHaveLength(1)
+    expect(violations[0]).toContain("!src/also-out.ts")
+  })
+
+  it("adding a positive glob grows — allowed", () => {
+    expect(
+      compareRatchets("packages/core/stryker.config.json", oldJson, {
+        mutate: ["src/*.ts", "!src/untested.ts", "src/extra/*.ts"],
+        thresholds: { break: 60 },
+      }),
+    ).toEqual([])
+  })
+})
