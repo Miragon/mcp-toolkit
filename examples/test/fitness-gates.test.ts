@@ -273,3 +273,57 @@ describe("knip dead-code gate fires (phase 4)", () => {
     expect(stdout).toContain("__fitness-probe__dead.ts")
   })
 })
+
+describe("anti-erosion lint gates fire (phase 5a)", () => {
+  it(
+    "flags .only, undescribed skip, and constant assertions",
+    { timeout: PROBE_TIMEOUT },
+    async () => {
+      const probe = "examples/modules/tasks/__fitness-probe__anti.test.ts"
+      const contents = [
+        'import { describe, expect, it } from "vitest"',
+        'describe.only("focused", () => {',
+        '  it.skip("skipped without a reason", () => {})',
+        '  it("constant assert", () => {',
+        "    expect(true).toBe(true)",
+        "  })",
+        "})",
+      ].join("\n")
+      const { messages } = await withProbeFiles({ [probe]: contents }, () => eslintProbe([probe]))
+      const rules = messages.map((m) => m.ruleId)
+      expect(rules).toContain("vitest/no-focused-tests")
+      expect(rules).toContain("vitest/no-disabled-tests")
+      expect(messages.some((m) => m.message.includes("asserts a constant"))).toBe(true)
+    },
+  )
+
+  it(
+    "requires a reason on eslint-disable comments in tests",
+    { timeout: PROBE_TIMEOUT },
+    async () => {
+      const probe = "examples/modules/tasks/__fitness-probe__disable.test.ts"
+      const contents = [
+        'import { expect, it } from "vitest"',
+        'it("x", () => {',
+        "  // eslint-disable-next-line no-console",
+        '  console.log("hi")',
+        "  expect(1 + 1).toBe(2)",
+        "})",
+      ].join("\n")
+      const { messages } = await withProbeFiles({ [probe]: contents }, () => eslintProbe([probe]))
+      expect(messages.some((m) => m.ruleId?.includes("require-description"))).toBe(true)
+    },
+  )
+})
+
+describe("test-erosion counter (phase 5a)", () => {
+  it("counts it( and test( call sites only", async () => {
+    const { countTestCases } = await import("../../scripts/check-test-erosion.mjs")
+    expect(countTestCases('it("a", () => {})\ntest("b", () => {})')).toBe(2)
+    expect(countTestCases('itIsNot("a")\nlatest("b")')).toBe(0)
+    // crude line-level counter: a comment containing "it (" counts too —
+    // acceptable, the gate compares totals of the SAME counter on both sides
+    expect(countTestCases("// it (comment)")).toBe(1)
+    expect(countTestCases("")).toBe(0)
+  })
+})

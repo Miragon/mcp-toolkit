@@ -155,6 +155,31 @@ describe("knip policy (ignore lists shrink-only)", () => {
   })
 })
 
+describe("ui-catalog allowlist policy (shrink-only)", () => {
+  const rel = "packages/ui/ui-catalog.allowlist.json"
+  const oldJson = {
+    allow: [{ export: "DialogPortal", reason: "primitive sub-part below catalog granularity" }],
+  }
+
+  it("flags a new exemption", () => {
+    const violations = compareRatchets(rel, oldJson, {
+      allow: [...oldJson.allow, { export: "NewThing", reason: "no time to catalogue" }],
+    })
+    expect(violations).toHaveLength(1)
+    expect(violations[0]).toContain('new allowlist entry "NewThing"')
+  })
+
+  it("accepts removal (catalogued or un-exported)", () => {
+    expect(compareRatchets(rel, oldJson, { allow: [] })).toEqual([])
+  })
+
+  it("accepts a reworded reason for an existing entry", () => {
+    expect(
+      compareRatchets(rel, oldJson, { allow: [{ export: "DialogPortal", reason: "clearer why" }] }),
+    ).toEqual([])
+  })
+})
+
 describe("introduction is allowed", () => {
   it("a file absent on the base branch produces no violations", () => {
     expect(

@@ -35,7 +35,7 @@ const greetStep: PipelineStepDefinition = {
   dataType: "smoke:greeting",
   requires: ["smoke:name"],
   produces: ["smoke:greeting"],
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await -- PipelineStepDefinition.execute is async by contract
   async execute(ctx): Promise<StepOutput> {
     const name = String(ctx.keys["smoke:name"])
     const greeting = { message: `Hello, ${name}!` }

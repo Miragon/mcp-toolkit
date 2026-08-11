@@ -35,6 +35,9 @@ jobs:
 
       - run: pnpm depcruise:dist
 
+      - name: Package exports gate (publint + attw against built artifacts)
+        run: node scripts/check-package-exports.mjs
+
       - run: pnpm -r --if-present run test:coverage
 
       - name: Codegen drift check (committed generated/ vs current generator)
@@ -71,6 +74,9 @@ jobs:
 
       - name: Ratchet self-protection (thresholds only move one way)
         run: node scripts/check-ratchets.mjs
+
+      - name: Test-erosion gate (deleted tests, shrinking counts, retry creep)
+        run: node scripts/check-test-erosion.mjs
 
       - run: pnpm -r run lint
 
