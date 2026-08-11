@@ -196,4 +196,29 @@ describe("orders module smoke", () => {
     const dashboard = sc!.context!.stepData.kpi!.data as OrdersDashboardData
     expect(dashboard.kpi.customer.id).toBe("c-1")
   })
+
+  /**
+   * The summary contract (docs/concepts + the compose-a-view skill): a widget
+   * tool's text channel carries a SHORT model-facing summary — the full data
+   * lives only in `structuredContent.context.stepData`. A text channel that
+   * dumps the order list invites the model to read it instead of the widget.
+   */
+  it("show_orders_dashboard's text channel is a short summary, never the full order list", async () => {
+    const result = await session.callTool("show_orders_dashboard", { customerId: "c-1" })
+    expect(result.isError).toBeFalsy()
+
+    const text = (result.content as { type: string; text?: string }[])
+      .filter((c) => c.type === "text")
+      .map((c) => c.text ?? "")
+      .join("\n")
+    expect(text.length).toBeGreaterThan(0)
+    expect(text.length).toBeLessThan(300)
+
+    const sc = result.structuredContent as ViewEnvelope | undefined
+    const dashboard = sc!.context!.stepData.kpi!.data as OrdersDashboardData
+    const summaries = dashboard.table.orders.map((o) => o.summary)
+    expect(summaries.length).toBeGreaterThan(1)
+    // The text channel must never mirror the full list the widgets render.
+    expect(summaries.every((line) => text.includes(line))).toBe(false)
+  })
 })

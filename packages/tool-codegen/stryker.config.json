@@ -4,13 +4,13 @@
   "vitest": {
     "configFile": "vitest.config.ts"
   },
-  "mutate": ["src/codegen.ts"],
+  "mutate": ["src/codegen.ts", "src/fetch-tools.ts"],
   "incremental": false,
   "tempDirName": ".stryker-tmp",
   "thresholds": {
     "high": 80,
     "low": 60,
-    "break": 61
+    "break": 63
   },
   "reporters": ["progress", "json"],
   "jsonReporter": {

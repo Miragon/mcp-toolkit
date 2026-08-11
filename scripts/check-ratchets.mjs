@@ -14,6 +14,7 @@
  *                                       pattern is allowed ONLY when break
  *                                       rises in the same diff
  *   knip.json                           ignore lists shrink-only
+ *   packages/ui/ui-catalog.allowlist.json  exemptions shrink-only
  *
  * The SINGLE documented escape is a commit trailer in the PR range:
  *
@@ -96,10 +97,15 @@ export function compareRatchets(relPath, oldJson, newJson) {
     }
     const oldMutate = Array.isArray(oldJson?.mutate) ? oldJson.mutate : []
     const newMutate = Array.isArray(newJson?.mutate) ? newJson.mutate : []
-    const removed = oldMutate.filter((p) => !newMutate.includes(p))
-    if (removed.length > 0 && !breakRaised) {
+    // Negated globs invert the direction: removing "!x" or adding "x" GROWS
+    // the measured surface (allowed); removing "x" or adding "!x" SHRINKS it.
+    const shrinkers = [
+      ...oldMutate.filter((p) => !p.startsWith("!") && !newMutate.includes(p)),
+      ...newMutate.filter((p) => p.startsWith("!") && !oldMutate.includes(p)),
+    ]
+    if (shrinkers.length > 0 && !breakRaised) {
       violations.push(
-        `${relPath} -> mutate allowlist shrank (${removed.join(", ")}) without raising thresholds.break. Shrinking the measured surface "improves" the score by measuring less — allowed ONLY together with a break raise for the remaining surface.`,
+        `${relPath} -> mutate allowlist shrank (${shrinkers.join(", ")}) without raising thresholds.break. Shrinking the measured surface "improves" the score by measuring less — allowed ONLY together with a break raise for the remaining surface.`,
       )
     }
     return violations

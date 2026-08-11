@@ -1,0 +1,46 @@
+{
+  // PR-fast typecheck gate for templates/minimal-server (FITNESS.md, phase 5b).
+  //
+  // The template is deliberately OUTSIDE the pnpm workspace (it scaffolds
+  // against the published packages), so nothing else in this repo ever
+  // compiles it — API drift in core/ui would break the shipped starter
+  // silently. This config typechecks the template's sources against the
+  // CURRENT workspace package sources via the paths aliases below.
+  //
+  // It lives in examples/ ON PURPOSE: .github/workflows/sync-starter.yml
+  // rsyncs templates/minimal-server verbatim into the mirror repo, so no
+  // repo-internal config may live inside the template directory.
+  //
+  // Run: pnpm --filter @miragon/mcp-toolkit-examples run typecheck:template
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // The template's own tsconfig carries DOM.Iterable; match it so the ui
+    // sources pulled in via the /app alias see the same lib surface.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // `paths` does not merge across `extends` — this REPLACES the examples
+    // map, so the @miragon aliases are repeated here. The template's
+    // third-party deps (mcp-use, zod, react's jsx runtime) are not
+    // installed under templates/ and cannot resolve by walking up from
+    // there in a pnpm workspace, so they are pinned to the examples
+    // package's node_modules explicitly.
+    "paths": {
+      "@miragon/mcp-toolkit-core": ["../packages/core/src/index.ts"],
+      "@miragon/mcp-toolkit-core/*": ["../packages/core/src/*"],
+      "@miragon/mcp-toolkit-tool-codegen": ["../packages/tool-codegen/src/index.ts"],
+      "@miragon/mcp-toolkit-tool-codegen/runtime": ["../packages/tool-codegen/src/runtime.ts"],
+      "@miragon/mcp-toolkit-ui": ["../packages/ui/src/index.ts"],
+      "@miragon/mcp-toolkit-ui/app": ["../packages/ui/src/app/index.ts"],
+      "@miragon/mcp-toolkit-ui/hooks": ["../packages/ui/src/hooks/index.ts"],
+      "mcp-use": ["./node_modules/mcp-use/dist/index.d.ts"],
+      "mcp-use/react": ["./node_modules/mcp-use/dist/react/index.d.ts"],
+      "zod": ["./node_modules/zod"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "react-dom": ["./node_modules/@types/react-dom/index.d.ts"],
+      "react-dom/client": ["./node_modules/@types/react-dom/client.d.ts"],
+      "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"]
+    }
+  },
+  "include": ["../templates/minimal-server/src/**/*", "../templates/minimal-server/views/**/*"]
+}
