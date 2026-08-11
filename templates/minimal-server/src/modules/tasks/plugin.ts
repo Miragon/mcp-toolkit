@@ -1,11 +1,7 @@
-// Stays on the 1.x subpath: this template scaffolds against the *published*
-// @miragon packages (see package.json), which pin mcp-use 1.34.x — the root
-// `mcp-use` entry exports no server surface there. Migrate the import together
-// with the template's dependency bump once the 2.x-compatible toolkit ships.
-import type { MCPServer } from "mcp-use/server"
+import type { MCPServer } from "mcp-use"
 import { z } from "zod"
 import type { AppPlugin } from "@miragon/mcp-toolkit-core"
-import { APP_ONLY_META, buildSingleWidgetView, uiMeta } from "@miragon/mcp-toolkit-core"
+import { appsSdkMeta, buildSingleWidgetView, viewResourceUri } from "@miragon/mcp-toolkit-core"
 import { createToolRegistrar, withToolErrors } from "@miragon/mcp-toolkit-core/tools"
 import { definition } from "./definition.js"
 import { CREATE_TASK, LIST_TASKS, SHOW_TASKS_BOARD, TASKS_BOARD_DATA } from "./tool-names.js"
@@ -17,11 +13,11 @@ import { createTaskStore, type TaskStore, type TasksBoardData } from "./store.js
  *   1. Domain tools via `createToolRegistrar` — `list_tasks`, `create_task`.
  *      Each declares a Zod `inputSchema` with `.describe()` on every field,
  *      MCP `annotations`, and an `outputSchema`.
- *   2. One widget tool `show_tasks_board` — returns `buildSingleWidgetView`
- *      with `_meta.ui.resourceUri`, so the host renders the result as UI.
+ *   2. One widget tool `show_tasks_board` — bound to its own view (named
+ *      after the tool), so the host renders the result as UI.
  *   3. One app-only feed `tasks_board_data` — the same data as plain JSON
- *      (`APP_ONLY_META`), callable from inside the widget without the host
- *      trying to render it.
+ *      (native `visibility: "app"`), callable from inside the widget without
+ *      the host trying to render it.
  */
 
 const statusSchema = z
@@ -41,8 +37,8 @@ const taskSchema = z.object({
 
 /**
  * Plain (no-UI) tool result carrying JSON. The `tasks_board_data` feed uses
- * this so an in-widget `callTool` gets the data back — a widget-tool result
- * (with `_meta.ui.resourceUri`) would be *rendered* by the host instead.
+ * this so an in-widget `callTool` gets the data back — a view-bound widget
+ * tool's result would be *rendered* by the host instead.
  */
 function rawData(data: TasksBoardData) {
   return {
@@ -109,12 +105,13 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
   })
 }
 
-// ── Widget tool + app-only data feed (need the app's resource URI) ───────────
-function registerTaskWidgetTools(server: MCPServer, store: TaskStore, resourceUri: string) {
+// ── Widget tool + app-only data feed ─────────────────────────────────────────
+function registerTaskWidgetTools(server: MCPServer, store: TaskStore) {
   // Eager render: compute the board now and hand it to the widget through the
-  // view envelope. `_meta.ui.resourceUri` tells the host to render the result
-  // into the app bundle; the bundle's `adaptDataWidget` resolves the widget's
-  // `data` prop from the `tasks:board` `_dataType`.
+  // view envelope. The `view` binding (named after the tool) tells the host to
+  // render the result into `views/show_tasks_board/`; `adaptDataWidget` there
+  // resolves the widget's `data` prop from the `tasks:board` `_dataType`. The
+  // `openai/*` keys cover Apps SDK hosts, which don't read the view binding.
   server.tool(
     {
       name: SHOW_TASKS_BOARD,
@@ -122,8 +119,10 @@ function registerTaskWidgetTools(server: MCPServer, store: TaskStore, resourceUr
       description:
         "Show the task board: KPI counts by status and the task list. Use it whenever the user wants to see their tasks.",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-      schema: z.object({}),
-      _meta: uiMeta({ resourceUri }),
+      inputSchema: z.object({}),
+      view: { name: SHOW_TASKS_BOARD },
+      outputSchema: z.object({}).passthrough(),
+      _meta: appsSdkMeta({ resourceUri: viewResourceUri(SHOW_TASKS_BOARD), title: "Task Board" }),
     },
     withToolErrors(() => {
       const board = store.board()
@@ -139,8 +138,8 @@ function registerTaskWidgetTools(server: MCPServer, store: TaskStore, resourceUr
     }),
   )
 
-  // App-only JSON feed (no UI). `APP_ONLY_META` hides it from the LLM tool
-  // surface while keeping it callable from inside the widget iframe.
+  // App-only JSON feed (no UI). The native `visibility: "app"` hides it from
+  // the LLM tool surface while keeping it callable from inside the widget.
   server.tool(
     {
       name: TASKS_BOARD_DATA,
@@ -148,8 +147,8 @@ function registerTaskWidgetTools(server: MCPServer, store: TaskStore, resourceUr
       description:
         "Internal JSON feed (no UI) backing the task board widget. Prefer show_tasks_board.",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-      schema: z.object({}),
-      _meta: APP_ONLY_META,
+      inputSchema: z.object({}),
+      visibility: "app",
     },
     withToolErrors(() => Promise.resolve(rawData(store.board()))),
   )
@@ -164,8 +163,7 @@ export function createPlugin(): AppPlugin {
     // The framework types `server` as `unknown` (the core root barrel stays
     // mcp-use-free); at runtime it is always the host's `MCPServer`.
     registerTools: (server) => registerTaskTools(server as MCPServer, store),
-    registerWidgetTools: (server, resourceUri) =>
-      registerTaskWidgetTools(server as MCPServer, store, resourceUri),
+    registerWidgetTools: (server) => registerTaskWidgetTools(server as MCPServer, store),
   }
 }
 

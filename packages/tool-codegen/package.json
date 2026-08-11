@@ -43,16 +43,15 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@miragon/mcp-toolkit-core": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.30.0"
+    "@miragon/mcp-toolkit-core": "workspace:*"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
     "handlebars": "4.7.9",
     "json-schema-to-typescript": "15.0.4"
   },
   "devDependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "26.1.2",
     "typescript": "6.0.3",
     "vitest": "4.1.10"

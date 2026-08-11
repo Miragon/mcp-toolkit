@@ -45,7 +45,7 @@ Three adapters map it onto a host:
 | --------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `McpUseHostBridgeProvider`                    | toolkit's mcp-use host | the mcp-use 2.x view hooks via `toHostBridge` (already included in `McpToolkitApp`; this demo stubs the surface) |
 | `createChatGptHostBridge(sdk?)`               | ChatGPT / Apps SDK     | `window.openai`, probed **defensively** — a missing method degrades to a logged no-op, never a crash             |
-| `createStandaloneHostBridge({ callTool, … })` | your own web app       | an **injected** `callTool` (e.g. a `@modelcontextprotocol/sdk` client)                                           |
+| `createStandaloneHostBridge({ callTool, … })` | your own web app       | an **injected** `callTool` (e.g. a `@modelcontextprotocol/client` client)                                        |
 
 ## How to write a host-portable widget
 
@@ -87,7 +87,7 @@ This is the decoupling layer: hand-built widgets become a reusable UI kit for
 **any** MCP server, no `createFrameworkApp` and no toolkit host required.
 
 ```tsx
-import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { Client } from "@modelcontextprotocol/client"
 import { HostBridgeProvider, createStandaloneHostBridge } from "@miragon/mcp-toolkit-ui/app"
 
 const client = new Client(/* … */)

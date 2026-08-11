@@ -28,7 +28,6 @@
     "@miragon/mcp-toolkit-core": "workspace:*",
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.30.0",
     "lucide-react": "0.562.0",
     "mcp-use": "2.1.0",
     "react": "19.2.8",

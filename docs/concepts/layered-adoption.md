@@ -21,11 +21,11 @@ The lightest layer. You have an MCP server already — you only want a polished 
 over it. Pull in `@miragon/mcp-toolkit-ui` for the [primitives](./widgets.md)
 (`Table`, `Card`, `Badge`) and composed blocks (`KpiGrid`, `FilterBar`, …) and
 `@miragon/mcp-toolkit-ui/app` for `createStandaloneHostBridge`. Inject a
-`callTool` over a `@modelcontextprotocol/sdk` client and provide the bridge once
+`callTool` over a `@modelcontextprotocol/client` client and provide the bridge once
 at the app root:
 
 ```tsx
-import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { Client } from "@modelcontextprotocol/client"
 import { HostBridgeProvider, createStandaloneHostBridge } from "@miragon/mcp-toolkit-ui/app"
 
 const client = new Client(/* … */)

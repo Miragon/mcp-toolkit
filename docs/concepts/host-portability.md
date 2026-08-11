@@ -44,7 +44,7 @@ cannot honour them:
 | --------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
 | `McpUseHostBridgeProvider`                    | toolkit's mcp-use host | the mcp-use 2.x view hooks, mapped through `toHostBridge`. Included in `McpToolkitApp`.         |
 | `createChatGptHostBridge(sdk?)`               | ChatGPT / Apps SDK     | `window.openai`, probed **defensively** — a missing method becomes a logged no-op, not a crash. |
-| `createStandaloneHostBridge({ callTool, … })` | your own web app       | an **injected** `callTool` (e.g. a `@modelcontextprotocol/sdk` client).                         |
+| `createStandaloneHostBridge({ callTool, … })` | your own web app       | an **injected** `callTool` (e.g. a `@modelcontextprotocol/client` client).                      |
 
 The mcp-use adapter is a provider component rather than a factory: the 2.x view
 hooks it composes only run under a `bootstrapView`-mounted view, and the pure
@@ -89,7 +89,7 @@ This is the decoupling layer: the hand-built widgets become a reusable UI kit fo
 `callTool` and provide the bridge once at the root:
 
 ```tsx
-import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { Client } from "@modelcontextprotocol/client"
 import { HostBridgeProvider, createStandaloneHostBridge } from "@miragon/mcp-toolkit-ui/app"
 
 const client = new Client(/* … */)

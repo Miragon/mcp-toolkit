@@ -3,33 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "src/index.ts",
   "packageManager": "pnpm@10.32.1",
-  "description": "Minimal MCP server built on @miragon/mcp-toolkit: one host, one module with its own tools, one widget.",
+  "description": "Minimal MCP server built on @miragon/mcp-toolkit: a plain mcp-use project with the toolkit installed on top — one module with its own tools, one widget, views served by the mcp-use CLI.",
   "scripts": {
-    "dev": "tsx --env-file-if-exists=.env src/host.ts",
-    "build:bundle": "vite build --config app-bundle/vite.config.ts",
-    "start": "pnpm run build:bundle && pnpm run dev",
+    "dev": "mcp-use dev --no-open",
+    "build": "mcp-use build",
+    "start": "mcp-use start",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@miragon/mcp-toolkit-core": "1.0.1",
     "@miragon/mcp-toolkit-ui": "1.0.1",
-    "@modelcontextprotocol/sdk": "1.29.0",
-    "mcp-use": "1.34.1",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
+    "lucide-react": "0.562.0",
+    "mcp-use": "2.1.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "4.3.1",
-    "@types/node": "25.9.3",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.2",
-    "tailwindcss": "4.3.1",
-    "tsx": "4.22.4",
-    "typescript": "6.0.3",
-    "vite": "8.0.16",
-    "vite-plugin-singlefile": "2.3.3"
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3"
   }
 }

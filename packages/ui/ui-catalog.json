@@ -948,7 +948,7 @@
           "description": "{ callTool (required), getData?, onFollowup?, onOpenExternal?, onModelContext?, theme? }."
         }
       ],
-      "whenToUse": "Build a HostBridge for a standalone web app against any MCP server (callTool usually wraps a @modelcontextprotocol/sdk client). The WidgetFixtureHost builds on this too."
+      "whenToUse": "Build a HostBridge for a standalone web app against any MCP server (callTool usually wraps a @modelcontextprotocol/client client). The WidgetFixtureHost builds on this too."
     },
     {
       "name": "createChatGptHostBridge",

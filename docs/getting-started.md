@@ -65,9 +65,10 @@ Node-adapter host reads the bundle once at boot: after a rebuild, restart it.
 ### The fast way: use the template
 
 [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter)
-is a self-contained starter — one host, one module with its own tools, one
-widget, and the widget-bundle Vite setup — with pinned versions and CI
-prepared. Click "Use this template", or:
+is a self-contained starter — a plain mcp-use project with the toolkit on top:
+one module with its own tools, one widget, and `views/` built and served by the
+mcp-use CLI — with pinned versions and CI prepared. Click "Use this template",
+or:
 
 ```sh
 gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter --private --clone
@@ -85,7 +86,7 @@ so match them:
 
 ```sh
 pnpm add @miragon/mcp-toolkit-core
-pnpm add @modelcontextprotocol/sdk@1.30.0 mcp-use@2.1.0 zod@4.4.3
+pnpm add mcp-use@2.1.0 zod@4.4.3
 ```
 
 ### The standard path — a plain mcp-use project, toolkit on top

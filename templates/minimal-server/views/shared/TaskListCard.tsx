@@ -8,7 +8,7 @@ import {
   WidgetHeader,
   cn,
 } from "@miragon/mcp-toolkit-ui"
-import type { Task, TaskStatus, TasksBoardData } from "../store.js"
+import type { Task, TaskStatus, TasksBoardData } from "../../src/modules/tasks/store.js"
 
 /**
  * TaskListCard — a compact, purely presentational widget.

@@ -10,7 +10,7 @@ Published to the public npm registry under the `@miragon` scope — no `.npmrc`
 or token needed.
 
 ```sh
-pnpm add -D @miragon/mcp-toolkit-tool-codegen @miragon/mcp-toolkit-core @modelcontextprotocol/sdk@1.29.0
+pnpm add -D @miragon/mcp-toolkit-tool-codegen @miragon/mcp-toolkit-core
 ```
 
 ## Import paths

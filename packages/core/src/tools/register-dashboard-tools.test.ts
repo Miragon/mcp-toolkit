@@ -1,4 +1,4 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
+import type { CallToolResult } from "@modelcontextprotocol/server"
 import type { MCPServer } from "mcp-use"
 import { describe, expect, it } from "vitest"
 import { createInMemoryDashboardStore } from "../framework/dashboard-store.js"
