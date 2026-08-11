@@ -5,7 +5,7 @@ import { createContext, useContext, type ReactNode } from "react"
  * host runtime. A `HostBridge` is the single seam a portable widget talks to:
  * write the widget against {@link useHostBridge} and it runs unchanged in our
  * own `mcp-use` host, inside ChatGPT (OpenAI Apps SDK), or as a standalone web
- * app driven directly by a `@modelcontextprotocol/sdk` client — only the
+ * app driven directly by a `@modelcontextprotocol/client` client — only the
  * surrounding adapter changes.
  *
  * This is deliberately the *minimum* a deterministic UI needs, not a mirror of
@@ -288,7 +288,7 @@ export function createChatGptHostBridge(sdk?: OpenAiAppsSdk | null): HostBridge 
 export interface StandaloneHostBridgeOptions {
   /**
    * The only required capability: how to call a tool on the server. In a
-   * standalone web app this typically wraps a `@modelcontextprotocol/sdk`
+   * standalone web app this typically wraps a `@modelcontextprotocol/client`
    * `Client.callTool({ name, arguments })`, but any function with this shape
    * works — that injection is the whole point: hand-built widgets render
    * against *any* existing MCP server without the toolkit's host runtime.
@@ -322,7 +322,7 @@ export interface StandaloneHostBridgeOptions {
 /**
  * Build a {@link HostBridge} for a standalone web app driven against an existing
  * MCP server — no toolkit host, no `createFrameworkApp`. You inject `callTool`
- * (usually a thin wrapper over a `@modelcontextprotocol/sdk` client); the
+ * (usually a thin wrapper over a `@modelcontextprotocol/client` client); the
  * conversation-shaped verbs (`sendFollowup`, `setModelContext`) are no-ops
  * unless you wire handlers, and `openExternal` defaults to `window.open`.
  *
@@ -332,7 +332,7 @@ export interface StandaloneHostBridgeOptions {
  * harness also builds on this factory so host simulation has a single source.
  *
  * @example
- * const client = new Client(…) // @modelcontextprotocol/sdk
+ * const client = new Client(…) // @modelcontextprotocol/client
  * const bridge = createStandaloneHostBridge({
  *   callTool: (name, args) => client.callTool({ name, arguments: args }),
  *   getData: () => currentRecord,

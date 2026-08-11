@@ -5,7 +5,7 @@ import type { Order } from "./OrderStatusCard.js"
  * this example resolve their tool calls through this one function, so the demo
  * is honest: the *same* widget hitting the *same* "server", only the host
  * runtime differs. In the standalone case this is exactly where you would wire a
- * `@modelcontextprotocol/sdk` `Client.callTool` against a real server instead.
+ * `@modelcontextprotocol/client` `Client.callTool` against a real server instead.
  */
 const ORDERS: Record<string, Order> = {
   "ORD-4471": {

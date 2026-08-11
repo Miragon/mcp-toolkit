@@ -9,7 +9,7 @@ Published to the public npm registry under the `@miragon` scope — no `.npmrc`
 or token needed.
 
 ```sh
-pnpm add @miragon/mcp-toolkit-core @modelcontextprotocol/sdk@1.30.0 mcp-use@2.1.0 zod@4.4.3
+pnpm add @miragon/mcp-toolkit-core mcp-use@2.1.0 zod@4.4.3
 ```
 
 Peer versions are pinned exactly — install the versions above.

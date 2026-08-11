@@ -14,12 +14,12 @@ if you are already on 0.11.0, there is nothing further to migrate.
 
 ## 1. Bump the dependencies
 
-| Package                     | Before   | After                 |
-| --------------------------- | -------- | --------------------- |
-| `mcp-use`                   | `1.34.1` | `2.1.0`               |
-| `@modelcontextprotocol/sdk` | `1.29.0` | `1.30.0`              |
-| `zod`                       | `4.4.3`  | `4.4.3` (unchanged)   |
-| Node.js                     | —        | `>=22.22.2` (engines) |
+| Package                     | Before   | After                      |
+| --------------------------- | -------- | -------------------------- |
+| `mcp-use`                   | `1.34.1` | `2.1.0`                    |
+| `@modelcontextprotocol/sdk` | `1.29.0` | removed — no longer a peer |
+| `zod`                       | `4.4.3`  | `4.4.3` (unchanged)        |
+| Node.js                     | —        | `>=22.22.2` (engines)      |
 
 Peer versions stay pinned exactly — install the versions above.
 
@@ -292,7 +292,7 @@ better, rewritten against `useHostBridge`.
 
 ## 7. Migration checklist
 
-- [ ] Bump `mcp-use` to `2.1.0`, `@modelcontextprotocol/sdk` to `1.30.0`; Node `>=22.22.2`.
+- [ ] Bump `mcp-use` to `2.1.0`, drop the `@modelcontextprotocol/sdk` peer; Node `>=22.22.2`.
 - [ ] Pin `lucide-react@0.562.0` next to the toolkit (one version across the graph).
 - [ ] `mcp-use/server` imports → `mcp-use`; `text`/`object`/`error` → `textResult`/`objectResult`/`errorResult`.
 - [ ] Pick a path: `installToolkit` + `views/` + CLI (standard) or `createFrameworkApp` + `app.bundle` (adapter).

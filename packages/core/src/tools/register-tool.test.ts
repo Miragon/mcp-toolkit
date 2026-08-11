@@ -1,5 +1,5 @@
 import type { MCPServer } from "mcp-use"
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
+import type { CallToolResult } from "@modelcontextprotocol/server"
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import { createToolRegistrar } from "./register-tool.js"
