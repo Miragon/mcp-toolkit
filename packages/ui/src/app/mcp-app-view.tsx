@@ -1,71 +1,23 @@
 import { useState, useCallback } from "react"
 import { useDisplayMode, useHostContext, useToolContext } from "mcp-use/react"
-import { Maximize2, Minimize2, Pencil, RefreshCw } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef } from "@miragon/mcp-toolkit-core"
 import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import { useToolResultRecovery } from "../hooks/use-tool-result-recovery.js"
 import { parseToolResult } from "../lib/parse-tool-result.js"
 import { useHostBridge } from "./host-bridge.js"
-import { LayoutBuilder } from "./layout-builder.js"
-import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
+import {
+  DEFAULT_LABELS,
+  isCompleteViewData,
+  StepErrors,
+  ViewBody,
+  ViewToolbar,
+  type McpAppViewLabels,
+  type ViewData,
+} from "./mcp-app-view-chrome.js"
+import type { WidgetComponent } from "./widget-renderer.js"
 
-export interface McpAppViewLabels {
-  loading?: string
-  refresh?: string
-  refreshing?: string
-  enterFullscreen?: string
-  exitFullscreen?: string
-  build?: string
-}
-
-const DEFAULT_LABELS: Required<McpAppViewLabels> = {
-  loading: "Waiting for pipeline result...",
-  refresh: "Refresh",
-  refreshing: "Loading...",
-  enterFullscreen: "Fullscreen",
-  exitFullscreen: "Collapse",
-  build: "Build",
-}
-
-interface RefreshParams {
-  keys?: Record<string, unknown>
-  steps?: PipelineStepRef[]
-  layout?: LayoutConfig
-  title?: string
-}
-
-interface ViewData {
-  _refreshParams?: RefreshParams
-  title?: string
-  context: {
-    keys: Record<string, unknown>
-    stepIds: string[]
-    stepData: Record<
-      string,
-      { data: unknown; keys: Record<string, unknown>; _app: string; _dataType: string }
-    >
-    errors: { stepId: string; reason: string }[]
-  }
-  layout?: LayoutConfig
-  /**
-   * Whether the server's in-iframe builder platform is usable (set by
-   * `render-view` from `createFrameworkApp`'s `app.builder`). The shell gates
-   * its Build affordance on this so the edit button never appears against a
-   * server whose `get-builder-catalogue` tool isn't registered.
-   */
-  builderAvailable?: boolean
-}
-
-/**
- * A renderable view payload: the envelope `render-view`/`show_*` tools emit
- * as `structuredContent`. Module-level so it is referentially stable as the
- * recovery hook's `isValid` dependency.
- */
-function isCompleteViewData(value: unknown): value is ViewData {
-  const v = value as ViewData | null | undefined
-  return Boolean(v?.context && v?.layout)
-}
+export type { McpAppViewLabels } from "./mcp-app-view-chrome.js"
 
 export interface McpAppViewProps {
   /**
@@ -264,7 +216,7 @@ export function McpAppView({
     )
   }
 
-  const showHeader = !buildMode
+  const isFullscreen = displayMode === "fullscreen"
 
   // Follow the server's own signal by default: render-view reports
   // `builderAvailable` (derived from `app.builder`), so the Build button only
@@ -281,95 +233,35 @@ export function McpAppView({
         // `bootstrapView`'s auto-resize, so we let content dictate height and
         // avoid setting overflowY (which would clip our own content inside a
         // host that's already auto-sized to us).
-        ...(displayMode === "fullscreen"
-          ? { minHeight: "100vh", overflowY: "auto" as const }
-          : null),
+        ...(isFullscreen ? { minHeight: "100vh", overflowY: "auto" as const } : null),
         paddingTop: safeArea.top,
         paddingRight: safeArea.right,
         paddingBottom: safeArea.bottom,
         paddingLeft: safeArea.left,
       }}
     >
-      {showHeader && (
-        <div className="mb-4 flex items-center justify-between">
-          {viewData.title && <h2 className="text-xl font-bold">{viewData.title}</h2>}
-          <div className="ml-auto flex items-center gap-2">
-            {viewData._refreshParams && viewData.layout && (
-              <button
-                onClick={() => {
-                  void refreshView()
-                }}
-                disabled={isRefreshing}
-                className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                <RefreshCw
-                  aria-hidden="true"
-                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                />
-                {isRefreshing ? effectiveLabels.refreshing : effectiveLabels.refresh}
-              </button>
-            )}
-            {builderAvailable && viewData._refreshParams && (
-              <button
-                onClick={() => setBuildMode(true)}
-                className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-              >
-                <Pencil className="h-4 w-4" />
-                {effectiveLabels.build}
-              </button>
-            )}
-            <button
-              onClick={() => {
-                void toggleFullscreen()
-              }}
-              className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-            >
-              {displayMode === "fullscreen" ? (
-                <Minimize2 aria-hidden="true" className="h-4 w-4" />
-              ) : (
-                <Maximize2 aria-hidden="true" className="h-4 w-4" />
-              )}
-              {displayMode === "fullscreen"
-                ? effectiveLabels.exitFullscreen
-                : effectiveLabels.enterFullscreen}
-            </button>
-          </div>
-        </div>
-      )}
+      <ViewToolbar
+        hidden={buildMode}
+        viewData={viewData}
+        builderAvailable={builderAvailable}
+        isFullscreen={isFullscreen}
+        isRefreshing={isRefreshing}
+        labels={effectiveLabels}
+        onRefresh={refreshView}
+        onEnterBuildMode={() => setBuildMode(true)}
+        onToggleFullscreen={toggleFullscreen}
+      />
 
-      {!buildMode && viewData.context.errors.length > 0 && (
-        <div className="mb-4 flex flex-col gap-2">
-          {viewData.context.errors.map((err) => (
-            <div
-              key={err.stepId}
-              className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
-            >
-              <strong>{err.stepId}:</strong> {err.reason}
-            </div>
-          ))}
-        </div>
-      )}
+      <StepErrors hidden={buildMode} errors={viewData.context.errors} />
 
       <AppQueryProvider callTool={callToolFn}>
-        {buildMode ? (
-          <LayoutBuilder
-            initialLayout={viewData.layout}
-            title={viewData.title}
-            initialKeys={viewData._refreshParams?.keys}
-            initialSteps={viewData._refreshParams?.steps}
-            widgets={widgets}
-            callTool={callToolFn}
-            onExit={exitBuildMode}
-          />
-        ) : viewData.layout ? (
-          <WidgetRenderer
-            layout={viewData.layout}
-            keys={viewData.context.keys}
-            stepData={viewData.context.stepData}
-            errors={viewData.context.errors}
-            widgets={widgets}
-          />
-        ) : null}
+        <ViewBody
+          buildMode={buildMode}
+          viewData={viewData}
+          widgets={widgets}
+          callTool={callToolFn}
+          onExit={exitBuildMode}
+        />
       </AppQueryProvider>
     </main>
   )
