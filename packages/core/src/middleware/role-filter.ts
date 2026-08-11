@@ -83,11 +83,26 @@ export function createRoleFilterMiddleware(
     })
   }
 
+  // Tools without an underscore are framework/app-level and always allowed.
+  const assertModuleAllowed = (
+    toolName: string,
+    allowed: string[],
+    user: { roles?: unknown } | undefined,
+  ): void => {
+    if (!toolName.includes("_")) return
+    const modulePrefix = toolName.split("_")[0] ?? ""
+    if (!allowed.includes(modulePrefix)) {
+      const userRoles = (user as { roles?: string[] } | undefined)?.roles ?? []
+      throw new Error(
+        `Access denied: role(s) "${userRoles.join(", ")}" have no access to module "${modulePrefix}".`,
+      )
+    }
+  }
+
   const toolsCall: RoleFilterMiddleware = async (ctx, next) => {
     if (!hasRules) return next()
     const name = typeof ctx.params?.name === "string" ? ctx.params.name : undefined
-    const toolNames = name === undefined ? [] : [name]
-    if (toolNames.length === 0) {
+    if (name === undefined) {
       if (failClosed) {
         throw new Error(
           "Access denied: unable to resolve the tool name for this call; rejecting under fail-closed policy.",
@@ -96,18 +111,7 @@ export function createRoleFilterMiddleware(
       return next()
     }
     const allowed = allowedModulesFor(ctx.auth?.user)
-    if (allowed === null) return next()
-    for (const toolName of toolNames) {
-      // Tools without an underscore are framework/app-level and always allowed.
-      if (!toolName.includes("_")) continue
-      const modulePrefix = toolName.split("_")[0] ?? ""
-      if (!allowed.includes(modulePrefix)) {
-        const userRoles = (ctx.auth?.user as { roles?: string[] } | undefined)?.roles ?? []
-        throw new Error(
-          `Access denied: role(s) "${userRoles.join(", ")}" have no access to module "${modulePrefix}".`,
-        )
-      }
-    }
+    if (allowed !== null) assertModuleAllowed(name, allowed, ctx.auth?.user)
     return next()
   }
 

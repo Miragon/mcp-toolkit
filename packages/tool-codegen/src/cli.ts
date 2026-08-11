@@ -19,48 +19,40 @@ interface ParsedArgs {
   proxyName?: string
 }
 
+type NextArg = () => string | undefined
+
+const setConfig = (a: ParsedArgs, next: NextArg) => (a.config = next())
+const setUpstream = (a: ParsedArgs, next: NextArg) => (a.upstream = next())
+const setOut = (a: ParsedArgs, next: NextArg) => (a.out = next())
+const setProxy = (a: ParsedArgs, next: NextArg) => (a.proxyName = next())
+const setHelp = (a: ParsedArgs) => (a.command = "help")
+
+/** Flag dispatch table — unknown flags are ignored, exactly like the old switch. */
+const FLAG_SETTERS: Record<string, (args: ParsedArgs, next: NextArg) => void> = {
+  "--config": setConfig,
+  "-c": setConfig,
+  "--check": (a) => (a.check = true),
+  "--upstream": setUpstream,
+  "-u": setUpstream,
+  "--token": (a, next) => (a.token = next()),
+  "--header": (a, next) => (a.header = next()),
+  "--header-value": (a, next) => (a.headerValue = next()),
+  "--out": setOut,
+  "-o": setOut,
+  "--proxy": setProxy,
+  "-p": setProxy,
+  "--help": setHelp,
+  "-h": setHelp,
+}
+
 function parseArgs(argv: string[]): ParsedArgs {
   const args: ParsedArgs = { command: "help", check: false }
   const [command, ...rest] = argv
   if (command === "generate" || command === "inspect") args.command = command
 
   for (let i = 0; i < rest.length; i++) {
-    const arg = rest[i]
-    const next = () => rest[++i]
-    switch (arg) {
-      case "--config":
-      case "-c":
-        args.config = next()
-        break
-      case "--check":
-        args.check = true
-        break
-      case "--upstream":
-      case "-u":
-        args.upstream = next()
-        break
-      case "--token":
-        args.token = next()
-        break
-      case "--header":
-        args.header = next()
-        break
-      case "--header-value":
-        args.headerValue = next()
-        break
-      case "--out":
-      case "-o":
-        args.out = next()
-        break
-      case "--proxy":
-      case "-p":
-        args.proxyName = next()
-        break
-      case "--help":
-      case "-h":
-        args.command = "help"
-        break
-    }
+    const setter = FLAG_SETTERS[rest[i] ?? ""]
+    if (setter) setter(args, () => rest[++i])
   }
   return args
 }
