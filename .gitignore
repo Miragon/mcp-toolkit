@@ -20,3 +20,4 @@ coverage
 .stryker-tmp
 reports
 mcp-env.d.ts
+examples/evals/results.json

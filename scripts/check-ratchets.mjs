@@ -110,6 +110,17 @@ export function compareRatchets(relPath, oldJson, newJson) {
     return violations
   }
 
+  if (kind === "eval-pass-rate.json") {
+    const oldRate = oldJson?.minPassRate
+    const newRate = newJson?.minPassRate
+    if (typeof oldRate === "number" && (typeof newRate !== "number" || newRate < oldRate)) {
+      violations.push(
+        `${relPath} -> minPassRate: ${oldRate} -> ${String(newRate)}. The eval floor is raise-only — a drop usually means a description change degraded model steering; fix the descriptions (see the tools/list golden diff), not the floor.`,
+      )
+    }
+    return violations
+  }
+
   if (kind === "render-allowlist.json") {
     const names = (j) => new Set((j?.components ?? []).map((c) => c.name))
     const oldNames = names(oldJson)
@@ -160,6 +171,7 @@ export function monitoredFiles(root) {
     "ratchets/eslint-ratchets.json",
     "ratchets/coverage-thresholds.json",
     "ratchets/render-allowlist.json",
+    "ratchets/eval-pass-rate.json",
     "knip.json",
   ]
   const packagesDir = path.join(root, "packages")

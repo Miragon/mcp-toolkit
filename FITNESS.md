@@ -114,6 +114,20 @@ Known blind spot: the root `scripts/` dir is masked from knip's unused-file
 detection by the lint-staged glob plugin; packages/ + examples/ are the
 protected surface (proven by the gate self-test).
 
+### Evals (phase 5d — the only measurement of description quality)
+
+`examples/evals/` runs 6 deterministic-scored cases x 3 runs nightly
+(`eval.yml`) against a real model (default `claude-haiku-4-5` — the cheaper
+model is deliberately the stricter test of description steering; override via
+`EVAL_MODEL`): tool choice (`show_*` over raw lists), argument generation
+validated by REAL tools/call round-trips, the manifest-first ordering promise
+in render-view's description, and the layout JSON-string branch. App-only
+tools are filtered exactly as a host would. Non-blocking for PRs (cost,
+nondeterminism); the pass rate lands in the fitness report and is ratcheted
+raise-only via `ratchets/eval-pass-rate.json` (floor starts at 0 — set it to
+the 3-night median minus one run's worth once the baseline exists). A missing
+API key is a HARD error, never a silent skip.
+
 ### Product promises covered by no test (the behaviour gap)
 
 1. **The LLM-facing tool surface** — no tool's `description`, `title`,

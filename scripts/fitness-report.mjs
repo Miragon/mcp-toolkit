@@ -141,6 +141,26 @@ if (!depcruise?.summary) {
 }
 lines.push("")
 
+// ── Evals ──
+lines.push("### Evals (nightly, pass rate is raise-only)")
+lines.push("")
+const evals = readJson("examples/evals/results.json")
+const evalFloor = readJson("ratchets/eval-pass-rate.json")
+if (!evals) {
+  lines.push(
+    "no run — evals execute nightly via eval.yml against a real model (needs ANTHROPIC_API_KEY).",
+  )
+} else {
+  lines.push(
+    `Model **${evals.model}** · pass rate **${(evals.passRate * 100).toFixed(1)}%** (floor ${((evalFloor?.minPassRate ?? 0) * 100).toFixed(1)}%) · ${evals.cases.length} cases x ${evals.runsPerCase} runs`,
+  )
+  for (const c of evals.cases) {
+    const passes = c.runs.filter((r) => r.pass).length
+    lines.push(`- ${c.id}: ${passes}/${c.runs.length}`)
+  }
+}
+lines.push("")
+
 // ── Debt ──
 lines.push("### Ratchet debt (shrink-only)")
 lines.push("")

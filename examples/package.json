@@ -19,6 +19,7 @@
     "generate": "pnpm --filter articles-example run generate",
     "generate:check": "pnpm --filter articles-example run generate:check",
     "generate:check:ci": "tsx codegen-drift-check.ts",
+    "evals": "tsx evals/run-evals.ts",
     "test": "vitest run",
     "test:coverage": "vitest run",
     "lint": "eslint . --max-warnings 0",
@@ -39,6 +40,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "0.116.0",
     "@mcp-use/client": "2.1.0",
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@tailwindcss/vite": "4.3.3",

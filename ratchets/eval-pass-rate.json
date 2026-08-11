@@ -1,0 +1,4 @@
+{
+  "$comment": "Raise-only floor for the nightly eval pass rate (FITNESS.md phase 5d). Starts at 0 (non-blocking) until a baseline exists — after 3 nightly runs, set it to the median MINUS one run's worth and never lower it again (scripts/check-ratchets.mjs enforces the direction; single escape: the 'Ratchet-Exception: <reason>' commit trailer).",
+  "minPassRate": 0
+}

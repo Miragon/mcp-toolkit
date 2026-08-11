@@ -223,3 +223,17 @@ describe("render-allowlist policy (shrink-only)", () => {
     ).toEqual([])
   })
 })
+
+describe("eval-pass-rate policy (raise-only)", () => {
+  it("flags a lowered or removed floor, accepts raising", () => {
+    const oldJson = { minPassRate: 0.8 }
+    expect(
+      compareRatchets("ratchets/eval-pass-rate.json", oldJson, { minPassRate: 0.7 }),
+    ).toHaveLength(1)
+    expect(compareRatchets("ratchets/eval-pass-rate.json", oldJson, {})).toHaveLength(1)
+    expect(compareRatchets("ratchets/eval-pass-rate.json", oldJson, { minPassRate: 0.9 })).toEqual(
+      [],
+    )
+    expect(compareRatchets("ratchets/eval-pass-rate.json", null, { minPassRate: 0 })).toEqual([])
+  })
+})

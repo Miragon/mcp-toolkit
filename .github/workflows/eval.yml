@@ -1,0 +1,50 @@
+name: Evals
+
+# Nightly evals against a real model (FITNESS.md, phase 5d). Deliberately NOT
+# a PR gate (cost, nondeterminism) — the pass rate feeds the fitness report
+# and is ratcheted raise-only in ratchets/eval-pass-rate.json.
+on:
+  schedule:
+    - cron: "13 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    name: Tool-steering evals
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r run build
+
+      - name: Require the API key (a silently skipped eval is a gate hole)
+        run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not configured. Configure it or disable eval.yml — never let the eval 'pass' by not running."
+            exit 1
+          fi
+
+      - name: Run evals (real model, real tools/call round-trips)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: pnpm --filter @miragon/mcp-toolkit-examples run evals
+
+      - name: Upload results (consumed by the fitness report)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: eval-results
+          path: examples/evals/results.json
+          if-no-files-found: warn
