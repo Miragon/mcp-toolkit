@@ -94,6 +94,11 @@ version from `pnpm-lock.yaml` into `package.json`. See
   which pulls in the `mcp-use` server runtime.
 - `tool-codegen` is a build-time tool. Don't import it from runtime
   code; widget bundles import from `tool-codegen/runtime` (types only).
+- `core` is the bottom of the dependency graph — it must never import
+  `@miragon/mcp-toolkit-ui` (enforced by the eslint boundary rules).
+
+Baseline numbers and the gate roadmap for these rules live in
+[`FITNESS.md`](FITNESS.md).
 
 ### Comments
 
