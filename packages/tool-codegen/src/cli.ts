@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import fs from "node:fs/promises"
+import { realpathSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { generateTools, writeCodegenOutput, type CodegenConfig } from "./codegen.js"
 import { fetchUpstreamTools, type FetchToolsOptions } from "./fetch-tools.js"
 
-interface ParsedArgs {
+export interface ParsedArgs {
   command: "generate" | "inspect" | "help"
   config?: string
   check: boolean
@@ -19,48 +20,44 @@ interface ParsedArgs {
   proxyName?: string
 }
 
-function parseArgs(argv: string[]): ParsedArgs {
+type NextArg = () => string | undefined
+
+const setConfig = (a: ParsedArgs, next: NextArg) => (a.config = next())
+const setUpstream = (a: ParsedArgs, next: NextArg) => (a.upstream = next())
+const setOut = (a: ParsedArgs, next: NextArg) => (a.out = next())
+const setProxy = (a: ParsedArgs, next: NextArg) => (a.proxyName = next())
+const setHelp = (a: ParsedArgs) => (a.command = "help")
+
+/** Flag dispatch table — unknown flags are ignored, exactly like the old switch. */
+const FLAG_SETTERS: Record<string, (args: ParsedArgs, next: NextArg) => void> = {
+  "--config": setConfig,
+  "-c": setConfig,
+  "--check": (a) => (a.check = true),
+  "--upstream": setUpstream,
+  "-u": setUpstream,
+  "--token": (a, next) => (a.token = next()),
+  "--header": (a, next) => (a.header = next()),
+  "--header-value": (a, next) => (a.headerValue = next()),
+  "--out": setOut,
+  "-o": setOut,
+  "--proxy": setProxy,
+  "-p": setProxy,
+  "--help": setHelp,
+  "-h": setHelp,
+}
+
+export function parseArgs(argv: string[]): ParsedArgs {
   const args: ParsedArgs = { command: "help", check: false }
   const [command, ...rest] = argv
   if (command === "generate" || command === "inspect") args.command = command
 
   for (let i = 0; i < rest.length; i++) {
-    const arg = rest[i]
-    const next = () => rest[++i]
-    switch (arg) {
-      case "--config":
-      case "-c":
-        args.config = next()
-        break
-      case "--check":
-        args.check = true
-        break
-      case "--upstream":
-      case "-u":
-        args.upstream = next()
-        break
-      case "--token":
-        args.token = next()
-        break
-      case "--header":
-        args.header = next()
-        break
-      case "--header-value":
-        args.headerValue = next()
-        break
-      case "--out":
-      case "-o":
-        args.out = next()
-        break
-      case "--proxy":
-      case "-p":
-        args.proxyName = next()
-        break
-      case "--help":
-      case "-h":
-        args.command = "help"
-        break
-    }
+    const flag = rest[i] ?? ""
+    // Own-property lookup only: a bare "__proto__" would otherwise resolve to
+    // Object.prototype and be called as a setter (TypeError), where the old
+    // switch simply ignored it.
+    const setter = Object.hasOwn(FLAG_SETTERS, flag) ? FLAG_SETTERS[flag] : undefined
+    if (setter) setter(args, () => rest[++i])
   }
   return args
 }
@@ -208,4 +205,24 @@ async function main(): Promise<void> {
   }
 }
 
-void main()
+/**
+ * True when this module IS the process entry point — the guard that keeps
+ * importing cli.ts side-effect-free so parseArgs stays testable.
+ *
+ * argv[1] is the path as invoked, which is a symlink for every real install
+ * path (npm's node_modules/.bin links, pnpm workspace links), while
+ * import.meta.url is always the resolved real path. Comparing them unresolved
+ * makes the CLI a silent no-op behind any link — including this repo's own
+ * `tsx node_modules/@miragon/mcp-toolkit-tool-codegen/dist/cli.js` codegen
+ * scripts.
+ */
+export function isEntryPoint(argv1: string | undefined, moduleUrl: string): boolean {
+  if (!argv1) return false
+  try {
+    return moduleUrl === pathToFileURL(realpathSync(argv1)).href
+  } catch {
+    return moduleUrl === pathToFileURL(argv1).href
+  }
+}
+
+if (isEntryPoint(process.argv[1], import.meta.url)) void main()

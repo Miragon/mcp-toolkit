@@ -38,55 +38,71 @@ export function createRestClient(config: RestClientConfig): RestClient {
       authHeaders,
       options.headers,
     )
-
-    const init: RequestInit = {
-      method: options.method,
-      headers,
-    }
-
-    if (options.body !== undefined && options.body !== null && methodAllowsBody(options.method)) {
-      init.body = typeof options.body === "string" ? options.body : JSON.stringify(options.body)
-      if (typeof options.body !== "string" && !hasContentType(headers)) {
-        ;(init.headers as Record<string, string>)["content-type"] = "application/json"
-      }
-    }
-
-    // A hung upstream must not block the tool call (and its MCP connection)
-    // forever. Abort on timeout, and combine with the caller's signal so an
-    // explicit cancellation still works. A dedicated timeout signal lets us
-    // tell "timed out" from "caller aborted" in the catch below.
-    const timeoutMs = options.timeoutMs ?? defaultTimeoutMs
-    const timeoutSignal = timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined
-    const signal = combineSignals(options.signal, timeoutSignal)
-    if (signal) init.signal = signal
-
-    let response: Response
-    try {
-      response = await fetchImpl(url, init)
-    } catch (err) {
-      if (timeoutSignal?.aborted && !options.signal?.aborted) {
-        throw new Error(`REST request to ${url} timed out after ${timeoutMs}ms`, { cause: err })
-      }
-      throw err
-    }
+    const init = buildInit(options, headers)
+    const response = await fetchWithTimeout(
+      fetchImpl,
+      url,
+      init,
+      options.signal,
+      options.timeoutMs ?? defaultTimeoutMs,
+    )
 
     if (!response.ok) {
       const body = await safeReadText(response)
       throw new RestError(response.status, response.statusText, body, url)
     }
-
-    if (response.status === 204) {
-      return undefined as T
-    }
-
-    const contentType = response.headers.get("content-type") ?? ""
-    if (contentType.includes("application/json")) {
-      return (await response.json()) as T
-    }
-    return (await response.text()) as unknown as T
+    return decodeBody<T>(response)
   }
 
   return { request, baseUrl }
+}
+
+function buildInit(options: RestRequestOptions, headers: Record<string, string>): RequestInit {
+  const init: RequestInit = { method: options.method, headers }
+  if (options.body !== undefined && options.body !== null && methodAllowsBody(options.method)) {
+    init.body = typeof options.body === "string" ? options.body : JSON.stringify(options.body)
+    if (typeof options.body !== "string" && !hasContentType(headers)) {
+      headers["content-type"] = "application/json"
+    }
+  }
+  return init
+}
+
+/**
+ * A hung upstream must not block the tool call (and its MCP connection)
+ * forever. Abort on timeout, and combine with the caller's signal so an
+ * explicit cancellation still works. A dedicated timeout signal lets us tell
+ * "timed out" from "caller aborted" in the catch.
+ */
+async function fetchWithTimeout(
+  fetchImpl: NonNullable<RestClientConfig["fetch"]>,
+  url: string,
+  init: RequestInit,
+  callerSignal: AbortSignal | undefined,
+  timeoutMs: number,
+): Promise<Response> {
+  const timeoutSignal = timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined
+  const signal = combineSignals(callerSignal, timeoutSignal)
+  if (signal) init.signal = signal
+  try {
+    return await fetchImpl(url, init)
+  } catch (err) {
+    if (timeoutSignal?.aborted && !callerSignal?.aborted) {
+      throw new Error(`REST request to ${url} timed out after ${timeoutMs}ms`, { cause: err })
+    }
+    throw err
+  }
+}
+
+async function decodeBody<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T
+  }
+  const contentType = response.headers.get("content-type") ?? ""
+  if (contentType.includes("application/json")) {
+    return (await response.json()) as T
+  }
+  return (await response.text()) as unknown as T
 }
 
 /**

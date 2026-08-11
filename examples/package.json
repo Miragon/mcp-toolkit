@@ -18,6 +18,7 @@
     "start": "pnpm run build:bundle && pnpm run dev:host",
     "generate": "pnpm --filter articles-example run generate",
     "generate:check": "pnpm --filter articles-example run generate:check",
+    "generate:check:ci": "tsx codegen-drift-check.ts",
     "test": "vitest run",
     "test:coverage": "vitest run",
     "lint": "eslint . --max-warnings 0",

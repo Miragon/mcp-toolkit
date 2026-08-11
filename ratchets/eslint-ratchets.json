@@ -1,15 +1,5 @@
 {
   "$comment": "Frozen over-budget files (FITNESS.md baseline 2026-08-11), value = measured, rounded UP to the next 10. SHRINK-ONLY: lower or remove entries, never raise or add — scripts/check-ratchets.mjs (phase 2b) enforces the direction; the single escape is the 'Ratchet-Exception: <reason>' commit trailer. To tighten after a refactor: pnpm fitness:tighten.",
-  "max-lines": {
-    "packages/ui/src/app/layout-builder.tsx": 720,
-    "packages/ui/src/app/builder/Workspace.tsx": 460
-  },
-  "complexity": {
-    "packages/ui/src/app/builder/builder-reducer.ts": 40,
-    "packages/ui/src/app/mcp-app-view.tsx": 30,
-    "packages/ui/src/app/layout-builder.tsx": 20,
-    "packages/core/src/rest/client.ts": 20,
-    "packages/tool-codegen/src/cli.ts": 20,
-    "packages/core/src/middleware/role-filter.ts": 20
-  }
+  "max-lines": {},
+  "complexity": {}
 }
