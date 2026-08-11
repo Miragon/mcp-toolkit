@@ -106,6 +106,6 @@ export type {
 
 // NOTE: Tool registrars (`createToolRegistrar`, `createWidgetToolRegistrar`)
 // live in the `./tools` subpath export because they import from
-// `mcp-use/server` at runtime. Keeping them out of the main barrel prevents
+// `mcp-use` at runtime. Keeping them out of the main barrel prevents
 // consumers that only need the framework types and runtime (e.g. a React UI
-// bundle) from pulling `mcp-use/server` into their browser graph.
+// bundle) from pulling the mcp-use server runtime into their browser graph.
