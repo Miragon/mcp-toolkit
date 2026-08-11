@@ -45,6 +45,8 @@ describe("ci.yml runs every fitness gate", () => {
       scripts: Record<string, string>
     }
     const verify = pkg.scripts.verify
+    expect(verify, "root package.json must keep a verify script").toBeTruthy()
+    if (!verify) return
     for (const fragment of [
       "typecheck",
       "build",
