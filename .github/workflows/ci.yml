@@ -31,6 +31,9 @@ jobs:
 
       - run: pnpm -r run typecheck
 
+      - name: Starter-template typecheck (templates/ is outside the workspace)
+        run: pnpm --filter @miragon/mcp-toolkit-examples run typecheck:template
+
       - run: pnpm -r run build
 
       - run: pnpm depcruise:dist
