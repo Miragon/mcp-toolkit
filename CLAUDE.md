@@ -19,6 +19,11 @@ Kept in sync with the same rule in `CONTRIBUTING.md`:
   exported from the `./app` / `./hooks` subpaths, never the root.
 - `tool-codegen` is build-time. Don't import it from runtime code; widget
   bundles import from `tool-codegen/runtime` (types only).
+- `core` is the bottom of the dependency graph — it must never import
+  `@miragon/mcp-toolkit-ui` (already enforced by the eslint boundary rules).
+
+Baseline numbers and the gate roadmap for these rules live in
+[`FITNESS.md`](FITNESS.md).
 
 ## Building widgets / prompt-ready UI base
 
@@ -95,7 +100,10 @@ next to the source it covers (`foo.ts` → `foo.test.ts`).
   once the flow stabilises).
 - Middleware internals (better covered by integration tests once the auth
   model is settled).
-- The `examples/` app — treat as a manual smoke surface.
+
+Loopback smoke tests in `examples/test/` are the exception to none of this:
+they are the repo's lightest-weight regression guard (see CONTRIBUTING.md
+"Examples-driven development") — every example module ships with one.
 
 ### When you change tested code
 
