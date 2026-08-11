@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import fs from "node:fs/promises"
+import { realpathSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
@@ -51,7 +52,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (command === "generate" || command === "inspect") args.command = command
 
   for (let i = 0; i < rest.length; i++) {
-    const setter = FLAG_SETTERS[rest[i] ?? ""]
+    const flag = rest[i] ?? ""
+    // Own-property lookup only: a bare "__proto__" would otherwise resolve to
+    // Object.prototype and be called as a setter (TypeError), where the old
+    // switch simply ignored it.
+    const setter = Object.hasOwn(FLAG_SETTERS, flag) ? FLAG_SETTERS[flag] : undefined
     if (setter) setter(args, () => rest[++i])
   }
   return args
@@ -200,7 +205,24 @@ async function main(): Promise<void> {
   }
 }
 
-// Only run when executed as the CLI entry (bin/tsx), not when imported by
-// tests — importing must stay side-effect-free so parseArgs is testable.
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
-if (isMain) void main()
+/**
+ * True when this module IS the process entry point — the guard that keeps
+ * importing cli.ts side-effect-free so parseArgs stays testable.
+ *
+ * argv[1] is the path as invoked, which is a symlink for every real install
+ * path (npm's node_modules/.bin links, pnpm workspace links), while
+ * import.meta.url is always the resolved real path. Comparing them unresolved
+ * makes the CLI a silent no-op behind any link — including this repo's own
+ * `tsx node_modules/@miragon/mcp-toolkit-tool-codegen/dist/cli.js` codegen
+ * scripts.
+ */
+export function isEntryPoint(argv1: string | undefined, moduleUrl: string): boolean {
+  if (!argv1) return false
+  try {
+    return moduleUrl === pathToFileURL(realpathSync(argv1)).href
+  } catch {
+    return moduleUrl === pathToFileURL(argv1).href
+  }
+}
+
+if (isEntryPoint(process.argv[1], import.meta.url)) void main()

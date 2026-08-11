@@ -1,5 +1,9 @@
+import fs from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
+import { pathToFileURL } from "node:url"
 import { describe, expect, it } from "vitest"
-import { parseArgs } from "./cli.js"
+import { isEntryPoint, parseArgs } from "./cli.js"
 
 describe("parseArgs", () => {
   it("defaults to help with no command", () => {
@@ -48,5 +52,46 @@ describe("parseArgs", () => {
 
   it("a value-taking flag at the end yields undefined, not a crash", () => {
     expect(parseArgs(["generate", "--config"]).config).toBeUndefined()
+  })
+
+  it("ignores inherited Object.prototype keys (the dispatch table's own trap)", () => {
+    for (const inherited of ["__proto__", "constructor", "toString", "valueOf"]) {
+      expect(parseArgs(["generate", inherited, "--config", "cfg"])).toEqual({
+        command: "generate",
+        config: "cfg",
+        check: false,
+      })
+    }
+  })
+})
+
+describe("isEntryPoint", () => {
+  const url = (p: string) => pathToFileURL(p).href
+
+  it("matches when argv[1] is a symlink to the module (npm/pnpm bin links)", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "codegen-entry-"))
+    try {
+      const real = path.join(await fs.realpath(dir), "cli.js")
+      await fs.writeFile(real, "")
+      const link = path.join(dir, "cli-link.js")
+      await fs.symlink(real, link)
+      // The unresolved comparison returns false here — that made every
+      // installed CLI (and this repo's generate/generate:check) a no-op.
+      expect(isEntryPoint(link, url(real))).toBe(true)
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("does not match a different module", () => {
+    expect(isEntryPoint("/tmp/other.js", url("/tmp/cli.js"))).toBe(false)
+  })
+
+  it("is false without an entry path (imported, not executed)", () => {
+    expect(isEntryPoint(undefined, url("/tmp/cli.js"))).toBe(false)
+  })
+
+  it("falls back to the raw path when it cannot be resolved", () => {
+    expect(isEntryPoint("/nope/missing.js", url("/nope/missing.js"))).toBe(true)
   })
 })
