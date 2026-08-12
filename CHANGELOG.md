@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [1.2.0](https://github.com/Miragon/mcp-toolkit/compare/v1.1.0...v1.2.0) (2026-08-12)
+
+
+### Features
+
+* **fitness:** dependency and pattern gates (phase 1) ([#130](https://github.com/Miragon/mcp-toolkit/issues/130)) ([d5cd676](https://github.com/Miragon/mcp-toolkit/commit/d5cd67687da60fc4b4c570fa6ebb1a5aca28adeb))
+* **fitness:** golden contracts, anti-erosion gates, testing-policy rewrite (phase 5a) ([#135](https://github.com/Miragon/mcp-toolkit/issues/135)) ([dc2e172](https://github.com/Miragon/mcp-toolkit/commit/dc2e172ae5c1a37a02f10102b388dae5f8bee31f))
+* **fitness:** mutation testing, dead-code gate, fitness report (phase 4) ([#134](https://github.com/Miragon/mcp-toolkit/issues/134)) ([3899c16](https://github.com/Miragon/mcp-toolkit/commit/3899c16f5dfbb84dbd2df1061d37246901d9f432))
+* **fitness:** ratchet metrics — complexity, file length, coverage (phase 2) ([#131](https://github.com/Miragon/mcp-toolkit/issues/131)) ([27c745a](https://github.com/Miragon/mcp-toolkit/commit/27c745a9739dce35ab250a2a8bb28dbab7d4395b))
+* **fitness:** ratchet self-protection diff-check (phase 2b) ([#132](https://github.com/Miragon/mcp-toolkit/issues/132)) ([9cca46a](https://github.com/Miragon/mcp-toolkit/commit/9cca46a3ccdd8f3fa2520113ab1a51068a307f0f))
+* **fitness:** render coverage, property tests, flakiness gate, verify manifest (phase 5c) ([#137](https://github.com/Miragon/mcp-toolkit/issues/137)) ([966e549](https://github.com/Miragon/mcp-toolkit/commit/966e54974c24b3540962dd57f338ddd0b0c52cb2))
+
+
+### Bug Fixes
+
+* **lint:** enforce core's browser-safety boundary against the mcp-use root entry ([#127](https://github.com/Miragon/mcp-toolkit/issues/127)) ([a904577](https://github.com/Miragon/mcp-toolkit/commit/a90457768c5fb3893eb6175e54d837fb9a956461))
+
 ## [1.1.0](https://github.com/Miragon/mcp-toolkit/compare/v1.0.1...v1.1.0) (2026-08-11)
 
 
