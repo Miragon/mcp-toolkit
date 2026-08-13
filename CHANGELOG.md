@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [2.0.0](https://github.com/Miragon/mcp-toolkit/compare/v1.2.0...v2.0.0) (2026-08-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** BackendRegistry loses select/getSelected/clear; CreateBackendRegistryOptions loses getSessionId/sessionTtlMs/now; DEFAULT_BACKEND_SESSION_TTL_MS is removed. Resolve precedence is now explicit id > single configured backend. Consumers resolve their own default id before calling resolve.
+
+### Features
+
+* **core:** drop the per-session sticky selection from the backend registry ([#143](https://github.com/Miragon/mcp-toolkit/issues/143)) ([a3b5663](https://github.com/Miragon/mcp-toolkit/commit/a3b5663eb408eeba9e4b0ee55224c9fd9e22ecfa)), closes [#142](https://github.com/Miragon/mcp-toolkit/issues/142)
+
 ## [1.2.0](https://github.com/Miragon/mcp-toolkit/compare/v1.1.0...v1.2.0) (2026-08-12)
 
 
