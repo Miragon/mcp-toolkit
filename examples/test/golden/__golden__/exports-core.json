@@ -30,7 +30,6 @@
   "./tools": [
     "BackendNotSelectedError",
     "DASHBOARD_SCHEMA_VERSION",
-    "DEFAULT_BACKEND_SESSION_TTL_MS",
     "DashboardOwnershipError",
     "RENDER_VIEW_NAME",
     "UnknownBackendError",
