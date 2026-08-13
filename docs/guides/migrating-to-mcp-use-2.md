@@ -282,10 +282,13 @@ better, rewritten against `useHostBridge`.
   2.x delivers the tool name on `ctx.params.name` and fires `mcp:tools/call`
   middleware once per call (batch entries are guarded individually).
   `failClosed` keeps its meaning.
-- **Backend registry**: sticky per-session selection needs an explicit
-  `getSessionId` now (2.x removed the ambient request context). From a tool
-  handler: `(ctx) => ctx.session?.sessionId`. Single-backend setups are
-  unaffected (fail-soft to the lone default).
+- **Backend registry**: the per-session sticky selection is gone entirely —
+  2.x serves HTTP statelessly (no session ids to key on), and in-memory
+  selection state breaks behind more than one replica. `resolve(id?)` takes an
+  explicit id or falls back to the single configured backend; a server that
+  wants a sticky/default backend resolves that id from its own durable store
+  (e.g. a per-user profile) and passes it in. Single-backend setups are
+  unaffected.
 - **Inspector**: the programmatic host no longer serves `/inspector`. The
   inspector ships with `mcp-use dev` (standard path), or use the hosted one —
   which needs CORS enabled on your server (`serverOptions: { cors: … }`).
@@ -302,5 +305,5 @@ better, rewritten against `useHostBridge`.
 - [ ] Bundle entry → `mountMcpToolkitApp` (adapter path) / `McpToolkitApp` default export per view (CLI path).
 - [ ] Replace direct `ModelContext` imports in widgets with `HostModelContext`.
 - [ ] Wrap bare widget renders in a `HostBridgeProvider` (no provider-less fallback).
-- [ ] Multi-backend servers: pass `getSessionId` to `createBackendRegistry`.
+- [ ] Multi-backend servers: resolve the caller's default backend yourself (durable store) and pass the id to `resolve` — the registry keeps no session state.
 - [ ] Adapter path: restart the host after every widget-bundle rebuild.

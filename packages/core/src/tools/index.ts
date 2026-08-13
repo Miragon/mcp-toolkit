@@ -19,7 +19,6 @@ export {
   withBackend,
   BackendNotSelectedError,
   UnknownBackendError,
-  DEFAULT_BACKEND_SESSION_TTL_MS,
 } from "./backend-registry.js"
 export type {
   BackendRegistry,

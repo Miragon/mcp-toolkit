@@ -17,29 +17,11 @@ const entry = (id: string, tag = id): BackendEntry<FakeClient, { url: string }> 
   meta: { url: `http://${id}` },
 })
 
-/** Mutable session/clock harness so tests drive sticky selection deterministically. */
-function harness(ids: string[], ttlMs?: number) {
-  let session: string | undefined
-  let clock = 1_000
-  const registry = createBackendRegistry(
+const registryOf = (ids: string[]) =>
+  createBackendRegistry(
     ids.map((id) => entry(id)),
-    {
-      label: "engine",
-      sessionTtlMs: ttlMs,
-      getSessionId: () => session,
-      now: () => clock,
-    },
+    { label: "engine" },
   )
-  return {
-    registry,
-    actAs: (sid: string | undefined) => {
-      session = sid
-    },
-    advance: (ms: number) => {
-      clock += ms
-    },
-  }
-}
 
 describe("createBackendRegistry construction", () => {
   it("throws on an empty entry list", () => {
@@ -53,203 +35,77 @@ describe("createBackendRegistry construction", () => {
   })
 
   it("lists registered backends with their meta in registration order", () => {
-    const { registry } = harness(["alpha", "beta"])
-    expect(registry.list()).toEqual([
+    expect(registryOf(["alpha", "beta"]).list()).toEqual([
       { id: "alpha", meta: { url: "http://alpha" } },
       { id: "beta", meta: { url: "http://beta" } },
     ])
   })
 })
 
-describe("resolve precedence", () => {
-  it("resolves the only backend when one is configured and nothing is selected", () => {
-    const { registry } = harness(["solo"])
-    const resolved = registry.resolve()
+describe("resolve precedence (stateless: explicit id > single default)", () => {
+  it("resolves the only backend when one is configured and no id is given", () => {
+    const resolved = registryOf(["solo"]).resolve()
     expect(resolved.id).toBe("solo")
     expect(resolved.client.tag).toBe("solo")
     expect(resolved.meta).toEqual({ url: "http://solo" })
   })
 
-  it("throws BackendNotSelectedError for multi-backend with no selection and no override", () => {
-    const { registry } = harness(["alpha", "beta"])
+  it("resolves an explicit id in a multi-backend setup", () => {
+    expect(registryOf(["alpha", "beta"]).resolve("beta").id).toBe("beta")
+  })
+
+  it("throws BackendNotSelectedError for multi-backend with no id", () => {
+    const registry = registryOf(["alpha", "beta"])
     expect(() => registry.resolve()).toThrow(BackendNotSelectedError)
     // The message must name the selectable ids — error paths often serialise
     // only code + message, so this is the model's one shot at seeing them.
     expect(() => registry.resolve()).toThrow(
-      "No engine selected for this session. Available engines: alpha, beta. Select one for this session first.",
+      "No engine specified and more than one is configured. Available engines: alpha, beta. Pass an explicit engine id.",
     )
   })
 
-  it("honours the sticky session selection in a multi-backend setup", () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs("s1")
-    registry.select("beta")
-    expect(registry.resolve().id).toBe("beta")
-  })
-
-  it("lets an explicit override win over the sticky selection", () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs("s1")
-    registry.select("beta")
-    expect(registry.resolve("alpha").id).toBe("alpha")
-  })
-
-  it("throws UnknownBackendError when the override names a non-existent backend", () => {
-    const { registry } = harness(["alpha", "beta"])
+  it("throws UnknownBackendError when the id names a non-existent backend", () => {
+    const registry = registryOf(["alpha", "beta"])
     expect(() => registry.resolve("gamma")).toThrow(UnknownBackendError)
     expect(() => registry.resolve("gamma")).toThrow('Unknown engine id "gamma"')
   })
 
-  it("isolates sticky selections per session", () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs("s1")
-    registry.select("alpha")
-    actAs("s2")
-    // No selection for s2, multi-backend → not selected.
-    expect(() => registry.resolve()).toThrow(BackendNotSelectedError)
-    registry.select("beta")
-    expect(registry.resolve().id).toBe("beta")
-    actAs("s1")
-    expect(registry.resolve().id).toBe("alpha")
-  })
-
-  it("throws on select with no session in scope", () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs(undefined)
-    expect(() => registry.select("alpha")).toThrow(/No active MCP session/)
-  })
-
-  it("throws UnknownBackendError on select of an unregistered id", () => {
-    const { registry, actAs } = harness(["alpha"])
-    actAs("s1")
-    expect(() => registry.select("ghost")).toThrow(UnknownBackendError)
-  })
-})
-
-describe("TTL eviction", () => {
-  const TTL = 1_000
-
-  it("returns the selection while the TTL has not elapsed", () => {
-    const { registry, actAs, advance } = harness(["a", "b"], TTL)
-    actAs("s1")
-    registry.select("a")
-    advance(TTL) // exactly at the boundary — not yet expired
-    expect(registry.resolve().id).toBe("a")
-  })
-
-  it("expires a stale selection lazily on read", () => {
-    const { registry, actAs, advance } = harness(["a", "b"], TTL)
-    actAs("s1")
-    registry.select("a")
-    advance(TTL + 1)
+  it("keeps no state between calls — the same registry answers every caller alike", () => {
+    const registry = registryOf(["alpha", "beta"])
+    expect(registry.resolve("alpha").id).toBe("alpha")
+    // The previous explicit id must NOT linger as an implicit default.
     expect(() => registry.resolve()).toThrow(BackendNotSelectedError)
   })
 
-  it("sweeps expired selections of other sessions on select", () => {
-    const { registry, actAs, advance } = harness(["a", "b"], TTL)
-    actAs("stale")
-    registry.select("a")
-
-    advance(TTL + 1)
-    actAs("fresh")
-    registry.select("b") // triggers the sweep of "stale"
-
-    // Even after rewinding into the stale entry's original window, it's gone:
-    // only the sweep (not lazy expiry) can explain a miss here.
-    actAs("stale")
-    expect(() => registry.resolve()).toThrow(BackendNotSelectedError)
-  })
-
-  it("re-selecting refreshes the TTL", () => {
-    const { registry, actAs, advance } = harness(["a", "b"], TTL)
-    actAs("s1")
-    registry.select("a")
-    advance(TTL - 1)
-    registry.select("b")
-    advance(TTL - 1)
-    expect(registry.resolve().id).toBe("b")
-  })
-
-  it("clear() drops a session's sticky selection", () => {
-    const { registry, actAs } = harness(["a", "b"], TTL)
-    actAs("s1")
-    registry.select("a")
-    registry.clear("s1")
-    expect(() => registry.resolve()).toThrow(BackendNotSelectedError)
-  })
-})
-
-describe("getSelected", () => {
-  it("returns undefined when nothing is selected", () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs("s1")
-    expect(registry.getSelected()).toBeUndefined()
-  })
-
-  it("returns undefined when no session is in scope", () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs(undefined)
-    expect(registry.getSelected()).toBeUndefined()
-  })
-
-  it("returns the sticky selection after select()", () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs("s1")
-    registry.select("beta")
-    expect(registry.getSelected()).toBe("beta")
-  })
-
-  it("does NOT fall back to the single configured default (unlike resolve)", () => {
-    const { registry, actAs } = harness(["solo"])
-    actAs("s1")
-    // resolve() returns the lone backend, but getSelected() reports only an
-    // *explicit* selection — so a `current` reader correctly shows nothing pinned.
-    expect(registry.resolve().id).toBe("solo")
-    expect(registry.getSelected()).toBeUndefined()
-  })
-
-  it("expires lazily on read, like resolve()", () => {
-    const { registry, actAs, advance } = harness(["a", "b"], 1_000)
-    actAs("s1")
-    registry.select("a")
-    advance(1_001)
-    expect(registry.getSelected()).toBeUndefined()
-  })
-
-  it("isolates the selection per session", () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs("s1")
-    registry.select("alpha")
-    actAs("s2")
-    expect(registry.getSelected()).toBeUndefined()
-    actAs("s1")
-    expect(registry.getSelected()).toBe("alpha")
+  it('uses the default "backend" label when none is configured', () => {
+    const registry = createBackendRegistry([entry("a"), entry("b")])
+    expect(() => registry.resolve()).toThrow(/No backend specified/)
+    expect(() => registry.resolve("x")).toThrow('Unknown backend id "x"')
   })
 })
 
 describe("withBackend", () => {
-  it("reads the override from args[paramName] and resolves it", async () => {
-    const { registry } = harness(["alpha", "beta"])
+  it("reads the id from args[paramName] and resolves it", async () => {
     const handler = withBackend(
-      registry,
+      registryOf(["alpha", "beta"]),
       "engine",
       (backend, args: { engine?: string; q: string }) => Promise.resolve(`${backend.id}:${args.q}`),
     )
     expect(await handler({ engine: "beta", q: "hi" })).toBe("beta:hi")
   })
 
-  it("falls back to resolution precedence when the param is absent", async () => {
-    const { registry, actAs } = harness(["alpha", "beta"])
-    actAs("s1")
-    registry.select("alpha")
-    const handler = withBackend(registry, "engine", (backend) => Promise.resolve(backend.id))
-    expect(await handler({})).toBe("alpha")
+  it("falls back to the single configured backend when the param is absent", async () => {
+    const handler = withBackend(registryOf(["solo"]), "engine", (backend) =>
+      Promise.resolve(backend.id),
+    )
+    expect(await handler({})).toBe("solo")
   })
 
-  it("ignores a non-string override value", async () => {
-    const { registry } = harness(["solo"])
-    const handler = withBackend(registry, "engine", (backend) => Promise.resolve(backend.id))
-    // engine is not a string → treated as no override → single default.
+  it("ignores a non-string id value", async () => {
+    const handler = withBackend(registryOf(["solo"]), "engine", (backend) =>
+      Promise.resolve(backend.id),
+    )
+    // engine is not a string → treated as no id → single default.
     expect(await handler({ engine: 123 })).toBe("solo")
   })
 })
