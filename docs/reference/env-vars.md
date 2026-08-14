@@ -13,15 +13,15 @@ These are the options `createFrameworkApp` accepts and the env-var names
 the reference consumers use for them. Your consumer is free to pick
 different names; the toolkit only sees the resolved string.
 
-| Option                  | Suggested env var                         | Notes                                                                                   |
-| ----------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------- |
-| `name`                  | —                                         | Hard-coded.                                                                             |
-| `version`               | —                                         | Hard-coded.                                                                             |
-| —                       | `MCP_URL`                                 | Public origin override; read by mcp-use itself (request-resolved otherwise).            |
-| `oauth`                 | `WORKOS_SUBDOMAIN`, `WORKOS_CLIENT_ID`, … | Whatever your OAuth provider factory needs.                                             |
-| `middleware.orgGate`    | `WORKOS_ORG_ID`                           | Optional.                                                                               |
-| `middleware.roleFilter` | `MCP_ROLE_MODULES`                        | JSON object `{ role: [modules] }`.                                                      |
-| `app.bundle`            | —                                         | Paths derived from the consumer's build output (`dist/mcp-app.js`, `dist/mcp-app.css`). |
+| Option                  | Suggested env var                         | Notes                                                                                                                                                   |
+| ----------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                  | —                                         | Hard-coded.                                                                                                                                             |
+| `version`               | —                                         | Hard-coded.                                                                                                                                             |
+| —                       | `MCP_URL`                                 | Public origin override; read by mcp-use itself (request-resolved otherwise).                                                                            |
+| `oauth`                 | `WORKOS_SUBDOMAIN`, `WORKOS_CLIENT_ID`, … | Whatever your OAuth provider factory needs. Since mcp-use 2.2.0 the built-in factories also fall back to `MCP_USE_OAUTH_*` when called without options. |
+| `middleware.orgGate`    | `WORKOS_ORG_ID`                           | Optional.                                                                                                                                               |
+| `middleware.roleFilter` | `MCP_ROLE_MODULES`                        | JSON object `{ role: [modules] }`.                                                                                                                      |
+| `app.bundle`            | —                                         | Paths derived from the consumer's build output (`dist/mcp-app.js`, `dist/mcp-app.css`).                                                                 |
 
 ## Build-time (tool-codegen)
 
