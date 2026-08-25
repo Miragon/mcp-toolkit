@@ -41,6 +41,18 @@ await createFrameworkApp({
 Skip the option for unauthenticated development servers — the framework tools
 still work (steps then see `userId: undefined`).
 
+Any mcp-use provider factory works here — the toolkit only sees the resolved
+`OAuthProvider`. Since mcp-use 2.3.0 that includes `oauthScalekitProvider` from
+`mcp-use/oauth/scalekit`, which binds the JWT audience to a Scalekit `res_…`
+resource id.
+
+The org gate below is the one place where the provider's user shape leaks into
+the toolkit: it reads `organization_id` (snake_case, the WorkOS claim). Scalekit
+surfaces the same value as `organizationId`, so combining `oauthScalekitProvider`
+with `middleware.orgGate` rejects **every** request — the gate is fail-closed on a
+missing claim. Leave `orgGate` unset with a non-WorkOS provider, or normalise the
+claim in your own middleware.
+
 ## Org gate
 
 Enforce that every request comes from a specific WorkOS organization:

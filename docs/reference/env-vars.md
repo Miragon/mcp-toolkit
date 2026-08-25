@@ -19,7 +19,7 @@ different names; the toolkit only sees the resolved string.
 | `version`               | —                                         | Hard-coded.                                                                                                                                             |
 | —                       | `MCP_URL`                                 | Public origin override; read by mcp-use itself (request-resolved otherwise).                                                                            |
 | `oauth`                 | `WORKOS_SUBDOMAIN`, `WORKOS_CLIENT_ID`, … | Whatever your OAuth provider factory needs. Since mcp-use 2.2.0 the built-in factories also fall back to `MCP_USE_OAUTH_*` when called without options. |
-| `middleware.orgGate`    | `WORKOS_ORG_ID`                           | Optional.                                                                                                                                               |
+| `middleware.orgGate`    | `WORKOS_ORG_ID`                           | Optional. Reads the WorkOS-style `organization_id` claim — see [Middleware and auth](../guides/middleware-and-auth.md).                                 |
 | `middleware.roleFilter` | `MCP_ROLE_MODULES`                        | JSON object `{ role: [modules] }`.                                                                                                                      |
 | `app.bundle`            | —                                         | Paths derived from the consumer's build output (`dist/mcp-app.js`, `dist/mcp-app.css`).                                                                 |
 
