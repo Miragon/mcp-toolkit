@@ -9,7 +9,7 @@ Published to the public npm registry under the `@miragon` scope — no `.npmrc`
 or token needed.
 
 ```sh
-pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@2.3.3 react@19.2.8 react-dom@19.2.8 tailwindcss@4.3.3
+pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@2.3.4 react@19.2.8 react-dom@19.2.8 tailwindcss@4.3.3
 ```
 
 Peer versions are pinned exactly — install the versions above.
