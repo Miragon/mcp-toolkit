@@ -91,7 +91,7 @@ pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-ui
 pnpm add -D @miragon/mcp-toolkit-tool-codegen
 ```
 
-The peer dependencies are pinned exactly — install `mcp-use@2.3.3` and `zod@4.4.3` alongside (see each package's `peerDependencies` for the authoritative list).
+The peer dependencies are pinned exactly — install `mcp-use@2.3.4` and `zod@4.4.3` alongside (see each package's `peerDependencies` for the authoritative list).
 
 The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) — a self-contained mcp-use project with the toolkit on top: one module with its own tools, one widget, `views/` built and served by the mcp-use CLI, plus pinned versions and CI. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
 
