@@ -24,15 +24,8 @@
       "additionalProperties": false,
       "properties": {
         "completedAt": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "ISO-8601 completion timestamp, or null while the task is open."
+          "description": "ISO-8601 completion timestamp, or null while the task is open.",
+          "type": ["string", "null"]
         },
         "createdAt": {
           "description": "ISO-8601 creation timestamp.",
@@ -92,15 +85,8 @@
       "additionalProperties": false,
       "properties": {
         "completedAt": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "ISO-8601 completion timestamp, or null while the task is open."
+          "description": "ISO-8601 completion timestamp, or null while the task is open.",
+          "type": ["string", "null"]
         },
         "createdAt": {
           "description": "ISO-8601 creation timestamp.",
@@ -280,15 +266,8 @@
             "additionalProperties": false,
             "properties": {
               "completedAt": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "description": "ISO-8601 completion timestamp, or null while the task is open."
+                "description": "ISO-8601 completion timestamp, or null while the task is open.",
+                "type": ["string", "null"]
               },
               "createdAt": {
                 "description": "ISO-8601 creation timestamp.",

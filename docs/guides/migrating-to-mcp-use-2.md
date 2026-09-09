@@ -18,7 +18,7 @@ if you are already on 0.11.0, there is nothing further to migrate.
 | --------------------------- | -------- | -------------------------- |
 | `mcp-use`                   | `1.34.1` | `2.3.4`                    |
 | `@modelcontextprotocol/sdk` | `1.29.0` | removed — no longer a peer |
-| `zod`                       | `4.4.3`  | `4.4.3` (unchanged)        |
+| `zod`                       | `4.4.3`  | `4.5.4`                    |
 | Node.js                     | —        | `>=22.22.2` (engines)      |
 
 Peer versions stay pinned exactly — install the versions above.
