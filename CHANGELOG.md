@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [2.3.0](https://github.com/Miragon/mcp-toolkit/compare/v2.2.0...v2.3.0) (2026-09-09)
+
+
+### Features
+
+* **deps:** bump mcp-use to 2.3.4 ([#153](https://github.com/Miragon/mcp-toolkit/issues/153)) ([8048b32](https://github.com/Miragon/mcp-toolkit/commit/8048b324c102934307e647e00812859dd965b117))
+* **deps:** bump mcp-use to 2.4.3 ([#157](https://github.com/Miragon/mcp-toolkit/issues/157)) ([3f6fc06](https://github.com/Miragon/mcp-toolkit/commit/3f6fc062dfb740372d05e63f076d3458b53cc52d))
+
 ## [2.2.0](https://github.com/Miragon/mcp-toolkit/compare/v2.1.0...v2.2.0) (2026-08-25)
 
 
