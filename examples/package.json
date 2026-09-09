@@ -33,7 +33,7 @@
     "@miragon/mcp-toolkit-core": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
     "lucide-react": "1.39.0",
-    "mcp-use": "2.3.4",
+    "mcp-use": "2.4.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "4.5.4"
