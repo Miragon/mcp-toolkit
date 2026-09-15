@@ -55,7 +55,7 @@
     "@miragon/mcp-toolkit-core": "workspace:*",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
-    "@types/node": "26.4.1",
+    "@types/node": "26.5.0",
     "@vitest/coverage-v8": "4.1.11",
     "fast-check": "4.9.0",
     "mcp-use": "2.4.3",
