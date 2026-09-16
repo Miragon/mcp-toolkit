@@ -49,7 +49,7 @@
   "dependencies": {
     "@modelcontextprotocol/client": "2.0.0",
     "handlebars": "4.7.9",
-    "json-schema-to-typescript": "15.0.4"
+    "json-schema-to-typescript": "16.0.0"
   },
   "devDependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
