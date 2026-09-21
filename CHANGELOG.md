@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [2.4.1](https://github.com/Miragon/mcp-toolkit/compare/v2.4.0...v2.4.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **deps:** publish shared peers as ranges for consumer dedup ([#163](https://github.com/Miragon/mcp-toolkit/issues/163)) ([59ae84c](https://github.com/Miragon/mcp-toolkit/commit/59ae84c05b22cafa22e214625968bac71bf2017d))
+
 ## [2.4.0](https://github.com/Miragon/mcp-toolkit/compare/v2.3.0...v2.4.0) (2026-09-20)
 
 
