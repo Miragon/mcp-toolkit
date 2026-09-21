@@ -39,6 +39,18 @@ const isWorkspacePeer = (name: string) => name.startsWith("@miragon/")
 const templatePin = (name: string) =>
   template.dependencies?.[name] ?? template.devDependencies?.[name]
 
+const parseVersion = (version: string) => version.split(".").map(Number) as [number, number, number]
+
+/** Published peers are exact pins or caret ranges; the template pin must satisfy them. */
+const pinSatisfiesPeer = (pin: string, peerRange: string) => {
+  if (!peerRange.startsWith("^")) return pin === peerRange
+  const [peerMajor, peerMinor, peerPatch] = parseVersion(peerRange.slice(1))
+  const [pinMajor, pinMinor, pinPatch] = parseVersion(pin)
+  if (pinMajor !== peerMajor) return false
+  if (pinMinor !== peerMinor) return pinMinor > peerMinor
+  return pinPatch >= peerPatch
+}
+
 describe("templates/minimal-server", () => {
   const peers = Object.entries({ ...core.peerDependencies, ...ui.peerDependencies }).filter(
     ([name]) => !isWorkspacePeer(name),
@@ -51,10 +63,10 @@ describe("templates/minimal-server", () => {
     )
   })
 
-  it("pins each peer to the exact version the packages declare", () => {
+  it("pins each peer to a version that satisfies the range the packages declare", () => {
     expect(
       peers
-        .filter(([name, version]) => templatePin(name) !== version)
+        .filter(([name, version]) => !pinSatisfiesPeer(templatePin(name) as string, version))
         .map(([name, version]) => `${name}: template ${templatePin(name)} vs peer ${version}`),
     ).toEqual([])
   })

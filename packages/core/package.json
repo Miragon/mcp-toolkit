@@ -44,7 +44,7 @@
   },
   "peerDependencies": {
     "mcp-use": "2.5.1",
-    "zod": "4.5.4"
+    "zod": "^4.4.0"
   },
   "devDependencies": {
     "@modelcontextprotocol/server": "2.0.0",
