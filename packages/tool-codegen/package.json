@@ -44,7 +44,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@miragon/mcp-toolkit-core": "workspace:*"
+    "@miragon/mcp-toolkit-core": "workspace:~"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.0.0",

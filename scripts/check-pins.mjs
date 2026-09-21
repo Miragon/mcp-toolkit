@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 /**
  * Local equivalent of the miragon/pin-npm-dependencies CI action (FITNESS.md):
- * every dependency in every tracked package.json is an exact pin — no ^ ~ >=
- * < x * ranges. Allowed non-numeric forms: workspace:, file:, npm:, catalog:.
+ * every dependency and devDependency in every tracked package.json is an exact
+ * pin — no ^ ~ >= < x * ranges. Allowed non-numeric forms: workspace:, file:,
+ * npm:, catalog:. peerDependencies are exempt: published packages declare
+ * ranged peers (react/react-dom/zod, workspace:~ for @miragon/*) so consumers
+ * deduplicate against their own copy instead of hitting peer mismatches.
  *
  * Run: node scripts/check-pins.mjs
  */
@@ -15,7 +18,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 export function findRangeViolations(manifest) {
   const bad = []
-  for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
+  for (const field of ["dependencies", "devDependencies"]) {
     for (const [name, version] of Object.entries(manifest[field] ?? {})) {
       if (typeof version !== "string") continue
       if (/^(workspace:|file:|npm:|catalog:|https?:)/.test(version)) continue
