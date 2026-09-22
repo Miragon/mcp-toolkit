@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
-    "@eslint-community/eslint-plugin-eslint-comments": "4.8.0",
+    "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "10.0.1",
     "@vitest/eslint-plugin": "1.6.27",
     "dependency-cruiser": "18.2.0",
@@ -43,7 +43,7 @@
     "knip": "6.34.0",
     "lint-staged": "17.4.1",
     "picomatch": "4.0.7",
-    "prettier": "3.9.6",
+    "prettier": "3.9.8",
     "prettier-plugin-tailwindcss": "0.8.1",
     "publint": "0.3.24",
     "tailwindcss": "4.3.3",
