@@ -36,19 +36,19 @@
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "10.0.1",
     "@vitest/eslint-plugin": "1.6.27",
-    "dependency-cruiser": "18.2.0",
-    "eslint": "10.10.0",
+    "dependency-cruiser": "18.4.0",
+    "eslint": "10.11.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "husky": "9.1.7",
-    "knip": "6.34.0",
-    "lint-staged": "17.4.1",
+    "knip": "6.37.0",
+    "lint-staged": "17.5.1",
     "picomatch": "4.0.7",
-    "prettier": "3.9.8",
+    "prettier": "3.9.9",
     "prettier-plugin-tailwindcss": "0.8.1",
     "publint": "0.3.24",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.0"
+    "typescript-eslint": "8.70.1"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
