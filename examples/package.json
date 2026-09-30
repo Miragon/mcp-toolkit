@@ -33,13 +33,13 @@
     "@miragon/mcp-toolkit-core": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
     "lucide-react": "1.47.0",
-    "mcp-use": "2.5.2",
+    "mcp-use": "2.7.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@mcp-use/client": "2.3.3",
+    "@mcp-use/client": "2.3.4",
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "26.6.2",

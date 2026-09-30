@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react"
-import { useDisplayMode, useHostContext, useToolContext } from "mcp-use/react"
+import { ToolCancelledError, useDisplayMode, useHostContext, useToolContext } from "mcp-use/react"
 import type { LayoutConfig, PipelineStepRef } from "@miragon/mcp-toolkit-core"
-import { Skeleton } from "../primitives/skeleton.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import { useToolResultRecovery } from "../hooks/use-tool-result-recovery.js"
 import { parseToolResult } from "../lib/parse-tool-result.js"
@@ -11,6 +10,7 @@ import {
   isCompleteViewData,
   StepErrors,
   ViewBody,
+  ViewPlaceholder,
   ViewToolbar,
   type McpAppViewLabels,
   type ViewData,
@@ -73,6 +73,10 @@ export function McpAppView({
   )
 
   const isPending = tool.status === "pending"
+  // Since mcp-use 2.7.1 a host cancellation of the rendering call latches as a
+  // terminal `status: "error"` — show it instead of the skeleton, and never
+  // let the recovery below re-run the call the user stopped.
+  const isCancelled = tool.status === "error" && tool.error instanceof ToolCancelledError
   const initialViewData = tool.status === "ready" ? (tool.toolOutput as ViewData) : undefined
   const toolInput = tool.toolInput
 
@@ -114,6 +118,7 @@ export function McpAppView({
   // there.
   const recovery = useToolResultRecovery<ViewData>({
     resultReady: !isPending,
+    cancelled: isCancelled,
     props: initialViewData,
     isValid: isCompleteViewData,
     toolInput,
@@ -207,13 +212,7 @@ export function McpAppView({
   // `structuredContent` the 2.x latch stays "pending" forever, and recovered
   // viewData still has to replace the skeleton.
   if (!viewData) {
-    return (
-      <div className="flex flex-col gap-4 p-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-32 w-full" />
-        <p className="text-muted-foreground text-sm">{effectiveLabels.loading}</p>
-      </div>
-    )
+    return <ViewPlaceholder cancelled={isCancelled} labels={effectiveLabels} />
   }
 
   const isFullscreen = displayMode === "fullscreen"

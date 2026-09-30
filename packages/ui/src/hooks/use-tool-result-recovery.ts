@@ -20,6 +20,11 @@ import { parseToolResult } from "../lib/parse-tool-result.js"
  * decoded payload. Spec-conforming hosts (e.g. the mcp-use inspector) deliver
  * a valid payload up front, so the recovery never fires there.
  *
+ * A call the host cancelled is never recovered: since mcp-use 2.7.1 the
+ * cancellation latches as `status: "error"` (a `ToolCancelledError`), which
+ * would otherwise count as a ready-but-invalid result — re-executing it would
+ * override the user's decision to stop the call.
+ *
  * Assumes the originating tool is a read-only render pipeline (true for all
  * toolkit `render-view`/`show_*` tools) — the re-execution must be safe to
  * repeat, and may rarely run concurrently with the original invocation when
@@ -37,10 +42,17 @@ export const DEFAULT_ASSUME_STRIPPED_AFTER_MS = 2500
 export interface ToolResultRecoveryOptions {
   /**
    * The latch fired (`useToolContext().status !== "pending"`) — a structured
-   * result or tool error arrived. On hosts that strip `structuredContent`
-   * this never turns true; the grace timer below covers that case.
+   * result, a tool error, or a host cancellation arrived. On hosts that strip
+   * `structuredContent` this never turns true; the grace timer below covers
+   * that case.
    */
   resultReady: boolean
+  /**
+   * The host cancelled the originating call (`useToolContext().error` is a
+   * `ToolCancelledError`). Suppresses the recovery: nothing fires, and an
+   * attempt already in flight is dropped. Defaults to `false`.
+   */
+  cancelled?: boolean
   /** The payload the host delivered (`useToolContext().toolOutput`). */
   props: unknown
   /**
@@ -117,6 +129,7 @@ export function useToolResultRecovery<T>(
 ): ToolResultRecoveryState<T> {
   const {
     resultReady,
+    cancelled = false,
     props,
     isValid,
     toolInput,
@@ -148,12 +161,14 @@ export function useToolResultRecovery<T>(
     if (assumedReady) setAssumedReady(false)
   }
   useEffect(() => {
-    if (resultReady || toolName === undefined) return
+    if (resultReady || cancelled || toolName === undefined) return
     const timer = setTimeout(() => setAssumedReady(true), assumeStrippedAfterMs)
     return () => clearTimeout(timer)
-  }, [resultReady, toolName, toolInput, assumeStrippedAfterMs])
+  }, [resultReady, cancelled, toolName, toolInput, assumeStrippedAfterMs])
 
-  const ready = resultReady || assumedReady
+  // A cancelled call never counts as ready, so the effect below invalidates
+  // any in-flight attempt the same way it does for a superseded run.
+  const ready = !cancelled && (resultReady || assumedReady)
 
   useEffect(() => {
     // A new tool run (result no longer ready, or fresh tool-input identity)
