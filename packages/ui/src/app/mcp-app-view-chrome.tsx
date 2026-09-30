@@ -1,16 +1,20 @@
 /**
- * Presentational chrome for `McpAppView` — the toolbar, the pipeline error
- * list, and the build/render body — plus the view-envelope types they share.
+ * Presentational chrome for `McpAppView` — the pre-payload placeholder, the
+ * toolbar, the pipeline error list, and the build/render body — plus the
+ * view-envelope types they share.
  * Split out of `mcp-app-view.tsx` so the shell component keeps only the
  * host-sync and state logic while this file stays hook-free.
  */
 import { Maximize2, Minimize2, Pencil, RefreshCw } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef } from "@miragon/mcp-toolkit-core"
+import { Skeleton } from "../primitives/skeleton.js"
 import { LayoutBuilder, type LayoutBuilderProps } from "./layout-builder.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
 
 export interface McpAppViewLabels {
   loading?: string
+  /** Shown instead of the loading skeleton when the host cancelled the rendering tool call. */
+  cancelled?: string
   refresh?: string
   refreshing?: string
   enterFullscreen?: string
@@ -20,6 +24,7 @@ export interface McpAppViewLabels {
 
 export const DEFAULT_LABELS: Required<McpAppViewLabels> = {
   loading: "Waiting for pipeline result...",
+  cancelled: "Tool call was cancelled.",
   refresh: "Refresh",
   refreshing: "Loading...",
   enterFullscreen: "Fullscreen",
@@ -64,6 +69,34 @@ export interface ViewData {
 export function isCompleteViewData(value: unknown): value is ViewData {
   const v = value as ViewData | null | undefined
   return Boolean(v?.context && v?.layout)
+}
+
+// -------------------------------------------------------------------------- //
+// Placeholder: shown until a view payload exists
+// -------------------------------------------------------------------------- //
+
+export function ViewPlaceholder({
+  cancelled,
+  labels,
+}: {
+  /** The host cancelled the rendering call — no payload will arrive. */
+  cancelled: boolean
+  labels: Required<McpAppViewLabels>
+}) {
+  if (cancelled) {
+    return (
+      <div className="p-4">
+        <p className="text-muted-foreground text-sm">{labels.cancelled}</p>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-32 w-full" />
+      <p className="text-muted-foreground text-sm">{labels.loading}</p>
+    </div>
+  )
 }
 
 // -------------------------------------------------------------------------- //
