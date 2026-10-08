@@ -16,7 +16,7 @@
     "@miragon/mcp-toolkit-core": "2.5.0",
     "@miragon/mcp-toolkit-ui": "2.5.0",
     "lucide-react": "0.562.0",
-    "mcp-use": "2.7.1",
+    "mcp-use": "2.7.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "4.5.4"
