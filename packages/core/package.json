@@ -43,19 +43,19 @@
     "access": "public"
   },
   "peerDependencies": {
-    "mcp-use": "2.7.1",
+    "mcp-use": "2.7.3",
     "zod": "^4.4.0"
   },
   "devDependencies": {
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/server": "2.2.0",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
-    "@types/node": "26.6.2",
-    "@vitest/coverage-v8": "5.0.1",
+    "@types/node": "26.6.4",
+    "@vitest/coverage-v8": "5.0.3",
     "fast-check": "4.10.2",
-    "mcp-use": "2.7.1",
+    "mcp-use": "2.7.3",
     "typescript": "6.0.3",
-    "vitest": "5.0.1",
+    "vitest": "5.0.3",
     "zod": "4.6.5"
   },
   "engines": {
