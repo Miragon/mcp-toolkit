@@ -13,6 +13,7 @@ import type { DashboardStore } from "./dashboard-store.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
 import type { AppResourceCsp } from "../types/meta.js"
 import { installToolkit } from "./install-toolkit.js"
+import type { DuplicateToolNamePolicy } from "./tool-name-guard.js"
 
 export interface CreateFrameworkAppOptionsBase {
   name: string
@@ -118,6 +119,12 @@ export interface CreateFrameworkAppOptionsBase {
      * this option has no effect.
      */
     dashboardStore?: DashboardStore
+    /**
+     * Duplicate tool names across plugins, the framework tools, and later
+     * registrations: `"warn"` (default in 2.x) or `"throw"` (fail the boot).
+     * See `InstallToolkitOptions.duplicateToolNames`.
+     */
+    duplicateToolNames?: DuplicateToolNamePolicy
   }
   /** Supplies the non-empty set of apps each plugin represents. */
   appConfig?: AppConfig
@@ -286,6 +293,7 @@ export async function createFrameworkApp<TUser>(
     // never widened to global (owner-less) scope.
     requireCallerIdentity: Boolean(options.oauth),
     appConfig: options.appConfig,
+    duplicateToolNames: options.app.duplicateToolNames,
   })
 
   // Prime the view registry LAST, once every registrar and plugin has bound

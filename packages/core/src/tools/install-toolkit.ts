@@ -8,6 +8,13 @@ import type { AppResourceCsp } from "../types/meta.js"
 import { registerFrameworkTools } from "./register-framework-tools.js"
 import { registerCatalogueTool } from "./register-catalogue-tool.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
+import {
+  FRAMEWORK_TOOL_OWNER,
+  installToolNameGuard,
+  moduleToolOwner,
+  withToolOwner,
+  type DuplicateToolNamePolicy,
+} from "./tool-name-guard.js"
 
 export interface InstallToolkitOptions {
   /**
@@ -55,6 +62,15 @@ export interface InstallToolkitOptions {
   requireCallerIdentity?: boolean
   /** Overrides the active-apps/pipelines config derived from apps + modules. */
   appConfig?: AppConfig
+  /**
+   * A tool name registered twice on this server — between modules, against
+   * a framework tool (`get-framework-manifest`, `render-view`, the refresh
+   * tool, and with {@link builder} the catalogue + dashboard tools), or by
+   * application code after the install — is reported naming both owners.
+   * `"warn"` (default in 2.x) logs it and keeps mcp-use's last-wins result;
+   * `"throw"` fails the install instead.
+   */
+  duplicateToolNames?: DuplicateToolNamePolicy
 }
 
 /** The registries {@link installToolkit} built — for advanced composition. */
@@ -92,6 +108,13 @@ export function installToolkit(
   server: MCPServer,
   options: InstallToolkitOptions = {},
 ): InstalledToolkit {
+  installToolNameGuard(server, options.duplicateToolNames ?? "warn")
+  // Everything the install registers is framework-owned unless a module hook
+  // claims it: module tools here, module widget tools in registerFrameworkTools.
+  return withToolOwner(server, FRAMEWORK_TOOL_OWNER, () => install(server, options))
+}
+
+function install(server: MCPServer, options: InstallToolkitOptions): InstalledToolkit {
   const stepRegistry = new StepRegistry()
   const widgetRegistry = new WidgetRegistry()
 
@@ -103,7 +126,9 @@ export function installToolkit(
   loadApps([...apps, ...modules.map((m) => m.definition)], stepRegistry, widgetRegistry)
 
   for (const module of modules) {
-    module.registerTools?.(server)
+    withToolOwner(server, moduleToolOwner(module.definition.name), () =>
+      module.registerTools?.(server),
+    )
   }
 
   // Per-app step configuration: each module's `appConfig` keyed by app name.

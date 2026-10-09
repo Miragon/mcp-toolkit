@@ -21,6 +21,7 @@ export type {
   WidgetToolDefinitionPassthrough,
   ToolRegistrarOptions,
 } from "./registrar-shared.js"
+export type { DuplicateToolNamePolicy } from "./tool-name-guard.js"
 export { withToolErrors } from "./with-tool-errors.js"
 export { textResult, objectResult, errorResult } from "./tool-results.js"
 export { registerFrameworkTools, RENDER_VIEW_NAME } from "./register-framework-tools.js"
