@@ -1,5 +1,6 @@
 import type { MCPServer } from "mcp-use"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+import type { PipelineExecutionContext } from "../engine/pipeline-executor.js"
 import { StepRegistry } from "../registry/step-registry.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppPlugin } from "../types/index.js"
@@ -108,5 +109,71 @@ describe("registerFrameworkTools widget contract", () => {
         viewCsp: CSP,
       },
     ])
+  })
+})
+
+describe("registerFrameworkTools — caller in the pipeline ctx", () => {
+  /**
+   * render-view and refresh-view share one handler; the caller it resolves is
+   * observable through the executor's `bindAppConfig` rewrap — a step's
+   * `appConfig.callTool` receives `{ userId, authenticated }` as its hidden
+   * third argument.
+   */
+  function setupWhoami() {
+    const stepRegistry = new StepRegistry()
+    stepRegistry.register({
+      id: "demo:whoami",
+      dataType: "demo:identity",
+      requires: [],
+      produces: [],
+      async execute(_context, appConfig) {
+        const { callTool } = appConfig as {
+          callTool: (name: string, args: unknown) => Promise<unknown>
+        }
+        await callTool("whoami", {})
+        return { _app: "demo", _step: "whoami", data: {}, keys: {} }
+      },
+    })
+    const callTool = vi.fn<
+      (name: string, args: unknown, ctx?: PipelineExecutionContext) => Promise<unknown>
+    >(() => Promise.resolve({}))
+    const { server, tools } = createStubServer()
+    registerFrameworkTools(
+      server,
+      baseOptions({ stepRegistry, appConfigs: { demo: { callTool } } }),
+    )
+    return { tools, callTool }
+  }
+
+  const params = { steps: [{ id: "me", step: "demo:whoami" }], layout: { rows: [] } }
+
+  it.each(["render-view", "refresh-view"])(
+    "%s threads ctx.auth.user.id (the mcp-use 2 provider shape) into the steps",
+    async (tool) => {
+      const { tools, callTool } = setupWhoami()
+      await tools.get(tool)!.cb(params, { auth: { user: { id: "alice" }, payload: {} } })
+      expect(callTool).toHaveBeenCalledExactlyOnceWith(
+        "whoami",
+        {},
+        { userId: "alice", authenticated: true },
+      )
+    },
+  )
+
+  it("marks an authenticated caller without an id as authenticated, not anonymous", async () => {
+    const { tools, callTool } = setupWhoami()
+    await tools.get("render-view")!.cb(params, { auth: { user: {}, payload: {} } })
+    expect(callTool).toHaveBeenCalledExactlyOnceWith(
+      "whoami",
+      {},
+      { userId: undefined, authenticated: true },
+    )
+  })
+
+  it("threads neither a userId nor authenticated when the ctx carries no auth", async () => {
+    const { tools, callTool } = setupWhoami()
+    await tools.get("render-view")!.cb(params)
+    expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, {})
+    expect(callTool.mock.calls[0]?.[2]).not.toHaveProperty("authenticated")
   })
 })

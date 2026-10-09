@@ -1,0 +1,407 @@
+import net from "node:net"
+import type { MCPServer } from "mcp-use"
+import { oauthCustomProvider, type OAuthProvider } from "mcp-use/oauth"
+import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import type { AppPlugin } from "../types/index.js"
+import { createFrameworkApp, type CreateFrameworkAppOptionsBase } from "./create-framework-app.js"
+import { textResult } from "./tool-results.js"
+
+/**
+ * Auth contract through a REAL mcp-use server: `createFrameworkApp` with a
+ * fake OAuth provider, listening on loopback, driven over HTTP with bearer
+ * tokens for several users.
+ *
+ * Every other auth test in this package hands a hand-built `ctx` to a
+ * middleware or tool callback. Those doubles drifted from mcp-use 2 without
+ * anyone noticing: middleware receives the SDK `AuthInfo` (provider-mapped
+ * identity under `ctx.auth.extra.user`), tool callbacks receive the flattened
+ * `ctx.auth.user`, and the built-in providers map the user as
+ * `{ id, roles, organizationId }` — no `userId`, no `organization_id`. Only a
+ * request through mcp-use itself produces those shapes, so only this suite
+ * can tell whether the role filter, the org gate and the dashboard scoping
+ * actually see the caller.
+ */
+
+/** The identity every built-in mcp-use provider maps: `id`, never `userId`. */
+interface FakeUser {
+  id?: string
+  roles: string[]
+  organizationId?: string
+}
+
+const USERS: Record<string, FakeUser> = {
+  "token-alice": { id: "alice", roles: ["viewer"], organizationId: "org-1" },
+  "token-bob": { id: "bob", roles: ["auditor"], organizationId: "org-1" },
+  "token-mallory": { id: "mallory", roles: ["auditor"], organizationId: "org-2" },
+  // A provider that verifies the token but maps no stable subject: the
+  // server must not invent an owner (or fall back to global scope) for it.
+  "token-nameless": { roles: [], organizationId: "org-1" },
+}
+
+function fakeOAuthProvider(): OAuthProvider<FakeUser> {
+  return oauthCustomProvider<FakeUser>({
+    oauthMetadata: {
+      issuer: "https://auth.example.test",
+      authorization_endpoint: "https://auth.example.test/authorize",
+      token_endpoint: "https://auth.example.test/token",
+      response_types_supported: ["code"],
+    },
+    createTokenVerifier: (resource) => ({
+      verifyAccessToken: (token) => {
+        if (!(token in USERS)) return Promise.reject(new Error("unknown token"))
+        return Promise.resolve({
+          token,
+          clientId: "contract-test",
+          scopes: [],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          resource,
+        })
+      },
+    }),
+    mapAuthInfo: (authInfo) => ({
+      user: USERS[authInfo.token]!,
+      payload: {},
+      permissions: [],
+    }),
+  })
+}
+
+/** The per-request context a step's `callTool` closure receives (3rd argument). */
+interface BoundCtx {
+  userId?: string
+  authenticated?: boolean
+}
+
+/**
+ * A module with one tool in each of two modules (`alpha_*`, `beta_*`) for the
+ * role filter, plus a pipeline step that reports which caller its `callTool`
+ * closure was bound to — the per-request identity render-view threads through.
+ */
+function probePlugin(): AppPlugin {
+  return {
+    definition: {
+      name: "probe",
+      steps: [
+        {
+          id: "probe:whoami",
+          dataType: "probe:whoami",
+          requires: [],
+          produces: ["probe:userId", "probe:authenticated"],
+          execute: async (
+            _context,
+            appConfig: { callTool: (name: string, args: unknown) => Promise<BoundCtx> },
+          ) => {
+            const bound = await appConfig.callTool("whoami", {})
+            const keys = {
+              "probe:userId": bound.userId ?? null,
+              "probe:authenticated": bound.authenticated ?? false,
+            }
+            return { data: keys, keys, _app: "probe", _step: "whoami" }
+          },
+        },
+      ],
+      widgets: [],
+    },
+    appConfig: {
+      callTool: (_name: string, _args: unknown, ctx?: BoundCtx) => Promise.resolve(ctx ?? {}),
+    },
+    registerTools(server) {
+      // Plugins are typed against an opaque server (the core barrel stays
+      // mcp-use-free); the house pattern narrows it at the registration site.
+      const mcp = server as MCPServer
+      mcp.tool({ name: "alpha_ping", description: "Alpha module ping." }, () =>
+        Promise.resolve(textResult("alpha")),
+      )
+      mcp.tool({ name: "beta_ping", description: "Beta module ping." }, () =>
+        Promise.resolve(textResult("beta")),
+      )
+    },
+  }
+}
+
+async function getFreePort(): Promise<number> {
+  return await new Promise((resolve, reject) => {
+    const probe = net.createServer()
+    probe.once("error", reject)
+    probe.listen(0, "127.0.0.1", () => {
+      const { port } = probe.address() as net.AddressInfo
+      probe.close(() => resolve(port))
+    })
+  })
+}
+
+interface RpcResponse {
+  status: number
+  result?: Record<string, unknown>
+  error?: { code: number; message: string }
+}
+
+interface Booted {
+  rpc: (token: string | undefined, method: string, params?: unknown) => Promise<RpcResponse>
+  close: () => Promise<void>
+}
+
+async function boot(overrides: Partial<CreateFrameworkAppOptionsBase>): Promise<Booted> {
+  const server = await createFrameworkApp({
+    name: "auth-contract",
+    version: "0.0.0",
+    host: "127.0.0.1",
+    plugins: [probePlugin()],
+    app: { bundle: { jsPath: "/nonexistent/mcp-app.js" } },
+    ...overrides,
+    oauth: fakeOAuthProvider(),
+  })
+  const port = await getFreePort()
+  await server.listen(port)
+  let id = 0
+  return {
+    async rpc(token, method, params) {
+      const response = await fetch(`http://127.0.0.1:${port}/mcp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }),
+      })
+      const body = await response.text()
+      // Streamable HTTP answers as SSE; the JSON-RPC payload is the `data:` line.
+      const line = body.split("\n").find((l) => l.startsWith("data: "))
+      let payload: Omit<RpcResponse, "status"> = {}
+      try {
+        payload = JSON.parse(line ? line.slice(6) : body) as Omit<RpcResponse, "status">
+      } catch {
+        // A non-JSON body (the 401 challenge) carries only the status.
+      }
+      return { status: response.status, ...payload }
+    },
+    close: () => server.close(),
+  }
+}
+
+async function toolNames(app: Booted, token: string): Promise<string[]> {
+  const response = await app.rpc(token, "tools/list")
+  expect(response.error).toBeUndefined()
+  return ((response.result?.tools ?? []) as { name: string }[]).map((t) => t.name)
+}
+
+interface ToolCallOutcome {
+  /** Set when the call was rejected before the handler (JSON-RPC error). */
+  rpcError?: string
+  isError: boolean
+  text: string
+  structuredContent?: Record<string, unknown>
+}
+
+async function callTool(
+  app: Booted,
+  token: string,
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<ToolCallOutcome> {
+  const response = await app.rpc(token, "tools/call", { name, arguments: args })
+  if (response.error) return { rpcError: response.error.message, isError: true, text: "" }
+  const result = response.result as {
+    isError?: boolean
+    content?: { type: string; text?: string }[]
+    structuredContent?: Record<string, unknown>
+  }
+  return {
+    isError: result.isError === true,
+    text: (result.content ?? []).map((c) => c.text ?? "").join("\n"),
+    structuredContent: result.structuredContent,
+  }
+}
+
+describe("auth contract — real MCPServer + fake OAuth provider", () => {
+  describe("the bearer gate itself", () => {
+    let app: Booted
+    beforeAll(async () => {
+      app = await boot({})
+    })
+    afterAll(() => app.close())
+
+    it("rejects a request without a token (sanity: OAuth is really on)", async () => {
+      const response = await app.rpc(undefined, "tools/list")
+      expect(response.status).toBe(401)
+    })
+  })
+
+  describe("role filter", () => {
+    let app: Booted
+    beforeAll(async () => {
+      app = await boot({ middleware: { roleFilter: { viewer: ["alpha"] } } })
+    })
+    afterAll(() => app.close())
+
+    it("hides the modules a restricted role cannot access from tools/list", async () => {
+      const names = await toolNames(app, "token-alice")
+      expect(names).toContain("alpha_ping")
+      expect(names).not.toContain("beta_ping")
+      // Framework tools carry no module prefix and always pass.
+      expect(names).toContain("render-view")
+    })
+
+    it("leaves tools/list untouched for a caller with no restricted role", async () => {
+      const names = await toolNames(app, "token-bob")
+      expect(names).toEqual(expect.arrayContaining(["alpha_ping", "beta_ping"]))
+    })
+
+    it("blocks tools/call to a module the restricted role cannot access", async () => {
+      const denied = await callTool(app, "token-alice", "beta_ping")
+      expect(denied.isError).toBe(true)
+      expect(`${denied.rpcError ?? ""}${denied.text}`).toMatch(/no access to module "beta"/)
+
+      const allowed = await callTool(app, "token-alice", "alpha_ping")
+      expect(allowed.isError).toBe(false)
+      expect(allowed.text).toBe("alpha")
+    })
+
+    it("lets an unrestricted caller call every module", async () => {
+      const result = await callTool(app, "token-bob", "beta_ping")
+      expect(result.isError).toBe(false)
+      expect(result.text).toBe("beta")
+    })
+  })
+
+  describe("org gate", () => {
+    let app: Booted
+    beforeAll(async () => {
+      app = await boot({ middleware: { orgGate: "org-1" } })
+    })
+    afterAll(() => app.close())
+
+    it("admits a member of the configured organization (organizationId, camelCase)", async () => {
+      const names = await toolNames(app, "token-alice")
+      expect(names).toContain("alpha_ping")
+      const result = await callTool(app, "token-alice", "alpha_ping")
+      expect(result.isError).toBe(false)
+    })
+
+    it("rejects a member of another organization", async () => {
+      const list = await app.rpc("token-mallory", "tools/list")
+      expect(list.result?.tools).toBeUndefined()
+      expect(JSON.stringify(list.error ?? list.result)).toMatch(/not a member of this organization/)
+
+      const call = await callTool(app, "token-mallory", "alpha_ping")
+      expect(call.isError).toBe(true)
+      expect(`${call.rpcError ?? ""}${call.text}`).toMatch(/not a member of this organization/)
+    })
+  })
+
+  describe("per-user identity in tool handlers", () => {
+    let app: Booted
+    beforeAll(async () => {
+      app = await boot({ app: { bundle: { jsPath: "/nonexistent/mcp-app.js" }, builder: true } })
+    })
+    afterAll(() => app.close())
+
+    const layout = { rows: [{ row: [{ widget: "probe:card" }] }] }
+
+    it("isolates dashboards per user: B can neither list, load nor delete A's dashboard", async () => {
+      const saved = await callTool(app, "token-alice", "save-dashboard", {
+        name: "Alice's board",
+        layout,
+      })
+      expect(saved.isError).toBe(false)
+      const id = saved.structuredContent?.id as string
+      expect(typeof id).toBe("string")
+
+      const aliceList = await callTool(app, "token-alice", "list-dashboards")
+      const aliceIds = (aliceList.structuredContent?.items as { id: string }[]).map((i) => i.id)
+      expect(aliceIds).toContain(id)
+
+      const bobList = await callTool(app, "token-bob", "list-dashboards")
+      const bobIds = (bobList.structuredContent?.items as { id: string }[] | undefined)?.map(
+        (i) => i.id,
+      )
+      expect(bobIds ?? []).not.toContain(id)
+
+      const bobLoad = await callTool(app, "token-bob", "load-dashboard", { id })
+      expect(bobLoad.isError).toBe(true)
+      expect(bobLoad.text).not.toContain("Alice's board")
+
+      const bobDelete = await callTool(app, "token-bob", "delete-dashboard", { id })
+      expect(bobDelete.isError).toBe(true)
+
+      const bobOverwrite = await callTool(app, "token-bob", "save-dashboard", {
+        id,
+        name: "Hijacked",
+        layout,
+      })
+      expect(bobOverwrite.isError).toBe(true)
+
+      // Alice's record survived every one of Bob's attempts, unchanged.
+      const aliceLoad = await callTool(app, "token-alice", "load-dashboard", { id })
+      expect(aliceLoad.isError).toBe(false)
+      expect(aliceLoad.structuredContent).toMatchObject({
+        id,
+        name: "Alice's board",
+        userId: "alice",
+      })
+    })
+
+    it("refuses an ownerless dashboard write when the caller has no resolvable identity", async () => {
+      const saved = await callTool(app, "token-nameless", "save-dashboard", {
+        name: "Nobody's board",
+        layout,
+      })
+      expect(saved.isError).toBe(true)
+      expect(saved.text).toMatch(/identity/i)
+
+      // Nothing was persisted for anyone to find.
+      const aliceList = await callTool(app, "token-alice", "list-dashboards")
+      const names = (aliceList.structuredContent?.items as { name: string }[]).map((i) => i.name)
+      expect(names).not.toContain("Nobody's board")
+    })
+
+    it("refuses dashboard reads for a caller with no resolvable identity instead of widening to global scope", async () => {
+      const list = await callTool(app, "token-nameless", "list-dashboards")
+      expect(list.isError).toBe(true)
+    })
+
+    it.each(["render-view", "refresh-view"])(
+      "threads the caller id into %s's pipeline steps",
+      async (tool) => {
+        const result = await callTool(app, "token-alice", tool, {
+          steps: [{ id: "who", step: "probe:whoami" }],
+          layout,
+        })
+        expect(result.isError).toBe(false)
+        const context = result.structuredContent?.context as { keys: Record<string, unknown> }
+        expect(context.keys["probe:userId"]).toBe("alice")
+        expect(context.keys["probe:authenticated"]).toBe(true)
+      },
+    )
+
+    /**
+     * A provider that verifies the token but maps no id must not look like a
+     * server without OAuth to a step: both carry no `userId`, so a user-scoped
+     * closure needs `authenticated` to refuse instead of widening to its
+     * global / anonymous scope.
+     */
+    it.each(["render-view", "refresh-view", "get-builder-catalogue"])(
+      "tells %s's steps that an id-less caller is authenticated, not anonymous",
+      async (tool) => {
+        const result = await callTool(app, "token-nameless", tool, {
+          steps: [{ id: "who", step: "probe:whoami" }],
+          ...(tool === "get-builder-catalogue" ? {} : { layout }),
+        })
+        expect(result.isError).toBe(false)
+        const context = result.structuredContent?.context as { keys: Record<string, unknown> }
+        expect(context.keys["probe:userId"]).toBeNull()
+        expect(context.keys["probe:authenticated"]).toBe(true)
+      },
+    )
+
+    it("threads the caller id into the builder catalogue's pipeline run", async () => {
+      const result = await callTool(app, "token-bob", "get-builder-catalogue", {
+        steps: [{ id: "who", step: "probe:whoami" }],
+      })
+      expect(result.isError).toBe(false)
+      const context = result.structuredContent?.context as { keys: Record<string, unknown> }
+      expect(context.keys["probe:userId"]).toBe("bob")
+    })
+  })
+})

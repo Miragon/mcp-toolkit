@@ -97,8 +97,8 @@ export interface CatalogueOptions {
   widgetRegistry: WidgetRegistry
   appConfigs?: Record<string, unknown>
   /**
-   * Per-request context (currently: the calling userId). Mirrors
-   * {@link RenderViewOptions.ctx}.
+   * Per-request context — who is calling; build it with
+   * `resolvePipelineContext(ctx)`. Mirrors {@link RenderViewOptions.ctx}.
    */
   ctx?: PipelineExecutionContext
 }

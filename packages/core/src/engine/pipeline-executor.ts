@@ -1,15 +1,48 @@
+import { resolveCaller } from "../auth/caller.js"
 import type { PipelineContext } from "../types/context.js"
 import type { PipelineConfig } from "../types/pipeline.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 
 /**
- * Per-request context threaded into steps. Currently only carries the
- * calling user's id, which the executor uses to pre-bind a user-scoped
- * `callTool` closure on the step's `appConfig` so step code stays
- * synchronous and userId-free.
+ * Per-request context threaded into steps: who is calling. The executor hands
+ * it to a user-scoped `callTool` closure on the step's `appConfig` (as its
+ * hidden third argument) so step code stays synchronous and userId-free.
+ * Build it from a tool handler's `ctx` with {@link resolvePipelineContext}.
  */
 export interface PipelineExecutionContext {
+  /**
+   * The caller's id ({@link resolveCaller}). `undefined` for a request without
+   * auth — and for an authenticated caller whose provider maps no id; tell the
+   * two apart with {@link PipelineExecutionContext.authenticated}.
+   */
   userId?: string
+  /**
+   * `true` when the request carried auth, even if no `userId` resolved from
+   * it. An authenticated caller WITHOUT a `userId` is not anonymous: a closure
+   * that scopes data per user must refuse it rather than fall back to its
+   * global / anonymous scope. Absent for a request without auth (a server
+   * without OAuth).
+   */
+  authenticated?: boolean
+}
+
+/**
+ * The {@link PipelineExecutionContext} for a tool / resource / prompt `ctx`,
+ * read through {@link resolveCaller} (both mcp-use 2 `ctx.auth` shapes) — what
+ * render-view, refresh-view and the builder catalogue hand their pipeline.
+ * Use it too when calling `renderView` / `getBuilderCatalogue` from your own
+ * tool, instead of reading `ctx.auth` yourself.
+ *
+ * @example
+ * ```ts
+ * server.tool({ name: "my-view", … }, (args, ctx) =>
+ *   renderView({ input: args, stepRegistry, ctx: resolvePipelineContext(ctx) }),
+ * )
+ * ```
+ */
+export function resolvePipelineContext(ctx: unknown): PipelineExecutionContext {
+  const caller = resolveCaller(ctx)
+  return caller === undefined ? {} : { userId: caller.userId, authenticated: true }
 }
 
 /**
@@ -17,8 +50,9 @@ export interface PipelineExecutionContext {
  * plugin injects via `AppPlugin.appConfig`, e.g. a typed `callTool` bound to
  * the module's own store or client), rewrap it so the step-facing call
  * signature is `(name, args)` while the underlying closure receives the
- * current `{ userId }` via a hidden 3rd argument — steps stay synchronous
- * and userId-free while the closure can still scope data per user.
+ * current {@link PipelineExecutionContext} (`{ userId, authenticated }`) via a
+ * hidden 3rd argument — steps stay synchronous and userId-free while the
+ * closure can still scope data per user.
  * All other keys pass through untouched.
  */
 function bindAppConfig(appConfig: unknown, ctx: PipelineExecutionContext | undefined): unknown {
@@ -29,7 +63,7 @@ function bindAppConfig(appConfig: unknown, ctx: PipelineExecutionContext | undef
   const raw = callTool as (
     name: string,
     args: unknown,
-    ctx?: { userId?: string },
+    ctx?: PipelineExecutionContext,
   ) => Promise<unknown>
   return {
     ...cfg,

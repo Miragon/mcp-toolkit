@@ -1,7 +1,16 @@
 import { type MCPServer } from "mcp-use"
 import { z } from "zod"
-import { objectResult } from "./tool-results.js"
-import type { DashboardStore } from "./dashboard-store.js"
+import { resolveCaller } from "../auth/caller.js"
+import { errorResult, objectResult } from "./tool-results.js"
+import {
+  assertDashboardWritable,
+  DashboardOwnershipError,
+  DashboardUnreadableError,
+  isDashboardOwnedBy,
+  type DashboardRecord,
+  type DashboardStore,
+  type DashboardSummary,
+} from "./dashboard-store.js"
 import { collectLayoutWidgets } from "../framework/view-builders.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
@@ -15,6 +24,15 @@ export interface RegisterDashboardToolsOptions {
    * blocked on a cosmetic mistake. Omit to skip the check entirely.
    */
   widgetRegistry?: WidgetRegistry
+  /**
+   * Refuse every dashboard call that resolves no caller id — even one that
+   * carries no `ctx.auth` at all — instead of serving it in global scope.
+   * `createFrameworkApp` sets this whenever an `oauth` provider is configured.
+   * A call that DOES carry `ctx.auth` is held to it regardless: an
+   * authenticated caller without an id is never widened to global scope.
+   * Defaults to `false`.
+   */
+  requireCallerIdentity?: boolean
 }
 
 const stepRefSchema = z.object({
@@ -51,16 +69,84 @@ const idSchema = z.object({
   id: z.string().describe("Dashboard id as returned by `save-dashboard` or `list-dashboards`."),
 })
 
-function extractUserId(ctx: unknown): string | undefined {
-  const user = (ctx as { auth?: { user?: { userId?: unknown } } } | undefined)?.auth?.user
-  return typeof user?.userId === "string" ? user.userId : undefined
+/** The store filter a dashboard call runs under; `userId: undefined` is global scope. */
+interface DashboardScope {
+  userId: string | undefined
+}
+
+/**
+ * Whose dashboards a call may touch: `{ userId: undefined }` is global scope
+ * (a server without OAuth), `{ userId }` is that caller's records only, and
+ * `undefined` means refuse — the call is authenticated (or OAuth is
+ * required) but no caller id resolves, and falling back to global scope would
+ * hand it every user's dashboards.
+ */
+function dashboardScope(ctx: unknown, requireCallerIdentity: boolean): DashboardScope | undefined {
+  const caller = resolveCaller(ctx)
+  if (caller?.userId) return { userId: caller.userId }
+  if (caller === undefined && !requireCallerIdentity) return { userId: undefined }
+  return undefined
+}
+
+const NO_IDENTITY_MESSAGE =
+  "Access denied: this request carries no caller identity (the OAuth provider mapped no user id and the token has no `sub`). Dashboards are per-user, so they cannot be read or written without one."
+
+/**
+ * Defence in depth for custom stores with a laxer ownership rule (the 2.5
+ * contract handed owner-less records to every caller): the record `get`
+ * returns, but only if it is the caller's — {@link isDashboardOwnedBy}, so
+ * global scope passes everything through. A store that already follows the
+ * rule loses nothing but the extra read.
+ */
+async function ownRecord(
+  store: DashboardStore,
+  id: string,
+  scope: DashboardScope,
+): Promise<DashboardRecord | undefined> {
+  const record = await store.get(id, scope)
+  return record && isDashboardOwnedBy(record.userId, scope.userId) ? record : undefined
+}
+
+/**
+ * Keep only the identified caller's own summaries. A summary that names its
+ * owner is decided on the spot; one that doesn't (a store on the 2.5 summary
+ * shape) is verified through `get`, and an unreadable one that cannot be
+ * attributed that way is dropped rather than listed.
+ */
+async function ownSummaries(
+  store: DashboardStore,
+  items: DashboardSummary[],
+  userId: string,
+): Promise<DashboardSummary[]> {
+  const isOwn = async (item: DashboardSummary): Promise<boolean> => {
+    if (item.userId !== undefined) return item.userId === userId
+    try {
+      return (await ownRecord(store, item.id, { userId })) !== undefined
+    } catch (err) {
+      if (err instanceof DashboardUnreadableError) return false
+      throw err
+    }
+  }
+  const verdicts = await Promise.all(items.map(isOwn))
+  return items.filter((_item, index) => verdicts[index])
+}
+
+/** Store refusals that reach the caller as a tool error rather than a crash. */
+function refusalResult(err: unknown) {
+  if (err instanceof DashboardOwnershipError || err instanceof DashboardUnreadableError) {
+    return errorResult(err.message)
+  }
+  throw err
 }
 
 /**
  * Registers `save-dashboard`, `list-dashboards`, `load-dashboard`, and
  * `delete-dashboard`. The tools are thin CRUD wrappers around the injected
- * `DashboardStore`; auth scoping is applied here (never in the store) via
- * the standard `ctx.auth.user.userId` extraction.
+ * `DashboardStore`; the caller's scope is decided here via
+ * {@link resolveCaller} (both mcp-use 2 `ctx.auth` shapes; `user.id`, then
+ * `user.userId`, then the token's `sub`) and handed to the store as its
+ * `userId` filter. An authenticated call that resolves no id is refused —
+ * never served in global scope.
  *
  * `load-dashboard` returns the full record as JSON in `content[0].text`
  * (mirrored into `structuredContent`) so the model itself receives the
@@ -78,6 +164,7 @@ export function registerDashboardTools(
   options: RegisterDashboardToolsOptions,
 ): void {
   const { store, widgetRegistry } = options
+  const requireCallerIdentity = options.requireCallerIdentity ?? false
 
   server.tool(
     {
@@ -88,6 +175,9 @@ export function registerDashboardTools(
       inputSchema: saveSchema,
     },
     async (params, ctx) => {
+      const scope = dashboardScope(ctx, requireCallerIdentity)
+      if (!scope) return errorResult(NO_IDENTITY_MESSAGE)
+
       // Warn (never reject) on unknown widget ids — usually a typo. A save is
       // deliberately never blocked on a cosmetic layout mistake; the unknown
       // ids surface in the text summary so the user can spot and fix it.
@@ -95,16 +185,27 @@ export function registerDashboardTools(
         ? [...new Set(collectLayoutWidgets(params.layout))].filter((id) => !widgetRegistry.get(id))
         : []
 
-      const record = await store.save({
-        id: params.id,
-        name: params.name,
-        description: params.description,
-        userId: extractUserId(ctx),
-        keys: params.keys,
-        steps: params.steps,
-        layout: params.layout,
-        title: params.title,
-      })
+      let record: DashboardRecord
+      try {
+        if (scope.userId !== undefined && params.id !== undefined) {
+          // Defence in depth: a lax custom store's own save might let the
+          // caller overwrite (and so claim) a record it does not own.
+          const existing = await store.get(params.id, scope)
+          if (existing) assertDashboardWritable(existing, scope.userId)
+        }
+        record = await store.save({
+          id: params.id,
+          name: params.name,
+          description: params.description,
+          userId: scope.userId,
+          keys: params.keys,
+          steps: params.steps,
+          layout: params.layout,
+          title: params.title,
+        })
+      } catch (err) {
+        return refusalResult(err)
+      }
       const summaryLines = [
         `Saved dashboard "${record.name}" (${record.id}).`,
         unknownWidgets.length > 0
@@ -133,8 +234,12 @@ export function registerDashboardTools(
       annotations: { readOnlyHint: true },
     },
     async (_params, ctx) => {
-      const items = await store.list({ userId: extractUserId(ctx) })
-      return objectResult({ items })
+      const scope = dashboardScope(ctx, requireCallerIdentity)
+      if (!scope) return errorResult(NO_IDENTITY_MESSAGE)
+      const items = await store.list({ userId: scope.userId })
+      return objectResult({
+        items: scope.userId === undefined ? items : await ownSummaries(store, items, scope.userId),
+      })
     },
   )
 
@@ -148,7 +253,14 @@ export function registerDashboardTools(
       annotations: { readOnlyHint: true },
     },
     async ({ id }, ctx) => {
-      const record = await store.get(id, { userId: extractUserId(ctx) })
+      const scope = dashboardScope(ctx, requireCallerIdentity)
+      if (!scope) return errorResult(NO_IDENTITY_MESSAGE)
+      let record: DashboardRecord | undefined
+      try {
+        record = await ownRecord(store, id, scope)
+      } catch (err) {
+        return refusalResult(err)
+      }
       if (!record) {
         return {
           content: [{ type: "text" as const, text: `Dashboard "${id}" not found.` }],
@@ -185,7 +297,17 @@ export function registerDashboardTools(
       inputSchema: idSchema,
     },
     async ({ id }, ctx) => {
-      const deleted = await store.delete(id, { userId: extractUserId(ctx) })
+      const scope = dashboardScope(ctx, requireCallerIdentity)
+      if (!scope) return errorResult(NO_IDENTITY_MESSAGE)
+      let deleted: boolean
+      try {
+        // Defence in depth: never let a lax custom store delete a record the
+        // identified caller does not own.
+        const deletable = scope.userId === undefined || (await ownRecord(store, id, scope))
+        deleted = deletable ? await store.delete(id, scope) : false
+      } catch (err) {
+        return refusalResult(err)
+      }
       return {
         content: [
           {

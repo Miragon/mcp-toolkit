@@ -1,5 +1,6 @@
 import { type MCPServer } from "mcp-use"
 import { z } from "zod"
+import { resolvePipelineContext } from "../engine/pipeline-executor.js"
 import { textResult } from "./tool-results.js"
 import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutInputSchema } from "../framework/layout-schemas.js"
@@ -78,20 +79,6 @@ const renderViewSchema = z.object({
 
 type RenderViewParams = z.infer<typeof renderViewSchema>
 
-/**
- * Minimal shape of the mcp-use tool-handler context this module reads —
- * kept structural (rather than importing mcp-use's context type) so the
- * extraction stays tolerant of hosts that omit auth entirely.
- */
-interface ToolHandlerAuthContext {
-  auth?: { user?: { userId?: string } }
-}
-
-function extractUserId(ctx: unknown): string | undefined {
-  const user = (ctx as ToolHandlerAuthContext | undefined)?.auth?.user
-  return typeof user?.userId === "string" ? user.userId : undefined
-}
-
 /** Converts the camelCase resource CSP into the snake_cased `openai/widgetCSP` shape. */
 function toWidgetCspMeta(csp: AppResourceCsp): WidgetCspMeta {
   const meta: WidgetCspMeta = {}
@@ -155,7 +142,7 @@ export function registerFrameworkTools(
       },
       stepRegistry,
       appConfigs,
-      ctx: { userId: extractUserId(ctx) },
+      ctx: resolvePipelineContext(ctx),
       builderAvailable,
     })
   }

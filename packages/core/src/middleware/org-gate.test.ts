@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { createOrgGateMiddleware } from "./org-gate.js"
+import { createOrgGateMiddleware, type OrgGateMiddleware } from "./org-gate.js"
 
 /**
  * The org gate is a SECURITY boundary: a mismatched or missing
@@ -67,5 +67,73 @@ describe("createOrgGateMiddleware", () => {
 
     expect(result).toBe(sentinel)
     expect(next).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * mcp-use 2 hands MCP middleware the SDK `AuthInfo` (mapped user under
+ * `auth.extra.user`), and the built-in providers spell the claim
+ * `organizationId`. Reading `auth.user.organization_id` only made the gate
+ * deny every request (issue #174).
+ */
+describe("createOrgGateMiddleware — mcp-use 2 middleware shape", () => {
+  const middlewareCtx = (user: Record<string, unknown>) => ({
+    auth: { extra: { user, payload: {}, permissions: [] } },
+  })
+
+  it("admits a matching organizationId (camelCase) from ctx.auth.extra.user", async () => {
+    const gate = createOrgGateMiddleware("org-1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(gate(middlewareCtx({ id: "a", organizationId: "org-1" }), next)).resolves.toBe(
+      "ok",
+    )
+    expect(next).toHaveBeenCalledTimes(1)
+  })
+
+  it("rejects a different organizationId with the mismatch message", async () => {
+    const gate = createOrgGateMiddleware("org-1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(
+      gate(middlewareCtx({ id: "m", organizationId: "org-2" }), next),
+    ).rejects.toThrowError(new Error(MISMATCH_MESSAGE))
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it("rejects a mapped user without any organization with the no-org message", async () => {
+    const gate = createOrgGateMiddleware("org-1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(gate(middlewareCtx({ id: "n" }), next)).rejects.toThrowError(
+      new Error(NO_ORG_MESSAGE),
+    )
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it("does not accept a non-string organization claim", async () => {
+    const gate = createOrgGateMiddleware("1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(gate(middlewareCtx({ organizationId: 1 }), next)).rejects.toThrowError(
+      new Error(NO_ORG_MESSAGE),
+    )
+  })
+})
+
+/**
+ * `OrgGateMiddleware` is a published 2.5 alias consumers type their own
+ * middleware with; it stays non-generic (`Promise<unknown>`) so that code keeps
+ * compiling. Only the factory's return is generic. Pinned through
+ * `pnpm typecheck` (a generic alias fails this file with TS2322).
+ */
+describe("OrgGateMiddleware — the 2.5 consumer typing", () => {
+  it("still types a consumer's own non-generic middleware, and the gate stays assignable to it", async () => {
+    const own: OrgGateMiddleware = async (_ctx, next) => {
+      await next()
+      return undefined
+    }
+    const gate: OrgGateMiddleware = createOrgGateMiddleware("org-1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+
+    await expect(own({}, next)).resolves.toBeUndefined()
+    await expect(gate({ auth: { user: { organizationId: "org-1" } } }, next)).resolves.toBe("ok")
+    expect(next).toHaveBeenCalledTimes(2)
   })
 })

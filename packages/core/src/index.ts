@@ -35,7 +35,7 @@ export type {
   CreateTranslatorOptions,
 } from "./i18n/index.js"
 
-export { executePipeline } from "./engine/pipeline-executor.js"
+export { executePipeline, resolvePipelineContext } from "./engine/pipeline-executor.js"
 export type {
   PipelineExecutionContext,
   ExecutePipelineOptions,
@@ -76,7 +76,8 @@ export type {
 // for consumers typing their own stores; runtime values
 // (`DashboardOwnershipError`, `resolveSavedRecord`) are NOT, since importing
 // them pulls the whole module — including its `node:fs` import — into the
-// browser graph. They're exported from the `./tools` subpath instead.
+// browser graph. They're exported from the `./tools` subpath instead (as is
+// `DashboardUnreadableError`).
 export type {
   DashboardStore,
   DashboardRecord,
@@ -94,11 +95,18 @@ export { layoutInputSchema, layoutSchema, rowSchema } from "./framework/layout-s
 export { resolveActiveModules, parseActiveModules } from "./framework/active-modules.js"
 export type { ActiveModuleSelection } from "./framework/active-modules.js"
 
+// Caller identity — the one reader of both mcp-use 2 `ctx.auth` shapes
+// (middleware: SDK AuthInfo, user under `extra.user`; callbacks: flattened
+// `auth.user`). Browser-safe; every toolkit auth consumer goes through it.
+export { resolveCaller, resolveCallerId } from "./auth/caller.js"
+export type { Caller } from "./auth/caller.js"
+
 export { createOrgGateMiddleware } from "./middleware/org-gate.js"
-export type { OrgGateMiddleware } from "./middleware/org-gate.js"
+export type { OrgGateMiddleware, OrgGateMiddlewareFn } from "./middleware/org-gate.js"
 export { createRoleFilterMiddleware } from "./middleware/role-filter.js"
 export type {
   RoleFilterMiddleware,
+  RoleFilterMiddlewareFn,
   RoleFilterMiddlewares,
   RoleFilterOptions,
   RoleFilterContext,

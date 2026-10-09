@@ -166,8 +166,12 @@ Persistence is pluggable via the `DashboardStore` interface. Default is
 in-memory (test-friendly); for real deployments pass
 `createFileSystemDashboardStore({ dir })` or a custom implementation into
 `createFrameworkApp({ app: { builder: true, dashboardStore } })`. The
-`dashboardStore` option has no effect unless `builder` is `true`. Records
-are scoped by `ctx.auth.user.userId` when the host is OAuth-enabled.
+`dashboardStore` option has no effect unless `builder` is `true`. When the
+host is OAuth-enabled, records are scoped to the caller id `resolveCallerId`
+resolves (`ctx.auth.user.id`, else `userId`, else the token's `sub`); a call
+without one is refused, and a record that exists but cannot be read is
+reported instead of treated as absent — see
+[Middleware and auth](../guides/middleware-and-auth.md#dashboards-under-oauth).
 
 ## Reference
 

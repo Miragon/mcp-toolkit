@@ -1,5 +1,6 @@
 import { type MCPServer } from "mcp-use"
 import { z } from "zod"
+import { resolvePipelineContext } from "../engine/pipeline-executor.js"
 import { getBuilderCatalogue } from "../framework/catalogue.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
@@ -32,11 +33,6 @@ const catalogueSchema = z.object({
     .describe("Steps already configured in the view — their produced keys count as reachable."),
 })
 
-function extractUserId(ctx: unknown): string | undefined {
-  const user = (ctx as { auth?: { user?: { userId?: unknown } } } | undefined)?.auth?.user
-  return typeof user?.userId === "string" ? user.userId : undefined
-}
-
 /**
  * Registers `get-builder-catalogue` — the in-iframe builder's data
  * source. App-only (`visibility: ["app"]`), so it never appears in the
@@ -68,7 +64,7 @@ export function registerCatalogueTool(
         stepRegistry,
         widgetRegistry,
         appConfigs,
-        ctx: { userId: extractUserId(ctx) },
+        ctx: resolvePipelineContext(ctx),
       })
     },
   )

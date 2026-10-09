@@ -1,7 +1,12 @@
 import type { CallToolResult } from "@modelcontextprotocol/server"
 import type { MCPServer } from "mcp-use"
 import { describe, expect, it } from "vitest"
-import { createInMemoryDashboardStore } from "./dashboard-store.js"
+import {
+  createInMemoryDashboardStore,
+  DashboardUnreadableError,
+  type DashboardRecord,
+  type DashboardStore,
+} from "./dashboard-store.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
 import type { WidgetDefinition } from "../types/widget.js"
 import { registerDashboardTools } from "./register-dashboard-tools.js"
@@ -35,10 +40,17 @@ function textBlock(result: CallToolResult): string {
   return block.text
 }
 
-function setup(widgetRegistry?: WidgetRegistry) {
-  const store = createInMemoryDashboardStore()
+function setup(
+  widgetRegistry?: WidgetRegistry,
+  options: { store?: DashboardStore; requireCallerIdentity?: boolean } = {},
+) {
+  const store = options.store ?? createInMemoryDashboardStore()
   const { server, tools } = createStubServer()
-  registerDashboardTools(server, { store, widgetRegistry })
+  registerDashboardTools(server, {
+    store,
+    widgetRegistry,
+    requireCallerIdentity: options.requireCallerIdentity,
+  })
   const byName = (name: string): CapturedTool => {
     const tool = tools.find((t) => t.definition.name === name)
     if (!tool) throw new Error(`tool not registered: ${name}`)
@@ -185,5 +197,273 @@ describe("registerDashboardTools", () => {
     }
     const names = payload.items.map((i) => i.name).sort()
     expect(names).toEqual(["One", "Two"])
+  })
+})
+
+/** The tool-callback ctx mcp-use 2 builds from a built-in provider's `{ id }` user. */
+const asUser = (id: string) => ({ auth: { user: { id, roles: [] }, payload: { sub: id } } })
+/** Authenticated, but the provider mapped no subject. */
+const nameless = { auth: { user: { roles: [] }, payload: {} } }
+
+describe("registerDashboardTools — caller scope (mcp-use 2 shapes)", () => {
+  it("scopes by ctx.auth.user.id — the built-in provider shape, no userId", async () => {
+    const { byName } = setup()
+    const saved = await byName("save-dashboard").cb(
+      { name: "Alice's", layout: sampleLayout },
+      asUser("alice"),
+    )
+    const { id } = saved.structuredContent as { id: string }
+
+    const own = await byName("load-dashboard").cb({ id }, asUser("alice"))
+    expect(own.structuredContent).toMatchObject({ id, userId: "alice" })
+
+    const asBob = await byName("list-dashboards").cb({}, asUser("bob"))
+    expect(asBob.structuredContent).toEqual({ items: [] })
+    expect((await byName("load-dashboard").cb({ id }, asUser("bob"))).isError).toBe(true)
+    expect((await byName("delete-dashboard").cb({ id }, asUser("bob"))).isError).toBe(true)
+  })
+
+  it.each(["save-dashboard", "list-dashboards", "load-dashboard", "delete-dashboard"])(
+    "%s refuses an authenticated caller without a resolvable id instead of using global scope",
+    async (tool) => {
+      const { byName } = setup()
+      const result = await byName(tool).cb({ id: "x", name: "n", layout: sampleLayout }, nameless)
+      expect(result.isError).toBe(true)
+      expect(textBlock(result)).toMatch(/carries no caller identity/)
+    },
+  )
+
+  it("refuses a call without any ctx.auth when requireCallerIdentity is set (OAuth configured)", async () => {
+    const { byName } = setup(undefined, { requireCallerIdentity: true })
+    const result = await byName("save-dashboard").cb({ name: "Ghost", layout: sampleLayout })
+    expect(result.isError).toBe(true)
+    expect(textBlock(result)).toMatch(/carries no caller identity/)
+    // An identified caller is unaffected by the flag.
+    const ok = await byName("save-dashboard").cb(
+      { name: "Mine", layout: sampleLayout },
+      asUser("a"),
+    )
+    expect(ok.isError).toBeUndefined()
+  })
+
+  it("surfaces an ownership refusal on save as a tool error, not a crash", async () => {
+    const { byName } = setup()
+    const saved = await byName("save-dashboard").cb(
+      { name: "Alice's", layout: sampleLayout },
+      asUser("alice"),
+    )
+    const { id } = saved.structuredContent as { id: string }
+    const hijack = await byName("save-dashboard").cb(
+      { id, name: "Hijacked", layout: sampleLayout },
+      asUser("bob"),
+    )
+    expect(hijack.isError).toBe(true)
+    expect(textBlock(hijack)).toBe(`Access denied: dashboard "${id}" is owned by another user.`)
+  })
+
+  it("never hands an identified caller a foreign record, even from a lax custom store", async () => {
+    const foreign: DashboardRecord = {
+      id: "d1",
+      name: "Someone else's",
+      layout: { rows: [] },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    }
+    const lax: DashboardStore = {
+      save: () => Promise.reject(new Error("unused")),
+      list: () => Promise.resolve([]),
+      // Ignores the filter entirely — the 2.5-era "owner-less means everyone's" rule.
+      get: () => Promise.resolve(foreign),
+      delete: () => Promise.resolve(false),
+    }
+    const { byName } = setup(undefined, { store: lax })
+    const result = await byName("load-dashboard").cb({ id: "d1" }, asUser("bob"))
+    expect(result.isError).toBe(true)
+    expect(textBlock(result)).toBe('Dashboard "d1" not found.')
+  })
+
+  /**
+   * A custom store that kept the 2.5 ownership rule — an owner-less record (or
+   * an id-less caller) counts as "owned" — and a naive save that overwrites
+   * without `resolveSavedRecord`. miragon-ai's Postgres store is the real-world
+   * case. The tools must hold an identified caller to its own records on every
+   * operation, not only on load.
+   */
+  describe("defence in depth against a lax custom store (2.5 ownership rule)", () => {
+    const record = (id: string, userId?: string): DashboardRecord => ({
+      id,
+      name: `board ${id}`,
+      ...(userId === undefined ? {} : { userId }),
+      layout: { rows: [] },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    })
+
+    function laxStore(...records: DashboardRecord[]) {
+      const byId = new Map(records.map((r) => [r.id, r]))
+      const lax = (r: DashboardRecord, userId: string | undefined) =>
+        !userId || !r.userId || r.userId === userId
+      const store: DashboardStore = {
+        save: (input) => {
+          const saved = { ...record(input.id ?? "new", input.userId), name: input.name }
+          byId.set(saved.id, saved)
+          return Promise.resolve(saved)
+        },
+        // Summaries carry no owner — the 2.5 summary shape.
+        list: ({ userId }) =>
+          Promise.resolve(
+            [...byId.values()]
+              .filter((r) => lax(r, userId))
+              .map(({ id, name, updatedAt }) => ({ id, name, updatedAt })),
+          ),
+        get: (id, { userId }) => {
+          const r = byId.get(id)
+          return Promise.resolve(r && lax(r, userId) ? r : undefined)
+        },
+        delete: (id, { userId }) => {
+          const r = byId.get(id)
+          if (!r || !lax(r, userId)) return Promise.resolve(false)
+          byId.delete(id)
+          return Promise.resolve(true)
+        },
+      }
+      return { store, byId }
+    }
+
+    it("list-dashboards drops the owner-less and foreign records a lax store hands an identified caller", async () => {
+      const { store } = laxStore(record("legacy"), record("bobs", "bob"), record("alices", "alice"))
+      const { byName } = setup(undefined, { store })
+      const result = await byName("list-dashboards").cb({}, asUser("bob"))
+      const ids = (result.structuredContent as { items: { id: string }[] }).items.map((i) => i.id)
+      expect(ids).toEqual(["bobs"])
+    })
+
+    it("delete-dashboard refuses an owner-less record a lax store would delete", async () => {
+      const { store, byId } = laxStore(record("legacy"))
+      const { byName } = setup(undefined, { store })
+      const result = await byName("delete-dashboard").cb({ id: "legacy" }, asUser("bob"))
+      expect(result.isError).toBe(true)
+      expect(textBlock(result)).toBe('Dashboard "legacy" not found.')
+      expect(result.structuredContent).toEqual({ deleted: false })
+      expect(byId.has("legacy")).toBe(true)
+    })
+
+    it("save-dashboard refuses to update an owner-less record a lax store would overwrite", async () => {
+      const { store, byId } = laxStore(record("legacy"))
+      const { byName } = setup(undefined, { store })
+      const result = await byName("save-dashboard").cb(
+        { id: "legacy", name: "Claimed", layout: sampleLayout },
+        asUser("bob"),
+      )
+      expect(result.isError).toBe(true)
+      expect(textBlock(result)).toMatch(/dashboard "legacy" has no owner/)
+      expect(byId.get("legacy")).toEqual(record("legacy"))
+    })
+
+    it("still serves the caller's own records from the lax store", async () => {
+      const { store, byId } = laxStore(record("bobs", "bob"))
+      const { byName } = setup(undefined, { store })
+      const saved = await byName("save-dashboard").cb(
+        { id: "bobs", name: "Renamed", layout: sampleLayout },
+        asUser("bob"),
+      )
+      expect(saved.isError).toBeUndefined()
+      const deleted = await byName("delete-dashboard").cb({ id: "bobs" }, asUser("bob"))
+      expect(deleted.structuredContent).toEqual({ deleted: true })
+      expect(byId.size).toBe(0)
+    })
+
+    it("decides a summary that names its owner without a read, and verifies the rest through get", async () => {
+      const gets: string[] = []
+      const store: DashboardStore = {
+        save: () => Promise.reject(new Error("unused")),
+        list: () =>
+          Promise.resolve([
+            { id: "named-own", name: "a", userId: "bob", updatedAt: "" },
+            { id: "named-foreign", name: "b", userId: "alice", updatedAt: "" },
+            { id: "unnamed-own", name: "c", updatedAt: "" },
+            { id: "unnamed-unreadable", name: "d", updatedAt: "", unreadable: "corrupt" },
+          ]),
+        get: (id) => {
+          gets.push(id)
+          if (id === "unnamed-unreadable") {
+            return Promise.reject(new DashboardUnreadableError(id, "corrupt"))
+          }
+          return Promise.resolve(record(id, "bob"))
+        },
+        delete: () => Promise.resolve(false),
+      }
+      const { byName } = setup(undefined, { store })
+      const result = await byName("list-dashboards").cb({}, asUser("bob"))
+      const ids = (result.structuredContent as { items: { id: string }[] }).items.map((i) => i.id)
+      // An unreadable entry nobody can be tied to is dropped, not listed.
+      expect(ids).toEqual(["named-own", "unnamed-own"])
+      expect(gets.sort()).toEqual(["unnamed-own", "unnamed-unreadable"])
+    })
+
+    it("lets an unexpected failure of the verifying get propagate", async () => {
+      const store: DashboardStore = {
+        save: () => Promise.reject(new Error("unused")),
+        list: () => Promise.resolve([{ id: "x", name: "x", updatedAt: "" }]),
+        get: () => Promise.reject(new Error("db down")),
+        delete: () => Promise.resolve(false),
+      }
+      const { byName } = setup(undefined, { store })
+      await expect(byName("list-dashboards").cb({}, asUser("bob"))).rejects.toThrow("db down")
+    })
+
+    it("leaves global scope (no OAuth) untouched: every record is listed and deletable", async () => {
+      const { store, byId } = laxStore(record("legacy"), record("bobs", "bob"))
+      const { byName } = setup(undefined, { store })
+      const listed = await byName("list-dashboards").cb({})
+      expect((listed.structuredContent as { items: unknown[] }).items).toHaveLength(2)
+      const deleted = await byName("delete-dashboard").cb({ id: "legacy" })
+      expect(deleted.structuredContent).toEqual({ deleted: true })
+      expect([...byId.keys()]).toEqual(["bobs"])
+    })
+  })
+
+  describe("an unreadable record is reported, never treated as absent", () => {
+    const unreadable = new DashboardUnreadableError("d1", "file is not valid JSON")
+    const failing: DashboardStore = {
+      save: () => Promise.reject(unreadable),
+      list: () =>
+        Promise.resolve([{ id: "d1", name: "d1", updatedAt: "", unreadable: unreadable.reason }]),
+      get: () => Promise.reject(unreadable),
+      delete: () => Promise.reject(unreadable),
+    }
+
+    it.each(["save-dashboard", "load-dashboard", "delete-dashboard"])(
+      "%s returns the conflict as a tool error",
+      async (tool) => {
+        const { byName } = setup(undefined, { store: failing })
+        const result = await byName(tool).cb({ id: "d1", name: "n", layout: sampleLayout })
+        expect(result.isError).toBe(true)
+        expect(textBlock(result)).toBe(unreadable.message)
+      },
+    )
+
+    it("list-dashboards passes the unreadable entry through with its reason", async () => {
+      const { byName } = setup(undefined, { store: failing })
+      const result = await byName("list-dashboards").cb({})
+      expect(result.structuredContent).toEqual({
+        items: [{ id: "d1", name: "d1", updatedAt: "", unreadable: "file is not valid JSON" }],
+      })
+    })
+  })
+
+  it("lets an unexpected store failure propagate instead of disguising it as a refusal", async () => {
+    const broken: DashboardStore = {
+      save: () => Promise.reject(new Error("disk on fire")),
+      list: () => Promise.resolve([]),
+      get: () => Promise.reject(new Error("disk on fire")),
+      delete: () => Promise.reject(new Error("disk on fire")),
+    }
+    const { byName } = setup(undefined, { store: broken })
+    await expect(byName("save-dashboard").cb({ name: "x", layout: sampleLayout })).rejects.toThrow(
+      "disk on fire",
+    )
+    await expect(byName("load-dashboard").cb({ id: "x" })).rejects.toThrow("disk on fire")
+    await expect(byName("delete-dashboard").cb({ id: "x" })).rejects.toThrow("disk on fire")
   })
 })

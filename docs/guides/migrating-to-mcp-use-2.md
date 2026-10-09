@@ -282,6 +282,18 @@ better, rewritten against `useHostBridge`.
   2.x delivers the tool name on `ctx.params.name` and fires `mcp:tools/call`
   middleware once per call (batch entries are guarded individually).
   `failClosed` keeps its meaning.
+- **Caller identity**: 2.x hands middleware the SDK `AuthInfo` (mapped user
+  under `ctx.auth.extra.user`) and callbacks the flattened `ctx.auth.user`;
+  the built-in providers map `id` and `organizationId`, not `userId` /
+  `organization_id`. Read the caller with `resolveCaller` /
+  `resolveCallerId` from `@miragon/mcp-toolkit-core` (toolkit ≥ 2.6 does so
+  in the role filter, org gate, dashboards and pipeline ctx) — a provider
+  wrapper that copies `id` to `userId` is no longer needed. See
+  [Middleware and auth](middleware-and-auth.md).
+- **Dashboards saved under OAuth by toolkit ≤ 2.5** carry no owner (2.5 read
+  no `id`), so toolkit ≥ 2.6 serves them to no identified caller. Re-own or
+  remove them as described in
+  [Upgrading from toolkit 2.5](middleware-and-auth.md#upgrading-from-toolkit-2-5).
 - **Backend registry**: the per-session sticky selection is gone entirely —
   2.x serves HTTP statelessly (no session ids to key on), and in-memory
   selection state breaks behind more than one replica. `resolve(id?)` takes an

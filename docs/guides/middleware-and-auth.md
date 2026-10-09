@@ -1,8 +1,8 @@
 # Middleware and auth
 
-Authentication enters through the mcp-use `oauth` provider (WorkOS, etc.);
-the toolkit adds two middleware helpers on top for org scoping and
-role-based tool filtering.
+Authentication enters through the mcp-use `oauth` provider (Keycloak, Auth0,
+WorkOS, …); the toolkit adds two middleware helpers on top for org scoping and
+role-based tool filtering, and scopes dashboards per caller.
 
 ## Stack
 
@@ -10,8 +10,8 @@ role-based tool filtering.
 MCP transport
     │
     ▼
-oauth provider          ← mcp-use, surfaces ctx.auth.user.{userId, organization_id, roles}
-    │
+oauth provider          ← mcp-use: verifies the bearer token, maps the user
+    │                     (built-in providers: { id, roles?, organizationId? })
     ▼
 mcp:* org-gate          ← createOrgGateMiddleware(orgId)
     │
@@ -22,6 +22,43 @@ mcp:tools/call          ← role-filter toolsCall
     ▼
 tool handler            ← plugin.registerTools / framework tools
 ```
+
+## Who is calling: two `ctx.auth` shapes
+
+mcp-use 2 hands the provider-mapped user to the two layers differently:
+
+| Where                                  | `ctx.auth` is                  | The mapped user sits at |
+| -------------------------------------- | ------------------------------ | ----------------------- |
+| MCP middleware (`server.use("mcp:…")`) | the SDK `AuthInfo`             | `ctx.auth.extra.user`   |
+| Tool / resource / prompt callbacks     | `{ user, payload, scopes, … }` | `ctx.auth.user`         |
+
+The built-in providers map the user with `id` (never `userId`) and the
+organization as `organizationId`. Read the caller through the toolkit instead
+of either path:
+
+```ts
+import { resolveCaller, resolveCallerId } from "@miragon/mcp-toolkit-core"
+
+server.use("mcp:tools/call", async (ctx, next) => {
+  const caller = resolveCaller(ctx) // middleware shape
+  // caller → { userId?, organizationId?, roles } | undefined
+  return next()
+})
+
+server.tool(
+  { name: "whoami", description: "…" },
+  (_args, ctx) => textResult(resolveCallerId(ctx) ?? "anonymous"), // callback shape
+)
+```
+
+`resolveCaller` reads both shapes and both spellings: `userId` is `user.id`,
+else `user.userId`, else the verified token's `sub`; `organizationId` is
+`user.organizationId`, else `user.organization_id`. It returns `undefined` only
+when the request carries no auth at all; an authenticated caller whose provider
+maps no id still yields a caller (without `userId`) — per-user data must refuse
+it, never widen to global scope. The role filter, the org gate, the dashboard
+tools and the `render-view` / `refresh-view` / `get-builder-catalogue` pipeline
+context all resolve the caller this way.
 
 ## Authentication
 
@@ -39,23 +76,62 @@ await createFrameworkApp({
 ```
 
 Skip the option for unauthenticated development servers — the framework tools
-still work (steps then see `userId: undefined`).
+still work (steps then see neither `userId` nor `authenticated`, dashboards
+live in one global scope).
 
 Any mcp-use provider factory works here — the toolkit only sees the resolved
-`OAuthProvider`. Since mcp-use 2.3.0 that includes `oauthScalekitProvider` from
+`OAuthProvider`, and pass it as-is: no wrapper that copies `id` to `userId` is
+needed. Since mcp-use 2.3.0 that includes `oauthScalekitProvider` from
 `mcp-use/oauth/scalekit`, which binds the JWT audience to a Scalekit `res_…`
-resource id.
+resource id. A custom provider (`oauthCustomProvider`) should map the same
+`{ id, roles?, organizationId? }` shape.
 
-The org gate below is the one place where the provider's user shape leaks into
-the toolkit: it reads `organization_id` (snake_case, the WorkOS claim). Scalekit
-surfaces the same value as `organizationId`, so combining `oauthScalekitProvider`
-with `middleware.orgGate` rejects **every** request — the gate is fail-closed on a
-missing claim. Leave `orgGate` unset with a non-WorkOS provider, or normalise the
-claim in your own middleware.
+## Dashboards under OAuth
+
+With `app.builder: true`, the dashboard tools scope every call to the caller:
+
+- A caller sees, loads, updates and deletes only dashboards stamped with its
+  own id.
+- A call that resolves no caller id is refused (`isError`) — with OAuth
+  configured, `createFrameworkApp` also refuses calls that reach the tools
+  without any `ctx.auth`. Nothing is ever saved owner-less under OAuth.
+- An owner-less dashboard is global scope, which belongs to servers without
+  OAuth: an identified caller can neither see nor modify it. Records saved
+  owner-less under OAuth by toolkit ≤ 2.5 (stock providers map `id`, which
+  2.5 did not read) therefore disappear from every list; give them back an
+  owner by setting `userId` in the store.
+- A record that exists but cannot be read (newer `schemaVersion`, corrupt
+  JSON, failed schema) is reported, never treated as absent: `list-dashboards`
+  includes it with an `unreadable` reason, and load/save/delete refuse it. A
+  filesystem entry the store cannot even open (a directory named `*.json`,
+  `EACCES`) is listed the same way in global scope, never failing the listing.
+- The tools re-check what a custom store answers for an identified caller —
+  the record a load, save or delete touches and every listed entry — so a
+  store still on the 2.5 rule (owner-less = everyone's) cannot leak or hand
+  out such a record. Apply `isDashboardOwnedBy` (from
+  `@miragon/mcp-toolkit-core/tools`) in your store anyway, and report each
+  summary's owner (`DashboardSummary.userId`): without it the tools verify
+  every listed entry with a `get`.
+
+`installToolkit` on your own server gets the same scoping from `ctx.auth`; pass
+`requireCallerIdentity: true` to also refuse calls that carry no auth at all.
+
+### Upgrading from toolkit 2.5
+
+- Dashboards saved under OAuth by 2.5 carry no owner, and the toolkit cannot
+  tell whose they were. They stay in the store but no identified caller sees
+  them. Set each record's `userId` to its owner's id (for the filesystem store,
+  add `"userId"` to the `<id>.json` file), or remove them in global scope.
+- The filesystem store's `get` / `save` / `delete` reject with
+  `DashboardUnreadableError` for a record that exists but cannot be read,
+  where 2.5 resolved `undefined` / `false` or overwrote it.
+- A custom `DashboardStore` that kept the 2.5 rule loses nothing to a
+  leak, but should adopt `isDashboardOwnedBy` (its owner-less records are no
+  longer served to identified callers) and report `DashboardSummary.userId`.
 
 ## Org gate
 
-Enforce that every request comes from a specific WorkOS organization:
+Enforce that every request comes from a specific organization:
 
 ```ts
 await createFrameworkApp({
@@ -64,9 +140,11 @@ await createFrameworkApp({
 })
 ```
 
-`undefined` or missing → pass-through. Enforced by
-`createOrgGateMiddleware` checking `ctx.auth.user.organization_id` on every
-inbound mcp:\* request.
+`undefined` or missing → pass-through. Enforced by `createOrgGateMiddleware`
+comparing the caller's `organizationId` (`resolveCaller`) on every inbound
+mcp:\* request. WorkOS, Clerk and Scalekit map it as `organizationId`; a
+1.x-era custom provider's `organization_id` is read too. The gate is
+fail-closed: a caller without an organization is rejected.
 
 ## Role filter
 
@@ -93,6 +171,7 @@ Rules:
 - Tools without an underscore in their name (framework tools, `render-view`)
   always pass.
 - Tool → module mapping uses the `<module>_<tool>` prefix.
+- Roles come from the provider-mapped `user.roles` (string entries).
 
 Both middlewares return sync pass-throughs when the rule map is empty, so
 you can wire them unconditionally.
@@ -104,7 +183,8 @@ you can wire them unconditionally.
 - `roleFilter.toolsCall` on `mcp:tools/call`.
 
 `createFrameworkApp` wires this ordering automatically. If you boot the
-server yourself, replicate:
+server yourself, replicate — the helpers are typed to register directly, no
+cast:
 
 ```ts
 server.use("mcp:*", createOrgGateMiddleware(orgId))
@@ -112,6 +192,23 @@ const { toolsList, toolsCall } = createRoleFilterMiddleware(rules)
 server.use("mcp:tools/list", toolsList)
 server.use("mcp:tools/call", toolsCall)
 ```
+
+The factories return generic middlewares (`OrgGateMiddlewareFn`,
+`RoleFilterMiddlewareFn`), which is what makes them cast-free. The
+`OrgGateMiddleware` / `RoleFilterMiddleware` aliases keep their non-generic
+shape (`next: () => Promise<unknown>`) for typing your own wrappers and test
+doubles; the factories' middlewares are assignable to them.
+
+## Pipeline steps
+
+`render-view`, `refresh-view` and `get-builder-catalogue` hand every step's
+`callTool` closure the caller as its third argument,
+`{ userId?, authenticated? }` (`resolvePipelineContext(ctx)`). Without auth
+both are absent. `authenticated: true` without a `userId` is a caller whose
+provider maps no id: a closure that scopes data per user must refuse it, not
+fall back to its global or anonymous scope. When you call `renderView` or
+`getBuilderCatalogue` from your own tool, build `ctx` with
+`resolvePipelineContext(ctx)` as well.
 
 ## Caveat — server-internal calls
 
@@ -123,9 +220,12 @@ inside a step if you need defense-in-depth on that path.
 
 ## Source
 
+- `packages/core/src/auth/caller.ts`
 - `packages/core/src/middleware/org-gate.ts`
 - `packages/core/src/middleware/role-filter.ts`
-- `packages/core/src/tools/create-framework-app.ts:68-79`
+- `packages/core/src/tools/create-framework-app.ts`
+- `packages/core/src/tools/create-framework-app.auth.test.ts` — the contract
+  through a real server with a fake OAuth provider
 
 ## See also
 
