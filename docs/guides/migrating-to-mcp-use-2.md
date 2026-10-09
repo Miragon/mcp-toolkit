@@ -286,12 +286,12 @@ better, rewritten against `useHostBridge`.
   under `ctx.auth.extra.user`) and callbacks the flattened `ctx.auth.user`;
   the built-in providers map `id` and `organizationId`, not `userId` /
   `organization_id`. Read the caller with `resolveCaller` /
-  `resolveCallerId` from `@miragon/mcp-toolkit-core` (toolkit ≥ 3.0 does so
+  `resolveCallerId` from `@miragon/mcp-toolkit-core` (toolkit ≥ 2.6 does so
   in the role filter, org gate, dashboards and pipeline ctx) — a provider
   wrapper that copies `id` to `userId` is no longer needed. See
   [Middleware and auth](middleware-and-auth.md).
 - **Dashboards saved under OAuth by toolkit ≤ 2.5** carry no owner (2.5 read
-  no `id`), so toolkit ≥ 3.0 serves them to no identified caller. Re-own or
+  no `id`), so toolkit ≥ 2.6 serves them to no identified caller. Re-own or
   remove them as described in
   [Upgrading from toolkit 2.5](middleware-and-auth.md#upgrading-from-toolkit-2-5).
 - **Backend registry**: the per-session sticky selection is gone entirely —
