@@ -75,6 +75,22 @@ register({
   `withToolErrors`; just `throw new Error("…")` on bad input and it becomes a clean
   tool error. (Only raw `server.tool(...)` calls wrap with `withToolErrors`
   explicitly — see the widget tool / feed in `plugin.ts`.)
+- **Request-scoped needs come from `ctx`, the handler's third argument.**
+  `handler: (client, args, ctx) => …` receives mcp-use's per-call context:
+  pass `ctx?.signal` into upstream calls (`fetch`, the REST client's `signal`)
+  so a cancelled call stops working, `ctx?.reportProgress(…)` for long work,
+  `ctx?.auth` for the caller. It is optional in the type only so tests can
+  call `handler(client, args)` directly — never rebuild it from AsyncLocalStorage.
+- **Opt writes into `strictInput: true`.** An unknown key then fails with a tool
+  error naming the valid keys (`additionalProperties: false` on the wire) instead
+  of being silently dropped. `createToolRegistrar(server, client, { strictInput: true })`
+  makes it the module default.
+- **Other `ToolDefinition` fields go in `definition`** — `title`, `_meta`,
+  `visibility`, `securitySchemes` (enforced by mcp-use on an OAuth server). Pass
+  `{ toolRefs: true }` to the registrar to get each tool's typed `ToolRef` back.
+- **Tool names are unique per server.** `installToolkit` reports a name taken by
+  another module or a framework tool (`render-view`, `refresh-view`, …) naming
+  both owners; `duplicateToolNames: "throw"` makes it a boot error.
 - **Keep handlers thin.** Put real logic in a pure, Vitest-tested store/repo (see
   [`store.ts`](../../../examples/modules/tasks/store.ts)) and call it from the handler.
 
@@ -143,6 +159,7 @@ curl -sX POST http://localhost:3010/mcp -H 'content-type: application/json' \
 
 - [ ] Unique `name`, model-readable `description`, `.describe()` on every input field.
 - [ ] `annotations` match the side-effect reality (read/write/idempotent/destructive).
+- [ ] Writes use `strictInput: true`; upstream calls receive `ctx?.signal`.
 - [ ] `outputSchema` is the real shape (object, or array → `{ data }`); paged lists use an envelope.
 - [ ] Logic lives in a tested store/repo; the handler is thin and throws on bad input.
 - [ ] If a widget consumes it, the matching app-only `*_data` feed exists; gates green.
