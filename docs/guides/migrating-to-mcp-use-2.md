@@ -69,9 +69,9 @@ import { installToolkit } from "@miragon/mcp-toolkit-core/tools"
 import { createTasksPlugin } from "./modules/tasks/plugin.js"
 
 const server: MCPServer = new MCPServer({ name: "my-mcp", version: "1.0.0" })
-server.tool({ name: "echo" /* … */ }, handler) // your plain tools
-
 installToolkit(server, { modules: [createTasksPlugin()] })
+
+server.tool({ name: "echo" /* … */ }, handler) // your plain tools — after the install
 
 export default server
 ```

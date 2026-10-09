@@ -169,6 +169,8 @@ export function createWidgetToolRegistrar<TClient, TUser = never>(
     config: WidgetToolConfig<TClient, ZodRawShape, HandlerUser<TUser>>,
   ): ToolRef<string, Record<string, unknown>, unknown> {
     const model = config.visibility === "model"
+    // Every registrar-owned key is set explicitly in both branches — undefined
+    // included — so a cast or plain-JS `definition` cannot smuggle one in.
     const definition = {
       ...config.definition,
       name: config.name,
@@ -178,6 +180,8 @@ export function createWidgetToolRegistrar<TClient, TUser = never>(
         config.inputSchema,
         config.strictInput ?? options.strictInput ?? false,
       ),
+      // mcp-use's alias: it reads `inputSchema ?? schema`.
+      schema: undefined,
       annotations: config.annotations,
     }
 
@@ -201,8 +205,9 @@ export function createWidgetToolRegistrar<TClient, TUser = never>(
         {
           ...definition,
           visibility: "app",
+          view: undefined,
           outputSchema: config.outputSchema,
-          ...(config.meta ? { _meta: config.meta } : {}),
+          _meta: config.meta,
         },
         callback,
       )
@@ -211,6 +216,8 @@ export function createWidgetToolRegistrar<TClient, TUser = never>(
     return target.tool(
       {
         ...definition,
+        // Host default: callable by the model (no `_meta.ui.visibility`).
+        visibility: undefined,
         view: {
           name: config.name,
           description: config.description,

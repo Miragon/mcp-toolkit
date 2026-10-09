@@ -31,7 +31,8 @@ export function duplicateToolNameMessage(
   return (
     `[mcp-toolkit] ${head} mcp-use keeps only the last registration, so the tool from ` +
     `${newOwner} replaces the one from ${existingOwner} — rename one of them ` +
-    `(installToolkit's duplicateToolNames: "throw" makes this a boot error).`
+    `(duplicateToolNames: "throw" in the installToolkit options, or in ` +
+    `createFrameworkApp's app options, makes this a boot error).`
   )
 }
 
@@ -54,7 +55,9 @@ const guards = new WeakMap<object, ToolNameGuard>()
  * The wrapper stays installed, so registrations made by application code
  * after `installToolkit` are guarded too. Tools registered on the server
  * BEFORE the guard was installed are invisible to it (mcp-use has no public
- * tool listing). Installing twice keeps one wrapper; `"throw"` wins.
+ * tool listing) — which is why the standard path registers its own tools
+ * after `installToolkit`. A registration mcp-use refuses claims no name.
+ * Installing twice keeps one wrapper; `"throw"` wins.
  */
 export function installToolNameGuard(server: MCPServer, policy: DuplicateToolNamePolicy): void {
   const existing = guards.get(server)
@@ -71,13 +74,19 @@ export function installToolNameGuard(server: MCPServer, policy: DuplicateToolNam
   const guarded: ToolRegistration = (definition, callback) => {
     const owner = guard.scopes.at(-1) ?? APPLICATION_TOOL_OWNER
     const previous = guard.owners.get(definition.name)
+    if (previous !== undefined && guard.policy === "throw") {
+      throw new Error(duplicateToolNameMessage(definition.name, previous, owner, "throw"))
+    }
+    // Only what mcp-use accepted counts: its `tool()` can still refuse the
+    // definition (e.g. a `noauth` scheme without mixedAuth, a view without an
+    // outputSchema). A refused registration claims no name — a fallback under
+    // the same name stays legal — and replaces nothing, so it is not warned.
+    const ref = original(definition, callback)
     if (previous !== undefined) {
-      const message = duplicateToolNameMessage(definition.name, previous, owner, guard.policy)
-      if (guard.policy === "throw") throw new Error(message)
-      console.warn(message)
+      console.warn(duplicateToolNameMessage(definition.name, previous, owner, "warn"))
     }
     guard.owners.set(definition.name, owner)
-    return original(definition, callback)
+    return ref
   }
   server.tool = guarded as typeof server.tool
 }

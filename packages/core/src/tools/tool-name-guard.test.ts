@@ -80,6 +80,10 @@ describe("duplicateToolNameMessage", () => {
     expect(message).toContain('registered again by module "b"')
     expect(message).toContain("replaces")
     expect(message).toContain('duplicateToolNames: "throw"')
+    // Both entry points own the setting: installToolkit's options, and the
+    // `app` options of createFrameworkApp, which never calls it for you.
+    expect(message).toContain("installToolkit")
+    expect(message).toContain("createFrameworkApp's app options")
   })
 
   it("drops the last-wins note when the registration is refused", () => {
@@ -109,6 +113,46 @@ describe("installToolNameGuard", () => {
     server.tool({ name: "once" }, noop)
 
     expect(() => server.tool({ name: "once" }, noop)).toThrow(/Duplicate tool name "once"/)
+  })
+
+  it("leaves a name free when mcp-use rejects the registration", () => {
+    const server = new MCPServer({ name: "rejected", version: "0.0.0" })
+    installToolNameGuard(server, "throw")
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+
+    // mcp-use refuses both before it stores the tool: `noauth` needs an
+    // OAuth server with mixedAuth, a view binding needs an outputSchema.
+    expect(() =>
+      server.tool({ name: "fallback", securitySchemes: [{ type: "noauth" }] }, noop),
+    ).toThrow(/noauth/)
+    expect(() =>
+      server.tool({ name: "fallback", view: { name: "fallback" } } as { name: string }, noop),
+    ).toThrow(/outputSchema/)
+
+    // The module's fallback registration under the same name is not a duplicate…
+    expect(() => server.tool({ name: "fallback" }, noop)).not.toThrow()
+    expect(warn).not.toHaveBeenCalled()
+    // …and the registration mcp-use accepted does claim the name.
+    expect(() => server.tool({ name: "fallback" }, noop)).toThrow(/Duplicate tool name "fallback"/)
+    warn.mockRestore()
+  })
+
+  it("reports no replacement when mcp-use refuses the duplicate itself", () => {
+    const server = new MCPServer({ name: "refused-duplicate", version: "0.0.0" })
+    installToolNameGuard(server, "warn")
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    server.tool({ name: "kept" }, noop)
+
+    // mcp-use throws before storing it, so the first tool is NOT replaced —
+    // a "replaces the one from …" warning would be false.
+    expect(() =>
+      server.tool({ name: "kept", securitySchemes: [{ type: "noauth" }] }, noop),
+    ).toThrow(/noauth/)
+    expect(warn).not.toHaveBeenCalled()
+
+    server.tool({ name: "kept" }, noop)
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
   })
 })
 
@@ -200,6 +244,36 @@ describe("installToolkit — duplicate tool names", () => {
         duplicateToolNames: "throw",
       }),
     ).toThrow(/"save-dashboard".*module "rogue".*the toolkit framework/)
+  })
+
+  it("guards the standard path — own tools registered after installToolkit", () => {
+    const server = new MCPServer({ name: "standard", version: "0.0.0" })
+    installToolkit(server, {
+      modules: [toolModule("tasks", "create_task")],
+      duplicateToolNames: "throw",
+    })
+    const noop = () => Promise.resolve({ content: [] })
+
+    expect(() => server.tool({ name: "render-view" }, noop)).toThrow(
+      /"render-view".*the toolkit framework.*application code/,
+    )
+    expect(() => server.tool({ name: "create_task" }, noop)).toThrow(
+      /"create_task".*module "tasks".*application code/,
+    )
+    expect(() => server.tool({ name: "echo" }, noop)).not.toThrow()
+  })
+
+  it("cannot see own tools registered BEFORE installToolkit — why they go after it", () => {
+    // mcp-use has no public tool listing, so the guard installed by
+    // installToolkit knows nothing about earlier registrations: the
+    // framework's render-view silently replaces this one. The documented
+    // standard path (examples/standalone-host) therefore installs first.
+    const server = new MCPServer({ name: "too-early", version: "0.0.0" })
+    server.tool({ name: "render-view", description: "app's own" }, () =>
+      Promise.resolve({ content: [] }),
+    )
+
+    expect(() => installToolkit(server, { duplicateToolNames: "throw" })).not.toThrow()
   })
 
   it("keeps guarding registrations made by application code after the install", () => {

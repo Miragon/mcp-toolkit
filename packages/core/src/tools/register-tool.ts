@@ -178,12 +178,16 @@ export function createToolRegistrar<TClient, TUser = never>(
     return target.tool(
       {
         ...config.definition,
+        // Every registrar-owned key is set explicitly — undefined included —
+        // so a cast or plain-JS `definition` cannot smuggle one in.
         name: config.name,
         description: config.description,
         inputSchema: registrarInputSchema(
           config.inputSchema,
           config.strictInput ?? options.strictInput ?? false,
         ),
+        // mcp-use's alias: it reads `inputSchema ?? schema`.
+        schema: undefined,
         outputSchema: wrapArraySchema(config.outputSchema),
         annotations: config.annotations,
       },

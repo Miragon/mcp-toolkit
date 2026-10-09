@@ -37,6 +37,7 @@ register({
     destructiveHint: false, // flipping a status is not a removal
     openWorldHint: false, // data is local to this server (a closed world)
   },
+  strictInput: true, // a write: an unknown key fails naming the valid keys
   inputSchema: {
     // .describe() EVERY field — it is the only doc the model sees for the argument.
     taskId: z.string().describe("Id of the task to complete (as returned by list_tasks)."),
@@ -90,7 +91,9 @@ register({
   `{ toolRefs: true }` to the registrar to get each tool's typed `ToolRef` back.
 - **Tool names are unique per server.** `installToolkit` reports a name taken by
   another module or a framework tool (`render-view`, `refresh-view`, …) naming
-  both owners; `duplicateToolNames: "throw"` makes it a boot error.
+  both owners; `duplicateToolNames: "throw"` makes it a boot error. It sees
+  registrations from the install on only — raw `server.tool(...)` calls of
+  your own go after `installToolkit`.
 - **Keep handlers thin.** Put real logic in a pure, Vitest-tested store/repo (see
   [`store.ts`](../../../examples/modules/tasks/store.ts)) and call it from the handler.
 

@@ -1,4 +1,4 @@
-import { MCPServer, type ToolRef } from "mcp-use"
+import { MCPServer, registerViews, type ToolRef } from "mcp-use"
 import { oauthCustomProvider } from "mcp-use/oauth"
 import { describe, expect, expectTypeOf, it } from "vitest"
 import { z } from "zod"
@@ -6,7 +6,11 @@ import { createRestTool } from "../rest/tool.js"
 import type { RestClient } from "../rest/types.js"
 import { createToolRegistrar, type ToolConfig } from "./register-tool.js"
 import { createWidgetToolRegistrar, type WidgetToolConfig } from "./register-widget-tool.js"
-import type { ToolDefinitionPassthrough, ToolHandlerContext } from "./registrar-shared.js"
+import type {
+  ToolDefinitionPassthrough,
+  ToolHandlerContext,
+  WidgetToolDefinitionPassthrough,
+} from "./registrar-shared.js"
 
 /**
  * The registrars as a thin superset of mcp-use's `ToolDefinition` (#175),
@@ -34,6 +38,8 @@ interface CallResult {
 interface ListedTool {
   name: string
   title?: string
+  description?: string
+  annotations?: Record<string, unknown>
   inputSchema?: Record<string, unknown>
   securitySchemes?: unknown
   _meta?: Record<string, unknown>
@@ -104,6 +110,11 @@ function text(result: CallResult): string {
 
 function plainServer(): MCPServer {
   return new MCPServer({ name: "registrar-passthrough", version: "0.0.0" })
+}
+
+/** A schema whose leak onto tools/list is visible as the `hijacked` property. */
+function hijackSchema() {
+  return z.object({ hijacked: z.string().describe("hijacked") })
 }
 
 interface TestUser {
@@ -281,24 +292,103 @@ describe("definition passthrough", () => {
     expect(listed._meta?.ui).toMatchObject({ visibility: ["app"] })
   })
 
-  it("keeps the registrar-owned keys authoritative over the passthrough", async () => {
+  it("keeps every registrar-owned key authoritative over the passthrough", async () => {
     const server = plainServer()
     const register = createToolRegistrar(server, {})
-    // The type forbids owned keys; a cast must still not let them win.
+    // The type forbids owned keys; a cast (or plain JS) must still not let
+    // any of them win — `schema` included, mcp-use's alias for `inputSchema`.
     const definition = {
       name: "hijacked",
       description: "hijacked",
+      inputSchema: hijackSchema(),
+      schema: hijackSchema(),
+      outputSchema: hijackSchema(),
+      annotations: { title: "hijacked", destructiveHint: true },
     } as unknown as ToolDefinitionPassthrough
+    const ok = () => Promise.resolve({ ok: true })
     register({
       name: "owned_tool",
       description: "The registrar's description.",
+      annotations: { readOnlyHint: true },
+      inputSchema: { query: z.string().describe("Search text.") },
       definition,
-      handler: () => Promise.resolve({ ok: true }),
+      handler: ok,
     })
+    // No inputSchema of its own: mcp-use falls back to `schema` when
+    // `inputSchema` is undefined, so a smuggled alias must not fill the gap.
+    register({ name: "owned_noargs", description: "No arguments.", definition, handler: ok })
 
-    const names = (await listTools(server)).map((t) => t.name)
+    const tools = await listTools(server)
 
-    expect(names).toEqual(["owned_tool"])
+    expect(tools.map((t) => t.name)).toEqual(["owned_tool", "owned_noargs"])
+    expect(JSON.stringify(tools)).not.toContain("hijacked")
+    expect(tools[0]).toMatchObject({
+      description: "The registrar's description.",
+      annotations: { readOnlyHint: true },
+      inputSchema: { properties: { query: { type: "string" } } },
+    })
+    expect(tools[0]).not.toHaveProperty("outputSchema")
+  })
+
+  it("keeps every widget-registrar-owned key authoritative, on both visibilities", async () => {
+    const server = plainServer()
+    const register = createWidgetToolRegistrar(server, {})
+    // Each owned key carries the value that would flip the tool to the OTHER
+    // visibility — a leak would hide a show_* tool from the model, or bind a
+    // view to an app-only feed.
+    const hijack = (visibility: "app" | "model") =>
+      ({
+        name: "hijacked",
+        title: "hijacked",
+        description: "hijacked",
+        inputSchema: hijackSchema(),
+        schema: hijackSchema(),
+        outputSchema: hijackSchema(),
+        annotations: { title: "hijacked", destructiveHint: true },
+        visibility,
+        view: { name: "hijacked", description: "hijacked" },
+        _meta: { "acme/hijacked": true },
+      }) as unknown as WidgetToolDefinitionPassthrough
+    const handler = () => Promise.resolve({ text: "ok", structuredContent: {} })
+    register({
+      name: "owned_feed",
+      title: "Owned Feed",
+      description: "App-only feed.",
+      annotations: { readOnlyHint: true },
+      definition: hijack("model"),
+      handler,
+    })
+    register({
+      name: "owned_widget",
+      title: "Owned Widget",
+      description: "Model-visible widget.",
+      visibility: "model",
+      annotations: { readOnlyHint: true },
+      definition: hijack("app"),
+      handler,
+    })
+    server[registerViews]({ owned_widget: { kind: "inline", js: "", css: "" } })
+
+    const tools = await listTools(server)
+    const feed = await findTool(server, "owned_feed")
+    const widget = await findTool(server, "owned_widget")
+
+    expect(tools.map((t) => t.name)).toEqual(["owned_feed", "owned_widget"])
+    expect(JSON.stringify(tools)).not.toContain("hijacked")
+    expect(feed).toMatchObject({
+      title: "Owned Feed",
+      description: "App-only feed.",
+      annotations: { readOnlyHint: true },
+      _meta: { ui: { visibility: ["app"] } },
+    })
+    expect(feed._meta?.ui).not.toHaveProperty("resourceUri")
+    expect(widget).toMatchObject({
+      title: "Owned Widget",
+      description: "Model-visible widget.",
+      annotations: { readOnlyHint: true },
+      _meta: { ui: { resourceUri: "ui://views/owned_widget.html" } },
+    })
+    expect(widget._meta?.ui).not.toHaveProperty("visibility")
   })
 
   it("securitySchemes set via the registrars are advertised and enforced by mcp-use", async () => {

@@ -68,7 +68,9 @@ export interface InstallToolkitOptions {
    * tool, and with {@link builder} the catalogue + dashboard tools), or by
    * application code after the install — is reported naming both owners.
    * `"warn"` (default in 2.x) logs it and keeps mcp-use's last-wins result;
-   * `"throw"` fails the install instead.
+   * `"throw"` fails the install instead. Tools registered BEFORE the install
+   * are invisible to the check (mcp-use has no public tool listing), so
+   * register your own tools after `installToolkit`.
    */
   duplicateToolNames?: DuplicateToolNamePolicy
 }
@@ -88,7 +90,8 @@ export interface InstalledToolkit {
  * `start`) or embed it yourself. This call adds the framework surface on
  * top: `get-framework-manifest`, `render-view` (bound to its own view),
  * the app-only `refresh-view`, each module's widget tools, and — with
- * `builder: true` — the catalogue + dashboard tools.
+ * `builder: true` — the catalogue + dashboard tools. Call it before
+ * registering your own tools, so its duplicate-name check covers them.
  *
  * View delivery follows however the server is run:
  *

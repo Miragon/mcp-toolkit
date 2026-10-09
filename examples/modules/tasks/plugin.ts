@@ -147,6 +147,9 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
       destructiveHint: false,
       openWorldHint: false,
     },
+    // A write: a guessed argument (`status: "done"`, `note`…) fails with the
+    // valid keys instead of completing the task with it silently dropped.
+    strictInput: true,
     inputSchema: {
       taskId: z.string().describe("Id of the task to complete (as returned by list_tasks)."),
     },
