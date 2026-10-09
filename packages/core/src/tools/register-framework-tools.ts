@@ -5,6 +5,7 @@ import { textResult } from "./tool-results.js"
 import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutInputSchema } from "../framework/layout-schemas.js"
 import { renderView } from "../framework/render-view.js"
+import { moduleToolOwner, withToolOwner } from "./tool-name-guard.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig, AppPlugin } from "../types/index.js"
@@ -176,7 +177,9 @@ export function registerFrameworkTools(
   )
 
   for (const plugin of plugins) {
-    plugin.registerWidgetTools?.(server, { widgetCSP, viewCsp: csp })
+    withToolOwner(server, moduleToolOwner(plugin.definition.name), () =>
+      plugin.registerWidgetTools?.(server, { widgetCSP, viewCsp: csp }),
+    )
   }
 
   server.tool(

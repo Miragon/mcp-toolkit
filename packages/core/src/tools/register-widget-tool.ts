@@ -1,13 +1,17 @@
-import { type MCPServer, type ToolAnnotations } from "mcp-use"
+import { type MCPServer, type ToolAnnotations, type ToolRef } from "mcp-use"
 import { z } from "zod"
 import { appsSdkMeta, viewResourceUri, type WidgetToolMetaDefaults } from "../types/meta.js"
 import { withToolErrors } from "./with-tool-errors.js"
 import type { ToolArgs } from "./register-tool.js"
-
-type ZodRawShape = Record<string, z.ZodTypeAny>
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK hands the callback params as Record<string, any> after zod validation; internal SDK-facing type only.
-type LooseToolArgs = Record<string, any>
+import {
+  registrarInputSchema,
+  type HandlerUser,
+  type ToolHandlerContext,
+  type ToolRegistrarOptions,
+  type TypedToolRefOptions,
+  type WidgetToolDefinitionPassthrough,
+  type ZodRawShape,
+} from "./registrar-shared.js"
 
 interface WidgetToolResult {
   text: string
@@ -22,7 +26,11 @@ interface WidgetToolResult {
  */
 export type WidgetToolVisibility = "app" | "model"
 
-export interface WidgetToolConfig<TClient, TShape extends ZodRawShape = ZodRawShape> {
+export interface WidgetToolConfig<
+  TClient,
+  TShape extends ZodRawShape = ZodRawShape,
+  TUser = unknown,
+> {
   name: string
   title?: string
   description: string
@@ -61,8 +69,59 @@ export interface WidgetToolConfig<TClient, TShape extends ZodRawShape = ZodRawSh
    * Only emitted on model-visible widget tools.
    */
   invoked?: string
-  handler: (client: TClient, params: ToolArgs<TShape>) => Promise<WidgetToolResult>
+  /**
+   * Reject unknown input keys with a tool error naming the valid keys
+   * instead of silently stripping them (`additionalProperties: false` on the
+   * advertised schema). Overrides the registrar's `strictInput` option; off
+   * by default in 2.x.
+   */
+  strictInput?: boolean
+  /**
+   * Every other mcp-use `ToolDefinition` field, forwarded verbatim to
+   * `server.tool` — e.g. `securitySchemes`. `title`, `visibility`, `view`
+   * and `_meta` stay registrar-derived (use `title` / `visibility` / `meta`).
+   */
+  definition?: WidgetToolDefinitionPassthrough
+  /**
+   * The tool body. `ctx` is mcp-use's per-call context ({@link ToolHandlerContext});
+   * always passed by the registrar, optional in the type so handlers stay
+   * directly callable as `(client, params)`.
+   */
+  handler: (
+    client: TClient,
+    params: ToolArgs<TShape>,
+    ctx?: ToolHandlerContext<TUser>,
+  ) => Promise<WidgetToolResult>
 }
+
+/**
+ * The `ToolRef` output type of a widget tool: its declared `outputSchema`,
+ * else the `structuredContent` record every widget handler returns.
+ */
+export type WidgetToolOutput<TOutput> = [TOutput] extends [z.ZodTypeAny]
+  ? z.output<TOutput>
+  : WidgetToolResult["structuredContent"]
+
+/**
+ * The `register` function {@link createWidgetToolRegistrar} returns. Its
+ * static return type is `void` (wrapper-compatible, like `ToolRegistrar`);
+ * at runtime it returns the mcp-use `ToolRef`. Pass `toolRefs: true` for
+ * {@link TypedWidgetToolRegistrar}.
+ */
+export type WidgetToolRegistrar<TClient, TUser = unknown> = <
+  TShape extends ZodRawShape = ZodRawShape,
+>(
+  config: WidgetToolConfig<TClient, TShape, TUser>,
+) => void
+
+/** The `ToolRef`-returning widget registrar (`toolRefs: true`). */
+export type TypedWidgetToolRegistrar<TClient, TUser = unknown> = <
+  TShape extends ZodRawShape = ZodRawShape,
+  const TName extends string = string,
+  TOutput extends z.ZodTypeAny | undefined = undefined,
+>(
+  config: WidgetToolConfig<TClient, TShape, TUser> & { name: TName; outputSchema?: TOutput },
+) => ToolRef<TName, ToolArgs<TShape>, WidgetToolOutput<TOutput>>
 
 /**
  * Registrar for widget tools against mcp-use's native view binding.
@@ -78,28 +137,63 @@ export interface WidgetToolConfig<TClient, TShape extends ZodRawShape = ZodRawSh
  * `createFrameworkApp` collects every `view` binding registered this way and
  * primes the view registry with the shared app bundle, so each bound name
  * resolves to the same compiled widget code.
+ *
+ * Handlers receive `(client, params, ctx)` — `ctx` is mcp-use's per-call
+ * context. `options.strictInput` sets the default for every tool's
+ * `strictInput`; `options.toolRefs` types `register()`'s return value as the
+ * tool's `ToolRef` (returned at runtime either way).
  */
-export function createWidgetToolRegistrar<TClient>(
-  server: MCPServer,
+export function createWidgetToolRegistrar<TClient, TUser = never>(
+  server: MCPServer<TUser>,
+  client: TClient,
+  metaDefaults: WidgetToolMetaDefaults | undefined,
+  options: TypedToolRefOptions,
+): TypedWidgetToolRegistrar<TClient, HandlerUser<TUser>>
+export function createWidgetToolRegistrar<TClient, TUser = never>(
+  server: MCPServer<TUser>,
   client: TClient,
   metaDefaults?: WidgetToolMetaDefaults,
-) {
-  return function register<TShape extends ZodRawShape = ZodRawShape>(
-    config: WidgetToolConfig<TClient, TShape>,
-  ) {
+  options?: ToolRegistrarOptions,
+): WidgetToolRegistrar<TClient, HandlerUser<TUser>>
+export function createWidgetToolRegistrar<TClient, TUser = never>(
+  server: MCPServer<TUser>,
+  client: TClient,
+  metaDefaults?: WidgetToolMetaDefaults,
+  options: ToolRegistrarOptions = {},
+): TypedWidgetToolRegistrar<TClient, HandlerUser<TUser>> {
+  // Registration is independent of the OAuth user type, which only shapes
+  // the callback ctx; the ctx is handed on typed by the registrar instead.
+  const target = server as unknown as MCPServer
+
+  function register(
+    config: WidgetToolConfig<TClient, ZodRawShape, HandlerUser<TUser>>,
+  ): ToolRef<string, Record<string, unknown>, unknown> {
     const model = config.visibility === "model"
+    // Every registrar-owned key is set explicitly in both branches — undefined
+    // included — so a cast or plain-JS `definition` cannot smuggle one in.
     const definition = {
+      ...config.definition,
       name: config.name,
       title: config.title,
       description: config.description,
-      inputSchema: config.inputSchema ? z.object(config.inputSchema) : undefined,
+      inputSchema: registrarInputSchema(
+        config.inputSchema,
+        config.strictInput ?? options.strictInput ?? false,
+      ),
+      // mcp-use's alias: it reads `inputSchema ?? schema`.
+      schema: undefined,
       annotations: config.annotations,
     }
 
-    const callback = withToolErrors(async (looseParams: LooseToolArgs) => {
-      // The SDK validates params against the schema above, so the loose
-      // callback param is safely the handler's precise `ToolArgs<TShape>`.
-      const result = await config.handler(client, looseParams as ToolArgs<TShape>)
+    // The SDK validates params against the schema above before the callback
+    // runs; the public `register` is generic over that shape, this
+    // implementation sees the erased `ToolArgs`.
+    const callback = withToolErrors(async (params: ToolArgs, ctx?: unknown) => {
+      const result = await config.handler(
+        client,
+        params,
+        ctx as ToolHandlerContext<HandlerUser<TUser>> | undefined,
+      )
       return {
         content: [{ type: "text" as const, text: result.text }],
         structuredContent: result.structuredContent,
@@ -107,21 +201,23 @@ export function createWidgetToolRegistrar<TClient>(
     })
 
     if (!model) {
-      server.tool(
+      return target.tool(
         {
           ...definition,
           visibility: "app",
+          view: undefined,
           outputSchema: config.outputSchema,
-          ...(config.meta ? { _meta: config.meta } : {}),
+          _meta: config.meta,
         },
         callback,
       )
-      return
     }
 
-    server.tool(
+    return target.tool(
       {
         ...definition,
+        // Host default: callable by the model (no `_meta.ui.visibility`).
+        visibility: undefined,
         view: {
           name: config.name,
           description: config.description,
@@ -146,4 +242,6 @@ export function createWidgetToolRegistrar<TClient>(
       callback,
     )
   }
+
+  return register as unknown as TypedWidgetToolRegistrar<TClient, HandlerUser<TUser>>
 }

@@ -43,6 +43,8 @@ domain logic (filters, tallies) is **Vitest-tested**, tool/React glue is not.
   `mcp-use dev`/`build`/`start`) with `installToolkit(server, { modules })` on
   top — see `examples/standalone-host/`. Views: one `views/<tool>/view.tsx`
   per view-bound tool, each rendering `McpToolkitApp` with the widget map.
+  Call `installToolkit` **before** your own `server.tool(...)` calls — its
+  duplicate-name guard only sees registrations from the install on.
 - **Node adapter**: `createFrameworkApp` (used below) when the server runs in
   your own process or ships views inline from a self-built bundle.
 

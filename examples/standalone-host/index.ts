@@ -15,6 +15,11 @@ import { createPlugin as createTasksPlugin } from "../modules/tasks/plugin.js"
  * convention — one directory per view-bound tool, each rendering the shared
  * widget map through `McpToolkitApp` (see `views/render-view/view.tsx`).
  *
+ * Order matters: call `installToolkit` FIRST, then register your own tools.
+ * Its duplicate-name guard only sees registrations from the install on, so an
+ * own tool registered earlier under a toolkit or module name (`render-view`,
+ * `create_task`, …) would be replaced silently instead of reported.
+ *
  * Compare with `host/index.ts`, which uses `createFrameworkApp` — the
  * batteries-included Node adapter for running in your own process with a
  * self-built inline bundle (no CLI involved).
@@ -29,6 +34,13 @@ const server: MCPServer = new MCPServer({
     "own tools + render-view composition + the tasks module.",
 })
 
+// The toolkit ON TOP: render-view + pipeline features + the tasks module
+// (its own tools, the show_tasks_board widget tool, the app-only data feed).
+// Installed before the own tools below, so its name guard covers them too.
+installToolkit(server, {
+  modules: [createTasksPlugin()],
+})
+
 // A plain mcp-use tool — no toolkit involved.
 server.tool(
   {
@@ -39,11 +51,5 @@ server.tool(
   },
   ({ message }) => Promise.resolve({ content: [{ type: "text" as const, text: message }] }),
 )
-
-// The toolkit ON TOP: render-view + pipeline features + the tasks module
-// (its own tools, the show_tasks_board widget tool, the app-only data feed).
-installToolkit(server, {
-  modules: [createTasksPlugin()],
-})
 
 export default server

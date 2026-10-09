@@ -9,6 +9,7 @@
     "description": "Mark a task as done by its id. Idempotent: completing an already-done task is a no-op. Returns the updated task.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
       "properties": {
         "taskId": {
           "description": "Id of the task to complete (as returned by list_tasks).",
@@ -64,6 +65,7 @@
     "description": "Create a new task (it starts in the 'todo' status). Returns the created task.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
       "properties": {
         "priority": {
           "description": "Priority of the new task. Defaults to 'medium'.",

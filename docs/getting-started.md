@@ -103,12 +103,15 @@ import { createPlugin as createTasksPlugin } from "./modules/tasks/plugin.js"
 
 const server = new MCPServer({ name: "my-mcp", version: "0.1.0" })
 
-server.tool({ name: "echo", ... }, handler) // your plain mcp-use tools
-
 installToolkit(server, { modules: [createTasksPlugin()] })
+
+server.tool({ name: "echo", ... }, handler) // your plain mcp-use tools — after the install
 
 export default server
 ```
+
+Register your own tools after `installToolkit`: its duplicate-name guard only
+sees registrations from the install on.
 
 Add `views/render-view/view.tsx` (plus one `views/<tool>/view.tsx` per
 model-visible widget tool), each rendering `McpToolkitApp` with your widget

@@ -179,6 +179,44 @@ describe("tasks module smoke", () => {
     expect(data.counts.total).toBe(data.tasks.length)
   })
 
+  it("create_task (strictInput) rejects an unknown argument, naming the valid keys", async () => {
+    const result = await session.callTool("create_task", {
+      title: "Guessed argument",
+      dueDate: "tomorrow",
+    })
+    expect(result.isError).toBe(true)
+    const text = (result.content as { type: string; text?: string }[])
+      .map((c) => c.text ?? "")
+      .join("\n")
+    expect(text).toContain('Unknown key "dueDate"')
+    expect(text).toContain('Valid keys: "title", "priority"')
+
+    // Refused before the handler ran: no task was created.
+    const board = (await session.callTool("tasks_board_data", {}))
+      .structuredContent as TasksBoardData
+    expect(board.tasks.some((t) => t.title === "Guessed argument")).toBe(false)
+  })
+
+  it("complete_task (strictInput) rejects an unknown argument, naming the valid key", async () => {
+    const before = (await session.callTool("tasks_board_data", {}))
+      .structuredContent as TasksBoardData
+    const open = before.tasks.find((t) => t.status !== "done")
+    if (!open) throw new Error("the seeded board has no open task")
+
+    const result = await session.callTool("complete_task", { taskId: open.id, status: "done" })
+    expect(result.isError).toBe(true)
+    const text = (result.content as { type: string; text?: string }[])
+      .map((c) => c.text ?? "")
+      .join("\n")
+    expect(text).toContain('Unknown key "status"')
+    expect(text).toContain('Valid keys: "taskId"')
+
+    // Refused before the handler ran: the task is still open.
+    const after = (await session.callTool("tasks_board_data", {}))
+      .structuredContent as TasksBoardData
+    expect(after.tasks.find((t) => t.id === open.id)?.status).toBe(open.status)
+  })
+
   it("complete_task on an unknown id surfaces a tool error", async () => {
     const result = await session.callTool("complete_task", { taskId: "does-not-exist" })
     expect(result.isError).toBe(true)

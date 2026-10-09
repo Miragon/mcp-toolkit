@@ -7,7 +7,7 @@ The **standard path** for new servers: you own a normal
 
 ```
 package.json                  name + main — the CLI reads both from the project dir
-index.ts                      export default server; own tools + installToolkit(...)
+index.ts                      export default server; installToolkit(...), then own tools
 views/render-view/…           the composer view — CLI convention: dir name = view.name
 views/show_tasks_board/…      the tasks module's widget tool view
 views/shared/widgets.tsx      the shared widget map (one place for widget code)
@@ -25,6 +25,11 @@ What `installToolkit` contributes here: `get-framework-manifest`,
 tasks module (`list_tasks` / `create_task` / `complete_task`, the
 `show_tasks_board` widget tool, the `tasks_board_data` feed). The plain
 `echo` tool shows that ordinary mcp-use tools live right next to it.
+
+Register your own tools **after** `installToolkit`: its duplicate-name guard
+only sees registrations from the install on (mcp-use has no public tool
+listing), so an own tool registered earlier under a toolkit or module name
+would be replaced silently instead of reported.
 
 ## Run it
 
