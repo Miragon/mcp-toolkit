@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [2.6.0](https://github.com/Miragon/mcp-toolkit/compare/v2.5.0...v2.6.0) (2026-10-09)
+
+
+### Features
+
+* **core:** registrars pass the handler ctx, forward ToolDefinition fields, strictInput, ToolRef and a duplicate-name guard ([#181](https://github.com/Miragon/mcp-toolkit/issues/181)) ([eb7a792](https://github.com/Miragon/mcp-toolkit/commit/eb7a792639ba00ae7a6d0d35fe6742b71caddddd))
+* **deps:** bump mcp-use to 2.7.3 and the npm-dependencies group ([#172](https://github.com/Miragon/mcp-toolkit/issues/172)) ([744bed8](https://github.com/Miragon/mcp-toolkit/commit/744bed8ccf5616fecc3c2b2f4b8eeb477fefa61d))
+* **deps:** bump the npm-dependencies group with 6 updates ([#182](https://github.com/Miragon/mcp-toolkit/issues/182)) ([58f0e2f](https://github.com/Miragon/mcp-toolkit/commit/58f0e2fcedd6bc667a642f07a824ec2ed560e5aa))
+
+
+### Bug Fixes
+
+* **core:** caller identity under mcp-use 2 — role filter, org gate and per-caller dashboards ([#180](https://github.com/Miragon/mcp-toolkit/issues/180)) ([6e241ae](https://github.com/Miragon/mcp-toolkit/commit/6e241aea9f6a289c5cf40e00e022f28c2f3acbe6))
+
 ## [2.5.0](https://github.com/Miragon/mcp-toolkit/compare/v2.4.1...v2.5.0) (2026-09-30)
 
 
