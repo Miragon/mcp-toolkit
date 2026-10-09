@@ -152,7 +152,7 @@ describe("registerCatalogueTool", () => {
     expect(ghostKey).toMatchObject({ consumedByWidgets: ["demo:ghost"], inContext: false })
   })
 
-  describe("userId extraction from ctx.auth.user.userId", () => {
+  describe("caller id resolution (resolveCallerId) into the pipeline ctx", () => {
     /**
      * The userId is observable through the executor's `bindAppConfig` rewrap:
      * a step's `appConfig.callTool` closure receives `{ userId }` as its
@@ -193,6 +193,18 @@ describe("registerCatalogueTool", () => {
       const { cb, callTool } = setupWithCallTool()
       await cb(params, { auth: { user: { userId: "alice" } } })
       expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, { userId: "alice" })
+    })
+
+    it("threads the mcp-use 2 built-in provider shape (ctx.auth.user.id) through", async () => {
+      const { cb, callTool } = setupWithCallTool()
+      await cb(params, { auth: { user: { id: "bob", roles: [] }, payload: { sub: "bob" } } })
+      expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, { userId: "bob" })
+    })
+
+    it("falls back to the verified token's sub when the provider maps no id", async () => {
+      const { cb, callTool } = setupWithCallTool()
+      await cb(params, { auth: { user: {}, payload: { sub: "carol" } } })
+      expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, { userId: "carol" })
     })
 
     it("passes userId: undefined when the ctx carries no auth at all", async () => {

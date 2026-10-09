@@ -37,7 +37,11 @@ export interface CreateFrameworkAppOptionsBase {
   serverOptions?: Omit<ServerConfig, "name" | "version" | "description" | "host" | "oauth">
   plugins: AppPlugin[]
   middleware?: {
-    /** When set, every RPC must come from a token with this organization_id. */
+    /**
+     * When set, every RPC must come from a caller whose provider-mapped user
+     * carries this organization (`organizationId`, or the 1.x-era
+     * `organization_id`).
+     */
     orgGate?: string
     /** role → allowed module prefixes. Empty / missing → no restriction. */
     roleFilter?: Record<string, string[]>
@@ -228,7 +232,8 @@ export async function createFrameworkApp<TUser>(
 
   // The registrars are typed against the OAuth-less `MCPServer`; a
   // `MCPServer<TUser>` differs only in the `ctx.auth` its callbacks receive,
-  // which none of them read.
+  // which they read structurally through `resolveCaller` (never via the
+  // `TUser` type).
   const serverForRegistrars = server as unknown as MCPServer
 
   // Collect every view name bound during boot so the registry can be primed
@@ -248,12 +253,13 @@ export async function createFrameworkApp<TUser>(
   }
   serverForRegistrars.tool = wrappedTool as typeof serverForRegistrars.tool
 
+  // Both middlewares are typed structurally (host-agnostic, no mcp-use import
+  // in the root barrel) yet shaped so mcp-use 2's `MiddlewareContext` — SDK
+  // `AuthInfo` with the mapped user under `auth.extra.user` — is assignable to
+  // them; registering them needs no cast.
   const orgGateId = options.middleware?.orgGate
   if (orgGateId) {
-    // The middleware is typed structurally on purpose so it stays host-
-    // agnostic; mcp-use 2.x types `ctx.auth` as its own `AuthInfo`, which is
-    // not mutually assignable with that shape. Only `auth.user` is read.
-    server.use("mcp:*", createOrgGateMiddleware(orgGateId) as never)
+    server.use("mcp:*", createOrgGateMiddleware(orgGateId))
   }
 
   const roleFilter = options.middleware?.roleFilter
@@ -261,9 +267,8 @@ export async function createFrameworkApp<TUser>(
     const { toolsList, toolsCall } = createRoleFilterMiddleware(roleFilter, {
       failClosed: options.middleware?.roleFilterFailClosed ?? false,
     })
-    // Cast for the same reason as the org gate above.
-    server.use("mcp:tools/list", toolsList as never)
-    server.use("mcp:tools/call", toolsCall as never)
+    server.use("mcp:tools/list", toolsList)
+    server.use("mcp:tools/call", toolsCall)
   }
 
   // Everything toolkit-owned goes through the same core `installToolkit`

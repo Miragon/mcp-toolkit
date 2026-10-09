@@ -130,3 +130,61 @@ describe("createRoleFilterMiddleware — toolsCall", () => {
     })
   })
 })
+
+/**
+ * The shape mcp-use 2 actually hands MCP middleware: the SDK `AuthInfo`, with
+ * the provider-mapped user under `auth.extra.user` and NO `auth.user`. Reading
+ * `auth.user` here made the filter fail open for every caller (issue #174);
+ * the end-to-end proof through a real server is
+ * `tools/create-framework-app.auth.test.ts`.
+ */
+describe("createRoleFilterMiddleware — mcp-use 2 middleware shape (ctx.auth.extra.user)", () => {
+  function middlewareCtx(roles: unknown, params?: { name?: unknown }): RoleFilterContext {
+    return {
+      method: params ? "tools/call" : "tools/list",
+      auth: { extra: { user: { id: "alice", roles }, payload: {}, permissions: [] } },
+      params,
+    }
+  }
+  const tools = [{ name: "analytics_query" }, { name: "billing_invoice" }, { name: "ping" }]
+
+  it("filters tools/list for a restricted role", async () => {
+    const { toolsList } = createRoleFilterMiddleware(roleToModules)
+    const result = await toolsList(middlewareCtx(["viewer"]), () => Promise.resolve(tools))
+    expect(result).toEqual([{ name: "analytics_query" }, { name: "ping" }])
+  })
+
+  it("blocks a tools/call outside the restricted role's modules and names the role", async () => {
+    const { toolsCall } = createRoleFilterMiddleware(roleToModules)
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(
+      toolsCall(middlewareCtx(["viewer"], { name: "billing_invoice" }), next),
+    ).rejects.toThrowError(
+      new Error('Access denied: role(s) "viewer" have no access to module "billing".'),
+    )
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it("passes through a list result that is not an array untouched", async () => {
+    const { toolsList } = createRoleFilterMiddleware(roleToModules)
+    const sentinel = { not: "an array" }
+    await expect(
+      toolsList(middlewareCtx(["viewer"]), () => Promise.resolve(sentinel)),
+    ).resolves.toBe(sentinel)
+  })
+
+  it("hides a listed entry without a string name from a restricted caller (fail closed)", async () => {
+    const { toolsList } = createRoleFilterMiddleware(roleToModules)
+    const listing = [{ name: "analytics_query" }, { name: 42 }, {}]
+    const result = await toolsList(middlewareCtx(["viewer"]), () => Promise.resolve(listing))
+    expect(result).toEqual([{ name: "analytics_query" }])
+  })
+
+  it("treats a caller with no auth at all as unrestricted (no OAuth configured)", async () => {
+    const { toolsList, toolsCall } = createRoleFilterMiddleware(roleToModules)
+    await expect(toolsList({}, () => Promise.resolve(tools))).resolves.toEqual(tools)
+    await expect(
+      toolsCall({ params: { name: "billing_invoice" } }, () => Promise.resolve("ok")),
+    ).resolves.toBe("ok")
+  })
+})

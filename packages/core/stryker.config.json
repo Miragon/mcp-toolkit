@@ -9,6 +9,7 @@
     "src/engine/*.ts",
     "src/framework/*.ts",
     "src/i18n/translator.ts",
+    "src/middleware/org-gate.ts",
     "src/middleware/role-filter.ts",
     "src/registry/*.ts",
     "src/rest/*.ts",

@@ -11,6 +11,10 @@
  *   `ctx.params.name`. When no name is present it fails *open* by default
  *   (allow) — pass `failClosed: true` to deny instead.
  *
+ * The caller's roles come from {@link resolveCaller}, which reads both mcp-use 2
+ * shapes — middleware receives the SDK `AuthInfo` with the provider-mapped user
+ * under `ctx.auth.extra.user`, never `ctx.auth.user`.
+ *
  * Batches need no special handling: mcp-use invokes `mcp:tools/call`
  * middleware once per call, so each entry of a JSON-RPC batch is guarded
  * individually (verified against 2.0.4 — a two-entry batch fires the guard
@@ -27,13 +31,33 @@
  * role doesn't silently revoke anyone's tools.
  */
 
+import { resolveCaller, type Caller } from "../auth/caller.js"
+
+/**
+ * The slice of an mcp-use middleware context the role filter reads. Kept
+ * structural (no mcp-use import) so the root barrel stays host-agnostic; it is
+ * shaped so mcp-use 2's own `MiddlewareContext` is assignable to it.
+ */
 export interface RoleFilterContext {
-  auth?: { user?: { roles?: unknown } }
+  auth?: {
+    /** Callback-shaped (and 1.x-era) contexts: the provider-mapped user. */
+    user?: { roles?: unknown }
+    /** mcp-use 2 middleware: SDK `AuthInfo.extra`, holding the mapped `user`. */
+    extra?: Record<string, unknown>
+  }
   method?: string
-  params?: { name?: unknown }
+  params?: { name?: unknown; [key: string]: unknown }
 }
-type Next = () => Promise<unknown>
-export type RoleFilterMiddleware = (ctx: RoleFilterContext, next: Next) => Promise<unknown>
+
+/**
+ * A role-filter middleware. Generic over the chain's result so it registers
+ * directly on `server.use("mcp:tools/list" | "mcp:tools/call", …)` — the
+ * result of `next()` flows back out with its type intact.
+ */
+export type RoleFilterMiddleware = <TResult>(
+  ctx: RoleFilterContext,
+  next: () => Promise<TResult>,
+) => Promise<TResult>
 
 export interface RoleFilterMiddlewares {
   /** Register with `server.use("mcp:tools/list", ...)`. */
@@ -56,6 +80,8 @@ export interface RoleFilterOptions {
   failClosed?: boolean
 }
 
+const modulePrefixOf = (toolName: string): string => toolName.split("_")[0] ?? ""
+
 export function createRoleFilterMiddleware(
   roleToModules: Record<string, string[]>,
   opts: RoleFilterOptions = {},
@@ -64,42 +90,36 @@ export function createRoleFilterMiddleware(
   const hasRules = Object.keys(roleToModules).length > 0
 
   // Returns `null` = unrestricted (full access), array = restricted.
-  const allowedModulesFor = (user: { roles?: unknown } | undefined): string[] | null => {
-    if (!hasRules) return null
-    const roles = Array.isArray(user?.roles) ? (user.roles as string[]) : []
-    const restrictedRoles = roles.filter((r) => r in roleToModules)
+  const allowedModulesFor = (caller: Caller | undefined): string[] | null => {
+    const restrictedRoles = (caller?.roles ?? []).filter((r) => r in roleToModules)
     if (restrictedRoles.length === 0) return null
     return [...new Set(restrictedRoles.flatMap((r) => roleToModules[r] ?? []))]
   }
 
-  const toolsList: RoleFilterMiddleware = async (ctx, next) => {
-    const tools = (await next()) as { name: string }[]
-    if (!hasRules || !Array.isArray(tools)) return tools
-    const allowed = allowedModulesFor(ctx.auth?.user)
-    if (allowed === null) return tools
-    return tools.filter((t) => {
-      if (!t.name.includes("_")) return true
-      return allowed.includes(t.name.split("_")[0] ?? "")
-    })
-  }
-
   // Tools without an underscore are framework/app-level and always allowed.
-  const assertModuleAllowed = (
-    toolName: string,
-    allowed: string[],
-    user: { roles?: unknown } | undefined,
-  ): void => {
-    if (!toolName.includes("_")) return
-    const modulePrefix = toolName.split("_")[0] ?? ""
-    if (!allowed.includes(modulePrefix)) {
-      const userRoles = (user as { roles?: string[] } | undefined)?.roles ?? []
-      throw new Error(
-        `Access denied: role(s) "${userRoles.join(", ")}" have no access to module "${modulePrefix}".`,
-      )
-    }
+  const isAllowed = (toolName: string, allowed: string[]): boolean =>
+    !toolName.includes("_") || allowed.includes(modulePrefixOf(toolName))
+
+  const toolsList = async <TResult>(
+    ctx: RoleFilterContext,
+    next: () => Promise<TResult>,
+  ): Promise<TResult> => {
+    const result = await next()
+    if (!hasRules || !Array.isArray(result)) return result
+    const allowed = allowedModulesFor(resolveCaller(ctx))
+    if (allowed === null) return result
+    // Filtering keeps the element type, so the narrowed array is still the
+    // chain's `TResult` — TypeScript just cannot carry that through
+    // `Array.isArray`.
+    return result.filter(
+      (tool: { name?: unknown }) => typeof tool.name === "string" && isAllowed(tool.name, allowed),
+    ) as TResult
   }
 
-  const toolsCall: RoleFilterMiddleware = async (ctx, next) => {
+  const toolsCall = async <TResult>(
+    ctx: RoleFilterContext,
+    next: () => Promise<TResult>,
+  ): Promise<TResult> => {
     if (!hasRules) return next()
     const name = typeof ctx.params?.name === "string" ? ctx.params.name : undefined
     if (name === undefined) {
@@ -110,8 +130,13 @@ export function createRoleFilterMiddleware(
       }
       return next()
     }
-    const allowed = allowedModulesFor(ctx.auth?.user)
-    if (allowed !== null) assertModuleAllowed(name, allowed, ctx.auth?.user)
+    const caller = resolveCaller(ctx)
+    const allowed = allowedModulesFor(caller)
+    if (allowed !== null && !isAllowed(name, allowed)) {
+      throw new Error(
+        `Access denied: role(s) "${(caller?.roles ?? []).join(", ")}" have no access to module "${modulePrefixOf(name)}".`,
+      )
+    }
     return next()
   }
 

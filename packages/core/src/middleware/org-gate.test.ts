@@ -69,3 +69,50 @@ describe("createOrgGateMiddleware", () => {
     expect(next).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * mcp-use 2 hands MCP middleware the SDK `AuthInfo` (mapped user under
+ * `auth.extra.user`), and the built-in providers spell the claim
+ * `organizationId`. Reading `auth.user.organization_id` only made the gate
+ * deny every request (issue #174).
+ */
+describe("createOrgGateMiddleware — mcp-use 2 middleware shape", () => {
+  const middlewareCtx = (user: Record<string, unknown>) => ({
+    auth: { extra: { user, payload: {}, permissions: [] } },
+  })
+
+  it("admits a matching organizationId (camelCase) from ctx.auth.extra.user", async () => {
+    const gate = createOrgGateMiddleware("org-1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(gate(middlewareCtx({ id: "a", organizationId: "org-1" }), next)).resolves.toBe(
+      "ok",
+    )
+    expect(next).toHaveBeenCalledTimes(1)
+  })
+
+  it("rejects a different organizationId with the mismatch message", async () => {
+    const gate = createOrgGateMiddleware("org-1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(
+      gate(middlewareCtx({ id: "m", organizationId: "org-2" }), next),
+    ).rejects.toThrowError(new Error(MISMATCH_MESSAGE))
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it("rejects a mapped user without any organization with the no-org message", async () => {
+    const gate = createOrgGateMiddleware("org-1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(gate(middlewareCtx({ id: "n" }), next)).rejects.toThrowError(
+      new Error(NO_ORG_MESSAGE),
+    )
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it("does not accept a non-string organization claim", async () => {
+    const gate = createOrgGateMiddleware("1")
+    const next = vi.fn(() => Promise.resolve("ok"))
+    await expect(gate(middlewareCtx({ organizationId: 1 }), next)).rejects.toThrowError(
+      new Error(NO_ORG_MESSAGE),
+    )
+  })
+})
