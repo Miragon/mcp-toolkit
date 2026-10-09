@@ -56,7 +56,8 @@ own.
 ## Request flow — `render-view`
 
 1. Client calls `render-view` with `{ keys, steps, layout, title }`.
-2. Framework-tool handler extracts `userId` from `ctx.auth.user.userId`.
+2. Framework-tool handler resolves the caller id with `resolveCallerId(ctx)`
+   (`ctx.auth.user.id`, else `userId`, else the token's `sub`).
 3. `executePipeline` runs each step:
    - Looks up definition by `ref.step` in `StepRegistry`.
    - Checks all `requires` keys exist in the running context.

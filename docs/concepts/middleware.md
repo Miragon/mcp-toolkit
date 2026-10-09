@@ -4,6 +4,10 @@ mcp-use middleware sits between the transport and the tool handler. Two
 helpers ship in the toolkit; both are pass-through when disabled so callers
 can wire them unconditionally and let config decide.
 
+Both read the caller through `resolveCaller` (`packages/core/src/auth/caller.ts`):
+mcp-use 2 hands middleware the SDK `AuthInfo`, with the provider-mapped user
+under `ctx.auth.extra.user` — there is no `ctx.auth.user` in middleware.
+
 ## Org gate
 
 ```ts
@@ -11,8 +15,9 @@ createOrgGateMiddleware(orgId: string | undefined): OrgGateMiddleware
 ```
 
 - Register as `server.use("mcp:*", createOrgGateMiddleware(orgId))`.
-- Every RPC must come from a token with `user.organization_id === orgId`.
-- Tokens without `organization_id` are rejected too (forces org-scoped login).
+- Every RPC must come from a caller whose mapped user has
+  `organizationId === orgId` (the 1.x-era `organization_id` is read too).
+- Callers without an organization are rejected too (forces org-scoped login).
 - `undefined` → pass-through. Useful for single-tenant deployments that
   don't set `WORKOS_ORG_ID`.
 
@@ -37,6 +42,7 @@ createRoleFilterMiddleware(roleToModules: Record<string, string[]>): {
   _restricts_ users with that role to the listed modules.
 - Users whose roles include _no_ key in the mapping → unrestricted. This
   is deliberate opt-in so adding a new role doesn't silently revoke tools.
+- Roles are the string entries of the mapped `user.roles`.
 - Tool → module mapping uses the prefix convention `<module>_<tool>`. Tools
   without an underscore (framework tools, `render-view`, etc.) are always
   allowed.
