@@ -5,6 +5,7 @@
     "configFile": "vitest.config.ts"
   },
   "mutate": [
+    "src/auth/*.ts",
     "src/engine/*.ts",
     "src/framework/*.ts",
     "src/i18n/translator.ts",

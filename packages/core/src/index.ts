@@ -94,6 +94,12 @@ export { layoutInputSchema, layoutSchema, rowSchema } from "./framework/layout-s
 export { resolveActiveModules, parseActiveModules } from "./framework/active-modules.js"
 export type { ActiveModuleSelection } from "./framework/active-modules.js"
 
+// Caller identity — the one reader of both mcp-use 2 `ctx.auth` shapes
+// (middleware: SDK AuthInfo, user under `extra.user`; callbacks: flattened
+// `auth.user`). Browser-safe; every toolkit auth consumer goes through it.
+export { resolveCaller, resolveCallerId } from "./auth/caller.js"
+export type { Caller } from "./auth/caller.js"
+
 export { createOrgGateMiddleware } from "./middleware/org-gate.js"
 export type { OrgGateMiddleware } from "./middleware/org-gate.js"
 export { createRoleFilterMiddleware } from "./middleware/role-filter.js"

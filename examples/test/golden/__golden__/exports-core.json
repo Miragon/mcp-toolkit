@@ -22,6 +22,8 @@
     "parseActiveModules",
     "renderView",
     "resolveActiveModules",
+    "resolveCaller",
+    "resolveCallerId",
     "rowSchema",
     "validatePipeline",
     "viewResourceUri"
