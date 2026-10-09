@@ -98,6 +98,12 @@ ratchets/render-allowlist.json (shrink-only, 2 entries: the two
 components that mount mcp-use view hooks and cannot SSR); every module
 widget needs a widget-playground story (render-coverage.smoke.test.ts).
 
+Runner compatibility: vitest stays on 4.x (Dependabot ignores the major,
+`.github/dependabot.yml`) until `@stryker-mutator/vitest-runner` supports
+vitest 5 — under 5.x every mutant run executes 0 tests and survives, so the
+score collapses (core 75.77 → 2.32 after #169) instead of measuring anything.
+A vitest major bump must show a green full sweep (`mutation-full.yml`).
+
 ### knip ignore reasons (shrink-only list in knip.json)
 
 - `tailwindcss` (root): peer of `prettier-plugin-tailwindcss`, invisible to knip.
