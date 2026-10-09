@@ -295,6 +295,68 @@ describe("auth contract — real MCPServer + fake OAuth provider", () => {
 
     const layout = { rows: [{ row: [{ widget: "probe:card" }] }] }
 
+    it("isolates dashboards per user: B can neither list, load nor delete A's dashboard", async () => {
+      const saved = await callTool(app, "token-alice", "save-dashboard", {
+        name: "Alice's board",
+        layout,
+      })
+      expect(saved.isError).toBe(false)
+      const id = saved.structuredContent?.id as string
+      expect(typeof id).toBe("string")
+
+      const aliceList = await callTool(app, "token-alice", "list-dashboards")
+      const aliceIds = (aliceList.structuredContent?.items as { id: string }[]).map((i) => i.id)
+      expect(aliceIds).toContain(id)
+
+      const bobList = await callTool(app, "token-bob", "list-dashboards")
+      const bobIds = (bobList.structuredContent?.items as { id: string }[] | undefined)?.map(
+        (i) => i.id,
+      )
+      expect(bobIds ?? []).not.toContain(id)
+
+      const bobLoad = await callTool(app, "token-bob", "load-dashboard", { id })
+      expect(bobLoad.isError).toBe(true)
+      expect(bobLoad.text).not.toContain("Alice's board")
+
+      const bobDelete = await callTool(app, "token-bob", "delete-dashboard", { id })
+      expect(bobDelete.isError).toBe(true)
+
+      const bobOverwrite = await callTool(app, "token-bob", "save-dashboard", {
+        id,
+        name: "Hijacked",
+        layout,
+      })
+      expect(bobOverwrite.isError).toBe(true)
+
+      // Alice's record survived every one of Bob's attempts, unchanged.
+      const aliceLoad = await callTool(app, "token-alice", "load-dashboard", { id })
+      expect(aliceLoad.isError).toBe(false)
+      expect(aliceLoad.structuredContent).toMatchObject({
+        id,
+        name: "Alice's board",
+        userId: "alice",
+      })
+    })
+
+    it("refuses an ownerless dashboard write when the caller has no resolvable identity", async () => {
+      const saved = await callTool(app, "token-nameless", "save-dashboard", {
+        name: "Nobody's board",
+        layout,
+      })
+      expect(saved.isError).toBe(true)
+      expect(saved.text).toMatch(/identity/i)
+
+      // Nothing was persisted for anyone to find.
+      const aliceList = await callTool(app, "token-alice", "list-dashboards")
+      const names = (aliceList.structuredContent?.items as { name: string }[]).map((i) => i.name)
+      expect(names).not.toContain("Nobody's board")
+    })
+
+    it("refuses dashboard reads for a caller with no resolvable identity instead of widening to global scope", async () => {
+      const list = await callTool(app, "token-nameless", "list-dashboards")
+      expect(list.isError).toBe(true)
+    })
+
     it.each(["render-view", "refresh-view"])(
       "threads the caller id into %s's pipeline steps",
       async (tool) => {

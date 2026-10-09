@@ -282,6 +282,9 @@ export async function createFrameworkApp<TUser>(
     builder: options.app.builder,
     catalogueToolName: options.app.catalogueToolName,
     dashboardStore: options.app.dashboardStore,
+    // Under OAuth a dashboard call without a resolvable caller id is refused,
+    // never widened to global (owner-less) scope.
+    requireCallerIdentity: Boolean(options.oauth),
     appConfig: options.appConfig,
   })
 

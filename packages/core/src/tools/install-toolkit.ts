@@ -45,6 +45,14 @@ export interface InstallToolkitOptions {
    * Only relevant with {@link builder}.
    */
   dashboardStore?: DashboardStore
+  /**
+   * Refuse every dashboard call that resolves no caller id instead of serving
+   * it in global scope — set it when the server has OAuth configured.
+   * (`createFrameworkApp` does so automatically.) Authenticated calls are held
+   * to this regardless; the flag additionally covers a call that reaches the
+   * tools without any `ctx.auth`. Only relevant with {@link builder}.
+   */
+  requireCallerIdentity?: boolean
   /** Overrides the active-apps/pipelines config derived from apps + modules. */
   appConfig?: AppConfig
 }
@@ -140,7 +148,11 @@ export function installToolkit(
     })
 
     const dashboardStore = options.dashboardStore ?? createInMemoryDashboardStore()
-    registerDashboardTools(server, { store: dashboardStore, widgetRegistry })
+    registerDashboardTools(server, {
+      store: dashboardStore,
+      widgetRegistry,
+      requireCallerIdentity: options.requireCallerIdentity,
+    })
   }
 
   return { stepRegistry, widgetRegistry }

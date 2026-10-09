@@ -33,6 +33,7 @@
     "BackendNotSelectedError",
     "DASHBOARD_SCHEMA_VERSION",
     "DashboardOwnershipError",
+    "DashboardUnreadableError",
     "RENDER_VIEW_NAME",
     "UnknownBackendError",
     "createBackendRegistry",

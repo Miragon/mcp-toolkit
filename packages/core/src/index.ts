@@ -76,7 +76,8 @@ export type {
 // for consumers typing their own stores; runtime values
 // (`DashboardOwnershipError`, `resolveSavedRecord`) are NOT, since importing
 // them pulls the whole module — including its `node:fs` import — into the
-// browser graph. They're exported from the `./tools` subpath instead.
+// browser graph. They're exported from the `./tools` subpath instead (as is
+// `DashboardUnreadableError`).
 export type {
   DashboardStore,
   DashboardRecord,
