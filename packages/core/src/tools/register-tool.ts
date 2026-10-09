@@ -1,12 +1,16 @@
-import { type MCPServer } from "mcp-use"
+import { type MCPServer, type ToolRef } from "mcp-use"
 import { z } from "zod"
 import { objectResult, textResult } from "./tool-results.js"
 import { withToolErrors } from "./with-tool-errors.js"
-
-type ZodRawShape = Record<string, z.ZodTypeAny>
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK hands the callback args as Record<string, any> after zod validation; kept as the internal SDK-facing type only.
-type LooseToolArgs = Record<string, any>
+import {
+  registrarInputSchema,
+  type HandlerUser,
+  type ToolDefinitionPassthrough,
+  type ToolHandlerContext,
+  type ToolRegistrarOptions,
+  type TypedToolRefOptions,
+  type ZodRawShape,
+} from "./registrar-shared.js"
 
 /**
  * The validated args a handler receives. When an `inputSchema` shape is
@@ -16,7 +20,7 @@ type LooseToolArgs = Record<string, any>
  */
 export type ToolArgs<TShape extends ZodRawShape = ZodRawShape> = z.infer<z.ZodObject<TShape>>
 
-export interface ToolConfig<TClient, TShape extends ZodRawShape = ZodRawShape> {
+export interface ToolConfig<TClient, TShape extends ZodRawShape = ZodRawShape, TUser = unknown> {
   name: string
   description: string
   category?: string
@@ -38,13 +42,78 @@ export interface ToolConfig<TClient, TShape extends ZodRawShape = ZodRawShape> {
     idempotentHint?: boolean
     openWorldHint?: boolean
   }
-  handler: (client: TClient, args: ToolArgs<TShape>) => Promise<unknown>
+  /**
+   * Reject unknown input keys instead of silently stripping them: the input
+   * schema is advertised with `additionalProperties: false`, and a call with
+   * an unknown key fails with a tool error naming the valid keys. Overrides
+   * the registrar's `strictInput` option; off by default in 2.x.
+   */
+  strictInput?: boolean
+  /**
+   * Every other mcp-use `ToolDefinition` field, forwarded verbatim to
+   * `server.tool` — `title`, `_meta`, `visibility`, `securitySchemes`,
+   * `view`, … The registrar-derived keys (name, description, schemas,
+   * annotations) always win.
+   */
+  definition?: ToolDefinitionPassthrough
+  /**
+   * The tool body. `ctx` is mcp-use's per-call context ({@link ToolHandlerContext}):
+   * `signal` for cancellation, `reportProgress`, `sendLog`, `client`, `auth`.
+   * The registrar always passes it; it is optional in the type so handlers
+   * stay directly callable as `(client, args)` — e.g. from unit tests.
+   */
+  handler: (
+    client: TClient,
+    args: ToolArgs<TShape>,
+    ctx?: ToolHandlerContext<TUser>,
+  ) => Promise<unknown>
   formatResult?: (result: unknown, args: ToolArgs<TShape>) => string
 }
 
 export interface RegisteredToolMeta {
   name: string
   category?: string
+}
+
+/**
+ * The structured output a registrar tool advertises for its `outputSchema`
+ * — the `ToolRef` output type. Arrays are wrapped into `{ data }` exactly
+ * like the advertised schema; no `outputSchema` means `never`, mirroring
+ * mcp-use's own `InferToolOutput`.
+ */
+export type RegistrarToolOutput<TOutput> = [TOutput] extends [z.ZodArray<z.ZodTypeAny>]
+  ? { data: z.output<TOutput> }
+  : [TOutput] extends [z.ZodTypeAny]
+    ? z.output<TOutput>
+    : never
+
+/**
+ * The `register` function {@link createToolRegistrar} returns. Its static
+ * return type is `void` so hand-written wrappers typed as
+ * `ReturnType<typeof createToolRegistrar<C>>` (e.g. a toolset filter that
+ * skips registration) keep compiling; at runtime it returns the mcp-use
+ * `ToolRef`. Pass `toolRefs: true` for {@link TypedToolRegistrar}.
+ */
+export interface ToolRegistrar<TClient, TUser = unknown> {
+  <TShape extends ZodRawShape = ZodRawShape>(config: ToolConfig<TClient, TShape, TUser>): void
+  getRegisteredTools: () => RegisteredToolMeta[]
+}
+
+/**
+ * The `register` function `createToolRegistrar(server, client, { toolRefs: true })`
+ * returns: each call returns the tool's mcp-use `ToolRef`, typed with the
+ * literal tool name, the inferred input and the structured output — export
+ * it for `mcp-env.d.ts` / typed `useCallTool`, like a raw `server.tool` ref.
+ */
+export interface TypedToolRegistrar<TClient, TUser = unknown> {
+  <
+    TShape extends ZodRawShape = ZodRawShape,
+    const TName extends string = string,
+    TOutput extends z.ZodTypeAny | undefined = undefined,
+  >(
+    config: ToolConfig<TClient, TShape, TUser> & { name: TName; outputSchema?: TOutput },
+  ): ToolRef<TName, ToolArgs<TShape>, RegistrarToolOutput<TOutput>>
+  getRegisteredTools: () => RegisteredToolMeta[]
 }
 
 function wrapArraySchema(schema: z.ZodTypeAny | undefined): z.ZodTypeAny | undefined {
@@ -76,24 +145,57 @@ function toStructuredContent(result: unknown, toolName: string): Record<string, 
   )
 }
 
-export function createToolRegistrar<TClient>(server: MCPServer, client: TClient) {
+/**
+ * Registrar for a module's domain tools: builds the input/output schemas,
+ * wraps the handler in {@link withToolErrors}, and mirrors the result into
+ * `structuredContent`. Handlers receive `(client, args, ctx)` — `ctx` is
+ * mcp-use's per-call context. `options.strictInput` sets the default for
+ * every tool's `strictInput`; `options.toolRefs` types `register()`'s return
+ * value as the tool's `ToolRef`.
+ */
+export function createToolRegistrar<TClient, TUser = never>(
+  server: MCPServer<TUser>,
+  client: TClient,
+  options: TypedToolRefOptions,
+): TypedToolRegistrar<TClient, HandlerUser<TUser>>
+export function createToolRegistrar<TClient, TUser = never>(
+  server: MCPServer<TUser>,
+  client: TClient,
+  options?: ToolRegistrarOptions,
+): ToolRegistrar<TClient, HandlerUser<TUser>>
+export function createToolRegistrar<TClient, TUser = never>(
+  server: MCPServer<TUser>,
+  client: TClient,
+  options: ToolRegistrarOptions = {},
+): TypedToolRegistrar<TClient, HandlerUser<TUser>> {
   const registeredTools: RegisteredToolMeta[] = []
+  // Registration is independent of the OAuth user type, which only shapes
+  // the callback ctx; the ctx is handed on typed by the registrar instead.
+  const target = server as unknown as MCPServer
 
-  function register<TShape extends ZodRawShape = ZodRawShape>(config: ToolConfig<TClient, TShape>) {
+  function register(config: ToolConfig<TClient, ZodRawShape, HandlerUser<TUser>>): ToolRef {
     registeredTools.push({ name: config.name, category: config.category })
-    server.tool(
+    return target.tool(
       {
+        ...config.definition,
         name: config.name,
         description: config.description,
-        inputSchema: config.inputSchema ? z.object(config.inputSchema) : undefined,
+        inputSchema: registrarInputSchema(
+          config.inputSchema,
+          config.strictInput ?? options.strictInput ?? false,
+        ),
         outputSchema: wrapArraySchema(config.outputSchema),
         annotations: config.annotations,
       },
-      // The SDK validates args against the schema above, so the loose callback
-      // arg is safely the handler's precise `ToolArgs<TShape>`.
-      withToolErrors(async (looseArgs: LooseToolArgs) => {
-        const args = looseArgs as ToolArgs<TShape>
-        const result = await config.handler(client, args)
+      // The SDK validates args against the schema above before the callback
+      // runs; the public `register` is generic over that shape, this
+      // implementation sees the erased `ToolArgs`.
+      withToolErrors(async (args: ToolArgs, ctx?: unknown) => {
+        const result = await config.handler(
+          client,
+          args,
+          ctx as ToolHandlerContext<HandlerUser<TUser>> | undefined,
+        )
         if (config.formatResult) {
           const formatted = textResult(config.formatResult(result, args))
           // When an outputSchema is declared the tool promised structured
@@ -135,5 +237,5 @@ export function createToolRegistrar<TClient>(server: MCPServer, client: TClient)
 
   register.getRegisteredTools = () => registeredTools
 
-  return register
+  return register as unknown as TypedToolRegistrar<TClient, HandlerUser<TUser>>
 }

@@ -64,6 +64,7 @@
     "description": "Create a new task (it starts in the 'todo' status). Returns the created task.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
       "properties": {
         "priority": {
           "description": "Priority of the new task. Defaults to 'medium'.",

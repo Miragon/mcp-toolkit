@@ -179,6 +179,24 @@ describe("tasks module smoke", () => {
     expect(data.counts.total).toBe(data.tasks.length)
   })
 
+  it("create_task (strictInput) rejects an unknown argument, naming the valid keys", async () => {
+    const result = await session.callTool("create_task", {
+      title: "Guessed argument",
+      dueDate: "tomorrow",
+    })
+    expect(result.isError).toBe(true)
+    const text = (result.content as { type: string; text?: string }[])
+      .map((c) => c.text ?? "")
+      .join("\n")
+    expect(text).toContain('Unknown key "dueDate"')
+    expect(text).toContain('Valid keys: "title", "priority"')
+
+    // Refused before the handler ran: no task was created.
+    const board = (await session.callTool("tasks_board_data", {}))
+      .structuredContent as TasksBoardData
+    expect(board.tasks.some((t) => t.title === "Guessed argument")).toBe(false)
+  })
+
   it("complete_task on an unknown id surfaces a tool error", async () => {
     const result = await session.callTool("complete_task", { taskId: "does-not-exist" })
     expect(result.isError).toBe(true)

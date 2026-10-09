@@ -117,6 +117,10 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
       destructiveHint: false,
       openWorldHint: false,
     },
+    // A write whose arguments a model may guess (`description`, `dueDate`…):
+    // strict input turns an unknown key into a tool error naming the valid
+    // keys, instead of creating the task with that argument silently dropped.
+    strictInput: true,
     inputSchema: {
       title: z.string().min(1).describe("Title of the task to create (required, non-empty)."),
       priority: prioritySchema
