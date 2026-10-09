@@ -13,6 +13,18 @@ updates:
       semver-major-days: 14
       semver-minor-days: 7
       semver-patch-days: 3
+    ignore:
+      # Hold vitest on 4.x until @stryker-mutator/vitest-runner supports
+      # vitest 5. Runner 10.0.0 filters each mutant run by space-joined test
+      # names, while vitest 5 matches testNamePattern against " > "-joined
+      # full names: every mutant run executes 0 tests and "survives", so the
+      # required mutation gate reads ~0 (the core sweep fell from 75.77 to
+      # 2.32 after the 5.0 bump in #169). Drop this once a runner release
+      # supports vitest 5 and a mutation sweep on the bump PR is green.
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitest/coverage-v8"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-dependencies:
         patterns:
