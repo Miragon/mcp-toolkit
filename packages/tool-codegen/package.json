@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.0.0",
-    "handlebars": "4.7.9",
+    "handlebars": "4.7.10",
     "json-schema-to-typescript": "16.0.0"
   },
   "devDependencies": {
