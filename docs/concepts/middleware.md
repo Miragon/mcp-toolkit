@@ -8,10 +8,15 @@ Both read the caller through `resolveCaller` (`packages/core/src/auth/caller.ts`
 mcp-use 2 hands middleware the SDK `AuthInfo`, with the provider-mapped user
 under `ctx.auth.extra.user` — there is no `ctx.auth.user` in middleware.
 
+The factories return generic middlewares (`OrgGateMiddlewareFn`,
+`RoleFilterMiddlewareFn`) that `server.use` accepts without a cast. The
+non-generic `OrgGateMiddleware` / `RoleFilterMiddleware` aliases are for typing
+your own wrappers.
+
 ## Org gate
 
 ```ts
-createOrgGateMiddleware(orgId: string | undefined): OrgGateMiddleware
+createOrgGateMiddleware(orgId: string | undefined): OrgGateMiddlewareFn
 ```
 
 - Register as `server.use("mcp:*", createOrgGateMiddleware(orgId))`.
@@ -27,8 +32,8 @@ Source: `packages/core/src/middleware/org-gate.ts`.
 
 ```ts
 createRoleFilterMiddleware(roleToModules: Record<string, string[]>): {
-  toolsList: RoleFilterMiddleware
-  toolsCall: RoleFilterMiddleware
+  toolsList: RoleFilterMiddlewareFn
+  toolsCall: RoleFilterMiddlewareFn
 }
 ```
 

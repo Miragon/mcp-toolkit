@@ -66,15 +66,17 @@ Common reasons:
 
 ## userId not propagating
 
-`render-view` resolves the caller id with `resolveCallerId(ctx)` and
-threads it through `executePipeline → bindAppConfig → callTool`. If your
-user-scoped `callTool` closure sees `userId: undefined`:
+`render-view` resolves the caller with `resolvePipelineContext(ctx)` and
+threads `{ userId, authenticated }` through
+`executePipeline → bindAppConfig → callTool`. If your user-scoped `callTool`
+closure sees `userId: undefined`:
 
-- The MCP request is unauthenticated. `oauth?` was omitted from
-  `createFrameworkApp`, or the user hasn't logged in.
-- The provider maps no id: `resolveCallerId` reads `ctx.auth.user.id`,
-  then `user.userId`, then the verified token's `sub`. Check what your
-  provider's `mapAuthInfo` returns as `user`.
+- `authenticated` is absent too: the MCP request is unauthenticated. `oauth?`
+  was omitted from `createFrameworkApp`, or the user hasn't logged in.
+- `authenticated: true`: the provider maps no id. The caller id is
+  `ctx.auth.user.id`, then `user.userId`, then the verified token's `sub` —
+  check what your provider's `mapAuthInfo` returns as `user`. Refuse per-user
+  data for such a caller; never fall back to global scope.
 - The middleware order is wrong (oauth provider must run before
   org-gate / role-filter / framework tools). `createFrameworkApp` does
   this for you; if you boot the server manually, replicate the order

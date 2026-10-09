@@ -35,7 +35,7 @@ export type {
   CreateTranslatorOptions,
 } from "./i18n/index.js"
 
-export { executePipeline } from "./engine/pipeline-executor.js"
+export { executePipeline, resolvePipelineContext } from "./engine/pipeline-executor.js"
 export type {
   PipelineExecutionContext,
   ExecutePipelineOptions,
@@ -102,10 +102,11 @@ export { resolveCaller, resolveCallerId } from "./auth/caller.js"
 export type { Caller } from "./auth/caller.js"
 
 export { createOrgGateMiddleware } from "./middleware/org-gate.js"
-export type { OrgGateMiddleware } from "./middleware/org-gate.js"
+export type { OrgGateMiddleware, OrgGateMiddlewareFn } from "./middleware/org-gate.js"
 export { createRoleFilterMiddleware } from "./middleware/role-filter.js"
 export type {
   RoleFilterMiddleware,
+  RoleFilterMiddlewareFn,
   RoleFilterMiddlewares,
   RoleFilterOptions,
   RoleFilterContext,

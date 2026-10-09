@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
-import { executePipeline } from "./pipeline-executor.js"
+import { executePipeline, resolvePipelineContext } from "./pipeline-executor.js"
 import { StepRegistry } from "../registry/step-registry.js"
 import type { PipelineStepDefinition } from "../types/step.js"
 
@@ -291,9 +291,9 @@ describe("executePipeline", () => {
       initialKeys: {},
       registry,
       appConfigs: { demo: { callTool: inner } },
-      ctx: { userId: "alice" },
+      ctx: { userId: "alice", authenticated: true },
     })
-    expect(inner).toHaveBeenCalledWith("get", { id: 1 }, { userId: "alice" })
+    expect(inner).toHaveBeenCalledWith("get", { id: 1 }, { userId: "alice", authenticated: true })
     expect(received).toEqual({ ok: true })
   })
 
@@ -359,6 +359,35 @@ describe("executePipeline", () => {
       registry,
     })
     expect(saw).toEqual({})
+  })
+})
+
+/**
+ * What render-view, refresh-view and the builder catalogue hand a pipeline:
+ * an authenticated caller without an id must stay distinguishable from a
+ * request without auth (both carry no userId), or a user-scoped closure falls
+ * back to global scope for it.
+ */
+describe("resolvePipelineContext", () => {
+  it("carries the caller id of an authenticated request (both mcp-use 2 shapes)", () => {
+    expect(resolvePipelineContext({ auth: { user: { id: "alice" } } })).toEqual({
+      userId: "alice",
+      authenticated: true,
+    })
+    expect(resolvePipelineContext({ auth: { extra: { user: { id: "bob" } } } })).toEqual({
+      userId: "bob",
+      authenticated: true,
+    })
+  })
+
+  it("marks an authenticated caller whose provider maps no id as authenticated", () => {
+    const ctx = resolvePipelineContext({ auth: { user: { roles: [] }, payload: {} } })
+    expect(ctx).toEqual({ userId: undefined, authenticated: true })
+  })
+
+  it("carries neither field for a request without auth (a server without OAuth)", () => {
+    expect(resolvePipelineContext({})).toStrictEqual({})
+    expect(resolvePipelineContext(undefined)).toStrictEqual({})
   })
 })
 

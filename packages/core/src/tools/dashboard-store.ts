@@ -66,9 +66,17 @@ export interface DashboardSummary {
   title?: string
   updatedAt: string
   /**
+   * The record's owner, as in {@link DashboardRecord.userId}. The built-in
+   * stores report it, and a custom store should: the dashboard tools hold an
+   * identified caller to its own summaries with it. A summary without one is
+   * verified through `get` instead (one read per entry).
+   */
+  userId?: string
+  /**
    * Set (to the reason) when the record exists but this build cannot read it
-   * — a newer `schemaVersion`, corrupt JSON, a failed schema check. `name`
-   * then repeats the id and `updatedAt` is best-effort (empty when unknown).
+   * — a newer `schemaVersion`, corrupt JSON, a failed schema check, or (in a
+   * listing) an entry the filesystem refuses to read. `name` then repeats the
+   * id and `updatedAt` is best-effort (empty when unknown).
    * Reported instead of skipped so it can't silently vanish, and refused by
    * `get` / `save` / `delete` with {@link DashboardUnreadableError}.
    */
@@ -91,6 +99,14 @@ export interface DashboardSummary {
  *   invisible to `list`/`get`/`delete`, and `save` refuses to update it.
  *   (The dashboard tools never reach a store without a `userId` once the
  *   request is authenticated — they refuse the call instead.)
+ *
+ * {@link isDashboardOwnedBy} is that rule; a custom store should apply it
+ * rather than re-derive it, and report each summary's owner
+ * ({@link DashboardSummary.userId}). The dashboard tools re-check every
+ * answer for an identified caller anyway — `get`, `list`, and the record a
+ * `save` or `delete` would touch — so a store on the laxer 2.5 rule (an
+ * owner-less record counted as everyone's) cannot leak or hand out such a
+ * record; it only costs extra reads.
  *
  * `save` carries the acting user as `input.userId`: updating an existing
  * record the caller doesn't own is rejected with
@@ -162,11 +178,18 @@ function nowIso(): string {
 }
 
 /**
- * Ownership rule shared by every built-in store: no caller id = global scope
+ * The ownership rule of the {@link DashboardStore} contract, shared by every
+ * built-in store and by the dashboard tools: no caller id = global scope
  * (no-OAuth boot, everything visible); an identified caller owns exactly the
  * records stamped with its id — an owner-less record is not one of them.
+ *
+ * Exported so a custom store applies the same rule instead of re-deriving it
+ * (the 2.5 rule also granted owner-less records to every identified caller).
  */
-function ownedBy(ownerId: string | undefined, userId: string | undefined): boolean {
+export function isDashboardOwnedBy(
+  ownerId: string | undefined,
+  userId: string | undefined,
+): boolean {
   if (!userId) return true
   return ownerId === userId
 }
@@ -205,6 +228,23 @@ export class DashboardUnreadableError extends Error {
 }
 
 /**
+ * Throw {@link DashboardOwnershipError} unless `userId` may update `existing`
+ * ({@link isDashboardOwnedBy}). Shared by {@link resolveSavedRecord} and the
+ * dashboard tools, which re-check a custom store's answer before a save.
+ */
+export function assertDashboardWritable(
+  existing: DashboardRecord,
+  userId: string | undefined,
+): void {
+  if (isDashboardOwnedBy(existing.userId, userId)) return
+  throw new DashboardOwnershipError(
+    existing.userId
+      ? `Access denied: dashboard "${existing.id}" is owned by another user.`
+      : `Access denied: dashboard "${existing.id}" has no owner; an owner-less (global-scope) dashboard is not writable by an identified caller.`,
+  )
+}
+
+/**
  * Resolve the record to persist for a `save`, enforcing ownership on updates.
  *
  * - New record (no `existing`): returns `null`, signalling the caller to
@@ -227,13 +267,7 @@ export function resolveSavedRecord(
   now: string,
 ): DashboardRecord | null {
   if (!existing) return null
-  if (!ownedBy(existing.userId, input.userId)) {
-    throw new DashboardOwnershipError(
-      existing.userId
-        ? `Access denied: dashboard "${existing.id}" is owned by another user.`
-        : `Access denied: dashboard "${existing.id}" has no owner; an owner-less (global-scope) dashboard is not writable by an identified caller.`,
-    )
-  }
+  assertDashboardWritable(existing, input.userId)
   return {
     ...existing,
     ...stripUndefined(input),
@@ -279,28 +313,20 @@ export function createInMemoryDashboardStore(): DashboardStore {
       })
     },
     list(filter) {
-      const all = [...byId.values()].filter((r) => ownedBy(r.userId, filter.userId))
+      const all = [...byId.values()].filter((r) => isDashboardOwnedBy(r.userId, filter.userId))
       all.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      return Promise.resolve(
-        all.map((r) => ({
-          id: r.id,
-          name: r.name,
-          description: r.description,
-          title: r.title,
-          updatedAt: r.updatedAt,
-        })),
-      )
+      return Promise.resolve(all.map(summaryOf))
     },
     get(id, filter) {
       const record = byId.get(id)
       if (!record) return Promise.resolve(undefined)
-      if (!ownedBy(record.userId, filter.userId)) return Promise.resolve(undefined)
+      if (!isDashboardOwnedBy(record.userId, filter.userId)) return Promise.resolve(undefined)
       return Promise.resolve(record)
     },
     delete(id, filter) {
       const record = byId.get(id)
       if (!record) return Promise.resolve(false)
-      if (!ownedBy(record.userId, filter.userId)) return Promise.resolve(false)
+      if (!isDashboardOwnedBy(record.userId, filter.userId)) return Promise.resolve(false)
       byId.delete(id)
       return Promise.resolve(true)
     },
@@ -351,7 +377,7 @@ function classifyStoredDashboard(raw: string): StoredDashboard {
  * learns it exists — the same as the ownership error on a foreign save).
  */
 function unreadableAddressableBy(ownerId: string | undefined, userId: string | undefined): boolean {
-  return ownerId === undefined || ownedBy(ownerId, userId)
+  return ownerId === undefined || isDashboardOwnedBy(ownerId, userId)
 }
 
 /**
@@ -395,6 +421,21 @@ export function createFileSystemDashboardStore(
       console.warn(`[dashboard-store] Dashboard "${id}" is unreadable: ${stored.reason}.`)
     }
     return stored
+  }
+
+  /**
+   * `readStored` for one directory entry of a listing: an entry the filesystem
+   * refuses (a directory named `*.json`, EACCES, EIO) becomes an unreadable
+   * record of unknown owner instead of rejecting the whole listing.
+   */
+  const readListed = async (name: string, id: string): Promise<StoredDashboard> => {
+    try {
+      return await readStored(path.join(dir, name), id)
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? "read error"
+      console.warn(`[dashboard-store] Dashboard "${id}" cannot be read: ${code}.`)
+      return { state: "unreadable", reason: `cannot be read (${code})` }
+    }
   }
 
   const writeRecord = async (record: DashboardRecord) => {
@@ -445,23 +486,20 @@ export function createFileSystemDashboardStore(
       for (const name of entries) {
         if (!name.endsWith(".json")) continue
         const id = idOfFile(name)
-        const stored = await readStored(path.join(dir, name), id)
+        const stored = await readListed(name, id)
         if (stored.state === "readable") {
-          const r = stored.record
-          if (!ownedBy(r.userId, filter.userId)) continue
-          summaries.push({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            title: r.title,
-            updatedAt: r.updatedAt,
-          })
-        } else if (stored.state === "unreadable" && ownedBy(stored.ownerId, filter.userId)) {
+          if (!isDashboardOwnedBy(stored.record.userId, filter.userId)) continue
+          summaries.push(summaryOf(stored.record))
+        } else if (
+          stored.state === "unreadable" &&
+          isDashboardOwnedBy(stored.ownerId, filter.userId)
+        ) {
           // Listed only where it is attributable (or in global scope): a list
           // must not enumerate ids an identified caller cannot be tied to.
           summaries.push({
             id,
             name: id,
+            ...(stored.ownerId === undefined ? {} : { userId: stored.ownerId }),
             updatedAt: stored.updatedAt ?? "",
             unreadable: stored.reason,
           })
@@ -477,7 +515,7 @@ export function createFileSystemDashboardStore(
         if (!unreadableAddressableBy(stored.ownerId, filter.userId)) return undefined
         throw new DashboardUnreadableError(id, stored.reason)
       }
-      return ownedBy(stored.record.userId, filter.userId) ? stored.record : undefined
+      return isDashboardOwnedBy(stored.record.userId, filter.userId) ? stored.record : undefined
     },
     async delete(id, filter) {
       const stored = await readStored(fileFor(id), id)
@@ -486,10 +524,21 @@ export function createFileSystemDashboardStore(
         if (!unreadableAddressableBy(stored.ownerId, filter.userId)) return false
         throw new DashboardUnreadableError(id, stored.reason)
       }
-      if (!ownedBy(stored.record.userId, filter.userId)) return false
+      if (!isDashboardOwnedBy(stored.record.userId, filter.userId)) return false
       await fs.rm(fileFor(id), { force: true })
       return true
     },
+  }
+}
+
+function summaryOf(record: DashboardRecord): DashboardSummary {
+  return {
+    id: record.id,
+    name: record.name,
+    description: record.description,
+    title: record.title,
+    userId: record.userId,
+    updatedAt: record.updatedAt,
   }
 }
 

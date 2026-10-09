@@ -1,6 +1,6 @@
 import { type MCPServer } from "mcp-use"
 import { z } from "zod"
-import { resolveCallerId } from "../auth/caller.js"
+import { resolvePipelineContext } from "../engine/pipeline-executor.js"
 import { textResult } from "./tool-results.js"
 import { getFrameworkManifest } from "../framework/manifest.js"
 import { layoutInputSchema } from "../framework/layout-schemas.js"
@@ -142,7 +142,7 @@ export function registerFrameworkTools(
       },
       stepRegistry,
       appConfigs,
-      ctx: { userId: resolveCallerId(ctx) },
+      ctx: resolvePipelineContext(ctx),
       builderAvailable,
     })
   }

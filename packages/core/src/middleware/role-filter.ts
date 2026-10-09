@@ -50,20 +50,40 @@ export interface RoleFilterContext {
 }
 
 /**
- * A role-filter middleware. Generic over the chain's result so it registers
- * directly on `server.use("mcp:tools/list" | "mcp:tools/call", …)` — the
- * result of `next()` flows back out with its type intact.
+ * A role-filter middleware as consumers type their own wrappers and test
+ * doubles: the chain result is `unknown`. Kept non-generic on purpose — it is
+ * the published 2.x shape, and a generic alias would no longer accept a
+ * consumer function that returns a concrete type. The factory's middlewares
+ * ({@link RoleFilterMiddlewareFn}) are assignable to it.
  */
-export type RoleFilterMiddleware = <TResult>(
+export type RoleFilterMiddleware = (
+  ctx: RoleFilterContext,
+  next: () => Promise<unknown>,
+) => Promise<unknown>
+
+/**
+ * The middleware {@link createRoleFilterMiddleware} returns. Generic over the
+ * chain's result so it registers directly on
+ * `server.use("mcp:tools/list" | "mcp:tools/call", …)` without a cast — the
+ * result of `next()` flows back out with its type intact. Assignable to
+ * {@link RoleFilterMiddleware}.
+ */
+export type RoleFilterMiddlewareFn = <TResult>(
   ctx: RoleFilterContext,
   next: () => Promise<TResult>,
 ) => Promise<TResult>
 
-export interface RoleFilterMiddlewares {
+/**
+ * The `tools/list` + `tools/call` pair. Without a type argument the fields are
+ * the non-generic {@link RoleFilterMiddleware} (the shape consumers build by
+ * hand); the factory returns `RoleFilterMiddlewares<RoleFilterMiddlewareFn>`,
+ * which is assignable to it.
+ */
+export interface RoleFilterMiddlewares<TMiddleware = RoleFilterMiddleware> {
   /** Register with `server.use("mcp:tools/list", ...)`. */
-  toolsList: RoleFilterMiddleware
+  toolsList: TMiddleware
   /** Register with `server.use("mcp:tools/call", ...)`. */
-  toolsCall: RoleFilterMiddleware
+  toolsCall: TMiddleware
 }
 
 export interface RoleFilterOptions {
@@ -85,7 +105,7 @@ const modulePrefixOf = (toolName: string): string => toolName.split("_")[0] ?? "
 export function createRoleFilterMiddleware(
   roleToModules: Record<string, string[]>,
   opts: RoleFilterOptions = {},
-): RoleFilterMiddlewares {
+): RoleFilterMiddlewares<RoleFilterMiddlewareFn> {
   const failClosed = opts.failClosed ?? false
   const hasRules = Object.keys(roleToModules).length > 0
 

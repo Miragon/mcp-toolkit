@@ -31,15 +31,29 @@ interface OrgGateContext {
 }
 
 /**
- * Generic over the chain's result so it registers directly on
- * `server.use("mcp:*", …)` (and on any exact `mcp:` method).
+ * An org-gate middleware as consumers type their own wrappers and test
+ * doubles: the chain result is `unknown`. Kept non-generic on purpose — it is
+ * the published 2.x shape, and a generic alias would no longer accept a
+ * consumer function that returns a concrete type. The factory's middleware
+ * ({@link OrgGateMiddlewareFn}) is assignable to it.
  */
-export type OrgGateMiddleware = <TResult>(
+export type OrgGateMiddleware = (
+  ctx: OrgGateContext,
+  next: () => Promise<unknown>,
+) => Promise<unknown>
+
+/**
+ * The middleware {@link createOrgGateMiddleware} returns. Generic over the
+ * chain's result so it registers directly on `server.use("mcp:*", …)` (and on
+ * any exact `mcp:` method) without a cast. Assignable to
+ * {@link OrgGateMiddleware}.
+ */
+export type OrgGateMiddlewareFn = <TResult>(
   ctx: OrgGateContext,
   next: () => Promise<TResult>,
 ) => Promise<TResult>
 
-export function createOrgGateMiddleware(orgId: string | undefined): OrgGateMiddleware {
+export function createOrgGateMiddleware(orgId: string | undefined): OrgGateMiddlewareFn {
   if (!orgId) return (_ctx, next) => next()
 
   return async (ctx, next) => {

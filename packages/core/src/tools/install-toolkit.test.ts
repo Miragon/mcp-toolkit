@@ -41,6 +41,39 @@ async function listToolNames(server: MCPServer): Promise<string[]> {
   return (payload.result?.tools ?? []).map((t) => t.name)
 }
 
+interface ToolCallResult {
+  isError?: boolean
+  content?: { type: string; text?: string }[]
+  structuredContent?: Record<string, unknown>
+}
+
+/** One `tools/call` through the server's own fetch boundary — no auth header. */
+async function callTool(
+  server: MCPServer,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<ToolCallResult> {
+  const response = await server.getHandler()(
+    new Request("http://local/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name, arguments: args },
+      }),
+    }),
+  )
+  const body = await response.text()
+  const line = body.split("\n").find((l) => l.startsWith("data: "))
+  const payload = JSON.parse(line ? line.slice(6) : body) as { result?: ToolCallResult }
+  return payload.result ?? {}
+}
+
 const CORE_TOOLS = ["get-framework-manifest", "render-view", "refresh-view"]
 const BUILDER_TOOLS = [
   "get-builder-catalogue",
@@ -111,5 +144,43 @@ describe("installToolkit — toolkit features on a user-owned server", () => {
     expect(stepRegistry.getAll()).toEqual([])
     // Module tools register before the framework tools, widget tools inside.
     expect(hookOrder).toEqual(["registerTools", "registerWidgetTools"])
+  })
+})
+
+/**
+ * `requireCallerIdentity` is how a server with OAuth refuses a dashboard call
+ * that reaches the tools without any `ctx.auth`, instead of serving it in
+ * global scope. installToolkit must forward it to the dashboard tools — and
+ * leave a server without it (single-user, no OAuth) working.
+ */
+describe("installToolkit — requireCallerIdentity reaches the dashboard tools", () => {
+  const layout = { rows: [{ row: [{ widget: "demo:card" }] }] }
+
+  it("serves dashboard calls without ctx.auth in global scope by default", async () => {
+    const server = new MCPServer({ name: "no-auth", version: "0.0.0" })
+    installToolkit(server, { builder: true })
+    primeRenderView(server)
+
+    const saved = await callTool(server, "save-dashboard", { name: "Shared", layout })
+    expect(saved.isError).toBeFalsy()
+    const listed = await callTool(server, "list-dashboards", {})
+    expect(listed.structuredContent).toEqual({
+      items: [expect.objectContaining({ name: "Shared" })],
+    })
+  })
+
+  it("refuses dashboard calls without ctx.auth when requireCallerIdentity is set", async () => {
+    const server = new MCPServer({ name: "oauth-shaped", version: "0.0.0" })
+    installToolkit(server, { builder: true, requireCallerIdentity: true })
+    primeRenderView(server)
+
+    for (const [tool, args] of [
+      ["save-dashboard", { name: "Ghost", layout }],
+      ["list-dashboards", {}],
+    ] as const) {
+      const result = await callTool(server, tool, args)
+      expect(result.isError).toBe(true)
+      expect(result.content?.[0]?.text).toMatch(/carries no caller identity/)
+    }
   })
 })

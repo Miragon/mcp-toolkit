@@ -1,6 +1,6 @@
 import { type MCPServer } from "mcp-use"
 import { z } from "zod"
-import { resolveCallerId } from "../auth/caller.js"
+import { resolvePipelineContext } from "../engine/pipeline-executor.js"
 import { getBuilderCatalogue } from "../framework/catalogue.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
@@ -64,7 +64,7 @@ export function registerCatalogueTool(
         stepRegistry,
         widgetRegistry,
         appConfigs,
-        ctx: { userId: resolveCallerId(ctx) },
+        ctx: resolvePipelineContext(ctx),
       })
     },
   )

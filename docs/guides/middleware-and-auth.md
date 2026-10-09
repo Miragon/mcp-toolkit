@@ -76,8 +76,8 @@ await createFrameworkApp({
 ```
 
 Skip the option for unauthenticated development servers — the framework tools
-still work (steps then see `userId: undefined`, dashboards live in one global
-scope).
+still work (steps then see neither `userId` nor `authenticated`, dashboards
+live in one global scope).
 
 Any mcp-use provider factory works here — the toolkit only sees the resolved
 `OAuthProvider`, and pass it as-is: no wrapper that copies `id` to `userId` is
@@ -102,10 +102,32 @@ With `app.builder: true`, the dashboard tools scope every call to the caller:
   owner by setting `userId` in the store.
 - A record that exists but cannot be read (newer `schemaVersion`, corrupt
   JSON, failed schema) is reported, never treated as absent: `list-dashboards`
-  includes it with an `unreadable` reason, and load/save/delete refuse it.
+  includes it with an `unreadable` reason, and load/save/delete refuse it. A
+  filesystem entry the store cannot even open (a directory named `*.json`,
+  `EACCES`) is listed the same way in global scope, never failing the listing.
+- The tools re-check what a custom store answers for an identified caller —
+  the record a load, save or delete touches and every listed entry — so a
+  store still on the 2.5 rule (owner-less = everyone's) cannot leak or hand
+  out such a record. Apply `isDashboardOwnedBy` (from
+  `@miragon/mcp-toolkit-core/tools`) in your store anyway, and report each
+  summary's owner (`DashboardSummary.userId`): without it the tools verify
+  every listed entry with a `get`.
 
 `installToolkit` on your own server gets the same scoping from `ctx.auth`; pass
 `requireCallerIdentity: true` to also refuse calls that carry no auth at all.
+
+### Upgrading from toolkit 2.5
+
+- Dashboards saved under OAuth by 2.5 carry no owner, and the toolkit cannot
+  tell whose they were. They stay in the store but no identified caller sees
+  them. Set each record's `userId` to its owner's id (for the filesystem store,
+  add `"userId"` to the `<id>.json` file), or remove them in global scope.
+- The filesystem store's `get` / `save` / `delete` reject with
+  `DashboardUnreadableError` for a record that exists but cannot be read,
+  where 2.5 resolved `undefined` / `false` or overwrote it.
+- A custom `DashboardStore` that kept the 2.5 rule loses nothing to a
+  leak, but should adopt `isDashboardOwnedBy` (its owner-less records are no
+  longer served to identified callers) and report `DashboardSummary.userId`.
 
 ## Org gate
 
@@ -170,6 +192,23 @@ const { toolsList, toolsCall } = createRoleFilterMiddleware(rules)
 server.use("mcp:tools/list", toolsList)
 server.use("mcp:tools/call", toolsCall)
 ```
+
+The factories return generic middlewares (`OrgGateMiddlewareFn`,
+`RoleFilterMiddlewareFn`), which is what makes them cast-free. The
+`OrgGateMiddleware` / `RoleFilterMiddleware` aliases keep their non-generic
+shape (`next: () => Promise<unknown>`) for typing your own wrappers and test
+doubles; the factories' middlewares are assignable to them.
+
+## Pipeline steps
+
+`render-view`, `refresh-view` and `get-builder-catalogue` hand every step's
+`callTool` closure the caller as its third argument,
+`{ userId?, authenticated? }` (`resolvePipelineContext(ctx)`). Without auth
+both are absent. `authenticated: true` without a `userId` is a caller whose
+provider maps no id: a closure that scopes data per user must refuse it, not
+fall back to its global or anonymous scope. When you call `renderView` or
+`getBuilderCatalogue` from your own tool, build `ctx` with
+`resolvePipelineContext(ctx)` as well.
 
 ## Caveat — server-internal calls
 

@@ -17,10 +17,12 @@ export interface RenderViewOptions {
   stepRegistry: StepRegistry
   appConfigs?: Record<string, Record<string, unknown>>
   /**
-   * Per-request context (currently: the calling userId) that the pipeline
-   * executor uses to pre-bind user-scoped `callTool` closures on step
-   * `appConfig`s. Pass it through from the tool handler's
-   * `ctx.auth?.user?.userId`.
+   * Per-request context — who is calling — that the pipeline executor hands
+   * to user-scoped `callTool` closures on step `appConfig`s. Build it from the
+   * tool handler's `ctx` with `resolvePipelineContext(ctx)` (both mcp-use 2
+   * `ctx.auth` shapes; the caller id is `user.id`, then `user.userId`, then
+   * the token's `sub`). Never read `ctx.auth.user.userId` directly: no
+   * built-in mcp-use 2 provider sets it.
    */
   ctx?: PipelineExecutionContext
   /**

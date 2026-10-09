@@ -24,6 +24,7 @@
     "resolveActiveModules",
     "resolveCaller",
     "resolveCallerId",
+    "resolvePipelineContext",
     "rowSchema",
     "validatePipeline",
     "viewResourceUri"
@@ -44,6 +45,7 @@
     "createWidgetToolRegistrar",
     "errorResult",
     "installToolkit",
+    "isDashboardOwnedBy",
     "objectResult",
     "parseDashboardRecord",
     "registerCatalogueTool",

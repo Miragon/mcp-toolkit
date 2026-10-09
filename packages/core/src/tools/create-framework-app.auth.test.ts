@@ -66,9 +66,15 @@ function fakeOAuthProvider(): OAuthProvider<FakeUser> {
   })
 }
 
+/** The per-request context a step's `callTool` closure receives (3rd argument). */
+interface BoundCtx {
+  userId?: string
+  authenticated?: boolean
+}
+
 /**
  * A module with one tool in each of two modules (`alpha_*`, `beta_*`) for the
- * role filter, plus a pipeline step that reports which user its `callTool`
+ * role filter, plus a pipeline step that reports which caller its `callTool`
  * closure was bound to — the per-request identity render-view threads through.
  */
 function probePlugin(): AppPlugin {
@@ -80,26 +86,24 @@ function probePlugin(): AppPlugin {
           id: "probe:whoami",
           dataType: "probe:whoami",
           requires: [],
-          produces: ["probe:userId"],
+          produces: ["probe:userId", "probe:authenticated"],
           execute: async (
             _context,
-            appConfig: { callTool: (name: string, args: unknown) => Promise<unknown> },
+            appConfig: { callTool: (name: string, args: unknown) => Promise<BoundCtx> },
           ) => {
-            const userId = await appConfig.callTool("whoami", {})
-            return {
-              data: { userId },
-              keys: { "probe:userId": userId },
-              _app: "probe",
-              _step: "whoami",
+            const bound = await appConfig.callTool("whoami", {})
+            const keys = {
+              "probe:userId": bound.userId ?? null,
+              "probe:authenticated": bound.authenticated ?? false,
             }
+            return { data: keys, keys, _app: "probe", _step: "whoami" }
           },
         },
       ],
       widgets: [],
     },
     appConfig: {
-      callTool: (_name: string, _args: unknown, ctx?: { userId?: string }) =>
-        Promise.resolve(ctx?.userId ?? null),
+      callTool: (_name: string, _args: unknown, ctx?: BoundCtx) => Promise.resolve(ctx ?? {}),
     },
     registerTools(server) {
       // Plugins are typed against an opaque server (the core barrel stays
@@ -367,6 +371,27 @@ describe("auth contract — real MCPServer + fake OAuth provider", () => {
         expect(result.isError).toBe(false)
         const context = result.structuredContent?.context as { keys: Record<string, unknown> }
         expect(context.keys["probe:userId"]).toBe("alice")
+        expect(context.keys["probe:authenticated"]).toBe(true)
+      },
+    )
+
+    /**
+     * A provider that verifies the token but maps no id must not look like a
+     * server without OAuth to a step: both carry no `userId`, so a user-scoped
+     * closure needs `authenticated` to refuse instead of widening to its
+     * global / anonymous scope.
+     */
+    it.each(["render-view", "refresh-view", "get-builder-catalogue"])(
+      "tells %s's steps that an id-less caller is authenticated, not anonymous",
+      async (tool) => {
+        const result = await callTool(app, "token-nameless", tool, {
+          steps: [{ id: "who", step: "probe:whoami" }],
+          ...(tool === "get-builder-catalogue" ? {} : { layout }),
+        })
+        expect(result.isError).toBe(false)
+        const context = result.structuredContent?.context as { keys: Record<string, unknown> }
+        expect(context.keys["probe:userId"]).toBeNull()
+        expect(context.keys["probe:authenticated"]).toBe(true)
       },
     )
 

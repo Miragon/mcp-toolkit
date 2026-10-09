@@ -1,6 +1,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/server"
 import type { MCPServer } from "mcp-use"
 import { describe, expect, it, vi } from "vitest"
+import type { PipelineExecutionContext } from "../engine/pipeline-executor.js"
 import type { CataloguePayload } from "../framework/catalogue.js"
 import { StepRegistry } from "../registry/step-registry.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
@@ -152,11 +153,11 @@ describe("registerCatalogueTool", () => {
     expect(ghostKey).toMatchObject({ consumedByWidgets: ["demo:ghost"], inContext: false })
   })
 
-  describe("caller id resolution (resolveCallerId) into the pipeline ctx", () => {
+  describe("caller resolution (resolvePipelineContext) into the pipeline ctx", () => {
     /**
-     * The userId is observable through the executor's `bindAppConfig` rewrap:
-     * a step's `appConfig.callTool` closure receives `{ userId }` as its
-     * hidden third argument.
+     * The caller is observable through the executor's `bindAppConfig` rewrap:
+     * a step's `appConfig.callTool` closure receives `{ userId, authenticated }`
+     * as its hidden third argument.
      */
     function setupWithCallTool() {
       const stepRegistry = new StepRegistry()
@@ -176,7 +177,7 @@ describe("registerCatalogueTool", () => {
       stepRegistry.register(whoamiStep)
 
       const callTool = vi.fn<
-        (name: string, args: unknown, ctx?: { userId?: string }) => Promise<unknown>
+        (name: string, args: unknown, ctx?: PipelineExecutionContext) => Promise<unknown>
       >(() => Promise.resolve({}))
       const { server, tools } = createStubServer()
       registerCatalogueTool(server, {
@@ -192,31 +193,48 @@ describe("registerCatalogueTool", () => {
     it("threads a string ctx.auth.user.userId through to the step's callTool", async () => {
       const { cb, callTool } = setupWithCallTool()
       await cb(params, { auth: { user: { userId: "alice" } } })
-      expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, { userId: "alice" })
+      expect(callTool).toHaveBeenCalledExactlyOnceWith(
+        "whoami",
+        {},
+        { userId: "alice", authenticated: true },
+      )
     })
 
     it("threads the mcp-use 2 built-in provider shape (ctx.auth.user.id) through", async () => {
       const { cb, callTool } = setupWithCallTool()
       await cb(params, { auth: { user: { id: "bob", roles: [] }, payload: { sub: "bob" } } })
-      expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, { userId: "bob" })
+      expect(callTool).toHaveBeenCalledExactlyOnceWith(
+        "whoami",
+        {},
+        { userId: "bob", authenticated: true },
+      )
     })
 
     it("falls back to the verified token's sub when the provider maps no id", async () => {
       const { cb, callTool } = setupWithCallTool()
       await cb(params, { auth: { user: {}, payload: { sub: "carol" } } })
-      expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, { userId: "carol" })
+      expect(callTool).toHaveBeenCalledExactlyOnceWith(
+        "whoami",
+        {},
+        { userId: "carol", authenticated: true },
+      )
     })
 
-    it("passes userId: undefined when the ctx carries no auth at all", async () => {
+    it("passes neither a userId nor authenticated when the ctx carries no auth at all", async () => {
       const { cb, callTool } = setupWithCallTool()
       await cb(params)
-      expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, { userId: undefined })
+      expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, {})
+      expect(callTool.mock.calls[0]?.[2]).not.toHaveProperty("authenticated")
     })
 
-    it("treats a non-string userId as absent rather than coercing it", async () => {
+    it("treats a non-string userId as absent rather than coercing it — the caller stays authenticated", async () => {
       const { cb, callTool } = setupWithCallTool()
       await cb(params, { auth: { user: { userId: 42 } } })
-      expect(callTool).toHaveBeenCalledExactlyOnceWith("whoami", {}, { userId: undefined })
+      expect(callTool).toHaveBeenCalledExactlyOnceWith(
+        "whoami",
+        {},
+        { userId: undefined, authenticated: true },
+      )
     })
   })
 })

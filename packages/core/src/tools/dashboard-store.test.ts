@@ -4,11 +4,13 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { vi } from "vitest"
 import {
+  assertDashboardWritable,
   createFileSystemDashboardStore,
   createInMemoryDashboardStore,
   DashboardOwnershipError,
   DashboardUnreadableError,
   DASHBOARD_SCHEMA_VERSION,
+  isDashboardOwnedBy,
   parseDashboardRecord,
   resolveSavedRecord,
   type DashboardRecord,
@@ -164,6 +166,18 @@ function runSharedStoreTests(
       expect(reloaded?.userId).toBeUndefined()
     })
 
+    it("names each summary's owner so the tools can verify a listing without a read per entry", async () => {
+      const alice = await store.save({ name: "Alice's", userId: "alice", layout: { rows: [] } })
+      const global = await store.save({ name: "Shared", layout: { rows: [] } })
+
+      expect(await store.list({ userId: "alice" })).toEqual([
+        expect.objectContaining({ id: alice.id, userId: "alice" }),
+      ])
+      const all = Object.fromEntries((await store.list({})).map((i) => [i.id, i]))
+      expect(all[alice.id]?.userId).toBe("alice")
+      expect(all[global.id]?.userId).toBeUndefined()
+    })
+
     it("lets the owner delete its own record while another caller cannot", async () => {
       const alice = await store.save({ name: "Alice's", userId: "alice", layout: { rows: [] } })
       expect(await store.delete(alice.id, { userId: "bob" })).toBe(false)
@@ -184,6 +198,52 @@ runSharedStoreTests("createFileSystemDashboardStore", async () => {
     store: createFileSystemDashboardStore({ dir }),
     cleanup: () => fs.rm(dir, { recursive: true, force: true }),
   }
+})
+
+/**
+ * The ownership rule of the store contract, exported so custom stores apply
+ * it instead of re-deriving it. 2.5 also granted owner-less records to every
+ * identified caller; that row is the one this table exists to pin.
+ */
+describe("isDashboardOwnedBy", () => {
+  it.each([
+    { ownerId: undefined, userId: undefined, owned: true, why: "global scope sees owner-less" },
+    { ownerId: "alice", userId: undefined, owned: true, why: "global scope sees owned" },
+    { ownerId: "alice", userId: "alice", owned: true, why: "the owner" },
+    { ownerId: "alice", userId: "bob", owned: false, why: "another caller" },
+    { ownerId: undefined, userId: "bob", owned: false, why: "owner-less is no one's" },
+    { ownerId: "alice", userId: "", owned: true, why: "an empty id is no id (global)" },
+  ])("$why → $owned", ({ ownerId, userId, owned }) => {
+    expect(isDashboardOwnedBy(ownerId, userId)).toBe(owned)
+  })
+})
+
+describe("assertDashboardWritable", () => {
+  const record = (userId?: string): DashboardRecord => ({
+    id: "d1",
+    name: "n",
+    ...(userId === undefined ? {} : { userId }),
+    layout: { rows: [] },
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  })
+
+  it("passes the owner and global scope", () => {
+    expect(() => assertDashboardWritable(record("alice"), "alice")).not.toThrow()
+    expect(() => assertDashboardWritable(record("alice"), undefined)).not.toThrow()
+    expect(() => assertDashboardWritable(record(), undefined)).not.toThrow()
+  })
+
+  it("refuses another caller and an identified caller on an owner-less record, by message", () => {
+    expect(() => assertDashboardWritable(record("alice"), "bob")).toThrowError(
+      new DashboardOwnershipError('Access denied: dashboard "d1" is owned by another user.'),
+    )
+    expect(() => assertDashboardWritable(record(), "bob")).toThrowError(
+      new DashboardOwnershipError(
+        'Access denied: dashboard "d1" has no owner; an owner-less (global-scope) dashboard is not writable by an identified caller.',
+      ),
+    )
+  })
 })
 
 describe("resolveSavedRecord", () => {
@@ -424,6 +484,30 @@ describe("createFileSystemDashboardStore — an unreadable record is a conflict,
     expect(list).toEqual([
       { id: "%zz", name: "%zz", updatedAt: "", unreadable: "file is not valid JSON" },
     ])
+  })
+
+  it("list() survives an entry the filesystem refuses to read (EISDIR): reported in global scope, hidden otherwise", async () => {
+    const good = await store.save({ name: "Good", layout: { rows: [] } })
+    // A directory whose name ends in .json — readFile rejects it with EISDIR.
+    await fs.mkdir(path.join(dir, "trap.json"))
+
+    const list = await store.list({})
+    expect(list.map((d) => d.id).sort()).toEqual([good.id, "trap"].sort())
+    expect(list.find((d) => d.id === "trap")).toEqual({
+      id: "trap",
+      name: "trap",
+      updatedAt: "",
+      unreadable: "cannot be read (EISDIR)",
+    })
+    // Not attributable to anyone, so an identified caller never sees it.
+    expect(await store.list({ userId: "bob" })).toEqual([])
+  })
+
+  it("list() names the owner of an unreadable record it reports to that owner", async () => {
+    await writeRaw("alices", newerRecord("alices", "alice"))
+    const [summary] = await store.list({ userId: "alice" })
+    expect(summary).toMatchObject({ id: "alices", userId: "alice" })
+    expect(summary?.unreadable).toBeTruthy()
   })
 
   it("writes atomically: a save leaves exactly the record file behind, no temp files", async () => {

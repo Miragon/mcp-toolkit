@@ -142,6 +142,59 @@ describe("createFrameworkApp — serverOptions pass-through", () => {
   })
 })
 
+/** One `tools/call` through the server's own fetch boundary — no auth header. */
+async function callTool(
+  server: MCPServer,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<{ isError?: boolean; content?: { text?: string }[]; structuredContent?: unknown }> {
+  const response = await server.getHandler()(
+    new Request("http://local/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name, arguments: args },
+      }),
+    }),
+  )
+  const body = await response.text()
+  const line = body.split("\n").find((l) => l.startsWith("data: "))
+  const payload = JSON.parse(line ? line.slice(6) : body) as {
+    result?: { isError?: boolean; content?: { text?: string }[]; structuredContent?: unknown }
+  }
+  return payload.result ?? {}
+}
+
+/**
+ * Without `oauth`, createFrameworkApp must NOT require a caller identity:
+ * calls reach the dashboard tools without any `ctx.auth`, and a single-user
+ * deployment serves them in global scope. (With `oauth` set the flag is on;
+ * the loopback auth suite covers that side, where an unauthenticated call
+ * never gets past the bearer gate.)
+ */
+describe("createFrameworkApp — dashboards without OAuth", () => {
+  it("saves and lists a dashboard for a call without ctx.auth (global scope)", async () => {
+    const server = await createFrameworkApp(options(true))
+    const layout = { rows: [{ row: [{ widget: "demo:card" }] }] }
+
+    const saved = await callTool(server, "save-dashboard", { name: "Team board", layout })
+    expect(saved.isError).toBeFalsy()
+    expect(saved.content?.[0]?.text).toMatch(/^Saved dashboard "Team board"/)
+
+    const listed = await callTool(server, "list-dashboards", {})
+    expect(listed.isError).toBeFalsy()
+    expect(listed.structuredContent).toEqual({
+      items: [expect.objectContaining({ name: "Team board" })],
+    })
+  })
+})
+
 describe("tools barrel — parseDashboardRecord re-export", () => {
   it("exposes the fail-soft record guard for custom DashboardStore implementations", () => {
     const valid = {

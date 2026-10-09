@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from "vitest"
-import { createRoleFilterMiddleware, type RoleFilterContext } from "./role-filter.js"
+import {
+  createRoleFilterMiddleware,
+  type RoleFilterContext,
+  type RoleFilterMiddleware,
+  type RoleFilterMiddlewares,
+} from "./role-filter.js"
 
 const roleToModules = { viewer: ["analytics"], editor: ["analytics", "billing"] }
 
@@ -186,5 +191,33 @@ describe("createRoleFilterMiddleware — mcp-use 2 middleware shape (ctx.auth.ex
     await expect(
       toolsCall({ params: { name: "billing_invoice" } }, () => Promise.resolve("ok")),
     ).resolves.toBe("ok")
+  })
+})
+
+/**
+ * The exported aliases are a published 2.5 contract: consumers annotate their
+ * own wrappers and test doubles with them. They stay non-generic
+ * (`Promise<unknown>`); only the factory's return is generic, so it still
+ * registers on `server.use` cast-free. Making the alias itself generic broke
+ * such consumer code with TS2322 ("'TResult' could be instantiated with an
+ * arbitrary type"), which is why this suite pins it through `pnpm typecheck`.
+ */
+describe("RoleFilterMiddleware / RoleFilterMiddlewares — the 2.5 consumer typing", () => {
+  it("still types a consumer's own non-generic middleware and a hand-built set", async () => {
+    const ownToolsList: RoleFilterMiddleware = async (_ctx, next) => {
+      const tools = (await next()) as { name: string }[]
+      return tools.filter((tool) => tool.name !== "hidden")
+    }
+    const { toolsList, toolsCall } = createRoleFilterMiddleware(roleToModules)
+    // The factory's middlewares stay assignable to the 2.5 alias and set.
+    const asAlias: RoleFilterMiddleware = toolsList
+    const set: RoleFilterMiddlewares = { toolsList: ownToolsList, toolsCall }
+
+    await expect(
+      set.toolsList({}, () => Promise.resolve([{ name: "hidden" }, { name: "ping" }])),
+    ).resolves.toEqual([{ name: "ping" }])
+    await expect(
+      asAlias(ctxWithRoles(["viewer"]), () => Promise.resolve([{ name: "billing_invoice" }])),
+    ).resolves.toEqual([])
   })
 })

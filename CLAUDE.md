@@ -114,8 +114,13 @@ in [`FITNESS.md`](FITNESS.md).
 - **Browser E2E against ChatGPT/mcp-use hosts** — host UIs are external; the
   wire goldens + host-bridge unit tests are the boundary. Revisit if a host
   regression escapes them.
-- **OAuth flows against a real IdP** — covered by middleware error-path
-  tests only. Revisit when the auth model settles.
+- **OAuth flows against a real IdP** — covered by the middleware error-path
+  tests plus a fake-provider contract over loopback
+  (`packages/core/src/tools/create-framework-app.auth.test.ts`: a real
+  `MCPServer` with `oauthCustomProvider`, driving the role filter, org gate,
+  dashboard isolation and pipeline caller over HTTP). Token issuance, JWKS
+  and refresh against a real IdP stay out. Revisit when the auth model
+  settles.
 - **Builder React components** (Workspace, PipelineStrip, CatalogueSheet, …)
   — only their extracted pure parts (builder-model, builder-reducer) are
   MUST-tested. Same revisit trigger as jsdom.

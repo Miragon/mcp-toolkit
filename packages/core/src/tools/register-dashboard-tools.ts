@@ -3,10 +3,13 @@ import { z } from "zod"
 import { resolveCaller } from "../auth/caller.js"
 import { errorResult, objectResult } from "./tool-results.js"
 import {
+  assertDashboardWritable,
   DashboardOwnershipError,
   DashboardUnreadableError,
+  isDashboardOwnedBy,
   type DashboardRecord,
   type DashboardStore,
+  type DashboardSummary,
 } from "./dashboard-store.js"
 import { collectLayoutWidgets } from "../framework/view-builders.js"
 import { layoutSchema } from "../framework/layout-schemas.js"
@@ -66,6 +69,11 @@ const idSchema = z.object({
   id: z.string().describe("Dashboard id as returned by `save-dashboard` or `list-dashboards`."),
 })
 
+/** The store filter a dashboard call runs under; `userId: undefined` is global scope. */
+interface DashboardScope {
+  userId: string | undefined
+}
+
 /**
  * Whose dashboards a call may touch: `{ userId: undefined }` is global scope
  * (a server without OAuth), `{ userId }` is that caller's records only, and
@@ -73,10 +81,7 @@ const idSchema = z.object({
  * required) but no caller id resolves, and falling back to global scope would
  * hand it every user's dashboards.
  */
-function dashboardScope(
-  ctx: unknown,
-  requireCallerIdentity: boolean,
-): { userId: string | undefined } | undefined {
+function dashboardScope(ctx: unknown, requireCallerIdentity: boolean): DashboardScope | undefined {
   const caller = resolveCaller(ctx)
   if (caller?.userId) return { userId: caller.userId }
   if (caller === undefined && !requireCallerIdentity) return { userId: undefined }
@@ -85,6 +90,46 @@ function dashboardScope(
 
 const NO_IDENTITY_MESSAGE =
   "Access denied: this request carries no caller identity (the OAuth provider mapped no user id and the token has no `sub`). Dashboards are per-user, so they cannot be read or written without one."
+
+/**
+ * Defence in depth for custom stores with a laxer ownership rule (the 2.5
+ * contract handed owner-less records to every caller): the record `get`
+ * returns, but only if it is the caller's — {@link isDashboardOwnedBy}, so
+ * global scope passes everything through. A store that already follows the
+ * rule loses nothing but the extra read.
+ */
+async function ownRecord(
+  store: DashboardStore,
+  id: string,
+  scope: DashboardScope,
+): Promise<DashboardRecord | undefined> {
+  const record = await store.get(id, scope)
+  return record && isDashboardOwnedBy(record.userId, scope.userId) ? record : undefined
+}
+
+/**
+ * Keep only the identified caller's own summaries. A summary that names its
+ * owner is decided on the spot; one that doesn't (a store on the 2.5 summary
+ * shape) is verified through `get`, and an unreadable one that cannot be
+ * attributed that way is dropped rather than listed.
+ */
+async function ownSummaries(
+  store: DashboardStore,
+  items: DashboardSummary[],
+  userId: string,
+): Promise<DashboardSummary[]> {
+  const isOwn = async (item: DashboardSummary): Promise<boolean> => {
+    if (item.userId !== undefined) return item.userId === userId
+    try {
+      return (await ownRecord(store, item.id, { userId })) !== undefined
+    } catch (err) {
+      if (err instanceof DashboardUnreadableError) return false
+      throw err
+    }
+  }
+  const verdicts = await Promise.all(items.map(isOwn))
+  return items.filter((_item, index) => verdicts[index])
+}
 
 /** Store refusals that reach the caller as a tool error rather than a crash. */
 function refusalResult(err: unknown) {
@@ -142,6 +187,12 @@ export function registerDashboardTools(
 
       let record: DashboardRecord
       try {
+        if (scope.userId !== undefined && params.id !== undefined) {
+          // Defence in depth: a lax custom store's own save might let the
+          // caller overwrite (and so claim) a record it does not own.
+          const existing = await store.get(params.id, scope)
+          if (existing) assertDashboardWritable(existing, scope.userId)
+        }
         record = await store.save({
           id: params.id,
           name: params.name,
@@ -186,7 +237,9 @@ export function registerDashboardTools(
       const scope = dashboardScope(ctx, requireCallerIdentity)
       if (!scope) return errorResult(NO_IDENTITY_MESSAGE)
       const items = await store.list({ userId: scope.userId })
-      return objectResult({ items })
+      return objectResult({
+        items: scope.userId === undefined ? items : await ownSummaries(store, items, scope.userId),
+      })
     },
   )
 
@@ -204,13 +257,11 @@ export function registerDashboardTools(
       if (!scope) return errorResult(NO_IDENTITY_MESSAGE)
       let record: DashboardRecord | undefined
       try {
-        record = await store.get(id, { userId: scope.userId })
+        record = await ownRecord(store, id, scope)
       } catch (err) {
         return refusalResult(err)
       }
-      // Defence in depth for custom stores with a laxer ownership rule: an
-      // identified caller only ever receives a record stamped with its id.
-      if (!record || (scope.userId !== undefined && record.userId !== scope.userId)) {
+      if (!record) {
         return {
           content: [{ type: "text" as const, text: `Dashboard "${id}" not found.` }],
           isError: true,
@@ -250,7 +301,10 @@ export function registerDashboardTools(
       if (!scope) return errorResult(NO_IDENTITY_MESSAGE)
       let deleted: boolean
       try {
-        deleted = await store.delete(id, { userId: scope.userId })
+        // Defence in depth: never let a lax custom store delete a record the
+        // identified caller does not own.
+        const deletable = scope.userId === undefined || (await ownRecord(store, id, scope))
+        deleted = deletable ? await store.delete(id, scope) : false
       } catch (err) {
         return refusalResult(err)
       }

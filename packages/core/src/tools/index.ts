@@ -35,6 +35,7 @@ export {
   createFileSystemDashboardStore,
   DashboardOwnershipError,
   DashboardUnreadableError,
+  isDashboardOwnedBy,
   resolveSavedRecord,
   parseDashboardRecord,
   DASHBOARD_SCHEMA_VERSION,
