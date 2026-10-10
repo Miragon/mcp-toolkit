@@ -4,7 +4,9 @@ import * as React from "react"
 import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
+import { FOCUS_RING } from "../lib/focus-ring.js"
 import { cn } from "../lib/utils.js"
+import { usePortalContainer } from "../theme/portal-container.js"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -18,8 +20,16 @@ function SheetClose({ ...props }: React.ComponentProps<typeof SheetPrimitive.Clo
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
 }
 
-function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+function SheetPortal({ container, ...props }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
+  // Default to the nearest ThemeProvider scope (theme + mode), not <body>.
+  const portalContainer = usePortalContainer()
+  return (
+    <SheetPrimitive.Portal
+      data-slot="sheet-portal"
+      container={container ?? portalContainer ?? undefined}
+      {...props}
+    />
+  )
 }
 
 function SheetOverlay({
@@ -30,7 +40,7 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 bg-scrim fixed inset-0 z-50 backdrop-blur-sm",
         className,
       )}
       {...props}
@@ -54,7 +64,7 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "bg-background data-[state=closed]:animate-out data-[state=open]:animate-in fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+          "bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in shadow-3 fixed z-50 flex flex-col gap-4 transition data-[state=closed]:duration-(--motion-base) data-[state=open]:duration-(--motion-slow)",
           side === "right" &&
             "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
           side === "left" &&
@@ -69,7 +79,12 @@ function SheetContent({
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+          <SheetPrimitive.Close
+            className={cn(
+              "text-muted-foreground hover:text-foreground absolute top-4 right-4 rounded-sm transition-colors disabled:pointer-events-none",
+              FOCUS_RING,
+            )}
+          >
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>

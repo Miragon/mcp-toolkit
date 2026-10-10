@@ -82,7 +82,7 @@ function CanvasRowImpl({
         }
       }}
       className={cn(
-        "group relative rounded-lg border-l-2 px-3 py-2 transition-colors",
+        "group relative rounded-md border-l-2 px-3 py-2 transition-colors",
         focused
           ? "border-l-primary bg-card"
           : "bg-background hover:bg-card/60 border-l-transparent",
@@ -96,7 +96,7 @@ function CanvasRowImpl({
             {row.row.length} {row.row.length === 1 ? "widget" : "widgets"}
           </span>
         </div>
-        <div className="opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <Button
             variant="ghost"
             size="icon-xs"
@@ -139,8 +139,8 @@ function CanvasRowImpl({
           className={cn(
             "rounded-md border border-dashed py-6 text-center text-[11px] transition-colors",
             dragOver
-              ? "border-primary bg-primary/5 text-primary"
-              : "border-muted-foreground/30 text-muted-foreground",
+              ? "border-focus bg-accent text-accent-foreground"
+              : "border-input text-muted-foreground",
           )}
         >
           {dragOver ? L.canvasDropHint : L.canvasEmpty}
@@ -155,11 +155,11 @@ function CanvasRowImpl({
               const propCount = cell.props ? Object.keys(cell.props).length : 0
               return (
                 <GridItem key={`${cell.widget}-${cellIdx}`} span={span}>
-                  <div className="border-border bg-card relative overflow-hidden rounded-md border shadow-sm">
+                  <div className="border-border bg-card shadow-1 relative overflow-hidden rounded-md border">
                     <div className="text-muted-foreground bg-muted/30 flex items-center justify-between gap-2 border-b px-2 py-1 text-[10px]">
                       <span className="truncate font-mono">{cell.widget}</span>
                       <div className="flex shrink-0 items-center gap-2">
-                        <label className="text-muted-foreground/80 inline-flex items-center gap-0.5 font-mono">
+                        <label className="text-muted-foreground inline-flex items-center gap-0.5 font-mono">
                           <span className="sr-only">Column span</span>
                           <Select
                             value={String(span)}
@@ -167,7 +167,7 @@ function CanvasRowImpl({
                           >
                             <SelectTrigger
                               size="sm"
-                              className="h-5 gap-0.5 border-none bg-transparent px-1 py-0 font-mono text-[10px] shadow-none focus:ring-0"
+                              className="h-5 gap-0.5 border-none bg-transparent px-1 py-0 font-mono text-[10px] shadow-none"
                               aria-label="Column span"
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -197,7 +197,7 @@ function CanvasRowImpl({
                                 ? `Configure widget props (${propCount} set)`
                                 : "Configure widget props"
                             }
-                            className={cn(propCount > 0 && "text-primary")}
+                            className={cn(propCount > 0 && "text-link")}
                           >
                             <SlidersHorizontal />
                           </Button>
@@ -304,7 +304,7 @@ function ResizeHandle({
       onClick={(e) => e.stopPropagation()}
       onKeyDown={onKeyDown}
       tabIndex={0}
-      className="hover:bg-primary/40 focus-visible:bg-primary/40 focus-visible:ring-primary/60 absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none focus-visible:ring-1 focus-visible:outline-none"
+      className="hover:bg-primary/40 focus-visible:bg-primary/40 focus-visible:ring-focus absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none focus-visible:ring-2 focus-visible:outline-none"
       aria-label="Resize widget"
       role="separator"
       aria-orientation="vertical"

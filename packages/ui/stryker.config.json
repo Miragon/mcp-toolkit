@@ -8,6 +8,8 @@
     "src/lib/parse-tool-result.ts",
     "src/lib/tone-utils.ts",
     "src/theme/create-theme.ts",
+    "src/theme/fonts.ts",
+    "src/theme/cd-tokens.ts",
     "src/app/builder/builder-model.ts",
     "src/app/builder/builder-reducer.ts"
   ],

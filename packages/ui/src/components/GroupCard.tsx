@@ -1,4 +1,5 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react"
+import { FOCUS_RING_INSET } from "../lib/focus-ring.js"
 
 export interface GroupCardProps {
   /** Whether the body is expanded. */
@@ -33,14 +34,14 @@ export function GroupCard({ expanded, onToggle, summary, children }: GroupCardPr
   }
 
   return (
-    <div className="border-border mb-2 overflow-hidden rounded-lg border">
+    <div className="border-border mb-2 overflow-hidden rounded-md border">
       <div
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
-        className={`bg-card hover:bg-muted focus-visible:ring-ring/50 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 ${
+        className={`bg-card hover:bg-muted cursor-pointer transition-colors ${FOCUS_RING_INSET} ${
           expanded ? "border-border border-b" : ""
         }`}
       >

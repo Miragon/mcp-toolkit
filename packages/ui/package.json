@@ -26,7 +26,10 @@
       "types": "./dist/hooks/index.d.ts",
       "import": "./dist/hooks/index.js"
     },
-    "./globals.css": "./src/globals.css"
+    "./globals.css": "./src/globals.css",
+    "./theme.css": "./src/theme.css",
+    "./fonts.css": "./src/fonts.css",
+    "./cd-tokens.generated.css": "./src/theme/cd-tokens.generated.css"
   },
   "files": [
     "dist",
@@ -57,6 +60,7 @@
   "dependencies": {
     "@base-ui/react": "1.8.0",
     "@fontsource-variable/geist": "5.3.0",
+    "@fontsource-variable/geist-mono": "5.3.0",
     "@tanstack/react-query": "5.103.2",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -69,6 +73,7 @@
     "@miragon/mcp-toolkit-core": "workspace:*",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
+    "@types/node": "26.6.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitest/coverage-v8": "4.1.11",

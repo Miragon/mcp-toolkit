@@ -180,7 +180,7 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
     if (query.error) {
       return (
         <Card className="m-4">
-          <CardContent className="text-destructive text-sm">{query.error.message}</CardContent>
+          <CardContent className="text-danger-ink text-sm">{query.error.message}</CardContent>
         </Card>
       )
     }
@@ -291,7 +291,7 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
                 <button
                   type="button"
                   onClick={() => setStatusFilter(null)}
-                  className="text-primary text-xs font-medium hover:underline"
+                  className="text-link text-xs font-medium hover:underline"
                 >
                   Clear “{STATUS_LABEL[statusFilter]}” filter
                 </button>

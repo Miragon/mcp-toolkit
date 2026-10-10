@@ -87,8 +87,8 @@ export function LayoutSurface({
                       commitRename(idx, e.currentTarget.value)
                     }}
                     className={cn(
-                      "w-24 border-none bg-transparent p-0 text-inherit outline-none focus:ring-0",
-                      renameRejected && "text-destructive",
+                      "focus-visible:ring-focus w-24 rounded-sm border-none bg-transparent p-0 text-inherit outline-none focus-visible:ring-2",
+                      renameRejected && "text-danger-ink",
                     )}
                     size={Math.max(tab.label.length + 1, 6)}
                   />
@@ -105,7 +105,7 @@ export function LayoutSurface({
                   e.stopPropagation()
                   onRemoveTab(idx)
                 }}
-                className="text-muted-foreground/60 hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 data-[state=active]:opacity-100"
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2 rounded-sm p-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=active]:opacity-100"
               >
                 <X className="size-3" />
               </button>
@@ -121,12 +121,12 @@ export function LayoutSurface({
         >
           <Plus />
         </Button>
-        <span className="text-muted-foreground/70 ml-2 hidden text-[10px] sm:inline">
+        <span className="text-muted-foreground ml-2 hidden text-[10px] sm:inline">
           double-click a tab to rename
         </span>
       </div>
       {renameRejected && editingTabIdx !== null && (
-        <p className="text-destructive -mt-1 mb-2 text-[11px]" role="alert">
+        <p className="text-danger-ink -mt-1 mb-2 text-[11px]" role="alert">
           {L.renameDuplicate}
         </p>
       )}

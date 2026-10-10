@@ -199,7 +199,9 @@ export function OrderStatusCard({ orderId = "ORD-4471" }: { orderId?: string }) 
 
       <CardContent className="flex flex-col gap-4">
         {error ? (
-          <div className="bg-destructive/10 text-destructive rounded-md p-3 text-sm">{error}</div>
+          <div className="border-danger bg-danger-soft text-danger-ink rounded-md border p-3 text-sm">
+            {error}
+          </div>
         ) : loading && !order ? (
           <div className="grid grid-cols-3 gap-3">
             <Skeleton className="h-20 w-full" />

@@ -134,7 +134,7 @@ function StoryList({
             aria-current={active ? "true" : undefined}
             className={
               "hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none " +
-              (active ? "bg-accent text-accent-foreground font-medium" : "text-foreground/80")
+              (active ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground")
             }
           >
             <div className="font-medium">{story.label}</div>
@@ -341,7 +341,7 @@ export function App() {
                         <code className="text-muted-foreground min-w-0 flex-1 text-xs break-all">
                           {formatAction(entry.action)}
                         </code>
-                        <span className="text-muted-foreground/60 shrink-0 text-[10px]">
+                        <span className="text-muted-foreground shrink-0 text-[10px]">
                           {entry.at}
                         </span>
                       </li>

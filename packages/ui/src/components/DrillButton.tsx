@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { FOCUS_RING } from "../lib/focus-ring.js"
 
 export interface DrillButtonProps {
   /** Button label. */
@@ -27,7 +28,7 @@ export function DrillButton({ children, onDrill, icon, size = "sm", ariaLabel }:
       type="button"
       onClick={onDrill}
       aria-label={ariaLabel}
-      className={`border-border text-foreground hover:bg-muted focus-visible:ring-ring inline-flex items-center gap-1 rounded-md border font-medium transition-colors outline-none focus-visible:ring-2 ${pad}`}
+      className={`border-border text-foreground hover:border-focus hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded-md border font-medium transition-colors ${FOCUS_RING} ${pad}`}
     >
       {icon && <span aria-hidden="true">{icon}</span>}
       {children}

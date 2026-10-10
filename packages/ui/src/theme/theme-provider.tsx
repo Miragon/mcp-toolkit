@@ -7,7 +7,8 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react"
-import type { ThemeDefinition } from "./create-theme.js"
+import { resolveThemeVars, type ThemeDefinition } from "./create-theme.js"
+import { PortalContainerContext } from "./portal-container.js"
 
 /**
  * How the `.dark` class is resolved on the theme scope:
@@ -74,8 +75,8 @@ function useResolvedMode(mode: ThemeMode): "light" | "dark" {
 /** Props for {@link ThemeProvider}. */
 export interface ThemeProviderProps {
   /**
-   * The white-label theme to apply (from {@link createTheme} or `themePresets`).
-   * Omit to manage only the light/dark `mode` against the toolkit defaults.
+   * The white-label theme to apply (from {@link createTheme}). Omit to manage
+   * only the light/dark `mode` against the toolkit defaults (the Miragon theme).
    */
   theme?: ThemeDefinition
   /**
@@ -97,19 +98,28 @@ export interface ThemeProviderProps {
 /**
  * Apply a white-label {@link ThemeDefinition} to a subtree. Renders a wrapper
  * element carrying the theme's CSS variables as inline `style`, so they override
- * the `:root` defaults for every descendant — `Card`, `Button`, `bg-card`,
- * `text-primary`, and `rounded-lg` all re-skin without touching the widgets.
+ * the toolkit's defaults (the Miragon theme) for every descendant — `Card`,
+ * `Button`, `bg-card`, `text-link`, and `rounded-md` all re-skin without
+ * touching the widgets.
  *
- * Dark mode is handled at the scope: the `.dark` class is toggled on the wrapper
- * (not `<html>`) per the resolved {@link ThemeMode}, and the theme's `darkVars`
- * are layered on under it. This keeps theming local — two differently themed
- * subtrees (e.g. a brand preview gallery) coexist on one page.
+ * Dark mode is handled at the scope: the `.dark` class and `data-theme-mode`
+ * are set on the wrapper (not `<html>`) per the resolved {@link ThemeMode}. In
+ * dark mode the wrapper gets the toolkit's dark roles plus the theme's dark
+ * tokens and its mode-invariant light tokens ({@link resolveThemeVars}) — a
+ * light surface colour never leaks into a dark scope (mcp-toolkit#178 N35). A
+ * light scope inside a dark document stays light: `data-theme-mode="light"`
+ * re-declares the light roles. This keeps theming local — two differently
+ * themed subtrees (e.g. a brand preview gallery) coexist on one page.
+ *
+ * Overlays opened inside the scope (Dialog, Sheet, Select) portal into a node
+ * within it, so they wear the same theme and mode (#178 N36,
+ * {@link usePortalContainer}).
  *
  * Uses only React + the DOM (no `mcp-use/react`), so it ships from the root
  * barrel and works in a host-free standalone app, a host, or SSR alike.
  *
  * @example
- * <ThemeProvider theme={themePresets.violet} mode={host.theme ?? "system"}>
+ * <ThemeProvider theme={brand} mode={host.theme ?? "system"}>
  *   <YourWidget />
  * </ThemeProvider>
  */
@@ -122,31 +132,43 @@ export function ThemeProvider({
 }: ThemeProviderProps): ReactNode {
   const resolvedMode = useResolvedMode(mode)
   const isDark = resolvedMode === "dark"
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
 
-  // Merge the light vars with the dark overrides only when dark is active, so a
-  // dark scope gets the brand's dark palette on top of `.dark`'s defaults.
-  const style = useMemo<CSSProperties>(() => {
-    if (!theme) return {}
-    if (isDark && theme.darkVars) {
-      return { ...theme.vars, ...theme.darkVars }
-    }
-    return theme.vars
-  }, [theme, isDark])
+  const style = useMemo<CSSProperties>(
+    () => resolveThemeVars(theme, resolvedMode),
+    [theme, resolvedMode],
+  )
 
   const value = useMemo<ThemeContextValue>(
     () => ({ theme: theme ?? null, mode, resolvedMode }),
     [theme, mode, resolvedMode],
   )
 
-  const classes = [isDark ? "dark" : undefined, "bg-background text-foreground", className]
+  const classes = [
+    isDark ? "dark" : undefined,
+    "bg-background text-foreground font-sans",
+    className,
+  ]
     .filter(Boolean)
     .join(" ")
 
+  // The portal node closes the scope as a `display: contents` element: it adds
+  // no box (no gap, no layout shift), yet overlays portaled into it inherit the
+  // scope's variables and its `.dark` / `data-theme-mode`.
+  const PortalRoot = As === "span" ? "span" : "div"
+
   return (
     <ThemeContext.Provider value={value}>
-      <As className={classes} style={style} data-theme-mode={resolvedMode}>
-        {children}
-      </As>
+      <PortalContainerContext.Provider value={portalContainer}>
+        <As className={classes} style={style} data-theme-mode={resolvedMode}>
+          {children}
+          <PortalRoot
+            ref={setPortalContainer}
+            data-slot="theme-portal"
+            style={{ display: "contents" }}
+          />
+        </As>
+      </PortalContainerContext.Provider>
     </ThemeContext.Provider>
   )
 }

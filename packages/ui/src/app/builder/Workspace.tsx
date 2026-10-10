@@ -82,7 +82,7 @@ function WorkspaceImpl({
               <div className="flex flex-col gap-3 pr-1">
                 {paletteByApp.map(([app, ws]) => (
                   <div key={app} className="flex flex-col gap-1">
-                    <div className="text-muted-foreground/80 text-[10px] font-semibold tracking-wide uppercase">
+                    <div className="text-muted-foreground text-[10px] font-semibold tracking-wide uppercase">
                       {app}
                     </div>
                     {ws.map((w) => (
@@ -160,10 +160,10 @@ function PaletteItemImpl({ w, onClick }: { w: ReachableWidget; onClick: () => vo
     >
       <span className="flex w-full items-center justify-between gap-2">
         <span className="truncate font-mono">{w.id}</span>
-        <GripVertical className="text-muted-foreground/40 group-hover:text-muted-foreground size-3" />
+        <GripVertical className="text-muted-foreground group-hover:text-muted-foreground size-3" />
       </span>
       {w.requires.length > 0 && (
-        <span className="text-muted-foreground/80 truncate font-mono text-[10px]">
+        <span className="text-muted-foreground truncate font-mono text-[10px]">
           ← {w.requires.join(", ")}
         </span>
       )}

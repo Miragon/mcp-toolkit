@@ -1,0 +1,15 @@
+/*
+ * @miragon/mcp-toolkit-ui/fonts.css — OPT-IN: Geist and Geist Mono, self-hosted
+ * through your bundler (no CDN). Import it next to globals.css/theme.css:
+ *
+ *   @import "@miragon/mcp-toolkit-ui/globals.css";
+ *   @import "@miragon/mcp-toolkit-ui/fonts.css";
+ *
+ * Cost: a bundler that inlines assets (vite-plugin-singlefile, MCP App views)
+ * embeds the woff2 files as base64 in every view. When a server can serve the
+ * files, prefer `fontFaces({ baseUrl })`, which references them by URL (and
+ * allow that origin in the view's CSP resourceDomains). The token stacks
+ * (--font-sans, --font-mono) name both families, so either path works.
+ */
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";

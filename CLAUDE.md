@@ -2,6 +2,63 @@
 
 Project-specific guidance for AI agents and humans working in this repo.
 
+## Design-System (verbindlich)
+
+Alle UI- und Gestaltungsarbeit folgt dem Miragon-Design-System für Produkte. Quelle der
+Wahrheit ist die Skill `miragon-brand:modeler-tool-design` im Repo Miragon/corporate-identity.
+Sie lädt automatisch bei UI-Arbeit, wenn das Plugin installiert ist. Ohne Plugin den Guide direkt lesen:
+https://raw.githubusercontent.com/Miragon/corporate-identity/main/plugins/miragon-brand/skills/modeler-tool-design/assets/modeler-design-system.md
+Die Marken-Tokens kommen aus der Skill (`cd-tokens.generated.css`). Keine HEX-Werte forken.
+UI-Texte sind Deutsch, mit du-Ansprache.
+
+How this repo applies it (the deviations for embedded chat widgets are decided and
+recorded in Miragon/miragon-ai's CLAUDE.md; don't undo them here):
+
+- **Miragon is the toolkit's default theme.** `packages/ui/src/theme/cd-tokens.generated.css`
+  is the skill's file, vendored unchanged below a marker line (re-copy it, never edit it;
+  `cd-tokens.test.ts` pins it byte for byte and against the TS mirror `CD_TOKENS`).
+  `packages/ui/src/theme.css` maps the role tokens onto `--cd-*`, light AND dark.
+- **Widgets follow the host theme** (`.dark` or `data-theme="dark"`), so there IS a dark
+  layer, built strictly from the CI dark-ground rules: `--cd-schwarz` ground with small
+  white lifts, white text, links `--cd-gruen`, buttons `--cd-blau` with white, focus
+  `--cd-blau-hell`, status in the `-hell` values without tinted fills, quiet text
+  `--cd-kontur`. No in-app theme switch. Diagram paper and its zoom chrome stay light
+  (`data-theme-mode="light"` marks such an island).
+- **UI texts follow the host locale (en/de).** German follows `brand-tone` fully; English
+  takes the transferable rules (sentence case, active voice, no em-dash connectors).
+- **Fonts:** the tokens name Geist / Geist Mono first; loading them is opt-in
+  (`@miragon/mcp-toolkit-ui/fonts.css` or `fontFaces({ baseUrl })`).
+
+**The role-token contract.** Every component, in this repo and in apps built on it,
+styles through these CSS variables (Tailwind utilities of the same name), never through
+raw colours or Tailwind palette classes:
+
+`--background --card --popover --muted --secondary --foreground --muted-foreground
+--border --input --primary --primary-foreground --primary-hover --link --ring --focus
+--success --warning --danger --info --success-soft --warning-soft --danger-soft
+--info-soft --success-ink --warning-ink --danger-ink --info-ink --destructive
+--radius-sm --radius-md --radius-lg --radius-pill --shadow-1 --shadow-2 --shadow-3
+--scrim --motion-fast --motion-base --motion-slow --ease --font-sans --font-mono`
+
+(`ROLE_TOKENS` in `packages/ui/src/theme/create-theme.ts`.) The tone model has three
+roles per tone: the colour (`--<tone>`: fill, dot, border, icon), the tint
+(`--<tone>-soft`) and the TEXT colour (`--<tone>-ink`). Status is never text in its own
+colour: success and warning reach only 1.67:1 / 1.83:1 on white; use the `TONE_*` maps
+in `lib/tone-utils.ts`, `text-link` for links (never `text-primary`) and `FOCUS_RING`
+for focus.
+
+**How a consumer brands it.** Override ONLY role variables (in CSS after the toolkit
+import, or with `createTheme` + `ThemeProvider`), never `--cd-*` and never a component
+class. A brand needs no toolkit release. A host may set only the neutral roles
+(background, card, foreground, muted, border); primary, link, focus, the status tones and
+the input border stay brand decisions. Every new pair a component renders goes into the
+contrast test (`theme-css.test.ts`, text ≥ 4.5:1, non-text ≥ 3:1, both modes).
+
+**Gates:** `examples/test/design-system.test.ts` (no palette utilities, no raw colours
+outside the theme files, no status/primary/destructive as text, no translucent text),
+`packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast).
+`.miragon/brand.json` switches the brand-lint hook on for this repo.
+
 ## Module boundaries
 
 Kept in sync with the same rule in `CONTRIBUTING.md`:

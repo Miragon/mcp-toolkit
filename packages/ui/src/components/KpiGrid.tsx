@@ -1,11 +1,15 @@
 import type { ReactNode } from "react"
-import { TONE_TEXT, type ToneVariant } from "../lib/tone-utils.js"
+import { FOCUS_RING_INSET } from "../lib/focus-ring.js"
+import { TONE_DOT, TONE_TEXT, type ToneVariant } from "../lib/tone-utils.js"
 
-/** Trend direction → tone for the small trend line under a value. */
-const TREND_TONE: Record<"up" | "down" | "flat", string> = {
-  up: "text-danger",
-  down: "text-success",
-  flat: "text-muted-foreground",
+/**
+ * Trend direction → tone. The tone shows as a dot before the trend line; the
+ * text itself takes the tone's ink (status is never text in its own colour).
+ */
+const TREND_TONE: Record<"up" | "down" | "flat", ToneVariant> = {
+  up: "danger",
+  down: "success",
+  flat: "neutral",
 }
 
 export interface KpiCell {
@@ -17,9 +21,12 @@ export interface KpiCell {
   fraction?: ReactNode
   /** Optional trend line under the value (e.g. `"+12% vs last week"`). */
   trend?: ReactNode
-  /** Colours the trend line. `up` reads as bad (danger), `down` as good (success). */
+  /** Tones the trend line. `up` reads as bad (danger), `down` as good (success). */
   trendDirection?: "up" | "down" | "flat"
-  /** Tone applied to the value text (e.g. `"danger"` for a breached metric). */
+  /**
+   * Status of the metric (e.g. `"danger"` for a breached one), shown as a dot
+   * before the label. The figure itself stays in the foreground colour.
+   */
   tone?: ToneVariant
   /** When set, the cell renders as a button — turns a metric into a nav entry point. */
   onClick?: () => void
@@ -52,12 +59,62 @@ export interface KpiGridProps {
   header?: KpiGridHeader
 }
 
+/** A small status dot; decorative — the label next to it carries the meaning. */
+function ToneDot({ tone, size }: { tone: ToneVariant; size: "size-1.5" | "size-2" }) {
+  return <span aria-hidden="true" className={`${size} shrink-0 rounded-full ${TONE_DOT[tone]}`} />
+}
+
+/** The trend line under a value: a tone dot plus the trend text in the tone's ink. */
+function KpiTrend({
+  trend,
+  direction,
+}: {
+  trend: ReactNode
+  direction?: KpiCell["trendDirection"]
+}) {
+  const tone = direction ? TREND_TONE[direction] : "neutral"
+  const textClass = tone === "neutral" ? "text-muted-foreground" : TONE_TEXT[tone]
+  return (
+    <div className={`mt-1.5 inline-flex items-center gap-1.5 text-xs ${textClass}`}>
+      {tone !== "neutral" && <ToneDot tone={tone} size="size-1.5" />}
+      {trend}
+    </div>
+  )
+}
+
+/** One cell's label row, figure and optional trend — status as dots, never as coloured digits. */
+function KpiCellContent({ cell }: { cell: KpiCell }) {
+  return (
+    <>
+      <div className="text-muted-foreground flex items-center justify-between gap-2 text-xs font-medium">
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          {cell.tone && cell.tone !== "neutral" && <ToneDot tone={cell.tone} size="size-2" />}
+          <span>{cell.label}</span>
+        </span>
+        {cell.onClick && (
+          <span aria-hidden="true" className="text-sm leading-none">
+            ›
+          </span>
+        )}
+      </div>
+      <div className="text-foreground mt-1.5 text-2xl leading-none font-bold tracking-tight tabular-nums">
+        {cell.value}
+        {cell.fraction && (
+          <span className="text-muted-foreground ml-0.5 text-sm font-normal">{cell.fraction}</span>
+        )}
+      </div>
+      {cell.trend && <KpiTrend trend={cell.trend} direction={cell.trendDirection} />}
+    </>
+  )
+}
+
 /**
  * Bordered strip of KPI cells — the canonical way to show a row of headline
  * metrics in a widget (replaces the single-metric KPICard). Cells flow as
  * columns (1–6) and can be made clickable to drill into a detail view. Use
  * `boxed` + `header` for a labelled metric block; unboxed (default) renders the
- * lighter `border-y` strip.
+ * lighter `border-y` strip. A cell's `tone` shows as a status dot next to its
+ * label; figures stay in the foreground colour.
  */
 export function KpiGrid({ cells, boxed = false, header }: KpiGridProps) {
   const cols = Math.min(Math.max(cells.length, 1), 6)
@@ -70,7 +127,7 @@ export function KpiGrid({ cells, boxed = false, header }: KpiGridProps) {
         <div className="border-border bg-muted text-muted-foreground flex items-center gap-2 border-b px-4 py-2 text-[11px] font-semibold tracking-wide uppercase">
           <span>{header.label}</span>
           {header.badge && (
-            <span className="border-border bg-card text-muted-foreground rounded border px-1.5 py-0 text-[10px] font-medium normal-case">
+            <span className="border-border bg-card text-muted-foreground rounded-sm border px-1.5 py-0 text-[10px] font-medium normal-case">
               {header.badge}
             </span>
           )}
@@ -79,46 +136,14 @@ export function KpiGrid({ cells, boxed = false, header }: KpiGridProps) {
       <div className={`grid ${colClass} ${stripClass}`}>
         {cells.map((cell, idx) => {
           const borderClass = idx < cells.length - 1 ? "border-border border-r" : ""
-          const content = (
-            <>
-              <div className="text-muted-foreground flex items-center justify-between gap-2 text-xs font-medium">
-                <span>{cell.label}</span>
-                {cell.onClick && (
-                  <span aria-hidden="true" className="text-sm leading-none">
-                    ›
-                  </span>
-                )}
-              </div>
-              <div
-                className={`mt-1.5 text-2xl leading-none font-bold tracking-tight tabular-nums ${
-                  (cell.tone && TONE_TEXT[cell.tone]) || "text-foreground"
-                }`}
-              >
-                {cell.value}
-                {cell.fraction && (
-                  <span className="text-muted-foreground ml-0.5 text-sm font-normal">
-                    {cell.fraction}
-                  </span>
-                )}
-              </div>
-              {cell.trend && (
-                <div
-                  className={`mt-1.5 text-xs ${
-                    cell.trendDirection ? TREND_TONE[cell.trendDirection] : "text-muted-foreground"
-                  }`}
-                >
-                  {cell.trend}
-                </div>
-              )}
-            </>
-          )
+          const content = <KpiCellContent cell={cell} />
           return cell.onClick ? (
             <button
               key={idx}
               type="button"
               onClick={cell.onClick}
               aria-label={cell.ariaLabel}
-              className={`hover:bg-muted focus-visible:ring-ring cursor-pointer px-5 py-4 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset ${borderClass}`}
+              className={`hover:bg-muted cursor-pointer px-5 py-4 text-left transition-colors ${FOCUS_RING_INSET} ${borderClass}`}
             >
               {content}
             </button>

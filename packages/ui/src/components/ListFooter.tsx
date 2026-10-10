@@ -1,3 +1,5 @@
+import { FOCUS_RING } from "../lib/focus-ring.js"
+
 export interface ListFooterProps {
   /** How many rows are currently rendered. */
   shown: number
@@ -38,7 +40,7 @@ export function ListFooter({
           type="button"
           onClick={onLoadMore}
           disabled={loadingMore}
-          className="border-border text-foreground hover:bg-muted focus-visible:ring-ring inline-flex items-center gap-1 rounded-md border px-3 py-1.5 font-medium outline-none focus-visible:ring-2 disabled:opacity-50"
+          className={`border-border text-foreground hover:border-focus hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded-md border px-3 py-1.5 font-medium transition-colors disabled:opacity-50 ${FOCUS_RING}`}
         >
           {loadingMore ? "Loading…" : "Load more"}
         </button>

@@ -37,7 +37,7 @@ export function ArticleCard({ keys }: WidgetProps) {
   if (error) {
     return (
       <Card>
-        <CardContent className="text-destructive text-sm">{error.message}</CardContent>
+        <CardContent className="text-danger-ink text-sm">{error.message}</CardContent>
       </Card>
     )
   }

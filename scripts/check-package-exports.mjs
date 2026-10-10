@@ -14,17 +14,28 @@
  * Run: node scripts/check-package-exports.mjs
  */
 import { spawnSync } from "node:child_process"
+import { readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { publint } from "publint"
 import { formatMessage } from "publint/utils"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+
+/**
+ * The CSS asset exports of a package (`./globals.css`, `./theme.css`, …).
+ * attw models entrypoints as JS/TS and can never type-resolve a stylesheet;
+ * publint still verifies each file exists. Derived from the exports map, so
+ * a new stylesheet export needs no edit here.
+ */
+function cssEntrypoints(pkgDir) {
+  const manifest = JSON.parse(readFileSync(path.join(repoRoot, pkgDir, "package.json"), "utf8"))
+  return Object.keys(manifest.exports ?? {}).filter((key) => key.endsWith(".css"))
+}
+
 const PACKAGES = [
   { dir: "packages/core", attwArgs: [] },
-  // ./globals.css is a CSS asset export — attw models entrypoints as JS/TS
-  // and can never type-resolve it; publint still verifies the file exists.
-  { dir: "packages/ui", attwArgs: ["--exclude-entrypoints", "./globals.css"] },
+  { dir: "packages/ui", attwArgs: ["--exclude-entrypoints", ...cssEntrypoints("packages/ui")] },
   { dir: "packages/tool-codegen", attwArgs: [] },
 ]
 

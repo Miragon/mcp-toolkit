@@ -21,7 +21,13 @@ Peer versions are pinned exactly — install the versions above.
 | `@miragon/mcp-toolkit-ui` | Primitives (`Card`, `Table`, `Button`, …), composed components (`KpiGrid`, `WidgetHeader`, `FilterBar`), `useToolQuery`, `createTheme` / `ThemeProvider`, `cn`, `parseViewToolResult` | Free of `mcp-use/react` value imports (the view runtime + its ext-apps transitive) — safe for apps that never mount the shell. |
 | `…-ui/app`                | `mountMcpToolkitApp`, `McpToolkitApp`, `McpAppView`, `WidgetRenderer`, `useHostBridge`, `adaptDataWidget`, `WidgetFixtureHost`                                                        | The MCP app shell + host bridge — imports `mcp-use/react`. Never re-exported from the root barrel.                             |
 | `…-ui/hooks`              | `useViewToolQuery`, `useViewData`, `useToolQuery`, `useToolMutation`                                                                                                                  | View-tool hooks.                                                                                                               |
-| `…-ui/globals.css`        | Tailwind v4 theme + design tokens                                                                                                                                                     | Import once in the app entry.                                                                                                  |
+| `…-ui/globals.css`        | Tailwind v4 + the design tokens (the Miragon theme by default, light and dark)                                                                                                        | Import once in the app entry.                                                                                                  |
+| `…-ui/theme.css`          | The design tokens without Tailwind's entry point                                                                                                                                      | For a stylesheet that already imports Tailwind (add the toolkit `src` as `@source`).                                           |
+| `…-ui/fonts.css`          | Opt-in Geist + Geist Mono, self-hosted through the bundler                                                                                                                            | Optional; `fontFaces({ baseUrl })` is the by-URL alternative.                                                                  |
+
+A customer brand overrides the role variables only (`--primary`, `--link`,
+`--focus`, …; `ROLE_TOKENS`), see the
+[white-labeling guide](https://github.com/Miragon/mcp-toolkit/blob/main/docs/guides/white-labeling.md).
 
 ## Component catalog
 

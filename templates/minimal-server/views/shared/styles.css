@@ -1,4 +1,6 @@
 @import "@miragon/mcp-toolkit-ui/globals.css";
+/* Fonts are opt-in: Geist + Geist Mono through the bundler. */
+/* @import "@miragon/mcp-toolkit-ui/fonts.css"; */
 
 /* Widget code lives under views/ — Tailwind scans it from here. */
 @source "../**/*.{ts,tsx}";
@@ -7,3 +9,24 @@
    classes its components use (its own globals.css does this relative to
    itself — this line keeps it explicit and robust against hoisting layouts). */
 @source "../../node_modules/@miragon/mcp-toolkit-ui/src/**/*.{ts,tsx}";
+
+/* Your brand: the toolkit renders in the Miragon theme by default. Override
+   ROLE variables only (--primary, --primary-hover, --link, --focus, --ring,
+   --radius-md, …), never --cd-* tokens or component classes, and declare each
+   colour in both blocks. See docs/guides/white-labeling.md in mcp-toolkit.
+
+:root,
+[data-theme-mode="light"] {
+  --primary: …;
+  --link: …;
+  --focus: …;
+}
+
+.dark,
+[data-theme="dark"],
+[data-theme-mode="dark"] {
+  --primary: …;
+  --link: …;
+  --focus: …;
+}
+*/

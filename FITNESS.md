@@ -168,6 +168,8 @@ turning red".
 | parsers/coercions hold under arbitrary input                                                                                                                                             | fast-check property tests (layout-schemas, parse-tool-result, translator, codegen determinism)                                                       | 5c    |
 | new tests are not flaky                                                                                                                                                                  | 3× run of changed test files (PR), 3× full suite (nightly); `retry` stays 0 repo-wide                                                                | 5c    |
 | one verification command                                                                                                                                                                 | `pnpm verify` = `scripts/gates.mjs` manifest; CI jobs run `--only=<ids>` subsets of the same manifest                                                | 5c    |
+| Miragon design system: role tokens only, no palette classes or raw colours outside theme files, no status/primary/destructive as text, no translucent text                               | `examples/test/design-system.test.ts` (source scan over packages, examples, template + self-test)                                                    | 6     |
+| vendored `--cd-*` tokens unchanged; roles defined light + dark; every rendered role/tone pair ≥ 4.5:1 text / 3:1 non-text in both modes                                                  | `packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift vs. upstream or pinned hash, contract, computed contrast)                               | 6     |
 
 ## Deliberately unenforced (honest list, revisit triggers)
 
@@ -183,5 +185,7 @@ turning red".
   out of scope for this repo). The tools/list goldens pin the descriptions'
   CONTENT; their effect on a model stays unmeasured — an intentional,
   recorded gap, not an oversight.
-- **Builder chrome colours** (`packages/ui/src/app/builder/*` amber/emerald) —
-  outside the widget colour gate for now; revisit in Phase 3.
+- **Rendered contrast of composed markup**: the contrast test computes the
+  role/tone PAIRS from the tokens; which pair a component actually paints is
+  pinned by the design-system scan (no off-contract classes), not by a browser
+  render. Revisit with the jsdom decision above.

@@ -2,6 +2,7 @@ import { memo } from "react"
 import { Check, Eye, Layers, Library, Save } from "lucide-react"
 import { Badge } from "../../primitives/badge.js"
 import { Button } from "../../primitives/button.js"
+import { TONE_DOT, TONE_SOFT } from "../../lib/tone-utils.js"
 import { cn } from "../../lib/utils.js"
 import type { LayoutBuilderLabels, RefreshStatus } from "./labels.js"
 import { StatusChip } from "./status-chip.js"
@@ -41,7 +42,7 @@ function ToolbarImpl({
         <span
           className={cn(
             "inline-flex size-6 items-center justify-center rounded-md",
-            previewMode ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary",
+            previewMode ? TONE_SOFT.success : TONE_SOFT.info,
           )}
           aria-hidden="true"
         >
@@ -55,7 +56,7 @@ function ToolbarImpl({
 
       <div className="text-muted-foreground hidden items-center gap-3 text-[11px] sm:flex">
         <span className="inline-flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-emerald-500" />
+          <span aria-hidden="true" className={`size-1.5 rounded-full ${TONE_DOT.success}`} />
           <span>
             <span className="text-foreground font-medium">{liveKeys}</span> live
           </span>

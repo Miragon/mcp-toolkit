@@ -11,3 +11,7 @@ CHANGELOG.md
 
 # Conductor workspace-local scratch space (gitignored, not ours to format)
 .context/
+
+# Vendored from Miragon/corporate-identity (miragon-brand); held byte-identical
+# by packages/ui/src/theme/cd-tokens.test.ts — never reformat.
+*.generated.css

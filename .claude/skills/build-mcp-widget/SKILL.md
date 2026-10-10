@@ -141,14 +141,17 @@ Quality rules:
   `FilterChip`, `DrillButton`, `ListFooter`, the pills (`LivePill` / `CountPill`),
   and the tone utilities (`ToneVariant` / `TONE_*`) — they carry the design tokens
   (spacing, focus rings, dark mode). `TasksBoard` is built entirely from these.
-- **Use theme tokens, never hard-coded colors.** Class names like `text-primary`,
-  `text-muted-foreground`, `bg-card`, `bg-destructive/10`, and `rounded-lg` (which
-  reads `--radius`) resolve to the active theme's CSS variables — so the widget
-  inherits the client's white-label theme and light/dark automatically. A
-  hard-coded `#hex`, `bg-blue-600`, or `rounded-[10px]` breaks white-labeling: it
-  ignores the brand a `ThemeProvider` sets. Merge conditional classes with
-  `cn(...)`. See the [white-labeling guide](../../../docs/guides/white-labeling.md)
-  and the playground's brand switcher.
+- **Use role tokens, never hard-coded colors.** Class names like `text-link`,
+  `text-muted-foreground`, `bg-card`, `border-input`, `ring-focus`, `rounded-md`
+  and the `TONE_*` maps resolve to the active theme's role variables (the Miragon
+  theme by default), so the widget inherits the client's white-label theme and
+  light/dark automatically. A hard-coded `#hex`, `bg-blue-600`, or
+  `rounded-[10px]` breaks white-labeling: it ignores the brand a `ThemeProvider`
+  sets. Status is never text in its own colour (`text-success` is 1.67:1 on
+  white): use the tone's ink (`TONE_TEXT`) next to a dot or icon, and
+  `FOCUS_RING` on custom controls. Merge conditional classes with `cn(...)`. See
+  the [white-labeling guide](../../../docs/guides/white-labeling.md) and the
+  playground's brand switcher.
 - **Metrics → `KpiGrid`** (a row of headline cells; set a cell `tone`/`onClick`).
   **Tabular data → `Table`** (+ `ListFooter` for pagination). **Filtering →
   `FilterBar` + `useDebouncedValue`.** **Loading → `Skeleton`.** **Status colour →

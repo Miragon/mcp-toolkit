@@ -46,9 +46,9 @@
       "props": [
         {
           "name": "variant",
-          "type": "\"default\" | \"secondary\" | \"destructive\" | \"outline\" | \"ghost\" | \"link\"",
+          "type": "\"default\" | \"secondary\" | \"destructive\" | \"success\" | \"warning\" | \"info\" | \"outline\" | \"ghost\" | \"link\"",
           "required": false,
-          "description": "Visual style. Default 'default'."
+          "description": "Visual style. Default 'default'. destructive/success/warning/info follow the tone model (tint, ink text, border in the tone)."
         },
         {
           "name": "className",
@@ -411,7 +411,7 @@
           "description": "Group header shown above the strip when boxed: { label, badge? }."
         }
       ],
-      "whenToUse": "Show a row of headline metrics in a widget (replaces the old single-metric KPICard). Pre-format values for locale/currency. Set a cell tone for emphasis (e.g. 'danger') and onClick to make a metric a drill target."
+      "whenToUse": "Show a row of headline metrics in a widget (replaces the old single-metric KPICard). Pre-format values for locale/currency. A cell tone (e.g. 'danger') shows as a status dot next to its label — figures stay in the foreground colour; set onClick to make a metric a drill target."
     },
     {
       "name": "LivePill",
@@ -424,7 +424,7 @@
           "name": "tone",
           "type": "ToneVariant",
           "required": false,
-          "description": "Status tone driving the dot + tint ('neutral'|'info'|'success'|'warning'|'danger'). Default 'info'."
+          "description": "Status tone driving the dot, tint and border ('neutral'|'info'|'success'|'warning'|'danger'); the label takes the tone's ink. Default 'info'."
         },
         {
           "name": "children",
@@ -446,7 +446,7 @@
           "name": "tone",
           "type": "ToneVariant",
           "required": false,
-          "description": "Status tone driving the tint. Default 'neutral'."
+          "description": "Status tone driving the tint and border; the number takes the tone's ink. Default 'neutral'."
         },
         {
           "name": "children",
@@ -691,9 +691,9 @@
       "importPath": "@miragon/mcp-toolkit-ui",
       "kind": "object",
       "group": "composed",
-      "parts": ["TONE_SOFT", "TONE_DOT", "TONE_TEXT"],
+      "parts": ["TONE_SOFT", "TONE_DOT", "TONE_TEXT", "TONE_BORDER", "TONE_ICON"],
       "props": [],
-      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings (TONE_SOFT = soft tint, TONE_DOT = dot colour, TONE_TEXT = text colour), backed by the semantic status tokens in globals.css and re-skinned by the theme. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, WidgetHeader) consume these internally."
+      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings, three roles per tone (Miragon CI): the colour for fills, dots, borders and icons (TONE_DOT, TONE_BORDER, TONE_ICON), the tint (TONE_SOFT = tint + the tone's readable ink) and the TEXT colour (TONE_TEXT = the tone's -ink role). Status is never text in its own colour: success and warning ink is the foreground, so show the tone as a dot, icon or border next to the text. TONE_ICON is for SVG icons only. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, Badge, WidgetHeader) consume these internally."
     },
     {
       "name": "useDebouncedValue",
@@ -1097,16 +1097,16 @@
           "name": "tokens",
           "type": "ThemeTokens",
           "required": true,
-          "description": "Curated brand tokens (all optional): primary, primaryForeground, accent, accentForeground, background, foreground, card, cardForeground, border, ring, radius, fontSans, fontHeading. Colors are any CSS color string (oklch/hex/hsl)."
+          "description": "Brand tokens (all optional), one field per role of the role-token contract (ROLE_TOKENS): primary, primaryForeground, primaryHover, link, focus, ring, background, foreground, card, popover, muted, mutedForeground, secondary, accent, border, input, destructive, success/warning/danger/info with *Soft and *Ink, radiusSm/Md/Lg/Pill, shadow1-3, scrim, motionFast/Base/Slow, ease, fontSans, fontMono, plus the legacy accentForeground, cardForeground, radius, fontHeading. Colors are any CSS color string."
         },
         {
           "name": "opts",
           "type": "{ dark?: ThemeTokens }",
           "required": false,
-          "description": "Dark-mode token overrides, applied on top of the .dark defaults when the active mode is dark."
+          "description": "Dark-mode token overrides. In dark mode a theme scope gets the toolkit's dark defaults, the theme's mode-invariant light tokens (brand button colour, radii, fonts) and these — never the other light values."
         }
       ],
-      "whenToUse": "Define a white-label theme from a single set of brand tokens. Maps the curated fields onto the real CSS variables (--primary, --radius, ...) and returns a serializable ThemeDefinition { vars, darkVars?, toStyle() }. Apply it with ThemeProvider so every primitive re-skins to the client's brand."
+      "whenToUse": "Define a white-label theme for a customer brand. The toolkit's default IS the Miragon theme (no theme needed for it). Maps the fields onto the role CSS variables (--primary, --link, --focus, ...) and returns a serializable ThemeDefinition { vars, darkVars?, toStyle() }. Apply it with ThemeProvider so every primitive re-skins; override roles only, never --cd-* tokens or component classes."
     },
     {
       "name": "ThemeProvider",
@@ -1119,7 +1119,7 @@
           "name": "theme",
           "type": "ThemeDefinition",
           "required": false,
-          "description": "The theme from createTheme/themePresets to apply. Omit to manage only the light/dark mode against the toolkit defaults."
+          "description": "The theme from createTheme to apply. Omit to manage only the light/dark mode against the toolkit defaults (the Miragon theme)."
         },
         {
           "name": "mode",
@@ -1146,7 +1146,7 @@
           "description": "Subtree that inherits the theme's CSS variables and dark class."
         }
       ],
-      "whenToUse": "Wrap a widget (or a whole app) to apply a ThemeDefinition. Renders a wrapper carrying the theme's CSS variables inline (overriding :root) and toggles the .dark class on the scope per mode. React + DOM only — no host required."
+      "whenToUse": "Wrap a widget (or a whole app) to apply a ThemeDefinition and/or a light/dark mode to a scope. Light mode applies the theme's vars, dark mode the toolkit's dark roles plus the theme's dark and mode-invariant tokens (resolveThemeVars). A light scope stays light inside a dark document. Dialogs, Sheets and Select menus opened inside portal into the scope, so they keep its theme and mode. React + DOM only — no host required."
     },
     {
       "name": "useTheme",
@@ -1165,6 +1165,95 @@
       "group": "theming",
       "props": [],
       "whenToUse": "Ready-made white-label themes (themePresets.miragon, .violet, .emerald) — a demonstration of createTheme and a fork-able starting point. Pass one to ThemeProvider's theme prop."
+    },
+    {
+      "name": "resolveThemeVars",
+      "export": "resolveThemeVars",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "theming",
+      "props": [
+        {
+          "name": "theme",
+          "type": "ThemeDefinition | null | undefined",
+          "required": true,
+          "description": "The theme; null/undefined yields {}."
+        },
+        {
+          "name": "mode",
+          "type": "\"light\" | \"dark\"",
+          "required": true,
+          "description": "The resolved mode of the scope."
+        }
+      ],
+      "whenToUse": "The CSS variables a ThemeDefinition applies at its scope in a mode — what ThemeProvider puts on its wrapper. Use it to theme an element without ThemeProvider (spread it into style), e.g. resolveThemeVars(theme, host.theme ?? 'light'). A legacy base radius also derives the sm/md/lg steps."
+    },
+    {
+      "name": "ROLE_TOKENS",
+      "export": "ROLE_TOKENS",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "object",
+      "group": "theming",
+      "props": [],
+      "whenToUse": "The role-token contract as a readonly list of CSS variable names (--background … --font-mono). Components style through these roles only; a brand overrides only these. Use it to check a brand stylesheet or a host token map covers / stays within the contract."
+    },
+    {
+      "name": "usePortalContainer",
+      "export": "usePortalContainer",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "theming",
+      "props": [],
+      "whenToUse": "The portal node of the nearest ThemeProvider (or null). Pass it as `container` to a portal of your own so overlays keep the scope's theme and light/dark mode; the toolkit's Dialog, Sheet and Select already do."
+    },
+    {
+      "name": "CD_TOKENS",
+      "export": "CD_TOKENS",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "object",
+      "group": "theming",
+      "parts": ["CD_TOKENS", "CD_TOKENS_VERSION"],
+      "props": [],
+      "whenToUse": "The Miragon corporate-design tokens (--cd-*) as plain TypeScript, keys without the prefix (CD_TOKENS.blau, CD_TOKENS['danger-soft']). For code that cannot read CSS variables — SVG/canvas renderers, chart marks, server-side images. Drift-tested against the vendored CSS. UI components style through the role tokens, never through these constants."
+    },
+    {
+      "name": "fontFaces",
+      "export": "fontFaces",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "theming",
+      "parts": ["fontFaces", "GEIST_FONT_FILES"],
+      "props": [
+        {
+          "name": "baseUrl",
+          "type": "string",
+          "required": true,
+          "description": "Where the woff2 files (GEIST_FONT_FILES) are served from."
+        },
+        {
+          "name": "files",
+          "type": "{ sans?: string; mono?: string }",
+          "required": false,
+          "description": "File-name overrides."
+        },
+        {
+          "name": "display",
+          "type": "\"auto\" | \"block\" | \"swap\" | \"fallback\" | \"optional\"",
+          "required": false,
+          "description": "Default 'swap'."
+        }
+      ],
+      "whenToUse": "Opt-in Geist delivery by URL: returns the @font-face rules for Geist and Geist Mono (latin, variable weight) served from baseUrl. Inject into the view document, e.g. <style>{fontFaces({ baseUrl })}</style>, and allow that origin in the view CSP. Alternative: import @miragon/mcp-toolkit-ui/fonts.css (bundled). The font tokens name Geist first, so either path works; without either the system stack renders."
+    },
+    {
+      "name": "FOCUS_RING",
+      "export": "FOCUS_RING",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "object",
+      "group": "widget-authoring",
+      "parts": ["FOCUS_RING", "FOCUS_RING_INSET"],
+      "props": [],
+      "whenToUse": "The kit's opaque focus ring as a class string (2px ring in --focus with an offset; FOCUS_RING_INSET draws it inside, for cells flush with a container edge). Spread it into a custom control's className so keyboard focus reads the same everywhere (3:1 or more in both modes)."
     },
     {
       "name": "LocaleProvider",

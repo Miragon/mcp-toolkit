@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react"
+import { TONE_ICON } from "../../lib/tone-utils.js"
 import { Button } from "../../primitives/button.js"
 import {
   Dialog,
@@ -66,12 +67,15 @@ export function SaveDialog({
           </label>
           {error && (
             <div
-              className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
+              className="border-danger bg-danger-soft text-foreground flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
               role="alert"
             >
-              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              <AlertTriangle
+                className={`mt-0.5 size-3.5 shrink-0 ${TONE_ICON.danger}`}
+                aria-hidden="true"
+              />
               <span className="min-w-0 break-words">
-                <span className="font-medium">{L.saveError}:</span> {error}
+                <span className="text-danger-ink font-medium">{L.saveError}:</span> {error}
               </span>
             </div>
           )}
