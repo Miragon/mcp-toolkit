@@ -195,10 +195,12 @@ describe("createTheme", () => {
 })
 
 describe("resolveThemeVars (what a theme scope applies per mode — #178 N35)", () => {
-  const brand = createTheme(
-    { primary: "#0f766e", accent: "#ccfbf1", background: "#fafafa", fontSans: "Inter" },
-    { dark: { accent: "#134e4a" } },
-  )
+  // Built inside each test (see fonts.test.ts): keeps mutants visible to it.
+  const brand = () =>
+    createTheme(
+      { primary: "#0f766e", accent: "#ccfbf1", background: "#fafafa", fontSans: "Inter" },
+      { dark: { accent: "#134e4a" } },
+    )
 
   it("returns {} without a theme (the toolkit defaults apply)", () => {
     expect(resolveThemeVars(undefined, "light")).toEqual({})
@@ -206,7 +208,7 @@ describe("resolveThemeVars (what a theme scope applies per mode — #178 N35)", 
   })
 
   it("applies the light vars in light mode", () => {
-    expect(resolveThemeVars(brand, "light")).toEqual({
+    expect(resolveThemeVars(brand(), "light")).toEqual({
       "--primary": "#0f766e",
       "--accent": "#ccfbf1",
       "--background": "#fafafa",
@@ -215,7 +217,7 @@ describe("resolveThemeVars (what a theme scope applies per mode — #178 N35)", 
   })
 
   it("never carries a mode-dependent light value into dark mode", () => {
-    const dark = resolveThemeVars(brand, "dark")
+    const dark = resolveThemeVars(brand(), "dark")
     // background is a surface: its light value would beat the toolkit's dark
     // default and put a light surface into a dark scope.
     expect(dark).not.toHaveProperty("--background")
@@ -224,7 +226,7 @@ describe("resolveThemeVars (what a theme scope applies per mode — #178 N35)", 
   })
 
   it("carries mode-invariant light values (brand button colour, fonts) into dark mode", () => {
-    expect(resolveThemeVars(brand, "dark")).toEqual({
+    expect(resolveThemeVars(brand(), "dark")).toEqual({
       "--primary": "#0f766e",
       "--font-sans": "Inter",
       "--accent": "#134e4a",
