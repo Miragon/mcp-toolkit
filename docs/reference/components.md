@@ -699,9 +699,12 @@ and mode; the toolkit's `Dialog`, `Sheet` and `Select` already do.
 
 ### themePresets
 
-`themePresets.miragon` / `.violet` / `.emerald` — ready-made `ThemeDefinition`s
-(distinct `primary`/`radius` + dark overrides). A demonstration of `createTheme`
-and a fork-able starting point; pass one to `ThemeProvider`'s `theme` prop.
+`themePresets.emerald`: a ready-made `ThemeDefinition` (distinct
+`primary`/`radius` + dark overrides). A demonstration of `createTheme` and a
+fork-able starting point; pass it to `ThemeProvider`'s `theme` prop.
+`themePresets.miragon` and `.violet` are **deprecated**: the Miragon theme is
+the toolkit's default (render without a theme), and violet is the look the
+Miragon design system rules out. Both go in the next major.
 
 ### CD_TOKENS
 

@@ -4,16 +4,22 @@ import { createTheme, type ThemeDefinition } from "./create-theme.js"
  * Ready-made white-label themes — a demonstration of {@link createTheme} and a
  * starting point a client can fork. Each preset sets a distinct brand `primary`,
  * a matching `ring`/`accent`, and a `radius`, plus a `dark` override that
- * brightens the brand colour for legibility on dark surfaces (mirroring how
- * `globals.css` brightens tokens under `.dark`).
+ * brightens the brand colour for legibility on dark surfaces.
  *
- * Colours are authored in `oklch` to stay consistent with the toolkit's token
- * palette in `globals.css`. Apply one with `<ThemeProvider theme={themePresets.violet}>`.
+ * The toolkit's DEFAULT is the Miragon theme (theme.css, built on the vendored
+ * corporate-design tokens); it needs no preset. A full customer brand
+ * sets more roles than these presets do (`link`, `focus`, the status `*Ink`
+ * colours); see docs/guides/white-labeling.md. Apply one with
+ * `<ThemeProvider theme={themePresets.emerald}>`.
  */
 export const themePresets = {
   /**
-   * The toolkit's own brand: a confident indigo-blue with a slightly tighter
-   * radius. A sensible default when a client has no brand of their own yet.
+   * An approximation of the Miragon blue from before the toolkit shipped the
+   * Miragon corporate design.
+   *
+   * @deprecated The Miragon theme is now the toolkit's default: render without
+   * a theme (or `<ThemeProvider>` without `theme`) to get the exact CI values.
+   * This preset is off-palette and will be removed in the next major.
    */
   miragon: createTheme(
     {
@@ -35,7 +41,13 @@ export const themePresets = {
     },
   ),
 
-  /** A vivid violet brand with rounder corners — playful, consumer-facing. */
+  /**
+   * A vivid violet brand with rounder corners — playful, consumer-facing.
+   *
+   * @deprecated The violet tech default is the look the Miragon design system
+   * rules out (anti-slop U9). Fork {@link createTheme} with your own brand
+   * values instead. Will be removed in the next major.
+   */
   violet: createTheme(
     {
       primary: "oklch(0.55 0.24 295)",

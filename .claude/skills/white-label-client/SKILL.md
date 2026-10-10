@@ -61,7 +61,8 @@ export const acme = createTheme(
 )
 ```
 
-`themePresets` (`.miragon`, `.violet`, `.emerald`) are fork-able examples.
+`themePresets.emerald` is a fork-able example. `themePresets.miragon` and
+`.violet` are deprecated: the Miragon theme is the default (use no theme).
 
 ## Step 2: Apply it
 

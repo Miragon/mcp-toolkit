@@ -22,19 +22,17 @@ import { STORIES, type Story } from "./stories.js"
 
 /**
  * The white-label themes the preview can be skinned with. `null` is the
- * toolkit's own default tokens (no `ThemeProvider` override), so you can compare
- * a brand against the baseline. The rest come straight from `themePresets`.
+ * toolkit's own default, the Miragon theme (no `ThemeProvider` override), so
+ * you can compare a customer brand against the baseline.
  */
 const DEFAULT_THEME_OPTION: { id: string; label: string; theme: ThemeDefinition | null } = {
   id: "default",
-  label: "Default",
+  label: "Miragon (default)",
   theme: null,
 }
 
 const THEME_OPTIONS: { id: string; label: string; theme: ThemeDefinition | null }[] = [
   DEFAULT_THEME_OPTION,
-  { id: "miragon", label: "Miragon", theme: themePresets.miragon },
-  { id: "violet", label: "Violet", theme: themePresets.violet },
   { id: "emerald", label: "Emerald", theme: themePresets.emerald },
 ]
 

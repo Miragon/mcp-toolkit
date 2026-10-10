@@ -212,7 +212,7 @@ export const RENDER_CASES: RenderCase[] = [
     name: "ThemeProvider",
     marker: "RC:ThemeProvider",
     render: () => (
-      <ThemeProvider theme={themePresets.miragon} mode="dark">
+      <ThemeProvider theme={themePresets.emerald} mode="dark">
         <div>RC:ThemeProvider</div>
       </ThemeProvider>
     ),

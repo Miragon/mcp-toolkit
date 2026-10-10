@@ -1164,7 +1164,7 @@
       "kind": "object",
       "group": "theming",
       "props": [],
-      "whenToUse": "Ready-made white-label themes (themePresets.miragon, .violet, .emerald) — a demonstration of createTheme and a fork-able starting point. Pass one to ThemeProvider's theme prop."
+      "whenToUse": "Ready-made white-label themes — a demonstration of createTheme and a fork-able starting point (themePresets.emerald). themePresets.miragon and .violet are deprecated: the Miragon theme is the toolkit's default, use no theme for it. Pass a preset to ThemeProvider's theme prop."
     },
     {
       "name": "resolveThemeVars",
