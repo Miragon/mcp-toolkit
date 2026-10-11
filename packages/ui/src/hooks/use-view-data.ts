@@ -93,7 +93,9 @@ export function useViewData<T>(
   const refetch = useFreshRefetch(cacheKey, query.refetch)
   return {
     data: data ?? null,
-    loading: !data && active && !query.isError,
+    // The query's own verdict: a function `enabled` that returns false idles
+    // like `enabled: false`, never an endless skeleton.
+    loading: !data && query.isEnabled && !query.isError,
     error: query.error,
     refetch,
     failureCount: query.failureCount,

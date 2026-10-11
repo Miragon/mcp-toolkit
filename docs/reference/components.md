@@ -655,13 +655,14 @@ tool's own `isError` answer, up to three for a failed transport. The error
 then shows at once instead of after about 7 s. Per query
 (`{ retry: shouldRetryToolCall }`) or for a whole client
 (`queryClient.setDefaultOptions({ queries: { retry: shouldRetryToolCall } })`,
-or an `AppQueryProvider` `client` of your own); `isToolError(error)` tells
-the two failures apart in a policy of your own. A missing transport is never
-retried.
+or an `AppQueryProvider` `client` of your own, which a nested provider such
+as `McpAppView`'s keeps); `isToolError(error)` tells the two failures apart
+in a policy of your own. A missing transport is never retried.
 
 **Transport.** The tool goes through `AppQueryProvider`'s `callTool`, else the
 nearest `HostBridgeProvider`'s bridge. With neither, the query fails with a
-"no tool transport" error instead of idling.
+"no tool transport" error instead of idling, and fetches once a transport
+arrives.
 
 **When to use:** self-fetch arbitrary data from a tool inside a
 cockpit-embedded widget. Decoded with `parseToolResult` (structured-first).
@@ -739,7 +740,8 @@ function IncidentPanel({
 ```
 
 `options?: UseViewDataOptions` passes TanStack's query options to the feed
-(`enabled` is an extra gate next to `ready`) and picks how host data is used:
+(`enabled`, a boolean or a function of the query, is an extra gate next to
+`ready`; a closed gate is not `loading`) and picks how host data is used:
 
 - `initialDataMode: "static"` (default): host data is returned verbatim and
   the feed stays off while it is present.
@@ -853,8 +855,9 @@ For non-default hosts, wrap the widget in
 - `createChatGptHostBridge(sdk?)` — the OpenAI Apps SDK (ChatGPT). Defensive;
   missing host methods degrade to logged no-ops.
 - `McpUseHostBridgeProvider` — the toolkit's own host: composes the mcp-use 2.x
-  view hooks into the bridge. Already included in `McpToolkitApp`, so widgets
-  rendered by the toolkit shell need no wrapping.
+  view hooks into the bridge; `getWidgetData()` returns the payload
+  `McpAppView` shows, a re-loaded one included. Already included in
+  `McpToolkitApp`, so widgets rendered by the toolkit shell need no wrapping.
 
 ## Widget authoring
 
@@ -938,7 +941,8 @@ active filters, and headline numbers.
 - `ToolResultError` / `isToolError(error)`: the tool's own `isError` answer
   (a validation error, an engine 404), as opposed to a transport failure.
   `isToolError` also matches mcp-use's `ToolError`, which a view's `callTool`
-  rejects with. The query hooks never retry it by default.
+  rejects with. The query hooks retry it like any failure by default (the client's `retry`);
+  pass `retry: shouldRetryToolCall` to stop that.
 - `parseViewToolResult(result)` — unwrap a `*_show_*` view envelope
   (`context.stepData`) to flat widget data: single-step → that step's data;
   multi-step → keyed by step id. Non-envelope results pass through

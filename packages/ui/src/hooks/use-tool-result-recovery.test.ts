@@ -5,10 +5,9 @@ import {
   resolveRecoveryToolName,
 } from "./use-tool-result-recovery.js"
 
-// The hook's effect wiring (single-flight, StrictMode re-run, host-payload
-// precedence) is exercised end-to-end by the consumer's Playwright host
-// simulation (structuredContent keep/strip scenarios); these tests pin the
-// pure decision logic.
+// The hook's effect wiring (default observer, subscription, keep/strip/slow)
+// runs in use-tool-result-recovery.effects.test.tsx and end-to-end in the
+// consumer's Playwright host simulation; these tests pin the pure helpers.
 
 describe("resolveRecoveryToolName", () => {
   it("reads the SEP-1865 shape toolInfo.tool.name first", () => {

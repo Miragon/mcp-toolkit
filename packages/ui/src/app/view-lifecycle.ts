@@ -215,10 +215,36 @@ export interface ViewModelContextInput {
   /** The step-error alert offers a retry (the view can refresh). */
   stepsRetryable?: boolean
   /**
-   * When the view re-ran the tool on its own because the host stripped the
-   * result (epoch ms); `null` for a payload the host delivered.
+   * When the view re-loaded the shown payload itself (epoch ms, see
+   * {@link reloadedAtOf}); `null` for a payload the host delivered.
    */
-  recoveredAt?: number | null
+  reloadedAt?: number | null
+  /**
+   * How it re-loaded: it re-ran the tool because the host did not pass the
+   * result along (`"recovery"`, the default: its own recovery or the user's
+   * retry), or the user refreshed the view (`"refresh"`).
+   */
+  reloadedBy?: "recovery" | "refresh"
+}
+
+/**
+ * Where the shown payload came from: the host's tool result, the view's own
+ * re-execution when the host stripped it, the user's retry, or a refresh.
+ */
+export type ViewSource = "host" | "recovered" | "retry" | "refresh"
+
+/**
+ * When a payload counts as re-loaded by the view itself (N23): `at` when its
+ * figures can differ from the result the chat answered from, else `null`. A
+ * recovery and a refresh always; a retry only after a call whose result
+ * reached the chat (a stripped or unusable one), never after a failed or
+ * cancelled call, of which the model never had figures. The host's own
+ * payload never.
+ */
+export function reloadedAtOf(source: ViewSource, at: number, callFailed: boolean): number | null {
+  if (source === "host") return null
+  if (source === "retry" && callFailed) return null
+  return at
 }
 
 /**
@@ -246,10 +272,14 @@ export function describeViewForModel(input: ViewModelContextInput): string | nul
   }
   if (lifecycle.phase === "waiting") return null
   const lines: string[] = []
-  if (input.recoveredAt != null) {
-    const at = new Date(input.recoveredAt).toISOString()
+  if (input.reloadedAt != null) {
+    const at = new Date(input.reloadedAt).toISOString()
+    const how =
+      input.reloadedBy === "refresh"
+        ? `was refreshed by the user at ${at}`
+        : `re-ran the tool at ${at} because the host did not pass the original result to the view`
     lines.push(
-      `${subject} re-ran the tool at ${at} because the host did not pass the original result to the view; its figures are live as of then and can differ from the original result.`,
+      `${subject} ${how}; its figures are live as of then and can differ from the original result.`,
     )
   }
   const failed = input.stepErrors ?? []

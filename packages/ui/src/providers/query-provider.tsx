@@ -21,23 +21,27 @@ const queryClient = new QueryClient({
   },
 })
 
+/** The client of the nearest `AppQueryProvider`, which a nested one without `client` keeps. */
+const AppQueryClientContext = createContext<QueryClient>(queryClient)
+
 /**
  * The query client and tool transport of the toolkit's data hooks.
  *
  * `callTool` is how `useToolQuery` & co. reach the server; without it they
  * fall back to the nearest `HostBridgeProvider`'s bridge (toolkit#176 N25).
  * `client` replaces the shared module-level client, e.g. one per mount;
- * omitted, every provider shares the toolkit's client (`queryClient`).
- * `toolNameInQueryKey` puts the tool name into the hooks' cache keys
- * (`[...queryKey, toolName, args]`, see `toolQueryKey`), so two tools never
- * share an entry; omitted, a nested provider keeps its parent's setting, and
- * the outermost one uses the 2.x key `[...queryKey, args]`. The next major
- * makes the tool name the default.
+ * omitted, a nested provider keeps its parent's client (as `McpAppView`'s
+ * own provider does), and the outermost one shares the toolkit's client
+ * (`queryClient`). `toolNameInQueryKey` puts the tool name into the hooks'
+ * cache keys (`[...queryKey, toolName, args]`, see `toolQueryKey`), so two
+ * tools never share an entry; omitted, a nested provider keeps its parent's
+ * setting, and the outermost one uses the 2.x key `[...queryKey, args]`. The
+ * next major makes the tool name the default.
  */
 export function AppQueryProvider({
   children,
   callTool,
-  client = queryClient,
+  client,
   toolNameInQueryKey,
 }: {
   children: ReactNode
@@ -45,16 +49,29 @@ export function AppQueryProvider({
   client?: QueryClient
   toolNameInQueryKey?: boolean
 }) {
+  const inheritedClient = useAppQueryClient()
   const inherited = useContext(ToolNameInQueryKeyContext)
+  const effective = client ?? inheritedClient
   return (
-    <QueryClientProvider client={client}>
-      <CallToolContext.Provider value={callTool}>
-        <ToolNameInQueryKeyContext.Provider value={toolNameInQueryKey ?? inherited}>
-          {children}
-        </ToolNameInQueryKeyContext.Provider>
-      </CallToolContext.Provider>
-    </QueryClientProvider>
+    <AppQueryClientContext.Provider value={effective}>
+      <QueryClientProvider client={effective}>
+        <CallToolContext.Provider value={callTool}>
+          <ToolNameInQueryKeyContext.Provider value={toolNameInQueryKey ?? inherited}>
+            {children}
+          </ToolNameInQueryKeyContext.Provider>
+        </CallToolContext.Provider>
+      </QueryClientProvider>
+    </AppQueryClientContext.Provider>
   )
+}
+
+/**
+ * The client an `AppQueryProvider` without `client` uses at this point: the
+ * nearest `AppQueryProvider`'s, else the toolkit's shared `queryClient`. A
+ * plain TanStack `QueryClientProvider` does not count.
+ */
+export function useAppQueryClient(): QueryClient {
+  return useContext(AppQueryClientContext)
 }
 
 /**

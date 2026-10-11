@@ -19,8 +19,9 @@ export interface ParseToolResultOptions {
 /**
  * A tool answered with an `isError` result: a deterministic failure of the
  * call itself (a validation error, an engine 404), not of the transport.
- * Thrown by {@link parseToolResult}; the query hooks never retry it by
- * default, since repeating the call repeats the answer. Still an `Error`
+ * Thrown by {@link parseToolResult}. The query hooks retry it like any
+ * failure by default (the client's `retry`); pass `retry: shouldRetryToolCall`
+ * to stop that, since repeating the call repeats the answer. Still an `Error`
  * with the tool's first text block as its message.
  */
 export class ToolResultError extends Error {

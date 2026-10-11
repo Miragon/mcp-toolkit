@@ -85,9 +85,10 @@ export interface ViewMessages {
   /** Toast line under {@link ViewMessages.fullscreenFailed}: what you can do. */
   fullscreenFailedHint: string
   /**
-   * The line under the toolbar title of a view that loaded its data again on
-   * its own (the host did not pass the original result along), with the time
-   * pre-formatted (`formatClockTime`). It must carry its meaning in its own
+   * The line under the toolbar title of a view that loaded its data again
+   * itself (the host did not pass the original result along, or the user
+   * retried or refreshed), with the time pre-formatted (`formatClockTime`, in
+   * the language of these words). It must carry its meaning in its own
    * words: there is no tooltip, so touch and keyboard users read only this.
    */
   dataAsOf: (time: string) => string

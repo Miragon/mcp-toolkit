@@ -4,6 +4,7 @@ import {
   DEFAULT_SLOW_HINT_MS,
   describeViewForModel,
   errorMessage,
+  reloadedAtOf,
   resolveViewLifecycle,
   RETRY_IDLE,
   retryFocusTarget,
@@ -315,13 +316,22 @@ describe("describeViewForModel (the view's model context, toolkit#176 K20)", () 
     expect(
       describeViewForModel({ lifecycle: { phase: "waiting", slow: true }, toolName: "t" }),
     ).toBeNull()
+    // A waiting view shows no data, so a stamp or step errors of an older payload say nothing.
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "waiting", slow: false },
+        toolName: "t",
+        reloadedAt: Date.UTC(2026, 9, 11),
+        stepErrors: [{ stepId: "kpi", reason: "timeout" }],
+      }),
+    ).toBeNull()
     expect(describeViewForModel({ lifecycle: { phase: "result" }, toolName: "t" })).toBeNull()
     expect(
       describeViewForModel({
         lifecycle: { phase: "result" },
         toolName: "t",
         stepErrors: [],
-        recoveredAt: null,
+        reloadedAt: null,
       }),
     ).toBeNull()
   })
@@ -352,21 +362,65 @@ describe("describeViewForModel (the view's model context, toolkit#176 K20)", () 
 
   it("a payload the view re-loaded itself is live as of then (N23)", () => {
     const at = Date.UTC(2026, 9, 11, 14, 32, 5)
-    expect(
-      describeViewForModel({ lifecycle: { phase: "result" }, toolName: "t", recoveredAt: at }),
-    ).toBe(
+    const recovered =
       "The view of t re-ran the tool at 2026-10-11T14:32:05.000Z because the host did not pass " +
-        "the original result to the view; its figures are live as of then and can differ from the original result.",
-    )
+      "the original result to the view; its figures are live as of then and can differ from the original result."
+    expect(
+      describeViewForModel({ lifecycle: { phase: "result" }, toolName: "t", reloadedAt: at }),
+    ).toBe(recovered)
     expect(
       describeViewForModel({
         lifecycle: { phase: "result" },
         toolName: "t",
-        recoveredAt: at,
+        reloadedAt: at,
+        reloadedBy: "recovery",
+      }),
+    ).toBe(recovered)
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "t",
+        reloadedAt: at,
         stepErrors: [{ stepId: "kpi", reason: "timeout" }],
       }),
     ).toMatch(
       /original result\. Some of its data could not be loaded \(kpi: timeout\)\. The user sees an alert\.$/,
     )
+  })
+
+  it("a refreshed payload says the user refreshed it, and when", () => {
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "t",
+        reloadedAt: Date.UTC(2026, 9, 11, 15, 10),
+        reloadedBy: "refresh",
+      }),
+    ).toBe(
+      "The view of t was refreshed by the user at 2026-10-11T15:10:00.000Z; its figures are live " +
+        "as of then and can differ from the original result.",
+    )
+  })
+})
+
+describe("reloadedAtOf (which payload carries the data-as-of stamp, N23)", () => {
+  const now = 42_000
+
+  it("a recovery and a refresh always: the chat answered from the original call", () => {
+    expect(reloadedAtOf("recovered", now, false)).toBe(now)
+    expect(reloadedAtOf("refresh", now, false)).toBe(now)
+    expect(reloadedAtOf("refresh", now, true)).toBe(now)
+  })
+
+  it("a retry only when the original result reached the chat", () => {
+    // After a blocked or failed recovery: the host answered, the chat has figures.
+    expect(reloadedAtOf("retry", now, false)).toBe(now)
+    // After a failed or cancelled call: the model never had figures.
+    expect(reloadedAtOf("retry", now, true)).toBeNull()
+  })
+
+  it("never the host's own payload", () => {
+    expect(reloadedAtOf("host", now, false)).toBeNull()
+    expect(reloadedAtOf("host", now, true)).toBeNull()
   })
 })

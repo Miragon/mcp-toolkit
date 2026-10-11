@@ -59,6 +59,22 @@ export function useToolKeyGuard(
 }
 
 /**
+ * Fetches a query again once a tool transport arrives, when it failed for
+ * want of one ({@link NoToolTransportError}): a `callTool` that resolves
+ * after the first render. TanStack refetches on a new key or `enabled`,
+ * never on a new fetcher, so the query would keep the error until a remount.
+ */
+export function useRefetchOnTransport(
+  callTool: unknown,
+  query: Pick<UseQueryResult<unknown, Error>, "error" | "refetch">,
+): void {
+  const { error, refetch } = query
+  useEffect(() => {
+    if (callTool && error instanceof NoToolTransportError) void refetch()
+  }, [callTool, error, refetch])
+}
+
+/**
  * Loads data from a widget tool via TanStack Query.
  *
  * The effective cache key is `[...queryKey, args]` (`toolQueryKey`): two
@@ -76,7 +92,7 @@ export function useToolKeyGuard(
  *
  * The tool goes through `AppQueryProvider`'s `callTool`, else the nearest
  * `HostBridgeProvider`'s bridge; with neither, the query fails with a
- * "no tool transport" error instead of idling.
+ * "no tool transport" error instead of idling, and fetches once one arrives.
  */
 export function useToolQuery<TData = unknown, TSelected = TData>(
   queryKey: readonly unknown[],
@@ -87,11 +103,13 @@ export function useToolQuery<TData = unknown, TSelected = TData>(
   const callTool = useCallTool()
   const toolNameInKey = useToolNameInQueryKey()
   useToolKeyGuard(queryKey, toolName, args)
-  return useQuery<TData, Error, TSelected>(
+  const query = useQuery<TData, Error, TSelected>(
     toolQueryOptions<TData, TSelected>(queryKey, toolName, args, callTool, opts, {
       toolNameInKey,
     }),
   )
+  useRefetchOnTransport(callTool, query)
+  return query
 }
 
 /** Options of {@link useToolMutation}: TanStack's mutation options plus `invalidateKeys`. */

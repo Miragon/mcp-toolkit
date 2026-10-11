@@ -2,7 +2,7 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query"
 import { useCallTool, useToolNameInQueryKey } from "../providers/query-provider.js"
 import { parseViewToolResult } from "../lib/parse-tool-result.js"
 import { toolQueryOptions, type UseToolQueryOptions } from "../lib/tool-query.js"
-import { useToolKeyGuard } from "./use-tool-query.js"
+import { useRefetchOnTransport, useToolKeyGuard } from "./use-tool-query.js"
 
 /**
  * Options of {@link useViewToolQuery}: TanStack's query options, passed
@@ -33,10 +33,12 @@ export function useViewToolQuery<T = unknown>(
   const callTool = useCallTool()
   const toolNameInKey = useToolNameInQueryKey()
   useToolKeyGuard(queryKey, toolName, args)
-  return useQuery<T, Error>(
+  const query = useQuery<T, Error>(
     toolQueryOptions<T>(queryKey, toolName, args, callTool, opts, {
       decode: parseViewToolResult,
       toolNameInKey,
     }),
   )
+  useRefetchOnTransport(callTool, query)
+  return query
 }

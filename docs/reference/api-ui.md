@@ -146,7 +146,8 @@ chrome. English is the fallback for any other locale.
 
 The tool queries reach the server through `AppQueryProvider`'s `callTool`,
 else the nearest `HostBridgeProvider`'s bridge; with neither they fail with a
-"no tool transport" error instead of idling. The
+"no tool transport" error instead of idling, and fetch once a transport
+arrives (a `callTool` that resolves after the first render). The
 [data hooks reference](./components.md#data-hooks) maps the options onto the
 query workarounds consumers built around 2.7.
 
@@ -155,11 +156,11 @@ The view-tool hooks (`useViewToolQuery`, `useViewData`) live in the
 
 ### Providers
 
-| Symbol             | Signature                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `AppQueryProvider` | `{ children, callTool?, client?, toolNameInQueryKey? }`. Wraps a TanStack Query client (default: the shared `queryClient`; pass `client` for one per mount) + `CallToolContext`. `toolNameInQueryKey` puts the tool name into the data hooks' keys (`[...queryKey, toolName, args]`), so two tools never share an entry; omitted, a nested provider keeps its parent's setting and the outermost uses the 2.x key. |
-| `useCallTool`      | `() → CallToolFn \| undefined`. The data hooks' transport: `AppQueryProvider`'s `callTool` (from `McpAppView`), else the nearest `HostBridgeProvider`'s `callTool`, else `undefined`.                                                                                                                                                                                                                              |
-| `queryClient`      | Exported `QueryClient` — consumers can `queryClient.invalidateQueries(...)` from outside React.                                                                                                                                                                                                                                                                                                                    |
+| Symbol             | Signature                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppQueryProvider` | `{ children, callTool?, client?, toolNameInQueryKey? }`. Wraps a TanStack Query client + `CallToolContext`. Pass `client` for one per mount; omitted, a nested provider keeps its parent's client (so `McpAppView`'s widgets use the client of a provider around the view) and the outermost uses the shared `queryClient`. `toolNameInQueryKey` puts the tool name into the data hooks' keys (`[...queryKey, toolName, args]`), so two tools never share an entry; omitted, a nested provider keeps its parent's setting and the outermost uses the 2.x key. |
+| `useCallTool`      | `() → CallToolFn \| undefined`. The data hooks' transport: `AppQueryProvider`'s `callTool` (from `McpAppView`), else the nearest `HostBridgeProvider`'s `callTool`, else `undefined`.                                                                                                                                                                                                                                                                                                                                                                         |
+| `queryClient`      | Exported `QueryClient` — consumers can `queryClient.invalidateQueries(...)` from outside React.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 `CallToolFn` is typed as `(name: string, args: object) => Promise<unknown>`.
 Widened from `Record<string, unknown>` so generated tool input interfaces
@@ -227,19 +228,19 @@ The seam that lets one hand-built widget run in the mcp-use host, ChatGPT (Apps
 SDK), or a standalone web app against an existing MCP server. See the
 [host-portability concept](../concepts/host-portability.md).
 
-| Symbol                                          | Signature                                                                                                                                                                                                    |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `HostBridge`                                    | `{ callTool(name, args), sendFollowup(prompt), openExternal(url), getWidgetData<T>(): T \| null, setModelContext?(text), theme?: "light" \| "dark" }`. The host-agnostic surface a portable widget talks to. |
-| `useHostBridge`                                 | `() → HostBridge`. Resolves the nearest `HostBridgeProvider`; throws (with a pointer to the adapters) when none is present. Inside the toolkit's own host, `McpToolkitApp` installs the provider.            |
-| `useHostBridgeOrNull`                           | `() → HostBridge \| null`. Returns `null` when no provider/host is present (branch on availability).                                                                                                         |
-| `HostBridgeProvider`                            | `({ bridge, children }) → JSX.Element`. Provides an explicit bridge to the subtree.                                                                                                                          |
-| `McpUseHostBridgeProvider`                      | `({ children }) → JSX.Element`. Composes the mcp-use 2.x view hooks into the bridge and provides it (plus the view-scope flag). Must render under `bootstrapView`; `McpToolkitApp` includes it.              |
-| `useIsInsideMcpUseView`                         | `() → boolean`. `true` under a `McpUseHostBridgeProvider` — branch before using `mcp-use/react` primitives that throw outside a view (e.g. `ModelContext`).                                                  |
-| `toHostBridge`                                  | `(surface: McpUseWidgetSurface) → HostBridge`. Pure mapping from the structural mcp-use widget surface onto the bridge contract — the tested seam `McpUseHostBridgeProvider` feeds with live hooks.          |
-| `createChatGptHostBridge`                       | `(sdk?: OpenAiAppsSdk \| null) → HostBridge`. Maps the bridge verbs onto the OpenAI Apps SDK (ChatGPT). Defensive — missing host methods degrade to logged no-ops.                                           |
-| `createStandaloneHostBridge`                    | `(opts: StandaloneHostBridgeOptions) → HostBridge`. `{ callTool, getData?, onFollowup?, onOpenExternal?, onModelContext?, theme? }` — `callTool` usually wraps a `@modelcontextprotocol/client` client.      |
-| `McpUseWidgetSurface`                           | Structural slice of the mcp-use widget surface `toHostBridge` reads (`callTool`, `sendFollowUpMessage`, `openExternal`, `output`, `theme`, `setState`).                                                      |
-| `OpenAiAppsSdk` / `StandaloneHostBridgeOptions` | Types for the two non-mcp-use bridge factories.                                                                                                                                                              |
+| Symbol                                          | Signature                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HostBridge`                                    | `{ callTool(name, args), sendFollowup(prompt), openExternal(url), getWidgetData<T>(): T \| null, setModelContext?(text), theme?: "light" \| "dark" }`. The host-agnostic surface a portable widget talks to.                                                                            |
+| `useHostBridge`                                 | `() → HostBridge`. Resolves the nearest `HostBridgeProvider`; throws (with a pointer to the adapters) when none is present. Inside the toolkit's own host, `McpToolkitApp` installs the provider.                                                                                       |
+| `useHostBridgeOrNull`                           | `() → HostBridge \| null`. Returns `null` when no provider/host is present (branch on availability).                                                                                                                                                                                    |
+| `HostBridgeProvider`                            | `({ bridge, children }) → JSX.Element`. Provides an explicit bridge to the subtree.                                                                                                                                                                                                     |
+| `McpUseHostBridgeProvider`                      | `({ children }) → JSX.Element`. Composes the mcp-use 2.x view hooks into the bridge and provides it (plus the view-scope flag). `getWidgetData()` returns the payload `McpAppView` shows, else the latched tool output. Must render under `bootstrapView`; `McpToolkitApp` includes it. |
+| `useIsInsideMcpUseView`                         | `() → boolean`. `true` under a `McpUseHostBridgeProvider` — branch before using `mcp-use/react` primitives that throw outside a view (e.g. `ModelContext`).                                                                                                                             |
+| `toHostBridge`                                  | `(surface: McpUseWidgetSurface) → HostBridge`. Pure mapping from the structural mcp-use widget surface onto the bridge contract — the tested seam `McpUseHostBridgeProvider` feeds with live hooks.                                                                                     |
+| `createChatGptHostBridge`                       | `(sdk?: OpenAiAppsSdk \| null) → HostBridge`. Maps the bridge verbs onto the OpenAI Apps SDK (ChatGPT). Defensive — missing host methods degrade to logged no-ops.                                                                                                                      |
+| `createStandaloneHostBridge`                    | `(opts: StandaloneHostBridgeOptions) → HostBridge`. `{ callTool, getData?, onFollowup?, onOpenExternal?, onModelContext?, theme? }` — `callTool` usually wraps a `@modelcontextprotocol/client` client.                                                                                 |
+| `McpUseWidgetSurface`                           | Structural slice of the mcp-use widget surface `toHostBridge` reads (`callTool`, `sendFollowUpMessage`, `openExternal`, `output`, `theme`, `setState`).                                                                                                                                 |
+| `OpenAiAppsSdk` / `StandaloneHostBridgeOptions` | Types for the two non-mcp-use bridge factories.                                                                                                                                                                                                                                         |
 
 ### Host actions + data adapter
 
@@ -298,12 +299,15 @@ own (toolkit#176), and never a slow one: a passive observer of the host's
 notifications (`installToolResultObserver`) sees the stripped, content-only
 result itself, so the view re-runs the tool as that result arrives, with the
 call's complete arguments, and keeps waiting while a compliant host is still
-running the tool. A payload the view loaded itself reaches
-`HostBridge.getWidgetData()`, carries a quiet line under the toolbar title
+running the tool. `HostBridge.getWidgetData()` returns the payload the view
+shows. A payload the view loaded itself (its recovery, a retry after a result
+the chat got, a refresh) carries a quiet line under the toolbar title
 ("Reloaded at 2:32 PM" / "Neu geladen um 14:32 Uhr": its figures are live as
-of then and can differ from the answer in the chat), and is reported to the
-model. The line is plain visible text, no tooltip, and never takes width from
-the title or the controls. The view's model context also names an error the
+of then and can differ from the answer in the chat) and is reported to the
+model. A retry after a failed or cancelled call carries none: the model never
+had figures. The time is in the language of the line's words and in the
+host's time zone. The line is plain visible text, no tooltip, and never takes
+width from the title or the controls. The view's model context also names an error the
 user sees instead of the view, a blocked recovery (the tool ran; the model is
 told not to re-run it just to show the view) and failed data steps. After a
 retry, keyboard focus stays in the view. Refresh and

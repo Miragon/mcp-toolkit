@@ -1,10 +1,14 @@
 import { useState, useCallback, useEffect, useMemo, type ReactNode } from "react"
 import { LucideProvider } from "lucide-react"
-import { ToolCancelledError, useDisplayMode, useHostContext, useToolContext } from "mcp-use/react"
-import { ToastProvider, useToast } from "../components/Toast.js"
-import { ToolkitLocaleFallback, useToolkitMessages } from "../locale/locale-provider.js"
-import { formatClockTime, type ViewMessages } from "../locale/toolkit-messages.js"
-import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
+import { ToolCancelledError, useHostContext, useToolContext } from "mcp-use/react"
+import { ToastProvider } from "../components/Toast.js"
+import {
+  ToolkitLocaleFallback,
+  useToolkitLocale,
+  useToolkitMessages,
+} from "../locale/locale-provider.js"
+import { formatClockTime, resolveFormatLocale } from "../locale/toolkit-messages.js"
+import { AppQueryProvider, useAppQueryClient } from "../providers/query-provider.js"
 import { resolveToolSafety } from "../hooks/tool-result-recovery-model.js"
 import {
   DEFAULT_ASSUME_STRIPPED_AFTER_MS,
@@ -18,7 +22,6 @@ import { useViewResultSink } from "./mcp-use-host-bridge.js"
 import { HostModelContext } from "./model-context.js"
 import {
   applyBuilderCommit,
-  fullscreenAvailable,
   isCompleteViewData,
   StepErrors,
   ViewBody,
@@ -33,12 +36,14 @@ import {
 import { ViewPlaceholder, type DescribeViewError } from "./mcp-app-view-states.js"
 import type { LayoutBuilderLabels } from "./layout-builder.js"
 import { useBuildModeFocus } from "./use-build-mode-focus.js"
+import { useFullscreenToggle, useViewRefresh } from "./use-view-actions.js"
 import { useRetryFocus, useViewLifecycle } from "./use-view-lifecycle.js"
 import {
   DEFAULT_SLOW_HINT_MS,
-  decodeViewResult,
   describeViewForModel,
+  reloadedAtOf,
   type ViewLifecycle,
+  type ViewSource,
 } from "./view-lifecycle.js"
 import type { WidgetComponent } from "./widget-renderer.js"
 
@@ -137,6 +142,8 @@ export interface McpAppViewProps {
  * the host's locale unless a `LocaleProvider` sets one, so the chrome follows
  * the host language; `useLocale()` in consumer widgets is unaffected. Lucide
  * icons draw at the CI stroke (2.5) throughout, the toast stack included.
+ * The widgets' data hooks fetch through an enclosing `AppQueryProvider`'s
+ * client, else the toolkit's shared `queryClient`.
  */
 export function McpAppView(props: McpAppViewProps) {
   const { locale } = useHostContext()
@@ -152,20 +159,18 @@ export function McpAppView(props: McpAppViewProps) {
   )
 }
 
-/**
- * Where the shown payload came from: the host's tool result, the view's own
- * re-execution when the host stripped it, the user's retry, or a refresh.
- */
-type ViewSource = "host" | "recovered" | "retry" | "refresh"
-
 interface ShownView {
   data: ViewData | null
   source: ViewSource | null
-  /** For a `"recovered"` payload: when it arrived (epoch ms). */
-  recoveredAt: number | null
+  /**
+   * When the view re-loaded the payload itself (epoch ms), so its figures can
+   * differ from the result the chat answered from (`reloadedAtOf`); `null`
+   * otherwise.
+   */
+  reloadedAt: number | null
 }
 
-const NO_VIEW: ShownView = { data: null, source: null, recoveredAt: null }
+const NO_VIEW: ShownView = { data: null, source: null, reloadedAt: null }
 
 /**
  * Host-delivered payload → the shown view, recovered payloads included, each
@@ -189,7 +194,7 @@ function useHostViewData(
   if (initialViewData !== prevInitial) {
     setPrevInitial(initialViewData)
     if (!isPending && isCompleteViewData(initialViewData)) {
-      setView({ data: initialViewData, source: "host", recoveredAt: null })
+      setView({ data: initialViewData, source: "host", reloadedAt: null })
     }
   }
   const [prevRecovered, setPrevRecovered] = useState<ViewData | null>(null)
@@ -200,7 +205,7 @@ function useHostViewData(
     if (recovered) {
       setView((prev) =>
         prev.data === null || prev.source === "recovered"
-          ? { data: recovered, source: "recovered", recoveredAt }
+          ? { data: recovered, source: "recovered", reloadedAt: recoveredAt }
           : prev,
       )
     }
@@ -209,92 +214,14 @@ function useHostViewData(
 }
 
 /**
- * Refresh via the refresh tool. A failure keeps the data and says so in a
- * toast in catalog words only; the raw reason goes to the console, never to
- * the user.
+ * Hands the payload the view shows (the host's, its own recovery's, the
+ * user's retry or refresh) to the host bridge, so `HostBridge.getWidgetData()`
+ * returns what the view shows (toolkit#176 K15), also after a latch the view
+ * could not render.
  */
-function useViewRefresh(options: {
-  viewData: ViewData | null
-  setViewData: (next: ViewData) => void
-  callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>
-  refreshToolName: string
-  labels: Pick<ViewMessages, "refreshFailed" | "refreshFailedHint">
-}) {
-  const { viewData, setViewData, callTool, refreshToolName, labels } = options
-  const toast = useToast()
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const refreshView = useCallback(async () => {
-    if (!viewData?._refreshParams) return
-    setIsRefreshing(true)
-    let failure: unknown = null
-    try {
-      const result = await callTool(
-        refreshToolName,
-        viewData._refreshParams as unknown as Record<string, unknown>,
-      )
-      // One decoding convention with `useToolQuery` (structured-first), with a
-      // typed outcome: an unusable payload is a failure, never exception text.
-      const outcome = decodeViewResult(result, isCompleteViewData)
-      if (outcome.ok) setViewData(outcome.data)
-      else failure = outcome.reason ?? "the refresh tool returned no view"
-      // The call went through, so self-fetching widgets refresh as well;
-      // a tool error refreshes nothing.
-      if (outcome.ok || !outcome.isError) void queryClient.invalidateQueries()
-    } catch (e) {
-      failure = e
-    } finally {
-      setIsRefreshing(false)
-    }
-    if (failure === null) return
-    console.warn("[mcp-toolkit] refresh failed:", failure)
-    toast.show({
-      tone: "danger",
-      title: labels.refreshFailed,
-      description: labels.refreshFailedHint,
-    })
-  }, [callTool, labels, refreshToolName, setViewData, toast, viewData])
-  return { isRefreshing, refreshView }
-}
-
-/**
- * The fullscreen toggle, gated on the host's offer. A rejected request shows
- * a toast in catalog words; the raw reason goes to the console.
- */
-function useFullscreenToggle(
-  labels: Pick<ViewMessages, "fullscreenFailed" | "fullscreenFailedHint">,
-) {
-  const { displayMode, availableDisplayModes, requestDisplayMode } = useDisplayMode()
-  const toast = useToast()
-  const toggle = useCallback(async () => {
-    const mode = displayMode === "fullscreen" ? "inline" : "fullscreen"
-    try {
-      // Advisory since 2.x: `displayMode` updates when the host applies it.
-      await requestDisplayMode({ mode })
-    } catch (e) {
-      console.warn("[mcp-toolkit] display-mode request failed:", e)
-      toast.show({
-        tone: "danger",
-        title: labels.fullscreenFailed,
-        description: labels.fullscreenFailedHint,
-      })
-    }
-  }, [displayMode, labels, requestDisplayMode, toast])
-  return {
-    isFullscreen: displayMode === "fullscreen",
-    canFullscreen: fullscreenAvailable(displayMode, availableDisplayModes),
-    toggle,
-  }
-}
-
-/**
- * Hands a payload the view got by re-running the originating tool (its own
- * recovery or the user's retry) to the host bridge, so
- * `HostBridge.getWidgetData()` returns what the view shows (toolkit#176 K15).
- */
-function useReportRerunPayload(view: ShownView) {
+function useReportShownPayload(view: ShownView) {
   const report = useViewResultSink()
-  const rerun = view.source === "recovered" || view.source === "retry"
-  const payload = rerun ? view.data : null
+  const payload = view.data
   useEffect(() => {
     if (payload) report?.(payload)
   }, [payload, report])
@@ -352,14 +279,23 @@ function useShownView(
     recovery.data,
     recovery.recoveredAt,
   )
-  useReportRerunPayload(view)
+  useReportShownPayload(view)
+  // A re-run's figures can differ from the answer in the chat (N23): stamp
+  // it, unless the original call failed and the chat never had figures.
+  const callFailed = call.isCallError || call.isCancelled
   const showRetried = useCallback(
-    (data: ViewData) => setView({ data, source: "retry", recoveredAt: null }),
-    [setView],
+    (data: ViewData) =>
+      setView({ data, source: "retry", reloadedAt: reloadedAtOf("retry", Date.now(), callFailed) }),
+    [setView, callFailed],
   )
   const showRefreshed = useCallback(
-    (data: ViewData) => setView({ data, source: "refresh", recoveredAt: null }),
-    [setView],
+    (data: ViewData) =>
+      setView({
+        data,
+        source: "refresh",
+        reloadedAt: reloadedAtOf("refresh", Date.now(), callFailed),
+      }),
+    [setView, callFailed],
   )
   return {
     view,
@@ -373,15 +309,11 @@ function useShownView(
   }
 }
 
-/** When a payload the view re-loaded itself arrived (its figures are live as of then). */
-function recoveredAtOf(view: ShownView): number | null {
-  return view.source === "recovered" ? view.recoveredAt : null
-}
-
 /**
  * The view's own line of model context (toolkit#176 K20, N23): an error the
  * user sees instead of the view, failed data steps, or data the view
- * re-loaded itself. Renders nothing while there is nothing to report.
+ * re-loaded itself (a recovery, a retry, a refresh). Renders nothing while
+ * there is nothing to report.
  */
 function ViewModelContext({
   lifecycle,
@@ -397,7 +329,8 @@ function ViewModelContext({
     toolName,
     stepErrors: view.data?.context.errors,
     stepsRetryable: Boolean(view.data?._refreshParams),
-    recoveredAt: recoveredAtOf(view),
+    reloadedAt: view.reloadedAt,
+    reloadedBy: view.source === "refresh" ? "refresh" : "recovery",
   })
   return content ? <HostModelContext content={content} /> : null
 }
@@ -424,6 +357,11 @@ function McpAppViewShell({
   // `mountMcpToolkitApp` provides); tools go through the HostBridge.
   const call = useRenderCall()
   const { safeArea, locale, timeZone } = useHostContext()
+  // A time in the language of the sentence around it, in the host's zone.
+  const formatLocale = resolveFormatLocale(useToolkitLocale(), locale)
+  // The client the view's widgets fetch through (an enclosing
+  // AppQueryProvider's, else the shared one): a refresh invalidates it.
+  const viewClient = useAppQueryClient()
   const bridge = useHostBridge()
   const callTool = useCallback(
     (name: string, args: Record<string, unknown>) => bridge.callTool(name, args),
@@ -460,6 +398,7 @@ function McpAppViewShell({
     callTool,
     refreshToolName,
     labels: L,
+    client: viewClient,
   })
   const fullscreen = useFullscreenToggle(L)
   // In-iframe build mode is purely a UI state — the LLM never sees the catalogue.
@@ -522,7 +461,7 @@ function McpAppViewShell({
           onRefresh={refreshView}
           onEnterBuildMode={() => setBuildMode(true)}
           onToggleFullscreen={fullscreen.toggle}
-          dataAsOf={formatDataAsOf(recoveredAtOf(view), locale, timeZone)}
+          dataAsOf={formatDataAsOf(view.reloadedAt, formatLocale, timeZone)}
         />
 
         <StepErrors
@@ -534,7 +473,11 @@ function McpAppViewShell({
           onRetry={viewData._refreshParams ? () => void refreshView() : undefined}
         />
 
-        <AppQueryProvider callTool={callToolFn} toolNameInQueryKey={toolNameInQueryKey}>
+        <AppQueryProvider
+          callTool={callToolFn}
+          client={viewClient}
+          toolNameInQueryKey={toolNameInQueryKey}
+        >
           <ViewBody
             buildMode={buildMode}
             viewData={viewData}
@@ -554,11 +497,11 @@ function withBuilderCommit(view: ShownView, commit: BuilderCommit): ShownView {
   return view.data ? { ...view, data: applyBuilderCommit(view.data, commit) } : view
 }
 
-/** The toolbar's "as of" time of a recovered payload, `undefined` for any other. */
+/** The toolbar's "as of" time of a re-loaded payload, `undefined` for any other. */
 function formatDataAsOf(
-  recoveredAt: number | null,
-  locale: string | undefined,
+  reloadedAt: number | null,
+  locale: string,
   timeZone: string | undefined,
 ): string | undefined {
-  return recoveredAt === null ? undefined : formatClockTime(recoveredAt, locale, timeZone)
+  return reloadedAt === null ? undefined : formatClockTime(reloadedAt, locale, timeZone)
 }

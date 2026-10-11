@@ -1,4 +1,4 @@
-import { QueryClient, useQueryClient } from "@tanstack/react-query"
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 import { createStandaloneHostBridge, HostBridgeProvider } from "../app/host-bridge.js"
@@ -77,6 +77,33 @@ describe("AppQueryProvider", () => {
     expect(probe((node) => <AppQueryProvider client={own}>{node}</AppQueryProvider>).client).toBe(
       own,
     )
+  })
+
+  it("a nested provider without client keeps its parent's, like toolNameInQueryKey", () => {
+    const own = new QueryClient()
+    const other = new QueryClient()
+    const nested = probe((node) => (
+      <AppQueryProvider client={own}>
+        <AppQueryProvider callTool={vi.fn()}>{node}</AppQueryProvider>
+      </AppQueryProvider>
+    ))
+    expect(nested.client).toBe(own)
+    const replaced = probe((node) => (
+      <AppQueryProvider client={own}>
+        <AppQueryProvider client={other}>{node}</AppQueryProvider>
+      </AppQueryProvider>
+    ))
+    expect(replaced.client).toBe(other)
+  })
+
+  it("a plain TanStack QueryClientProvider is not inherited: the shared client stays", () => {
+    const foreign = new QueryClient()
+    const { client } = probe((node) => (
+      <QueryClientProvider client={foreign}>
+        <AppQueryProvider>{node}</AppQueryProvider>
+      </QueryClientProvider>
+    ))
+    expect(client).toBe(queryClient)
   })
 })
 

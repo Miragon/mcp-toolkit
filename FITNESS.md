@@ -177,7 +177,9 @@ turning red".
   reviewed, not gated.
 - **DOM/interaction tests (jsdom/@testing-library)** — SSR via
   `renderToStaticMarkup` is the house path; the render-coverage ratchet is the
-  compensating control. Revisit when the builder API is declared stable.
+  compensating control. Revisit when the builder API is declared stable. The
+  one exception is effect-running wiring tests (happy-dom per file,
+  `src/render-effects.tsx`), see CLAUDE.md's testing policy.
 - **Browser E2E against ChatGPT/mcp-use hosts** — host UIs are external; wire
   goldens + host-bridge unit tests are the boundary.
 - **LLM evals of tool-description steering** — deliberately not pursued

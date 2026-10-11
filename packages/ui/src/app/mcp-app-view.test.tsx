@@ -1,8 +1,10 @@
 import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
+import { QueryClient, useQueryClient } from "@tanstack/react-query"
 import { ToolCancelledError, ToolError } from "mcp-use/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useToolQueryKey } from "../hooks/use-tool-query.js"
+import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import type {
   ToolResultRecoveryOptions,
   ToolResultRecoveryState,
@@ -254,6 +256,19 @@ describe("McpAppView lifecycle wiring (toolkit#176)", () => {
     expect(render().view).not.toContain('data-slot="view-data-as-of"')
   })
 
+  it("the stamp's time speaks the language of its words, not the host's other one", () => {
+    const recoveredAt = Date.UTC(2026, 9, 11, 14, 32)
+    host.recovery = { data: VIEW, failed: false, blocked: null, recoveredAt, args: {} }
+    // A German profile (LocaleProvider) on an en-US host: never "4:32 PM Uhr".
+    host.locale = "en-US"
+    const german = render((node) => <LocaleProvider locale="de">{node}</LocaleProvider>)
+    expect(decodeEntities(german.view)).toContain(">Neu geladen um 14:32 Uhr</p>")
+    // The host's region of the same language stays: en-GB keeps its 24-hour clock.
+    host.locale = "en-GB"
+    const british = render((node) => <LocaleProvider locale="en">{node}</LocaleProvider>)
+    expect(decodeEntities(british.view)).toContain(">Reloaded at 14:32</p>")
+  })
+
   it("a host cancellation shows the cancelled notice, no skeleton and no retry", () => {
     host.tool = { status: "error", error: new ToolCancelledError("user"), toolInput: {} }
     const { view } = render()
@@ -303,6 +318,36 @@ describe("McpAppView toolNameInQueryKey (toolkit#176 K18)", () => {
     host.tool = { status: "ready", toolOutput: VIEW, toolInput: {} }
     expect(keyIn({ toolNameInQueryKey: true })).toBe('["feed","feed_data",{"id":1}]')
     expect(keyIn({})).toBe('["feed",{"id":1}]')
+  })
+})
+
+describe("McpAppView query client", () => {
+  /** A widget that tells which client its data hooks use. */
+  function clientIn(wrap: (node: ReactNode) => ReactNode) {
+    const clients: QueryClient[] = []
+    function ClientProbe() {
+      clients.push(useQueryClient())
+      return null
+    }
+    renderToStaticMarkup(
+      <HostBridgeProvider bridge={bridge}>
+        {wrap(<McpAppView widgets={{ "demo:probe": ClientProbe }} />)}
+      </HostBridgeProvider>,
+    )
+    expect(clients.length, "the widget rendered").toBeGreaterThan(0)
+    return clients[0]
+  }
+
+  it("its widgets fetch through an enclosing AppQueryProvider's client", () => {
+    host.tool = { status: "ready", toolOutput: VIEW, toolInput: {} }
+    const perMount = new QueryClient()
+    expect(clientIn((node) => <AppQueryProvider client={perMount}>{node}</AppQueryProvider>)).toBe(
+      perMount,
+    )
+    expect(
+      clientIn((node) => node),
+      "else the toolkit's shared client",
+    ).toBe(queryClient)
   })
 })
 

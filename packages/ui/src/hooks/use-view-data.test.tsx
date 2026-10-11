@@ -77,6 +77,22 @@ describe("useViewData", () => {
     expect(probe(null, true, vi.fn<CallTool>(), "open", { client }).loading).toBe(true)
   })
 
+  it("a function gate that says no idles like enabled: false, never an endless skeleton", () => {
+    const client = new QueryClient()
+    const closed = probe(null, true, vi.fn<CallTool>(), "fn-closed", {
+      client,
+      enabled: () => false,
+    })
+    expect(closed).toMatchObject({ data: null, loading: false, error: null })
+    const open = probe(null, true, vi.fn<CallTool>(), "fn-open", { client, enabled: () => true })
+    expect(open.loading).toBe(true)
+    // Not ready keeps it off whatever the gate says.
+    expect(
+      probe(null, false, vi.fn<CallTool>(), "fn-not-ready", { client, enabled: () => true })
+        .loading,
+    ).toBe(false)
+  })
+
   it("passes TanStack's options through: initialData-free placeholderData shows meanwhile", () => {
     const client = new QueryClient()
     const result = probe(null, true, vi.fn<CallTool>(), "placeholder", {

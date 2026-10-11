@@ -1131,7 +1131,7 @@
           "description": "TanStack query options (retry, retryDelay, staleTime, placeholderData / keepPreviousData, initialData + initialDataUpdatedAt, enabled, select, gcTime, …) — everything but queryKey/queryFn. retry defaults to the client's; retry: shouldRetryToolCall stops retrying a tool's own isError answer."
         }
       ],
-      "whenToUse": "Self-fetch arbitrary data from a tool inside a cockpit-embedded widget. Result is decoded with parseToolResult (structured-first). Returns a TanStack UseQueryResult (data, error, refetch, failureCount, failureReason, isFetching, isPlaceholderData, …). The tool goes through AppQueryProvider's callTool, else the nearest HostBridgeProvider; with neither the query fails with a 'no tool transport' error instead of idling. Keep a list on screen while a new search loads: { placeholderData: keepPreviousData }."
+      "whenToUse": "Self-fetch arbitrary data from a tool inside a cockpit-embedded widget. Result is decoded with parseToolResult (structured-first). Returns a TanStack UseQueryResult (data, error, refetch, failureCount, failureReason, isFetching, isPlaceholderData, …). The tool goes through AppQueryProvider's callTool, else the nearest HostBridgeProvider; with neither the query fails with a 'no tool transport' error instead of idling, and fetches once a transport arrives. Keep a list on screen while a new search loads: { placeholderData: keepPreviousData }."
     },
     {
       "name": "useToolMutation",
@@ -1323,7 +1323,7 @@
           "name": "options",
           "type": "UseViewDataOptions<T>",
           "required": false,
-          "description": "TanStack query options (retry, retryDelay, staleTime, placeholderData / keepPreviousData, initialDataUpdatedAt, enabled, gcTime, …) — everything but queryKey/queryFn; enabled is an extra gate next to ready. initialDataMode: 'static' (default) or 'seed' — seed keeps the feed live over host data, so a write's invalidation, a refetch or a retry re-reads it."
+          "description": "TanStack query options (retry, retryDelay, staleTime, placeholderData / keepPreviousData, initialDataUpdatedAt, enabled, gcTime, …) — everything but queryKey/queryFn; enabled (a boolean or a function of the query) is an extra gate next to ready, and a closed gate is not loading. initialDataMode: 'static' (default) or 'seed' — seed keeps the feed live over host data, so a write's invalidation, a refetch or a retry re-reads it."
         }
       ],
       "whenToUse": "The dual-mode seam: write ONE widget that renders host-pushed data when handed it (standalone *_show_* widget) AND self-fetches when embedded in a cockpit. Returns { data, loading, error, refetch, failureCount, failureReason, isFetching, isPlaceholderData }; pass refetch as the error state's retry (<ErrorState onRetry={refetch} />). Pass { initialDataMode: 'seed' } when a standalone view must stay live after writes, { placeholderData: keepPreviousData } to keep rows on screen while new args load."
@@ -1571,7 +1571,7 @@
           "description": "The isError result as the tool returned it."
         }
       ],
-      "whenToUse": "The Error class parseToolResult throws for an isError result — a deterministic answer of the tool (validation error, engine 404), not a transport failure. The query hooks never retry it by default. Check with isToolError (also matches mcp-use's ToolError)."
+      "whenToUse": "The Error class parseToolResult throws for an isError result — a deterministic answer of the tool (validation error, engine 404), not a transport failure. The query hooks retry it like any failure by default (the client's retry); pass retry: shouldRetryToolCall to stop that. Check with isToolError (also matches mcp-use's ToolError)."
     },
     {
       "name": "isToolError",
