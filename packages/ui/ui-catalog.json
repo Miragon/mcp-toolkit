@@ -48,7 +48,7 @@
           "name": "variant",
           "type": "\"default\" | \"secondary\" | \"destructive\" | \"success\" | \"warning\" | \"info\" | \"outline\" | \"ghost\" | \"link\"",
           "required": false,
-          "description": "Visual style. Default 'default'. destructive/success/warning/info follow the tone model (tint, ink text, border in the tone)."
+          "description": "Visual style. Default 'default'. destructive/success/warning/info follow the tone model: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER)."
         },
         {
           "name": "className",
@@ -424,7 +424,7 @@
           "name": "tone",
           "type": "ToneVariant",
           "required": false,
-          "description": "Status tone driving the dot, tint and border ('neutral'|'info'|'success'|'warning'|'danger'); the label takes the tone's ink. Default 'info'."
+          "description": "Status tone driving the dot, tint and border ('neutral'|'info'|'success'|'warning'|'danger'): tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER). Default 'info'."
         },
         {
           "name": "children",
@@ -446,7 +446,7 @@
           "name": "tone",
           "type": "ToneVariant",
           "required": false,
-          "description": "Status tone driving the tint and border; the number takes the tone's ink. Default 'neutral'."
+          "description": "Status tone driving the tint and border: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER); the number never takes a tone colour. Default 'neutral'."
         },
         {
           "name": "children",
@@ -693,7 +693,7 @@
       "group": "composed",
       "parts": ["TONE_SOFT", "TONE_DOT", "TONE_TEXT", "TONE_BORDER", "TONE_ICON"],
       "props": [],
-      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings, three roles per tone (Miragon CI): the colour for fills, dots, borders and icons (TONE_DOT, TONE_BORDER, TONE_ICON), the tint (TONE_SOFT = tint + the tone's readable ink) and the TEXT colour (TONE_TEXT = the tone's -ink role). Status is never text in its own colour: success and warning ink is the foreground, so show the tone as a dot, icon or border next to the text. TONE_ICON is for SVG icons only. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, Badge, WidgetHeader) consume these internally."
+      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings, three roles per tone (Miragon CI): the colour for fills, dots, borders and icons (TONE_DOT, TONE_BORDER, TONE_ICON), the tint (TONE_SOFT = tint + foreground text, rim in the tone via TONE_BORDER; never put TONE_TEXT/-ink on a tint) and the TEXT colour for a tone's words on a plain surface (TONE_TEXT = the tone's -ink role). Status is never text in its own colour: success and warning ink is the foreground, so show the tone as a dot, icon or border next to the text; figures (counts, KPI values) stay in the foreground. TONE_ICON is for SVG icons only. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, Badge, WidgetHeader) consume these internally."
     },
     {
       "name": "ToastProvider",
@@ -992,7 +992,7 @@
           "description": "Whether the required id/key is present; fetch is disabled until ready and only when no initialData."
         }
       ],
-      "whenToUse": "The dual-mode seam: write ONE widget that renders host-pushed data when handed it (standalone *_show_* widget) AND self-fetches when embedded in a cockpit. Returns { data, loading, error }."
+      "whenToUse": "The dual-mode seam: write ONE widget that renders host-pushed data when handed it (standalone *_show_* widget) AND self-fetches when embedded in a cockpit. Returns { data, loading, error, refetch }; pass refetch as the error state's retry (<ErrorState onRetry={refetch} />)."
     },
     {
       "name": "useIsMobile",

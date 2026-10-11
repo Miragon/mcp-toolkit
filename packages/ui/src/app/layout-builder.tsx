@@ -165,6 +165,7 @@ function LayoutBuilderImpl({
     validationIssues,
     status,
     refreshError,
+    retryCatalogue,
     widgetById,
     propsSchemaByWidgetId,
     paletteByApp,
@@ -344,6 +345,7 @@ function LayoutBuilderImpl({
         catalogueToolName={catalogueToolName}
         refreshError={refreshError}
         validationIssues={validationIssues}
+        onRetry={retryCatalogue}
       />
 
       <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>

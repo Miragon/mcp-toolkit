@@ -155,6 +155,20 @@ function toolbar(over: Partial<ViewToolbarProps> = {}, wrap = (n: ReactNode) => 
   )
 }
 
+/**
+ * CI §8 chrome button (Icon-Button, Chrome): surface, `--cd-linie` border,
+ * shadow-1, blue on hover. The outline variant carries the surface, border and
+ * hover; the shadow is the chrome's own and must render.
+ */
+function expectChromeButton(tag: string) {
+  expect(attribute(tag, "data-variant")).toBe("outline")
+  const classes = (attribute(tag, "class") ?? "").split(/\s+/)
+  expect(classes).toEqual(
+    expect.arrayContaining(["shadow-1", "border", "border-border", "bg-background"]),
+  )
+  expect(classes).toContain("hover:border-focus")
+}
+
 describe("ViewToolbar", () => {
   it("renders Refresh and Fullscreen as 32 px CI chrome icon buttons named by aria-label", () => {
     const html = toolbar()
@@ -163,8 +177,7 @@ describe("ViewToolbar", () => {
     for (const b of buttons) {
       expect(attribute(b, "data-size")).toBe("icon-sm")
       expect(attribute(b, "type")).toBe("button")
-      // CI §8 icon button: surface, border, shadow-1 (never a bare ghost glyph).
-      expect(attribute(b, "data-variant")).toBe("outline")
+      expectChromeButton(b)
     }
     // Icons are decorative (the name is on the button) and use the dense stroke.
     for (const svg of openingTags(html, "svg")) {
@@ -194,7 +207,7 @@ describe("ViewToolbar", () => {
     expect(html).toContain(`${en.build}</button>`)
     expect(html).toContain("lucide-pencil")
     const edit = openingTags(html, "button")[0] ?? ""
-    expect(attribute(edit, "data-variant")).toBe("outline")
+    expectChromeButton(edit)
   })
 
   it("titles the view once: show (configurable level), hide, or slot", () => {

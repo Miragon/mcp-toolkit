@@ -100,8 +100,12 @@ export const en: ToolkitMessages = {
     catalogueLive: "live",
     catalogueMissing: "missing",
     catalogueError: "Couldn't refresh the catalogue",
+    catalogueErrorHint:
+      "The elements and data sources shown may be out of date. Try again. If it fails again, ask in the chat.",
     validationWarning: "This view won't render as configured",
-    saveError: "Couldn't save",
+    saveError: "The dashboard couldn't be saved",
+    saveErrorHint:
+      "Your changes are still here. Try saving again in a moment. If it fails again, ask in the chat.",
     renameDuplicate: "A tab with that name already exists.",
     statsLive: "live",
     statsReachable: "available",

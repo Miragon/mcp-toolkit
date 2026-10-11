@@ -136,12 +136,16 @@ export interface BuilderMessages {
   catalogueAddProducingStep: string
   catalogueLive: string
   catalogueMissing: string
-  /** Banner shown when the catalogue fetch fails (prefixes the reason). */
+  /** Title of the error state when the catalogue fetch fails (the raw reason goes under Details). */
   catalogueError: string
+  /** What to do when the catalogue fetch fails (the state offers a retry). */
+  catalogueErrorHint: string
   /** Heading for the pipeline-validation warning banner. */
   validationWarning: string
-  /** Inline message when a save fails (prefixes the reason). */
+  /** Title of the save dialog's error state when a save fails (the raw reason goes under Details). */
   saveError: string
+  /** What to do when a save fails (the dialog's Save button is the retry). */
+  saveErrorHint: string
   /** Inline message when a tab rename is rejected (duplicate label). */
   renameDuplicate: string
   /** Toolbar stat: keys present in the live context. */

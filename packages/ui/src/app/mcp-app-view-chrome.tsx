@@ -178,6 +178,14 @@ export function toolbarControls(input: {
   }
 }
 
+/**
+ * The CI §8 chrome button (Icon-Button, Chrome): surface, `--cd-linie` border,
+ * shadow-1, blue on hover. The `outline` variant brings the surface, the
+ * border and the blue hover (it is also CI §8's secondary button, which has no
+ * shadow), so the chrome adds `shadow-1` on top instead of changing it.
+ */
+const CHROME_BUTTON = { variant: "outline", className: "shadow-1" } as const
+
 function RefreshButton({
   isRefreshing,
   labels,
@@ -191,7 +199,7 @@ function RefreshButton({
   return (
     <Button
       type="button"
-      variant="outline"
+      {...CHROME_BUTTON}
       size="icon-sm"
       aria-label={label}
       title={label}
@@ -222,7 +230,7 @@ function FullscreenButton({
   return (
     <Button
       type="button"
-      variant="outline"
+      {...CHROME_BUTTON}
       size="icon-sm"
       aria-label={label}
       title={label}
@@ -240,9 +248,9 @@ function FullscreenButton({
  * renders its own heading is not titled twice), then Edit, Refresh and
  * Fullscreen. Refresh and Fullscreen are 32 px icon buttons named by
  * `aria-label`; Fullscreen renders only when the host offers it. All three are
- * chrome buttons in the CI pattern (CI §8: surface, border, shadow-1; the
- * `outline` variant). A 16 px inset keeps the bar off the frame edge, also in
- * fullscreen.
+ * chrome buttons in the CI pattern (CI §8: surface, border, shadow-1, blue
+ * hover; {@link CHROME_BUTTON}). A 16 px inset keeps the bar off the frame
+ * edge, also in fullscreen.
  */
 export function ViewToolbar({
   hidden,
@@ -272,7 +280,7 @@ export function ViewToolbar({
         />
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {show.edit && (
-            <Button type="button" variant="outline" size="sm" onClick={onEnterBuildMode}>
+            <Button type="button" {...CHROME_BUTTON} size="sm" onClick={onEnterBuildMode}>
               <Pencil aria-hidden="true" />
               {labels.build}
             </Button>

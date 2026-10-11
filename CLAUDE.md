@@ -82,7 +82,9 @@ no ink on a tint, no translucent text, no `outline-none`, a lifted surface switc
 text), `packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast),
 `components/tone-figures.test.tsx` (no coloured digits), `components/feedback-states.test.tsx`
 (the tone model of Toast, ErrorState, EmptyState), `lib/icon-stroke.test.ts` (one stroke
-mechanism), `no-hardcoded-copy.test.ts` + `i18n-coverage.test.tsx` (no copy outside the catalog).
+mechanism), `no-hardcoded-copy.test.ts` + `i18n-coverage.test.tsx` (no copy outside the catalog;
+no raw error in a toast, an ErrorState/EmptyState title or description, or an inline alert: the
+raw reason goes under the ErrorState's Details).
 `.miragon/brand.json` switches the brand-lint hook on for this repo.
 
 ## Module boundaries

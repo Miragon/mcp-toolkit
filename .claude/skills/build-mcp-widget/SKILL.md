@@ -106,6 +106,7 @@ front of a widget:
 host-pushed `data` when handed it and self-fetches otherwise, via `useViewData`:
 
 ```tsx
+import { ErrorState, Skeleton, useTranslate } from "@miragon/mcp-toolkit-ui"
 import { useViewData } from "@miragon/mcp-toolkit-ui/hooks"
 
 function IncidentPanel({
@@ -115,7 +116,8 @@ function IncidentPanel({
   data: Incident | null
   processKey?: string
 }) {
-  const { data, loading, error } = useViewData(
+  const t = useTranslate() // the widget's own catalog (LocaleProvider), en + de
+  const { data, loading, error, refetch } = useViewData(
     pushed, // host-pushed data (verbatim if present)
     ["incident", processKey], // cache key (siblings dedupe)
     "camunda7_incident_data", // tool to fetch when no pushed data
@@ -123,7 +125,10 @@ function IncidentPanel({
     Boolean(processKey), // ready: only fetch when the key is present
   )
   if (loading) return <Skeleton className="h-24 w-full" />
-  if (error) return <ErrorState title="Incident couldn't be loaded" details={error.message} />
+  if (error) {
+    // What happened in catalog words, the raw reason under "Details", a retry.
+    return <ErrorState title={t("incident.loadFailed")} details={error.message} onRetry={refetch} />
+  }
   // … render from data
 }
 ```

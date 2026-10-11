@@ -1,3 +1,4 @@
+import { useCallback } from "react"
 import { useToolQuery } from "./use-tool-query.js"
 
 export interface ViewDataResult<T> {
@@ -5,6 +6,12 @@ export interface ViewDataResult<T> {
   /** True while self-fetching with no data yet — the first paint of a cockpit cell. */
   loading: boolean
   error: Error | null
+  /**
+   * Fetch `tool` again: the retry of an error state
+   * (`<ErrorState onRetry={refetch} … />`). Host-pushed data, when present,
+   * stays what `data` returns.
+   */
+  refetch: () => void
 }
 
 /**
@@ -27,5 +34,9 @@ export function useViewData<T>(
 ): ViewDataResult<T> {
   const query = useToolQuery<T>([...key], tool, args, { enabled: !initialData && ready })
   const data = initialData ?? query.data ?? null
-  return { data, loading: !data && ready && !query.isError, error: query.error ?? null }
+  const { refetch: refetchQuery } = query
+  const refetch = useCallback(() => {
+    void refetchQuery()
+  }, [refetchQuery])
+  return { data, loading: !data && ready && !query.isError, error: query.error ?? null, refetch }
 }

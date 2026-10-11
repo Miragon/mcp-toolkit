@@ -102,8 +102,12 @@ export const de: ToolkitMessages = {
     catalogueLive: "vorhanden",
     catalogueMissing: "fehlt",
     catalogueError: "Der Katalog ließ sich nicht aktualisieren",
+    catalogueErrorHint:
+      "Die angezeigten Elemente und Datenquellen sind vielleicht nicht aktuell. Versuch es noch mal. Klappt es wieder nicht, frag im Chat nach.",
     validationWarning: "So lässt sich die Ansicht nicht darstellen",
-    saveError: "Speichern hat nicht geklappt",
+    saveError: "Das Dashboard ließ sich nicht speichern",
+    saveErrorHint:
+      "Deine Änderungen sind noch da. Versuch gleich noch mal zu speichern. Klappt es wieder nicht, frag im Chat nach.",
     renameDuplicate: "Einen Tab mit diesem Namen gibt es schon.",
     statsLive: "vorhanden",
     statsReachable: "verfügbar",

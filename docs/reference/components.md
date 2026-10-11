@@ -518,9 +518,11 @@ multi-step → keyed by step id) — the envelope-aware sibling of `useToolQuery
 ### useViewData
 
 `useViewData(initialData, key, tool, args, ready)` — **`/hooks` import**.
-Returns `{ data, loading, error }`.
+Returns `{ data, loading, error, refetch }`; `refetch` is the retry of the
+error state.
 
 ```tsx
+import { ErrorState, useTranslate } from "@miragon/mcp-toolkit-ui"
 import { useViewData } from "@miragon/mcp-toolkit-ui/hooks"
 
 function IncidentPanel({
@@ -530,13 +532,17 @@ function IncidentPanel({
   data: Incident | null
   processKey?: string
 }) {
-  const { data, loading } = useViewData(
+  const t = useTranslate()
+  const { data, loading, error, refetch } = useViewData(
     pushed,
     ["incident", processKey],
     "camunda7_incident_data",
     { processKey },
     Boolean(processKey),
   )
+  if (error) {
+    return <ErrorState title={t("incident.loadFailed")} details={error.message} onRetry={refetch} />
+  }
   // …
 }
 ```

@@ -7,6 +7,10 @@ import type { LayoutBuilderLabels } from "./labels.js"
 // Empty hint — shown on the Layout view before any widget is reachable
 // -------------------------------------------------------------------------- //
 
+/**
+ * The builder's empty state. Its one next step (open the data sources) is the
+ * blue primary button: CI §9 "Leer: Empty-State-Karte mit blauem CTA".
+ */
 export function EmptyHint({
   L,
   onGotoPipeline,
@@ -21,7 +25,7 @@ export function EmptyHint({
       title={L.emptyHintTitle}
       description={L.emptyHintBody}
       action={
-        <Button variant="outline" size="sm" onClick={onGotoPipeline}>
+        <Button size="sm" onClick={onGotoPipeline}>
           <SlidersHorizontal aria-hidden="true" /> {L.openDataSources}
         </Button>
       }
