@@ -11,6 +11,8 @@ import {
 } from "react"
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X, type LucideIcon } from "lucide-react"
 import { useToolkitMessages } from "../locale/locale-provider.js"
+import { FOCUS_RING } from "../lib/focus-ring.js"
+import { TONE_ICON } from "../lib/tone-utils.js"
 import { cn } from "../lib/utils.js"
 import {
   createToast,
@@ -45,20 +47,28 @@ export function useToast(): ToastApi {
   return useContext(ToastContext) ?? NOOP_TOASTS
 }
 
-/** Status edge per tone — the status colour as border, never as text. */
+/**
+ * Status edge per tone — the status colour as border, never as text. Repeated
+ * under `dark:` so the card's dark 3:1 rim (`dark:border-input`, a later rule)
+ * does not paint over it.
+ */
 const TONE_EDGE: Record<ToastTone, string> = {
-  success: "border-l-success",
-  warning: "border-l-warning",
-  danger: "border-l-danger",
-  info: "border-l-info",
+  success: "border-l-success dark:border-l-success",
+  warning: "border-l-warning dark:border-l-warning",
+  danger: "border-l-danger dark:border-l-danger",
+  info: "border-l-info dark:border-l-info",
 }
 
-/** Icon per tone, in the tone's ink so it stays legible on the card (≥ 3:1). */
-const TONE_ICON: Record<ToastTone, { Icon: LucideIcon; className: string }> = {
-  success: { Icon: CircleCheck, className: "text-(color:--success-ink)" },
-  warning: { Icon: TriangleAlert, className: "text-(color:--warning-ink)" },
-  danger: { Icon: CircleAlert, className: "text-(color:--danger-ink)" },
-  info: { Icon: Info, className: "text-(color:--info-ink)" },
+/**
+ * Lucide icon per tone, drawn in the tone colour (`TONE_ICON`, CI §3.3: status
+ * as edge and icon). The title next to it carries the message, so success and
+ * warning stay CI-exempt from 3:1 on light like every other status icon.
+ */
+const TOAST_ICON: Record<ToastTone, LucideIcon> = {
+  success: CircleCheck,
+  warning: TriangleAlert,
+  danger: CircleAlert,
+  info: Info,
 }
 
 /**
@@ -111,7 +121,7 @@ function ToastCard({
     const timer = setTimeout(() => onDismiss(toast.id), toast.duration)
     return () => clearTimeout(timer)
   }, [held, onDismiss, toast.id, toast.duration])
-  const { Icon, className: iconClass } = TONE_ICON[toast.tone]
+  const Icon = TOAST_ICON[toast.tone]
   return (
     <div
       data-slot="toast"
@@ -121,12 +131,14 @@ function ToastCard({
       onFocus={() => setHeld(true)}
       onBlur={() => setHeld(false)}
       className={cn(
-        "bg-popover text-popover-foreground pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border border-l-4 px-4 py-3 text-sm shadow-(--shadow-2)",
+        // An overlay like Dialog/Sheet: shadow-2 on light, the 3:1 input rim on
+        // dark (shadows vanish on the ground).
+        "bg-popover text-popover-foreground dark:border-input shadow-2 pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border border-l-4 px-4 py-3 text-sm",
         "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-(--motion-base) motion-safe:ease-(--ease)",
         TONE_EDGE[toast.tone],
       )}
     >
-      <Icon aria-hidden="true" className={cn("mt-0.5 size-4 shrink-0", iconClass)} />
+      <Icon aria-hidden="true" className={cn("mt-0.5 size-4 shrink-0", TONE_ICON[toast.tone])} />
       <div className="min-w-0 flex-1">
         <p className="font-medium break-words">{toast.title}</p>
         {toast.description && (
@@ -137,7 +149,7 @@ function ToastCard({
         type="button"
         aria-label={dismissLabel}
         onClick={() => onDismiss(toast.id)}
-        className="text-muted-foreground hover:text-foreground -mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus)"
+        className={`text-muted-foreground hover:text-foreground -mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-sm ${FOCUS_RING}`}
       >
         <X aria-hidden="true" className="size-4" />
       </button>

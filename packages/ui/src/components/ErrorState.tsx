@@ -2,6 +2,8 @@ import type { ReactNode } from "react"
 import { CircleAlert, Info, RefreshCw, TriangleAlert, type LucideIcon } from "lucide-react"
 import { useToolkitMessages } from "../locale/locale-provider.js"
 import { Button } from "../primitives/button.js"
+import { FOCUS_RING } from "../lib/focus-ring.js"
+import { TONE_BORDER, TONE_ICON, TONE_SOFT } from "../lib/tone-utils.js"
 import { cn } from "../lib/utils.js"
 import type { StateHeadingLevel } from "./EmptyState.js"
 
@@ -46,23 +48,10 @@ export interface ErrorStateProps {
   className?: string
 }
 
-const TONE_ICON: Record<ErrorStateTone, LucideIcon> = {
+const STATE_ICON: Record<ErrorStateTone, LucideIcon> = {
   danger: CircleAlert,
   warning: TriangleAlert,
   info: Info,
-}
-
-/** The status colour as edge + tint; the text stays the foreground colour (CI §3.3). */
-const TONE_BOX: Record<ErrorStateTone, string> = {
-  danger: "border-danger bg-danger-soft",
-  warning: "border-warning bg-warning-soft",
-  info: "border-info bg-info-soft",
-}
-
-const TONE_INK: Record<ErrorStateTone, string> = {
-  danger: "text-(color:--danger-ink)",
-  warning: "text-(color:--warning-ink)",
-  info: "text-(color:--info-ink)",
 }
 
 /** Per-variant geometry: `block` replaces a surface, `inline` sits above content. */
@@ -114,8 +103,11 @@ export function ErrorState({
   className,
 }: ErrorStateProps) {
   const style = VARIANT[variant]
-  const Icon = icon ?? TONE_ICON[tone]
+  const Icon = icon ?? STATE_ICON[tone]
   const Title = titleAs ?? style.defaultTitleAs
+  // The status colour as rim, tint and icon; every word on the tint is the
+  // foreground (TONE_SOFT, CI §3.3). On dark the tint is transparent and the
+  // rim carries the tone.
   return (
     <div
       data-slot="error-state"
@@ -123,13 +115,14 @@ export function ErrorState({
       data-tone={tone}
       role={role === "none" ? undefined : role}
       className={cn(
-        "text-foreground flex items-start rounded-md border",
+        "flex items-start rounded-md border",
         style.box,
-        TONE_BOX[tone],
+        TONE_SOFT[tone],
+        TONE_BORDER[tone],
         className,
       )}
     >
-      <Icon aria-hidden="true" className={cn("mt-0.5 shrink-0", style.icon, TONE_INK[tone])} />
+      <Icon aria-hidden="true" className={cn("mt-0.5 shrink-0", style.icon, TONE_ICON[tone])} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <Title className={cn("font-semibold", style.title)}>{title}</Title>
         {description && <div className="text-sm break-words">{description}</div>}
@@ -145,12 +138,16 @@ export function ErrorState({
   )
 }
 
-/** The raw reason, collapsed: a native disclosure (keyboard + screen-reader ready). */
+/**
+ * The raw reason, collapsed: a native disclosure (keyboard + screen-reader
+ * ready). It sits on the tint, so its text stays the foreground; the collapse
+ * and the small mono type keep it quieter than the title.
+ */
 function ErrorDetails({ label, children }: { label: string | undefined; children: ReactNode }) {
   const messages = useToolkitMessages()
   return (
-    <details className="text-muted-foreground text-xs">
-      <summary className="w-fit cursor-pointer rounded-sm py-0.5 select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus)">
+    <details className="text-xs">
+      <summary className={`w-fit cursor-pointer rounded-sm py-0.5 select-none ${FOCUS_RING}`}>
         {label ?? messages.common.details}
       </summary>
       <pre className="mt-1 font-mono break-words whitespace-pre-wrap">{children}</pre>

@@ -152,7 +152,9 @@ Quality rules:
   white): use the tone's ink (`TONE_TEXT`) next to a dot or icon; text on a
   tint (`TONE_SOFT`) is the foreground with the tone on the rim
   (`TONE_BORDER`); figures (counts, KPI values, trends) stay in the
-  foreground next to a `TONE_DOT`. `FOCUS_RING` on custom controls. Merge conditional classes with `cn(...)`. See
+  foreground next to a `TONE_DOT`. `FOCUS_RING` on custom controls. Icons are
+  Lucide in `currentColor` (a status icon takes `TONE_ICON`); `McpAppView` sets
+  the stroke once (2.5, 2 in dense bars), so never pass `strokeWidth` per icon. Merge conditional classes with `cn(...)`. See
   the [white-labeling guide](../../../docs/guides/white-labeling.md) and the
   playground's brand switcher.
 - **Metrics → `KpiGrid`** (a row of headline cells; set a cell `tone`/`onClick`).

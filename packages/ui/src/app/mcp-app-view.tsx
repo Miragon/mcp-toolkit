@@ -308,7 +308,7 @@ function McpAppViewShell({
   // frame is the stable focus target of a retry (`useRetryFocus`).
   if (!viewData) {
     return (
-      <div ref={frameRef} tabIndex={-1} data-slot="mcp-app-view" className="outline-none">
+      <div ref={frameRef} tabIndex={-1} data-slot="mcp-app-view" className="outline-hidden">
         <ViewPlaceholder
           lifecycle={lifecycle}
           labels={L}
@@ -320,7 +320,7 @@ function McpAppViewShell({
   }
 
   return (
-    <div ref={frameRef} tabIndex={-1} data-slot="mcp-app-view" className="outline-none">
+    <div ref={frameRef} tabIndex={-1} data-slot="mcp-app-view" className="outline-hidden">
       <main
         style={{
           // Fullscreen: the view owns the viewport and scrolls itself. Inline:

@@ -4,7 +4,9 @@ import { CircleCheck } from "lucide-react"
 import { describe, expect, it } from "vitest"
 import { LocaleProvider } from "../locale/locale-provider.js"
 import { TOOLKIT_MESSAGES } from "../locale/toolkit-messages.js"
+import { FOCUS_RING } from "../lib/focus-ring.js"
 import { createToast } from "../lib/toast-model.js"
+import { TONE_BORDER, TONE_ICON, TONE_SOFT } from "../lib/tone-utils.js"
 import { attribute, openingTags } from "../render-scan.js"
 import { EmptyState } from "./EmptyState.js"
 import { ErrorState } from "./ErrorState.js"
@@ -55,8 +57,14 @@ describe("Toast", () => {
     expect(cards[0]).toMatch(/border-l-success/)
     expect(cards[1]).toMatch(/border-l-danger/)
     for (const card of cards) expect(card).not.toMatch(/\btext-(success|danger|warning|info)\b/)
-    // Icons are decorative; the text carries the message.
-    for (const svg of openingTags(html, "svg")) expect(attribute(svg, "aria-hidden")).toBe("true")
+    // The edge survives the dark 3:1 rim (a later dark: rule would paint over it).
+    expect(cards[0]).toMatch(/dark:border-input/)
+    expect(cards[0]).toMatch(/dark:border-l-success/)
+    // Icons are decorative and drawn in the tone colour; the text carries the message.
+    const svgs = openingTags(html, "svg")
+    for (const svg of svgs) expect(attribute(svg, "aria-hidden")).toBe("true")
+    expect(attribute(svgs[0] ?? "", "class")).toContain(TONE_ICON.success)
+    expect(attribute(svgs[2] ?? "", "class")).toContain(TONE_ICON.danger)
     expect(html).toContain("Job retried.")
     expect(html).toContain("Engine down (503)")
   })
@@ -68,6 +76,7 @@ describe("Toast", () => {
     for (const b of buttons) {
       expect(attribute(b, "type")).toBe("button")
       expect(attribute(b, "aria-label")).toBe(de.common.dismiss)
+      expect(attribute(b, "class")).toContain(FOCUS_RING)
     }
     expectNoFocusTheft(html)
   })
@@ -109,7 +118,9 @@ describe("EmptyState", () => {
     expect(html).not.toMatch(/role="(status|alert)"|aria-live/)
     expect(html).toMatch(/<h3[^>]*>Keine offenen Incidents<\/h3>/)
     const iconSlot = openingTags(html, "div").find((t) => /aria-hidden="true"/.test(t))
-    expect(iconSlot).toMatch(/success-ink/)
+    // The success tone on the icon (TONE_ICON), never on the words.
+    expect(iconSlot).toContain(TONE_ICON.success)
+    expect(html).not.toMatch(/text-success-ink/)
     expect(html).toContain("Alles erledigt.")
   })
 
@@ -175,6 +186,25 @@ describe("ErrorState", () => {
     expect(inline).toMatch(/<p[^>]*>Partial<\/p>/)
     expect(attribute(openingTags(inline, "div")[0] ?? "", "data-tone")).toBe("warning")
   })
+
+  it.each(["danger", "warning", "info"] as const)(
+    "shows the %s tone as rim, tint and icon; every word on the tint is the foreground (CI §3.3)",
+    (tone) => {
+      const html = renderToStaticMarkup(
+        <ErrorState title="x" description="what to do" details="raw" tone={tone} onRetry={noop} />,
+      )
+      const rootClass = attribute(openingTags(html, "div")[0] ?? "", "class") ?? ""
+      expect(rootClass).toContain(TONE_SOFT[tone])
+      expect(rootClass).toContain(TONE_BORDER[tone])
+      expect(attribute(openingTags(html, "svg")[0] ?? "", "class")).toContain(TONE_ICON[tone])
+      // No quiet text, no ink and no status colour as text anywhere on the tint
+      // (the icons, which carry the tone colour, set aside).
+      const words = html.replace(/<svg[\s\S]*?<\/svg>/g, "")
+      expect(words).not.toMatch(/text-muted-foreground|text-\w+-ink|text-(danger|warning|info)\b/)
+      // The disclosure is a kit control: the kit's opaque focus ring.
+      expect(attribute(openingTags(html, "summary")[0] ?? "", "class")).toContain(FOCUS_RING)
+    },
+  )
 
   it("has no retry without onRetry, and takes custom labels", () => {
     expect(renderToStaticMarkup(<ErrorState title="x" />)).not.toContain("<button")

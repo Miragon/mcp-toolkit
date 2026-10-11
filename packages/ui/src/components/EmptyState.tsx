@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { TONE_ICON } from "../lib/tone-utils.js"
 import { cn } from "../lib/utils.js"
 
 /** Heading element for an empty/error state title (the surface decides the outline level). */
@@ -28,9 +29,10 @@ export interface EmptyStateProps {
   className?: string
 }
 
+/** The icon slot in the tone's icon colour (`TONE_ICON`): quiet, or the success tone. */
 const ICON_TONE: Record<NonNullable<EmptyStateProps["tone"]>, string> = {
-  neutral: "text-muted-foreground",
-  success: "text-(color:--success-ink)",
+  neutral: TONE_ICON.neutral,
+  success: TONE_ICON.success,
 }
 
 /**

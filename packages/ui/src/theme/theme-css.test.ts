@@ -428,6 +428,18 @@ const NON_TEXT_PAIRS: [string, string, string][] = [
  */
 const LIGHT_EXEMPT_STATUS = ["--success", "--warning"]
 
+/**
+ * Where a status colour renders as a dot, border or icon (non-text, 3:1), per
+ * tone: the page (KpiGrid dot, EmptyState icon, Pills), an overlay card (the
+ * Toast's left edge and icon) and the tone's own tint (the ErrorState's rim and
+ * icon, the builder banners). Same CI exemption as above on light.
+ */
+const STATUS_SURFACES = (tone: (typeof TONES)[number]): [string, string][] => [
+  ["--background", "dot, border or icon on the page"],
+  ["--popover", "Toast edge and icon"],
+  [`--${tone}-soft`, "ErrorState rim and icon on its own tint"],
+]
+
 describe.each(MODES)("contrast in %s mode (computed from the vendored tokens)", (mode) => {
   it.each(TEXT_PAIRS)("text %s on %s ≥ 4.5:1 — %s", (fg, bg) => {
     expect(ratio(fg, bg, mode)).toBeGreaterThanOrEqual(4.5)
@@ -445,18 +457,23 @@ describe.each(MODES)("contrast in %s mode (computed from the vendored tokens)", 
     expect(ratio(fg, bg, mode)).toBeGreaterThanOrEqual(3)
   })
 
-  it.each(TONES.map((t) => `--${t}`))(
-    "status colour %s as a dot/border/icon on the page ≥ 3:1 unless CI-exempt on light",
-    (name) => {
-      const r = ratio(name, "--background", mode)
-      if (mode === "light" && LIGHT_EXEMPT_STATUS.includes(name)) {
-        // Still exempt? If the CI ever lifts it to 3:1, drop the exemption.
-        expect(r).toBeLessThan(3)
-      } else {
-        expect(r).toBeGreaterThanOrEqual(3)
-      }
-    },
-  )
+  it.each(
+    TONES.flatMap((tone) =>
+      STATUS_SURFACES(tone).map(([bg, where]): [string, string, string] => [
+        `--${tone}`,
+        bg,
+        where,
+      ]),
+    ),
+  )("status colour %s on %s ≥ 3:1 unless CI-exempt on light — %s", (name, bg) => {
+    const r = ratio(name, bg, mode)
+    if (mode === "light" && LIGHT_EXEMPT_STATUS.includes(name)) {
+      // Still exempt? If the CI ever lifts it to 3:1, drop the exemption.
+      expect(r).toBeLessThan(3)
+    } else {
+      expect(r).toBeGreaterThanOrEqual(3)
+    }
+  })
 })
 
 // The presets are customer-brand demos: their oklch values are data here.

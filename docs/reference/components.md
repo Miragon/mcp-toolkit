@@ -385,7 +385,9 @@ import { ErrorState } from "@miragon/mcp-toolkit-ui"
 
 **When to use:** a failed fetch or render. Say what happened and what you can
 do; keep the raw exception under Details. `inline` is the alert above content
-that still renders.
+that still renders. The tone shows as rim, tint and icon (`TONE_BORDER`,
+`TONE_SOFT`, `TONE_ICON`); every word, Details included, stays in the
+foreground.
 
 ### GridLayout / GridItem
 

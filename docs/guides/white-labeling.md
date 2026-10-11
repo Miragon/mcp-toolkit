@@ -208,6 +208,15 @@ import { adoptHostFontVariables } from "@miragon/mcp-toolkit-ui"
 adoptHostFontVariables(document.documentElement.style, hostContext.styles?.variables)
 ```
 
+## Icons
+
+The kit's Lucide icons draw in `currentColor`, so they follow the roles: a
+status icon takes the tone colour (`TONE_ICON`), never a fixed hue. The stroke
+is not a role: `McpAppView` sets it once through `LucideProvider` (2.5, and 2 in
+dense bars such as the view toolbar), so a brand sets no `stroke-width` in CSS.
+Your own `lucide-react` icons follow it when your bundler dedupes
+`lucide-react` with the toolkit's copy.
+
 ## See it live
 
 The [widget playground](./developing-widgets-in-isolation.md) has a brand +
