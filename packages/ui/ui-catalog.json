@@ -841,6 +841,12 @@
           "description": "Override strings of the active catalog's listFooter section."
         },
         {
+          "name": "announce",
+          "type": "boolean",
+          "required": false,
+          "description": "Make the count line a polite live region (role=status). Default true; false only where the caller announces the count in a live region of its own."
+        },
+        {
           "name": "className",
           "type": "string",
           "required": false,

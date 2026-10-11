@@ -30,6 +30,12 @@ export interface ListFooterProps {
   stale?: boolean
   /** Override strings of the active catalog's `listFooter` section. */
   labels?: Partial<ListFooterMessages>
+  /**
+   * Make the count line a polite live region (`role="status"`). Default
+   * `true`. Set `false` only where the caller already announces the count in
+   * a live region of its own, so a screen reader hears it once.
+   */
+  announce?: boolean
   className?: string
 }
 
@@ -54,6 +60,7 @@ export function ListFooter({
   refreshing = false,
   stale = false,
   labels,
+  announce = true,
   className,
 }: ListFooterProps) {
   const locale = useToolkitLocale()
@@ -68,7 +75,11 @@ export function ListFooter({
         className,
       )}
     >
-      <p role="status" className="flex flex-wrap items-center gap-x-2">
+      <p
+        role={announce ? "status" : undefined}
+        data-slot="list-footer-status"
+        className="flex flex-wrap items-center gap-x-2"
+      >
         {counted && (
           <span>
             {listFooter.showing({

@@ -56,6 +56,13 @@ describe("ListFooter: an honest count in a polite live region", () => {
     expect(statusText(render({ total: 0, refreshing: true }))).toBe("Updating…")
   })
 
+  it("leaves the announcing to a caller that owns a live region (announce={false})", () => {
+    const html = render({ announce: false, refreshing: true })
+    expect(html).not.toContain('role="status"')
+    expect(html).toMatch(/<p data-slot="list-footer-status"[^>]*>.*Showing 8 of 42 tasks/)
+    expect(html).toContain("Updating…")
+  })
+
   it("disables Load more while a page is in flight, and takes label overrides", () => {
     const html = render({ loadingMore: true, labels: { loadingMore: "Fetching…" } })
     const [button] = openingTags(html, "button")
