@@ -125,47 +125,48 @@ function sizeBelowFloor(line: string): string | undefined {
 }
 
 /**
- * Files that still break a rule here, by rule — the builder awaits its own
- * UX pass (palette, pipeline strip, catalogue sheet, props sheet: package T4
- * builder). SHRINK-ONLY: fix a file and remove its rule; a stale entry (the
- * file is clean of that rule, or gone) fails below.
+ * Files that still break a rule here, by rule — the builder's UX pass (T4
+ * builder) took out the typed glyphs but predates the 13 px floor, so its
+ * files keep 12 px text until a type pass. SHRINK-ONLY: fix a file and
+ * remove its rule; a stale entry (the file is clean of that rule, or gone)
+ * fails below.
  */
 const RULE_EXEMPTIONS: Record<string, { rules: string[]; reason: string }> = {
   "packages/ui/src/app/builder/BuilderBanners.tsx": {
     rules: ["text-below-floor"],
-    reason: "builder UX pass pending (T4 builder)",
+    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
   },
   "packages/ui/src/app/builder/CanvasRow.tsx": {
     rules: ["text-below-floor"],
-    reason: "builder UX pass pending (T4 builder)",
+    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
   },
   "packages/ui/src/app/builder/CatalogueSheet.tsx": {
-    rules: ["text-below-floor", "icon-glyph"],
-    reason: "builder UX pass pending (T4 builder): 10 px ids, ← → as input/output arrows",
+    rules: ["text-below-floor"],
+    reason: "13 px floor pending (the T4 builder pass kept 12 px): 12 px ids and step contracts",
   },
   "packages/ui/src/app/builder/LayoutSurface.tsx": {
     rules: ["text-below-floor"],
-    reason: "builder UX pass pending (T4 builder)",
+    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
   },
   "packages/ui/src/app/builder/PipelineStrip.tsx": {
-    rules: ["text-below-floor", "icon-glyph"],
-    reason: "builder UX pass pending (T4 builder): 10–11 px step chips, ← → as input/output arrows",
+    rules: ["text-below-floor"],
+    reason: "13 px floor pending (the T4 builder pass kept 12 px): 12 px step chips",
   },
   "packages/ui/src/app/builder/Toolbar.tsx": {
     rules: ["text-below-floor"],
-    reason: "builder UX pass pending (T4 builder)",
+    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
   },
   "packages/ui/src/app/builder/Workspace.tsx": {
-    rules: ["text-below-floor", "icon-glyph"],
-    reason: "builder UX pass pending (T4 builder): 10 px palette ids, ← as the requires arrow",
+    rules: ["text-below-floor"],
+    reason: "13 px floor pending (the T4 builder pass kept 12 px): 12 px palette ids and hints",
   },
   "packages/ui/src/app/layout-builder.tsx": {
     rules: ["text-below-floor"],
-    reason: "builder UX pass pending (T4 builder)",
+    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
   },
   "packages/ui/src/app/widget-props-sheet.tsx": {
     rules: ["text-below-floor"],
-    reason: "builder UX pass pending (T4 builder): the props sheet speaks prop names",
+    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
   },
 }
 /** A surface utility (with its variant prefix) whose text must switch with it. */
