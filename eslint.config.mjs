@@ -165,7 +165,12 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["*.config.*s", "packages/*/*.config.*s", "docs/.vitepress/*.ts"],
+          allowDefaultProject: [
+            "*.config.*s",
+            "packages/*/*.config.*s",
+            "docs/.vitepress/*.ts",
+            "docs/.vitepress/theme/*.ts",
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },

@@ -24,6 +24,14 @@ recorded in Miragon/miragon-ai's CLAUDE.md; don't undo them here):
   `--cd-blau-hell`, status in the `-hell` values without tinted fills, quiet text
   `--cd-kontur`. No in-app theme switch. Diagram paper and its zoom chrome stay light
   (`data-theme-mode="light"` marks such an island).
+- **The docs site and the starter wear it too.** The docs (`docs/.vitepress/theme/`) are
+  "Miragon MCP Toolkit" (the npm names stay `@miragon/mcp-toolkit-*`): the same vendored
+  token file, `custom.css` mapping VitePress' variables onto `--cd-*` (light on white, dark
+  and the always-dark landing by the dark-ground rules, focus ring `--cd-blau-link` /
+  `--cd-blau-hell`), Geist via @fontsource, the CI's wordmarks and the Komet favicon
+  unchanged; `examples/test/docs-theme.test.ts` holds the copies and every pair at AA.
+  The starter (`templates/minimal-server`) loads Geist by default and keeps its words in
+  an en/de catalog; its README shows the role override.
 - **UI texts follow the host locale (en/de).** German follows `brand-tone` fully; English
   takes the transferable rules (sentence case, active voice, no em-dash connectors).
 - **Fonts:** the tokens name Geist / Geist Mono first; loading them is opt-in
@@ -114,7 +122,8 @@ vocabulary and its aliases), `components/{KpiGrid,FilterBar,ListFooter,PagedList
 Pills,WidgetHeader}.test.tsx` (the lifted kit's a11y on SSR markup), `lib/icon-stroke.test.ts`
 (one stroke mechanism), `no-hardcoded-copy.test.ts` + `i18n-coverage.test.tsx` (no copy outside the catalog;
 no raw error in a toast, an ErrorState/EmptyState title or description, or an inline alert: the
-raw reason goes under the ErrorState's Details).
+raw reason goes under the ErrorState's Details), `examples/test/docs-theme.test.ts` (the docs
+site's vendored tokens and logos, its mapping's colour discipline and contrast in every page state).
 `.miragon/brand.json` switches the brand-lint hook on for this repo.
 
 **One kit (miragon-ai forks).** The kit now carries what miragon-ai's
