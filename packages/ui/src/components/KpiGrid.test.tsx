@@ -14,6 +14,21 @@ import { KpiGrid, KpiGridSkeleton, kpiColumns } from "./KpiGrid.js"
 const noop = (): void => {}
 const classOf = (tag: string | undefined) => attribute(tag ?? "", "class") ?? ""
 
+/**
+ * The strip's clipping frame, its grid and its cells (the grid's direct
+ * children: plain boxes, or buttons when clickable), read off the markup.
+ */
+function strip(html: string) {
+  const start = html.indexOf('data-slot="kpi-strip"')
+  const tags = html.slice(start).match(/<(?:div|button)(?=[\s>])[^>]*>/g) ?? []
+  const [grid, ...rest] = tags
+  const frame = openingTags(html, "div").find((t) => /data-slot="kpi-strip"/.test(t))
+  return { frame, grid, cells: rest.filter((t) => /\bborder-r border-b\b/.test(t)) }
+}
+
+const kpis = (count: number) =>
+  Array.from({ length: count }, (_, idx) => ({ label: `KPI ${idx + 1}`, value: idx }))
+
 describe("kpiColumns: responsive columns, clamped to 1–6", () => {
   it("falls back to 2 columns in narrow frames from 4 cells on", () => {
     expect(kpiColumns(1)).toBe("grid-cols-1")
@@ -60,14 +75,45 @@ describe("KpiGrid strip: neutral figures, the state beside them", () => {
   })
 
   it("flows 4 cells responsively with wrap-safe dividers", () => {
-    const grid = openingTags(html, "div").find((t) => /bg-border grid gap-px/.test(t))
+    const { frame, grid, cells } = strip(html)
     expect(classOf(grid)).toContain("grid-cols-2 sm:grid-cols-4")
-    expect(classOf(grid)).toContain("border-y")
+    expect(classOf(frame)).toContain("border-y")
+    expect(cells).toHaveLength(4)
   })
 
   it("renders no text below the 13 px floor", () => {
     expect(html).not.toMatch(/text-xs|text-\[\d+px\]|uppercase/)
     expect(html).toContain("text-small")
+  })
+})
+
+describe("KpiGrid strip: an incomplete last row keeps the card colour", () => {
+  // 5 cells in 2 columns (a narrow inline frame) and 7 in 6 (lg) leave empty
+  // tracks. Whatever shows through them is the frame's background, so the
+  // dividers belong on the cells and the frame is the card.
+  it.each([5, 7])("%i cells: dividers on every cell, nothing paints in the divider colour", (n) => {
+    const html = renderToStaticMarkup(<KpiGrid cells={kpis(n)} />)
+    const { frame, grid, cells } = strip(html)
+    expect(classOf(grid)).toContain(kpiColumns(n))
+    expect(classOf(frame)).toContain("bg-card")
+    // The grid reaches 1 px past the clipping frame: the outer rules fall away.
+    expect(classOf(frame)).toContain("overflow-hidden")
+    expect(classOf(grid)).toMatch(/(^| )-mr-px -mb-px grid( |$)/)
+    expect(cells).toHaveLength(n)
+    for (const cell of cells) {
+      expect(classOf(cell)).toContain("border-border")
+      expect(classOf(cell)).not.toMatch(/(^| )bg-/)
+    }
+    expect(html).not.toMatch(/\bbg-border\b|\bgap-px\b/)
+  })
+
+  it("clickable cells carry the same dividers under their hover surface", () => {
+    const html = renderToStaticMarkup(
+      <KpiGrid cells={kpis(5).map((cell) => ({ ...cell, onClick: noop }))} />,
+    )
+    const { cells } = strip(html)
+    expect(cells).toHaveLength(5)
+    for (const cell of cells) expect(classOf(cell)).toContain("hover:bg-muted")
   })
 })
 
@@ -207,8 +253,20 @@ describe("KpiGridSkeleton mirrors the grid's geometry", () => {
   it("strip: busy, one placeholder cell per KPI, the same responsive columns", () => {
     const html = renderToStaticMarkup(<KpiGridSkeleton cells={4} />)
     expect(attribute(openingTags(html, "div")[0] ?? "", "aria-busy")).toBe("true")
-    expect(openingTags(html, "div").filter((t) => /bg-card px-5 py-4/.test(t))).toHaveLength(4)
+    expect(strip(html).cells).toHaveLength(4)
     expect(html).toContain("grid-cols-2 sm:grid-cols-4")
+  })
+
+  it("strip: an incomplete last row while loading has the loaded grid's frame, grid and cells", () => {
+    const loading = strip(renderToStaticMarkup(<KpiGridSkeleton cells={5} />))
+    const loaded = strip(renderToStaticMarkup(<KpiGrid cells={kpis(5)} />))
+    expect(classOf(loading.frame)).toBe(classOf(loaded.frame))
+    expect(classOf(loading.grid)).toBe(classOf(loaded.grid))
+    expect(loading.cells.map(classOf)).toEqual(loaded.cells.map(classOf))
+    // Only the placeholder bars take the border colour, never the surface behind a track.
+    for (const tag of [loading.frame, loading.grid, ...loading.cells]) {
+      expect(classOf(tag)).not.toMatch(/\bbg-border\b/)
+    }
   })
 
   it("soft and boxed variants keep the loaded card shapes", () => {

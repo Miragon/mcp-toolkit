@@ -78,9 +78,12 @@ const TOAST_ICON: Record<ToastTone, LucideIcon> = {
  * the state). The container is ONE persistent live region
  * (`aria-live="polite"`, mounted before the first toast so that toast is
  * announced, each new toast on its own: `aria-atomic="false"`), without
- * stealing focus. It takes `role="status"` and its name only while it holds
- * toasts: an idle stack is no second "status" next to a view's own loading
- * status. Bottom centre, above dialogs (z 60), per CI §5/§8.
+ * stealing focus. Its attributes never change: a role or name that switched
+ * on with the first toast would make the browser rebuild the region in the
+ * same commit that inserts the toast, and a region created with its content
+ * already in it is not announced. So it carries no role (a generic element
+ * takes no name either): an idle stack is no second "status" next to a view's
+ * own loading status. Bottom centre, above dialogs (z 60), per CI §5/§8.
  */
 export function ToastViewport({
   toasts,
@@ -90,14 +93,11 @@ export function ToastViewport({
   onDismiss: (id: number) => void
 }) {
   const messages = useToolkitMessages()
-  const active = toasts.length > 0
   return (
     <div
       data-slot="toast-viewport"
-      role={active ? "status" : undefined}
       aria-live="polite"
       aria-atomic="false"
-      aria-label={active ? messages.common.notifications : undefined}
       className="pointer-events-none fixed inset-x-0 bottom-4 z-60 flex flex-col items-center gap-2 px-4"
     >
       {toasts.map((toast) => (
@@ -149,13 +149,14 @@ function ToastCard({
       onBlur={releaseFocus}
       className={cn(
         // An overlay like Dialog/Sheet: shadow-2 on light, the 3:1 input rim on
-        // dark (shadows vanish on the ground).
-        "bg-popover text-popover-foreground dark:border-input shadow-2 text-dense pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border border-l-4 px-4 py-3",
+        // dark (shadows vanish on the ground). Its words are running text (16 px).
+        "bg-popover text-popover-foreground dark:border-input shadow-2 text-body pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border border-l-4 px-4 py-3",
         "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-(--motion-base) motion-safe:ease-(--ease)",
         TONE_EDGE[toast.tone],
       )}
     >
-      <Icon aria-hidden="true" className={cn("mt-0.5 size-4 shrink-0", TONE_ICON[toast.tone])} />
+      {/* mt-1 centres the 16 px icon on the first 16/1.6 line. */}
+      <Icon aria-hidden="true" className={cn("mt-1 size-4 shrink-0", TONE_ICON[toast.tone])} />
       <div className="min-w-0 flex-1">
         <p className="font-medium break-words">{toast.title}</p>
         {toast.description && (

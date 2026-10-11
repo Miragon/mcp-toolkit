@@ -38,16 +38,22 @@ recorded in Miragon/miragon-ai's CLAUDE.md; don't undo them here):
   tint and icon, every word in the foreground; texts come from the en/de catalog
   (`locale/messages-{en,de}.ts`), never from a component.
 - **Type scale** (CI §4, `lib/typography.ts`): `text-title` 28/700 (page title, the CI
-  h2), `text-section` 21/600 (CI h3), `text-body` 16/400/1.6, `text-dense` 14 (dense
-  tables and controls, the documented product exception), `text-small` 13, the FLOOR.
+  h2), `text-section` 21/600 (CI h3), `text-body` 16/400/1.6 (running text: state and
+  toast descriptions), `text-dense` 14 (dense tables and controls: inputs, chips,
+  count pills, the inline alert box; the documented product exception, never running
+  text), `text-small` 13, the FLOOR (captions, one-line hints, meta rows).
   Nothing renders below 13 px: no `text-xs`, no `text-[10px]`; a caption is
   `MICRO_LABEL` (13 px semibold, normal case, never uppercase micro-labels). Merge
   classes with the kit's `cn` (it knows the scale; plain tailwind-merge drops
   `text-small` next to a text colour).
 - **ONE tone vocabulary:** `success | warning | danger | info | neutral`
   (`TONE_VARIANTS`). Retired names (`critical`, `error`, `destructive`, …) map through
-  `resolveTone` (`TONE_ALIASES`); every tone-aware prop accepts a `ToneName` and
-  resolves it. One red, one amber: no severity above `danger`. `Badge`/`Alert`
+  `resolveTone` (`TONE_ALIASES`). The props typed `ToneName` resolve it: `KpiCell`
+  `tone`/`trendTone`, `LivePill`, `StatusBadge`, `CountPill`, `WidgetHeader`
+  `iconTone`. `Toast`, `ErrorState` and `EmptyState` keep their own subset in the
+  types and, for a name that arrives untyped, resolve it at runtime with their default
+  as the fallback (never a crash); `Badge`/`Alert` variants are cva keys and take a
+  resolved tone. One red, one amber: no severity above `danger`. `Badge`/`Alert`
   `destructive` are deprecated names of `danger`; `Button`'s `destructive` is an
   action, not a tone, and stays. `TONE_TEXT` is the deprecated name of `TONE_INK`.
 
@@ -115,9 +121,13 @@ consumer change in miragon-ai after the pin bump, M6; the mapping and the behavi
 differences are in [`docs/reference/components.md`](docs/reference/components.md#replacing-a-forked-kit)):
 `kpi-grid.tsx` (→ `KpiGrid`, `KpiGridSkeleton`), `pills.tsx` (→ `LivePill`,
 `StatusBadge`, `CountPill`), `filter-bar.tsx` (→ `FilterBar`), `widget-header.tsx`
-(→ `WidgetHeader`), `paged-list-footer.tsx` (→ `PagedListFooter`) and `tone-utils.ts`
-(→ the `TONE_*` maps, `TONE_VARIANTS`, `MICRO_LABEL`). New kit pieces land HERE, not
-in a consumer's fork.
+(→ `WidgetHeader`), `paged-list-footer.tsx` (→ `PagedListFooter`), `tone-utils.ts`
+(→ the `TONE_*` maps, `TONE_VARIANTS`, `MICRO_LABEL`) and `cn.ts` (→ the kit's `cn`).
+Replace `cn.ts` FIRST: it is plain tailwind-merge, which reads a type-scale step
+(`text-title` … `text-small`) as a text colour, so merging `MICRO_LABEL` or a `text-*`
+step through it silently drops the colour or the size. Swap it for the kit's `cn`, or
+extend it with `extendTailwindMerge({ extend: { theme: { text: [...TYPE_STEPS] } } })`.
+New kit pieces land HERE, not in a consumer's fork.
 
 ## Module boundaries
 

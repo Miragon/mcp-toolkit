@@ -1,7 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
+import { MICRO_LABEL } from "../lib/typography.js"
 import { attribute, openingTags } from "../render-scan.js"
 import { StatusBadge } from "./Pills.js"
+import { SectionHeading } from "./SectionHeading.js"
 import { WidgetHeader, type WidgetHeadingLevel } from "./WidgetHeader.js"
 
 const classOf = (tag: string | undefined) => attribute(tag ?? "", "class") ?? ""
@@ -45,6 +47,11 @@ describe("WidgetHeader: one title at the level of its surface", () => {
     expect(html).toContain("Updated 14:32")
     expect(html).toContain("Refresh</button>")
     expect(html).not.toContain("size-11")
+    // The meta row is a caption at the 13 px step, not running text in the
+    // dense-table size.
+    const meta = openingTags(html, "div").find((t) => /flex-wrap items-center gap-2/.test(t))
+    expect(classOf(meta)).toMatch(/(^| )text-small( |$)/)
+    expect(html).not.toMatch(/\btext-dense\b/)
   })
 
   it("still renders the deprecated icon tile, hidden from assistive tech", () => {
@@ -57,5 +64,15 @@ describe("WidgetHeader: one title at the level of its surface", () => {
   it("merges a className onto the header", () => {
     const html = renderToStaticMarkup(<WidgetHeader title="x" className="mb-6" />)
     expect(classOf(openingTags(html, "header")[0])).toContain("mb-6")
+  })
+})
+
+describe("SectionHeading: a block label inside a widget body", () => {
+  it("is a 13 px caption (MICRO_LABEL), never in the dense-table size", () => {
+    const html = renderToStaticMarkup(<SectionHeading title="Recent" hint="3 new" />)
+    const row = classOf(openingTags(html, "div")[0])
+    expect(row).toContain(MICRO_LABEL)
+    expect(row).toContain("text-muted-foreground")
+    expect(html).not.toMatch(/\btext-dense\b/)
   })
 })

@@ -165,7 +165,9 @@ Quality rules:
   never type a glyph (→ › ✓ ×) as an icon. Text sizes come from the type
   scale (`text-title`, `text-section`, `text-body`, `text-dense`,
   `text-small`): nothing below 13 px, so no `text-xs` and no `text-[10px]`
-  (a caption is `MICRO_LABEL`). Merge conditional classes with `cn(...)`. See
+  (a caption is `MICRO_LABEL`). Running text is `text-body`; `text-dense` is
+  for dense tables and controls only. Merge conditional classes with the
+  kit's `cn(...)` (plain tailwind-merge drops a `text-*` step). See
   the [white-labeling guide](../../../docs/guides/white-labeling.md) and the
   playground's brand switcher.
 - **Metrics → `KpiGrid`** (a row of headline cells; set a cell `tone`, and

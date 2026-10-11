@@ -54,6 +54,17 @@ describe("PagedListFooter — settled and in-flight states", () => {
     expect(html).toContain("Load more</button>")
   })
 
+  it("a search that finds nothing: the live region stays and says so, nothing visible", () => {
+    const html = render(paged({ items: [], total: 0, hasMore: false }))
+    expect(statusOf(html)).toBe("No entries")
+    expect(html.match(/role="status"/g)).toHaveLength(1)
+    const footer = openingTags(html, "div").find((t) => /data-slot="list-footer"/.test(t)) ?? ""
+    expect(attribute(footer, "class")).toBe("sr-only")
+    expect(statusOf(render(paged({ items: [], total: 0, hasMore: false }), "de"))).toBe(
+      TOOLKIT_MESSAGES.de.listFooter.noResults,
+    )
+  })
+
   it("a new search in flight: a visible Updating…, no count beside the previous rows", () => {
     const html = render(paged({ stale: true, refreshing: true }))
     expect(statusOf(html)).toBe("Updating…")

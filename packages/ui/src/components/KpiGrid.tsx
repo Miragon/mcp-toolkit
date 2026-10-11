@@ -238,6 +238,17 @@ function softCardClass(tone: ToneName | undefined): string {
   return cn("text-foreground rounded-lg border p-4", TONE_TINT[t], TONE_BORDER[t])
 }
 
+/**
+ * The strip's dividers. Each cell draws its own right and bottom rule, and the
+ * grid reaches 1 px past its clipping frame, so the rules on the outer edges
+ * fall away at any column count. An empty track in a short last row (5 cells
+ * in 2 columns, 7 in 6) keeps the card colour: a `gap-px` grid on a
+ * `bg-border` container would paint it as a solid block of the divider colour.
+ */
+const STRIP_FRAME = "bg-card overflow-hidden"
+const STRIP_GRID = "-mr-px -mb-px grid"
+const STRIP_CELL = "border-border min-w-0 border-r border-b px-5 py-4"
+
 function KpiStripHeader({ header }: { header: KpiGridHeader }) {
   return (
     <div
@@ -295,17 +306,12 @@ export function KpiGrid({
       className={cn(boxed && "border-border overflow-hidden rounded-lg border", className)}
     >
       {header && <KpiStripHeader header={header} />}
-      {/* gap-px on bg-border draws the dividers between bg-card cells: right at
-          any wrap, unlike per-cell borders tied to a fixed column count. */}
-      <div className={cn("bg-border grid gap-px", colClass, !boxed && "border-border border-y")}>
-        {cells.map((cell, idx) => (
-          <KpiCellView
-            key={idx}
-            cell={cell}
-            variant="strip"
-            className="bg-card min-w-0 px-5 py-4"
-          />
-        ))}
+      <div data-slot="kpi-strip" className={cn(STRIP_FRAME, !boxed && "border-border border-y")}>
+        <div className={cn(STRIP_GRID, colClass)}>
+          {cells.map((cell, idx) => (
+            <KpiCellView key={idx} cell={cell} variant="strip" className={STRIP_CELL} />
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -351,13 +357,15 @@ export function KpiGridSkeleton({
       aria-busy="true"
       className={cn(boxed && "border-border overflow-hidden rounded-lg border", className)}
     >
-      <div className={cn("bg-border grid gap-px", colClass, !boxed && "border-border border-y")}>
-        {Array.from({ length: count }, (_, idx) => (
-          <div key={idx} className="bg-card px-5 py-4">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="mt-2.5 h-7 w-14" />
-          </div>
-        ))}
+      <div data-slot="kpi-strip" className={cn(STRIP_FRAME, !boxed && "border-border border-y")}>
+        <div className={cn(STRIP_GRID, colClass)}>
+          {Array.from({ length: count }, (_, idx) => (
+            <div key={idx} className={STRIP_CELL}>
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="mt-2.5 h-7 w-14" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

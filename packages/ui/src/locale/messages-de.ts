@@ -43,6 +43,7 @@ export const de: ToolkitMessages = {
     loadMore: "Mehr laden",
     loadingMore: "Wird geladen…",
     updating: "Wird aktualisiert…",
+    noResults: "Keine Einträge",
     refreshFailed: "Die Liste konnte nicht aktualisiert werden",
     refreshFailedHint: "Du siehst das vorherige Ergebnis. Versuch es gleich noch mal.",
     loadMoreFailed: "Weitere Einträge konnten nicht geladen werden",

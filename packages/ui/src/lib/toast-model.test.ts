@@ -3,12 +3,14 @@ import {
   createToast,
   createToastTimer,
   MAX_VISIBLE_TOASTS,
+  resolveToastTone,
   TOAST_DURATION_MS,
   TOAST_ERROR_DURATION_MS,
   toastDuration,
   toastReducer,
   type ToastClock,
   type ToastItem,
+  type ToastOptions,
 } from "./toast-model.js"
 
 const item = (id: number): ToastItem => createToast(id, { title: `t${id}` })
@@ -51,6 +53,34 @@ describe("createToast", () => {
       description: "503",
       duration: 5000,
     })
+  })
+
+  it("resolves an untyped retired tone instead of keeping a name no icon exists for", () => {
+    // Plain JS or wire data: `error` is `danger`, with the error toast's 5 s.
+    const fromWire = { tone: "error", title: "Failed" } as unknown as ToastOptions
+    expect(createToast(4, fromWire)).toMatchObject({ tone: "danger", duration: 5000 })
+    const unknown = { tone: "purple", title: "x" } as unknown as ToastOptions
+    expect(createToast(5, unknown).tone).toBe("info")
+  })
+})
+
+describe("resolveToastTone (fail-soft for an untyped tone)", () => {
+  it("keeps the four toast tones and maps a retired name through resolveTone", () => {
+    for (const tone of ["success", "warning", "danger", "info"] as const) {
+      expect(resolveToastTone(tone)).toBe(tone)
+    }
+    expect(resolveToastTone("critical")).toBe("danger")
+    expect(resolveToastTone("Warn")).toBe("warning")
+    expect(resolveToastTone("ok")).toBe("success")
+    expect(resolveToastTone("notice")).toBe("info")
+  })
+
+  it("shows neutral, unknown and missing tones as info (a toast has no neutral edge)", () => {
+    expect(resolveToastTone("neutral")).toBe("info")
+    expect(resolveToastTone("secondary")).toBe("info")
+    expect(resolveToastTone("purple")).toBe("info")
+    expect(resolveToastTone(undefined)).toBe("info")
+    expect(resolveToastTone(42)).toBe("info")
   })
 })
 

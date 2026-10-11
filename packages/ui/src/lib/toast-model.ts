@@ -4,12 +4,28 @@
  * FITNESS.md) and the component stays a thin view over them.
  */
 
+import { resolveTone } from "./tone-utils.js"
+
 /** Status tone of a toast — the four status roles (`--success` … `--info`). */
 export type ToastTone = "success" | "warning" | "danger" | "info"
 
+/**
+ * The toast tone of any tone name: the four status tones as is, a retired
+ * name through `resolveTone` (`error` → `danger`), and `neutral` or anything
+ * unknown as `info`. Keeps a toast whose tone arrives untyped (plain JS, wire
+ * data) on the screen instead of crashing the view on a missing icon.
+ */
+export function resolveToastTone(name: unknown): ToastTone {
+  const tone = resolveTone(name, "info")
+  return tone === "neutral" ? "info" : tone
+}
+
 /** What a caller passes to `useToast().show(...)`. */
 export interface ToastOptions {
-  /** Status tone; drives the edge, the icon and the default duration. Default `"info"`. */
+  /**
+   * Status tone; drives the edge, the icon and the default duration. Default
+   * `"info"`. An untyped retired name still resolves ({@link resolveToastTone}).
+   */
   tone?: ToastTone
   /** The message. Say what happened, in one short sentence ("Job retried."). */
   title: string
@@ -43,7 +59,7 @@ export function toastDuration(tone: ToastTone, explicit?: number): number {
 
 /** Normalise caller options into a list item. */
 export function createToast(id: number, options: ToastOptions): ToastItem {
-  const tone = options.tone ?? "info"
+  const tone = resolveToastTone(options.tone)
   return {
     id,
     tone,

@@ -3,7 +3,7 @@ import { CircleAlert, Info, RefreshCw, TriangleAlert, type LucideIcon } from "lu
 import { useToolkitMessages } from "../locale/locale-provider.js"
 import { Button } from "../primitives/button.js"
 import { FOCUS_RING } from "../lib/focus-ring.js"
-import { TONE_BORDER, TONE_ICON, TONE_SOFT } from "../lib/tone-utils.js"
+import { resolveTone, TONE_BORDER, TONE_ICON, TONE_SOFT } from "../lib/tone-utils.js"
 import { cn } from "../lib/utils.js"
 import type { StateHeadingLevel } from "./EmptyState.js"
 
@@ -28,7 +28,10 @@ export interface ErrorStateProps {
   retryLabel?: string
   /** Further actions after the retry button (e.g. a link to another view). */
   actions?: ReactNode
-  /** Default `"danger"`. `"warning"` for partial failures, `"info"` for notices. */
+  /**
+   * Default `"danger"`. `"warning"` for partial failures, `"info"` for
+   * notices. An untyped retired name still resolves (`error` → `danger`).
+   */
   tone?: ErrorStateTone
   /** Replace the tone's default Lucide icon. */
   icon?: LucideIcon
@@ -54,12 +57,28 @@ const STATE_ICON: Record<ErrorStateTone, LucideIcon> = {
   info: Info,
 }
 
-/** Per-variant geometry: `block` replaces a surface, `inline` sits above content. */
+/**
+ * The state's tone from whatever arrives: its three tones as is, a retired
+ * name through `resolveTone` (`error` → `danger`, `notice` → `info`), any
+ * other tone or unknown name as the default `danger`. A tone from untyped
+ * data (plain JS, the wire) never crashes the view on a missing icon.
+ */
+function stateTone(name: unknown): ErrorStateTone {
+  const tone = resolveTone(name, "danger")
+  return tone === "warning" || tone === "info" ? tone : "danger"
+}
+
+/**
+ * Per-variant geometry: `block` replaces a surface and reads as running text
+ * (16 px), `inline` is the compact alert box above content that still renders
+ * (14 px, the dense-controls exception of the type scale).
+ */
 const VARIANT = {
   block: {
     box: "gap-4 p-4",
     icon: "size-5",
     title: "text-body",
+    description: "text-body",
     defaultTitleAs: "h2",
     retry: "default",
   },
@@ -67,6 +86,7 @@ const VARIANT = {
     box: "gap-3 px-4 py-3 text-dense",
     icon: "size-4",
     title: "text-dense",
+    description: "text-dense",
     defaultTitleAs: "p",
     retry: "outline",
   },
@@ -76,6 +96,7 @@ const VARIANT = {
     box: string
     icon: string
     title: string
+    description: string
     defaultTitleAs: StateHeadingLevel
     retry: "default" | "outline"
   }
@@ -95,13 +116,14 @@ export function ErrorState({
   onRetry,
   retryLabel,
   actions,
-  tone = "danger",
+  tone: toneProp,
   icon,
   variant = "block",
   role = "alert",
   titleAs,
   className,
 }: ErrorStateProps) {
+  const tone = stateTone(toneProp)
   const style = VARIANT[variant]
   const Icon = icon ?? STATE_ICON[tone]
   const Title = titleAs ?? style.defaultTitleAs
@@ -125,7 +147,7 @@ export function ErrorState({
       <Icon aria-hidden="true" className={cn("mt-0.5 shrink-0", style.icon, TONE_ICON[tone])} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <Title className={cn("font-semibold", style.title)}>{title}</Title>
-        {description && <div className="text-dense break-words">{description}</div>}
+        {description && <div className={cn("break-words", style.description)}>{description}</div>}
         {details && <ErrorDetails label={detailsLabel}>{details}</ErrorDetails>}
         <ErrorActions
           onRetry={onRetry}

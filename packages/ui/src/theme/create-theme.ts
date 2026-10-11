@@ -140,7 +140,7 @@ export interface ThemeTokens {
   textSection?: string
   /** Running text size (16 px). Maps to `--text-body` (`text-body`). */
   textBody?: string
-  /** Dense tables and controls (14 px). Maps to `--text-dense` (`text-dense`). */
+  /** Dense tables and controls (14 px), never running text. Maps to `--text-dense` (`text-dense`). */
   textDense?: string
   /**
    * Captions, labels and hints: the smallest text the kit renders (13 px;

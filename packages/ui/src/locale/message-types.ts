@@ -14,7 +14,11 @@ export interface CommonMessages {
   details: string
   /** Accessible name of a toast's close button. */
   dismiss: string
-  /** Accessible name of the toast region. */
+  /**
+   * @deprecated No longer rendered: the toast region is a plain live region
+   * with fixed attributes and takes no name. Kept so a catalog that sets it
+   * still type-checks.
+   */
   notifications: string
   /** Title of a widget's error state when its data could not be loaded. */
   loadFailed: string
@@ -77,6 +81,11 @@ export interface ListFooterMessages {
   loadingMore: string
   /** Status while a new first page is in flight over the rows on screen. */
   updating: string
+  /**
+   * Status at zero rows, for screen readers only (the caller's empty state is
+   * what you see): a search that finds nothing is announced like any count.
+   */
+  noResults: string
   /** Title when a new first page failed and the previous rows stay on screen. */
   refreshFailed: string
   /** The line under {@link ListFooterMessages.refreshFailed}: what you see and can do. */

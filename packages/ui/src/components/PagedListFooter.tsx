@@ -60,7 +60,9 @@ function rawReason(error: Error): string {
  * current", its retry fetches the next offset). Each is an inline
  * `ErrorState` (role="alert") with the raw reason under "Details". The
  * footer's count line is a polite live region that says "Updating…" while a
- * first page is in flight and hides the count while the rows are stale.
+ * first page is in flight, hides the count while the rows are stale, and
+ * stays mounted at zero rows ("No entries", visually hidden), so a search
+ * that finds nothing is announced.
  */
 export function PagedListFooter({ paged, noun, labels, retryLabel }: PagedListFooterProps) {
   const catalog = useToolkitMessages().listFooter

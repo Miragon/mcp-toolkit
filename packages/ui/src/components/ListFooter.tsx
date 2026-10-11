@@ -45,10 +45,12 @@ export interface ListFooterProps {
  * gets the total, a reachable footer, and control over fetching. The count
  * is a polite live region (`role="status"`), so a keyboard or screen-reader
  * user hears the new total after "Load more" or a filter change; while a
- * first page is in flight it also says "Updating…". Renders nothing when
- * there is nothing to count and nothing in flight. Text and number format
- * follow the active locale (`LocaleProvider`, else the host's inside
- * `McpAppView`).
+ * first page is in flight it also says "Updating…". With nothing to count and
+ * nothing in flight it shows nothing, but the live region stays mounted
+ * (visually hidden) and says "No entries": a search that finds nothing is
+ * announced too, and the region is never re-created with its news already in
+ * it (a screen reader stays silent then). Text and number format follow the
+ * active locale (`LocaleProvider`, else the host's inside `McpAppView`).
  */
 export function ListFooter({
   shown,
@@ -63,33 +65,32 @@ export function ListFooter({
   announce = true,
   className,
 }: ListFooterProps) {
-  const locale = useToolkitLocale()
   const listFooter = { ...useToolkitMessages().listFooter, ...labels }
   const counted = total > 0 && !stale
-  if (!counted && !refreshing) return null
+  const visible = counted || refreshing
+  // Without a live region of its own there is nothing to keep mounted.
+  if (!visible && !announce) return null
   return (
     <div
       data-slot="list-footer"
-      className={cn(
-        "text-small text-muted-foreground flex items-center justify-between gap-3 px-1 py-2",
-        className,
-      )}
+      // The same element tree in both states, so React keeps the live region.
+      className={visible ? cn(FOOTER_CLASS, className) : "sr-only"}
     >
       <p
         role={announce ? "status" : undefined}
         data-slot="list-footer-status"
         className="flex flex-wrap items-center gap-x-2"
       >
-        {counted && (
-          <span>
-            {listFooter.showing({
-              shown: formatCount(shown, locale),
-              total: formatCount(total, locale),
-              noun: noun ?? listFooter.defaultNoun,
-            })}
-          </span>
-        )}
-        {refreshing && <span data-slot="list-footer-updating">{listFooter.updating}</span>}
+        <StatusLine
+          messages={listFooter}
+          shown={shown}
+          total={total}
+          noun={noun}
+          counted={counted}
+          refreshing={refreshing}
+          // Zero rows, not a stale previous result (its failure the caller reports).
+          empty={!visible && !stale}
+        />
       </p>
       {counted && hasMore && (
         <button
@@ -102,5 +103,44 @@ export function ListFooter({
         </button>
       )}
     </div>
+  )
+}
+
+const FOOTER_CLASS =
+  "text-small text-muted-foreground flex items-center justify-between gap-3 px-1 py-2"
+
+/** What the live region says: the count, "Updating…", or "No entries" at zero rows. */
+function StatusLine({
+  messages,
+  shown,
+  total,
+  noun,
+  counted,
+  refreshing,
+  empty,
+}: {
+  messages: ListFooterMessages
+  shown: number
+  total: number
+  noun: string | undefined
+  counted: boolean
+  refreshing: boolean
+  empty: boolean
+}) {
+  const locale = useToolkitLocale()
+  return (
+    <>
+      {empty && <span>{messages.noResults}</span>}
+      {counted && (
+        <span>
+          {messages.showing({
+            shown: formatCount(shown, locale),
+            total: formatCount(total, locale),
+            noun: noun ?? messages.defaultNoun,
+          })}
+        </span>
+      )}
+      {refreshing && <span data-slot="list-footer-updating">{messages.updating}</span>}
+    </>
   )
 }

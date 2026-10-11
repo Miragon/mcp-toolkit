@@ -186,7 +186,8 @@ describe("McpAppView locale", () => {
     const { view, toasts } = render()
     expect(decodeEntities(view)).toContain(de.errorTitle)
     expect(view).toContain(`${de.retry}</button>`)
-    expect(toasts).toContain(`aria-label="${TOOLKIT_MESSAGES.de.common.notifications}"`)
+    // The toast stack below the view speaks it too (its close buttons).
+    expect(toasts).toContain(`aria-label="${TOOLKIT_MESSAGES.de.common.dismiss}"`)
   })
 
   it("leaves useLocale() of consumer widgets alone (no LocaleProvider of its own)", () => {

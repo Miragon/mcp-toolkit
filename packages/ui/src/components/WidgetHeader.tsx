@@ -25,7 +25,7 @@ export interface WidgetHeaderProps {
   titleSuffix?: ReactNode
   /** Above the title — a `StatusBadge` that says the state in words. */
   badge?: ReactNode
-  /** Subtitle/meta row under the title (e.g. a live pill + counts). */
+  /** Subtitle/meta row under the title (e.g. a live pill + counts), a 13 px caption row. */
   sub?: ReactNode
   /** Right-aligned actions slot (buttons, drill controls). */
   actions?: ReactNode
@@ -87,7 +87,7 @@ export function WidgetHeader({
           {titleSuffix}
         </Heading>
         {sub && (
-          <div className="text-muted-foreground text-dense flex flex-wrap items-center gap-2">
+          <div className="text-muted-foreground text-small flex flex-wrap items-center gap-2">
             {sub}
           </div>
         )}
