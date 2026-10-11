@@ -1,5 +1,9 @@
 import { createContext, useContext, useMemo, type ComponentType, type ReactNode } from "react"
+import { LucideProvider } from "lucide-react"
 import type { PipelineContext, StepResult, WidgetProps } from "@miragon/mcp-toolkit-core"
+import { ToastProvider } from "../components/Toast.js"
+import { ICON_STROKE } from "../lib/icon-stroke.js"
+import { ToolkitLocaleFallback } from "../locale/locale-provider.js"
 import { AppQueryProvider } from "../providers/query-provider.js"
 import { HostBridgeProvider, createStandaloneHostBridge } from "./host-bridge.js"
 
@@ -143,10 +147,10 @@ export function useFixtureHost(): FixtureHostValue | null {
 }
 
 /**
- * Default host-context values the harness reports. Only `theme` is read since
- * the mcp-use 2.x move (the other host globals were consumed by the 1.x
- * `window.openai` shim); the object keeps its shape so existing playground
- * setups that spread overrides keep compiling.
+ * Default host-context values the harness reports. `theme` and `locale` are
+ * read since the mcp-use 2.x move (the other host globals were consumed by
+ * the 1.x `window.openai` shim); the object keeps its shape so existing
+ * playground setups that spread overrides keep compiling.
  */
 const DEFAULT_GLOBALS = {
   theme: "light",
@@ -192,9 +196,12 @@ export interface WidgetFixtureHostProps {
    */
   tools?: Record<string, FixtureToolEntry>
   /**
-   * Host context overrides, merged over {@link DEFAULT_GLOBALS}. Since the
-   * mcp-use 2.x move only `theme` influences the simulated host; the other
-   * keys are accepted for compatibility with existing playground setups.
+   * Host context overrides, merged over {@link DEFAULT_GLOBALS}. Two keys
+   * influence the simulated host: `theme` (`"light"` | `"dark"`, reported by
+   * `useHostBridge().theme`) and `locale` (a BCP 47 tag: the toolkit's own
+   * strings and number format follow it, exactly as under `McpAppView`; a
+   * `LocaleProvider` around or inside the widget still wins). The other keys
+   * are accepted for compatibility with existing playground setups.
    */
   globals?: Record<string, unknown>
   /**
@@ -247,6 +254,10 @@ export function buildFixtureWidgetProps(
  *   would (adapted widgets report through this bridge outside a real view).
  * - **The toolkit `AppQueryProvider`** — so widgets that fetch via `useToolQuery`
  *   (e.g. generated `use*` hooks) resolve against the same registry.
+ * - **What `McpAppView` gives a widget** — the toolkit's strings in the host
+ *   locale (`globals.locale`, as `McpAppView` does with the host's), the
+ *   toast stack (`useToast()` shows real toasts) and the icon stroke of the
+ *   view (2.5), so the preview matches what a host renders.
  *
  * ### Boundaries
  * The harness simulates the **host-portable pattern** (`useHostBridge`,
@@ -282,10 +293,14 @@ export function WidgetFixtureHost({
   // The standalone host bridge is the harness's single simulation source: it
   // logs every verb through the `HostActionLog` channel for the playground's
   // activity log. Depends on the callback props directly — a fresh Provider
-  // value on callback change is fine for a dev harness. Only `globals.theme`
-  // still influences the simulated host (the remaining globals fed the 1.x
-  // `window.openai` shim).
+  // value on callback change is fine for a dev harness. `globals.theme` and
+  // `globals.locale` influence the simulated host (the remaining globals fed
+  // the 1.x `window.openai` shim).
   const bridgeTheme = (globals?.theme ?? DEFAULT_GLOBALS.theme) === "dark" ? "dark" : "light"
+  const hostLocale =
+    typeof globals?.locale === "string" && globals.locale.trim() !== ""
+      ? globals.locale
+      : DEFAULT_GLOBALS.locale
   const bridge = useMemo(
     () =>
       createStandaloneHostBridge({
@@ -308,11 +323,19 @@ export function WidgetFixtureHost({
   // widgets and raw `({ data })` widgets read their fixture from one mount.
   const RenderWidget = Widget as ComponentType<Record<string, unknown>>
 
+  // The same scope `McpAppView` puts around a widget: the toolkit's strings
+  // in the host locale, the CI icon stroke and a toast stack.
   return (
     <FixtureHostContext.Provider value={value}>
       <HostBridgeProvider bridge={bridge}>
         <AppQueryProvider callTool={callTool}>
-          <RenderWidget {...widgetProps} data={data} />
+          <ToolkitLocaleFallback locale={hostLocale}>
+            <LucideProvider strokeWidth={ICON_STROKE}>
+              <ToastProvider>
+                <RenderWidget {...widgetProps} data={data} />
+              </ToastProvider>
+            </LucideProvider>
+          </ToolkitLocaleFallback>
         </AppQueryProvider>
       </HostBridgeProvider>
     </FixtureHostContext.Provider>

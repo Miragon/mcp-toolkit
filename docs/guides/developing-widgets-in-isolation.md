@@ -36,6 +36,14 @@ a widget renders exactly as it would in production, minus the infrastructure:
 - **A `HostBridge`** (a `createStandaloneHostBridge` over the same registry) is
   provided, so widgets written against `useHostBridge` are simulated from the same
   single source — see [host portability](../concepts/host-portability.md).
+- **The host's theme and language.** `globals.theme` (`"light"` or `"dark"`) is
+  what `useHostBridge().theme` reports; `globals.locale` (a BCP 47 tag such as
+  `"de-DE"`) sets the language and number format of the toolkit's own text
+  (list footers, empty and error states, toasts), exactly as `McpAppView` does
+  with the host's locale. Your widget's own text follows `useLocale()`, so wrap
+  the harness in a `LocaleProvider` with the same locale to preview it in German.
+- **What a view gives every widget:** a toast stack (`useToast()` shows real
+  toasts) and the CI icon stroke (2.5) for Lucide icons.
 
 It is intentionally minimal — a harness, not a host. The Apps-SDK `postMessage`
 bridge and host features beyond the bridge verbs are out of scope.
@@ -74,7 +82,9 @@ harness in a small Vite app:
 - **Fixture data** — a live JSON editor for the `data` / `keys`. Typing
   re-renders the preview; invalid JSON is reported and the last valid data stays
   on screen.
-- **Live preview** — the widget rendered through `WidgetFixtureHost`.
+- **Live preview** — the widget rendered through `WidgetFixtureHost`, with a
+  brand switcher, a Dark switch (the host's colour scheme) and an
+  English/German switch (the host's locale).
 - **Model context** — the serialized `<ModelContext>` the widget reports.
 - **Host activity** — the tool calls and host actions it triggered.
 

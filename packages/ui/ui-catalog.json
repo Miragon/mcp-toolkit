@@ -2025,7 +2025,7 @@
           "name": "globals",
           "type": "Record<string, unknown>",
           "required": false,
-          "description": "Host-context overrides (theme, displayMode, locale...)."
+          "description": "Host context: theme (reported on the HostBridge) and locale (the toolkit's own strings and number format, as under McpAppView). Other keys are accepted for compatibility."
         },
         {
           "name": "onModelContext",
