@@ -4,6 +4,7 @@ export type {
   McpAppViewLabels,
   DescribeStep,
   DescribeViewError,
+  ViewErrorKind,
   RecoveryPolicy,
   ViewTitleLevel,
   ViewTitleMode,

@@ -55,6 +55,21 @@ export interface ViewMessages {
   errorHintNoRetry: string
   /** Retry button of the error state and of the step-error alert. */
   retry: string
+  /**
+   * Title of the notice shown instead of the view when the tool ran, the chat
+   * did not pass its result to the view, and the view must not run it again
+   * on its own (the recovery policy forbids it). Nothing failed.
+   */
+  blockedTitle: string
+  /** The line under {@link ViewMessages.blockedTitle} when the notice offers to load the view. */
+  blockedHint: string
+  /**
+   * The line under {@link ViewMessages.blockedTitle} when the tool writes, so
+   * the view offers no button that would run it again: what you can do instead.
+   */
+  blockedHintNoRetry: string
+  /** Button of that notice: loads the view by running the (non-writing) tool again. */
+  blockedRetry: string
   /** Summary of the error's technical-details disclosure. */
   errorDetails: string
   /** Title of the alert that lists the data steps that failed. */
@@ -70,13 +85,12 @@ export interface ViewMessages {
   /** Toast line under {@link ViewMessages.fullscreenFailed}: what you can do. */
   fullscreenFailedHint: string
   /**
-   * Toolbar stamp of a view that loaded its data again on its own (the host
-   * did not pass the original result along): the time the data is from,
-   * pre-formatted (`formatClockTime`).
+   * The line under the toolbar title of a view that loaded its data again on
+   * its own (the host did not pass the original result along), with the time
+   * pre-formatted (`formatClockTime`). It must carry its meaning in its own
+   * words: there is no tooltip, so touch and keyboard users read only this.
    */
   dataAsOf: (time: string) => string
-  /** What the {@link ViewMessages.dataAsOf} stamp means (its tooltip and screen-reader text). */
-  dataAsOfHint: string
 }
 
 /** Strings of `ListFooter`. */

@@ -284,16 +284,24 @@ describe("formatClockTime (the view's data-as-of stamp)", () => {
   it("formats hours and minutes per locale in the host's time zone", () => {
     expect(formatClockTime(at, "de-DE", "UTC")).toBe("14:32")
     expect(formatClockTime(at, "de-DE", "Europe/Berlin")).toBe("16:32")
-    expect(formatClockTime(at, "en-US", "UTC")).toBe("02:32 PM")
+    expect(formatClockTime(at, "en-GB", "UTC")).toBe("14:32")
+  })
+
+  it("never pads the hour of a 12-hour clock: 2:32 PM, not 02:32 PM", () => {
+    expect(formatClockTime(at, "en-US", "UTC")).toBe("2:32 PM")
+    expect(formatClockTime(Date.UTC(2026, 9, 11, 9, 5), "en-US", "UTC")).toBe("9:05 AM")
+    // Minutes keep two digits.
+    expect(formatClockTime(Date.UTC(2026, 9, 11, 14, 5), "de-DE", "UTC")).toBe("14:05")
   })
 
   it("falls back to English for an invalid tag or zone instead of throwing", () => {
     expect(() => formatClockTime(at, "not a locale!", "UTC")).not.toThrow()
-    expect(formatClockTime(at, "de", "Not/AZone")).toMatch(/^\d\d:\d\d( [AP]M)?$/)
+    expect(formatClockTime(at, "de", "Not/AZone")).toMatch(/^\d{1,2}:\d\d( [AP]M)?$/)
+    expect(formatClockTime(at, "not a locale!", "UTC")).toMatch(/^[1-9]\d?:\d\d [AP]M$/)
   })
 
-  it("the catalogs stamp it in their words", () => {
-    expect(TOOLKIT_MESSAGES.en.view.dataAsOf("14:32")).toBe("As of 14:32")
-    expect(TOOLKIT_MESSAGES.de.view.dataAsOf("14:32")).toBe("Stand 14:32 Uhr")
+  it("the catalogs stamp it in words that carry its meaning", () => {
+    expect(TOOLKIT_MESSAGES.en.view.dataAsOf("2:32 PM")).toBe("Reloaded at 2:32 PM")
+    expect(TOOLKIT_MESSAGES.de.view.dataAsOf("14:32")).toBe("Neu geladen um 14:32 Uhr")
   })
 })

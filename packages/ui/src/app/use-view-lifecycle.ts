@@ -18,6 +18,10 @@ export interface UseViewLifecycleOptions<T> {
   cancelled: boolean
   callError: unknown
   recoveryFailed: boolean
+  /** The recovery policy kept the view from re-running a stripped result's tool. */
+  recoveryBlocked?: boolean
+  /** The host reports the originating tool as writing (no retry after a block). */
+  toolWrites?: boolean
   /** The originating tool (`hostContext.toolInfo`); a retry needs it. */
   toolName: string | undefined
   toolInput: Record<string, unknown> | null | undefined
@@ -47,6 +51,8 @@ export function useViewLifecycle<T>(options: UseViewLifecycleOptions<T>): {
     cancelled: options.cancelled,
     callErrorReason: errorMessage(options.callError),
     recoveryFailed: options.recoveryFailed,
+    recoveryBlocked: options.recoveryBlocked,
+    toolWrites: options.toolWrites,
     retryState,
     slow: false,
     canRetry: toolName !== undefined,

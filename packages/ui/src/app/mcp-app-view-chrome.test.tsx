@@ -14,7 +14,7 @@ import {
   type ViewData,
   type ViewToolbarProps,
 } from "./mcp-app-view-chrome.js"
-import { ViewPlaceholder } from "./mcp-app-view-states.js"
+import { ViewPlaceholder, type DescribeViewError } from "./mcp-app-view-states.js"
 import { VIEW_FOCUS_TARGET } from "./use-build-mode-focus.js"
 import { resolveViewLifecycle, RETRY_IDLE, type ViewLifecycleInput } from "./view-lifecycle.js"
 
@@ -101,6 +101,90 @@ describe("ViewPlaceholder — one rendering per lifecycle phase (toolkit#176)", 
     expect(html).not.toContain(en.errorTitle)
     expect(html).toContain(en.errorHint)
     expect(html).toContain("HTTP 503")
+  })
+
+  it("blocked, writing tool: a notice that the action ran, no button that would run it again (CI §9)", () => {
+    // The exact input McpAppView feeds when the policy keeps a stripped
+    // result of a tool reported as writing from being re-run.
+    const lifecycle = resolveViewLifecycle({
+      hasViewData: false,
+      callStatus: "pending",
+      cancelled: false,
+      callErrorReason: undefined,
+      recoveryFailed: false,
+      recoveryBlocked: true,
+      toolWrites: true,
+      retryState: RETRY_IDLE,
+      slow: false,
+      canRetry: true,
+    } satisfies ViewLifecycleInput)
+    expect(lifecycle).toEqual({
+      phase: "error",
+      reason: undefined,
+      canRetry: false,
+      kind: "blocked",
+    })
+    const html = decodeEntities(placeholder(lifecycle))
+    // Nothing failed: the info tone and a polite status, not a danger alert.
+    expect(html).toContain('data-tone="info"')
+    expect(html).toContain('role="status"')
+    expect(html).not.toContain('role="alert"')
+    expect(html).toContain("lucide-info")
+    expect(html).toContain(en.blockedTitle)
+    expect(html).toContain(en.blockedHintNoRetry)
+    expect(html).not.toContain(en.errorTitle)
+    expect(html).not.toContain(en.errorHint)
+    expect(html).not.toContain("<button")
+    expect(html).not.toContain("<details")
+    const german = decodeEntities(placeholder(lifecycle, de))
+    expect(german).toContain(de.blockedTitle)
+    expect(german).toContain(de.blockedHintNoRetry)
+    expect(german).not.toContain("<button")
+  })
+
+  it("blocked, tool not reported as writing: the notice offers to load the view, in its own words", () => {
+    const lifecycle = {
+      phase: "error",
+      reason: undefined,
+      canRetry: true,
+      kind: "blocked",
+    } as const
+    const html = decodeEntities(placeholder(lifecycle))
+    expect(html).toContain(en.blockedTitle)
+    expect(html).toContain(en.blockedHint)
+    expect(html).not.toContain(en.blockedHintNoRetry)
+    expect(html).toContain(`${en.blockedRetry}</button>`)
+    expect(html).not.toContain(`${en.retry}</button>`)
+    expect(decodeEntities(placeholder(lifecycle, de))).toContain(`${de.blockedRetry}</button>`)
+  })
+
+  it("describeError tells a failure from a block, and can word either", () => {
+    const seen: unknown[] = []
+    const describeError: DescribeViewError = (reason, info) => {
+      seen.push([reason, info])
+      return info?.kind === "blocked" ? { description: "Ask the operator." } : undefined
+    }
+    const render = (lifecycle: Parameters<typeof ViewPlaceholder>[0]["lifecycle"]) =>
+      decodeEntities(
+        renderToStaticMarkup(
+          <ViewPlaceholder
+            lifecycle={lifecycle}
+            labels={en}
+            onRetry={noop}
+            describeError={describeError}
+          />,
+        ),
+      )
+    const blocked = render({ phase: "error", reason: undefined, canRetry: false, kind: "blocked" })
+    expect(blocked).toContain(en.blockedTitle)
+    expect(blocked).toContain("Ask the operator.")
+    expect(blocked).not.toContain(en.blockedHintNoRetry)
+    const failed = render({ phase: "error", reason: "HTTP 503", canRetry: true })
+    expect(failed).toContain(en.errorHint)
+    expect(seen).toEqual([
+      [undefined, { kind: "blocked" }],
+      ["HTTP 503", { kind: "failed" }],
+    ])
   })
 
   it("cancelled: the cancellation notice, no skeleton, no retry", () => {
@@ -242,21 +326,47 @@ describe("ViewToolbar", () => {
     expect(html).toContain(`aria-label="${de.enterFullscreen}"`)
   })
 
-  it("stamps the time of data the view re-loaded itself, with its meaning (toolkit#176 N23)", () => {
+  it("stamps the time of data the view re-loaded itself, in words that carry its meaning (toolkit#176 N23)", () => {
     expect(toolbar()).not.toContain('data-slot="view-data-as-of"')
-    const html = toolbar({ dataAsOf: "14:32" })
+    const html = toolbar({ dataAsOf: "2:32 PM" })
     const stamp = openingTags(html, "p").find(
       (t) => attribute(t, "data-slot") === "view-data-as-of",
     )
     expect(stamp).toBeDefined()
-    expect(attribute(stamp ?? "", "title")).toBe(en.dataAsOfHint)
     expect(attribute(stamp ?? "", "class")).toContain("text-muted-foreground")
-    expect(decodeEntities(html)).toContain(
-      `${en.dataAsOf("14:32")}<span class="sr-only"> ${en.dataAsOfHint}</span>`,
+    // Visible text only: no hover-only tooltip, no screen-reader-only extra
+    // (touch and keyboard users read exactly what everyone reads, once).
+    expect(attribute(stamp ?? "", "title")).toBeUndefined()
+    expect(html).not.toContain("sr-only")
+    expect(html).toContain(`>${en.dataAsOf("2:32 PM")}</p>`)
+    expect(en.dataAsOf("2:32 PM")).toBe("Reloaded at 2:32 PM")
+    expect(toolbar({ dataAsOf: "14:32", labels: de })).toContain(`>${de.dataAsOf("14:32")}</p>`)
+  })
+
+  it("puts the stamp under the title, never beside the controls, and the controls never shrink", () => {
+    const html = toolbar({ dataAsOf: "14:32", builderAvailable: true })
+    const bar = openingTags(html, "div")
+    // [toolbar, heading column, controls]: the stamp is the column's second line.
+    expect(bar.map((t) => attribute(t, "data-slot") ?? "")).toEqual([
+      "view-toolbar",
+      "view-heading",
+      "",
+    ])
+    expect(attribute(bar[1] ?? "", "class")).toBe("min-w-0 flex-1")
+    expect(html).toMatch(
+      /data-slot="view-heading"[^>]*><h2[^>]*>Process definitions<\/h2><p data-slot="view-data-as-of"/,
     )
-    expect(decodeEntities(toolbar({ dataAsOf: "14:32", labels: de }))).toContain(
-      `${de.dataAsOf("14:32")}<span class="sr-only"> ${de.dataAsOfHint}</span>`,
+    expect((attribute(bar[2] ?? "", "class") ?? "").split(" ")).toEqual(
+      expect.arrayContaining(["ml-auto", "shrink-0"]),
     )
+    expect(attribute(bar[2] ?? "", "class")).not.toContain("min-w-0")
+    // Without a stamp the title sits straight in the row, as before.
+    const plain = toolbar({ builderAvailable: true })
+    expect(plain).not.toContain('data-slot="view-heading"')
+    expect(plain).toMatch(/data-slot="view-toolbar"[^>]*><h2/)
+    // The slot title takes the stamp under it as well.
+    const slot = toolbar({ titleMode: "slot", renderTitle: (t) => t, dataAsOf: "14:32" })
+    expect(slot).toMatch(/data-slot="view-heading"[^>]*><div[^>]*>Process definitions<\/div><p/)
   })
 
   it("keeps the bar for the stamp alone", () => {

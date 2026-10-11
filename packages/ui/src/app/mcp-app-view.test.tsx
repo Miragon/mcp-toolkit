@@ -2,6 +2,10 @@ import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { ToolCancelledError, ToolError } from "mcp-use/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import type {
+  ToolResultRecoveryOptions,
+  ToolResultRecoveryState,
+} from "../hooks/use-tool-result-recovery.js"
 import { LocaleProvider, useLocale } from "../locale/locale-provider.js"
 import { TOOLKIT_MESSAGES, type ToolkitMessages } from "../locale/toolkit-messages.js"
 import { attribute, decodeEntities, openingTags, userFacingTexts } from "../render-scan.js"
@@ -24,9 +28,29 @@ interface HostState {
   tool: Record<string, unknown>
   locale: string
   hostContext: Record<string, unknown> | undefined
+  /** Replaces the recovery's state (it settles in effects, which SSR never runs). */
+  recovery: ToolResultRecoveryState<unknown> | null
 }
 
-const host: HostState = vi.hoisted(() => ({ tool: {}, locale: "en-US", hostContext: undefined }))
+const host: HostState = vi.hoisted(() => ({
+  tool: {},
+  locale: "en-US",
+  hostContext: undefined,
+  recovery: null,
+}))
+
+// The real hook always runs (hook order stays fixed); a fixture state stands
+// in for what its controller decides once the stripped result arrived.
+vi.mock(import("../hooks/use-tool-result-recovery.js"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    useToolResultRecovery: <T,>(options: ToolResultRecoveryOptions) => {
+      const state = actual.useToolResultRecovery<T>(options)
+      return (host.recovery as ToolResultRecoveryState<T> | null) ?? state
+    },
+  }
+})
 
 // Only the fields McpAppView reads; the casts narrow the fixtures to the hook types.
 vi.mock(import("mcp-use/react"), async (importOriginal) => {
@@ -34,6 +58,7 @@ vi.mock(import("mcp-use/react"), async (importOriginal) => {
   const useToolContext = () => host.tool
   const useHostContext = () => ({
     locale: host.locale,
+    timeZone: "UTC",
     safeArea: { top: 0, right: 0, bottom: 0, left: 0 },
     hostContext: host.hostContext,
   })
@@ -120,6 +145,21 @@ beforeEach(() => {
   host.tool = { status: "pending", toolInput: undefined, toolOutput: undefined }
   host.locale = "en-US"
   host.hostContext = KNOWN_TOOL
+  host.recovery = null
+})
+
+/** A tool the host names, with its annotations (SEP-1865 `toolInfo.tool`). */
+const toolInfo = (name: string, annotations: Record<string, unknown>) => ({
+  toolInfo: { tool: { name, annotations } },
+})
+
+/** The recovery's state when a needed recovery did not run. */
+const blockedBy = (reason: "policy" | "no-tool"): ToolResultRecoveryState<unknown> => ({
+  data: null,
+  failed: false,
+  blocked: reason,
+  recoveredAt: null,
+  args: null,
 })
 
 describe("McpAppView lifecycle wiring (toolkit#176)", () => {
@@ -153,6 +193,64 @@ describe("McpAppView lifecycle wiring (toolkit#176)", () => {
     expect(view).not.toContain('data-slot="skeleton"')
     expect(view).toContain('role="alert"')
     expect(view).toContain(en.errorHintNoRetry)
+  })
+
+  it("a stripped result of a writing tool the policy kept: the notice, never a button that writes again", () => {
+    // claude.ai strips the result of a "start and show" tool; "auto" never
+    // re-runs a tool reported as writing (readOnlyHint: false).
+    host.hostContext = toolInfo("start_and_show", { readOnlyHint: false })
+    host.recovery = blockedBy("policy")
+    const view = decodeEntities(render().view)
+    expect(view).not.toContain('data-slot="skeleton"')
+    expect(view).toContain('data-tone="info"')
+    expect(view).toContain(en.blockedTitle)
+    expect(view).toContain(en.blockedHintNoRetry)
+    expect(view).not.toContain(en.errorTitle)
+    expect(view).not.toContain("<button")
+    // The same for destructiveHint: true.
+    host.hostContext = toolInfo("start_and_show", { readOnlyHint: true, destructiveHint: true })
+    expect(render().view).not.toContain("<button")
+  })
+
+  it("a tool not reported as writing that a stricter policy kept: the notice offers to load the view", () => {
+    host.hostContext = toolInfo("show_list", {})
+    host.recovery = blockedBy("policy")
+    const view = decodeEntities(render().view)
+    expect(view).toContain(en.blockedTitle)
+    expect(view).toContain(en.blockedHint)
+    expect(view).toContain(`${en.blockedRetry}</button>`)
+  })
+
+  it("a recovery blocked for want of a tool name stays the plain error without retry", () => {
+    host.hostContext = undefined
+    host.recovery = blockedBy("no-tool")
+    const view = decodeEntities(render().view)
+    expect(view).toContain(en.errorTitle)
+    expect(view).toContain(en.errorHintNoRetry)
+    expect(view).not.toContain(en.blockedTitle)
+    expect(view).not.toContain("<button")
+  })
+
+  it("a failed recovery stays the plain error with its retry", () => {
+    host.recovery = { ...blockedBy("policy"), blocked: null, failed: true }
+    const view = decodeEntities(render().view)
+    expect(view).toContain(en.errorTitle)
+    expect(view).toContain(`${en.retry}</button>`)
+  })
+
+  it("a payload the view re-loaded itself carries the stamp under its title, in the host's words (N23)", () => {
+    const recoveredAt = Date.UTC(2026, 9, 11, 14, 32)
+    host.recovery = { data: VIEW, failed: false, blocked: null, recoveredAt, args: {} }
+    const view = decodeEntities(render().view)
+    expect(view).toContain(
+      `<p data-slot="view-data-as-of" class="text-muted-foreground truncate text-sm">Reloaded at 2:32 PM</p>`,
+    )
+    host.locale = "de-DE"
+    expect(decodeEntities(render().view)).toContain(">Neu geladen um 14:32 Uhr</p>")
+    // A host-delivered payload carries none.
+    host.recovery = null
+    host.tool = { status: "ready", toolOutput: VIEW, toolInput: {} }
+    expect(render().view).not.toContain('data-slot="view-data-as-of"')
   })
 
   it("a host cancellation shows the cancelled notice, no skeleton and no retry", () => {
@@ -202,6 +300,16 @@ describe("McpAppView model context (toolkit#176 K20)", () => {
     expect(contexts(view)).toEqual([
       `The view of render-view could not be shown (reason: ${REASON}). ` +
         "The user sees an error message with a retry button instead of the view.",
+    ])
+  })
+
+  it("a blocked recovery tells the model the tool ran and must not be re-run to show the view", () => {
+    host.hostContext = toolInfo("start_and_show", { readOnlyHint: false })
+    host.recovery = blockedBy("policy")
+    expect(contexts(render(inView).view)).toEqual([
+      "The view of start_and_show is not shown: start_and_show ran, but the host did not pass its " +
+        "result to the view, and the view did not re-run it. The user sees a note to ask in the chat " +
+        "for the current state instead of the view. Do not re-run start_and_show just to show the view.",
     ])
   })
 

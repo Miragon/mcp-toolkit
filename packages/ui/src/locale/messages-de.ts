@@ -29,6 +29,11 @@ export const de: ToolkitMessages = {
     errorHint: "Versuch es noch mal. Klappt es wieder nicht, frag im Chat nach.",
     errorHintNoRetry: "Frag im Chat noch mal nach dieser Ansicht.",
     retry: "Erneut versuchen",
+    blockedTitle: "Der Chat hat das Ergebnis nicht an die Ansicht weitergegeben",
+    blockedHint: "Lade die Ansicht selbst oder frag im Chat nach dem aktuellen Stand.",
+    blockedHintNoRetry:
+      "Die Aktion ist schon gelaufen, deshalb startet die Ansicht sie nicht noch mal. Frag im Chat nach dem aktuellen Stand.",
+    blockedRetry: "Ansicht laden",
     errorDetails: "Details",
     stepErrorsTitle: "Ein Teil der Daten konnte nicht geladen werden",
     stepErrorsHint: "Versuch es noch mal, um die fehlenden Daten zu laden.",
@@ -36,9 +41,7 @@ export const de: ToolkitMessages = {
     refreshFailedHint: "Du siehst den zuletzt geladenen Stand. Versuch es gleich noch mal.",
     fullscreenFailed: "Die Darstellung ließ sich nicht umschalten.",
     fullscreenFailedHint: "Die Ansicht bleibt, wie sie ist. Versuch es gleich noch mal.",
-    dataAsOf: (time) => `Stand ${time} Uhr`,
-    dataAsOfHint:
-      "Die Ansicht hat ihre Daten beim Öffnen neu geladen. Die Zahlen können von der Antwort im Chat abweichen.",
+    dataAsOf: (time) => `Neu geladen um ${time} Uhr`,
   },
   listFooter: {
     showing: ({ shown, total, noun }) => `Zeigt ${shown} von ${total} ${noun}`.trimEnd(),

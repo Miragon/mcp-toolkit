@@ -137,8 +137,9 @@ export interface ViewToolbarProps {
   onToggleFullscreen: () => Promise<void>
   /**
    * The pre-formatted time of a view that loaded its data again on its own
-   * (toolkit#176 N23): the toolbar stamps it, so the figures read as live
-   * data of that time, not the result the chat answered from.
+   * (toolkit#176 N23): the toolbar stamps it in a quiet line under the title,
+   * so the figures read as live data of that time, not the result the chat
+   * answered from.
    */
   dataAsOf?: string
 }
@@ -161,6 +162,39 @@ function ToolbarTitle({
     `h${level}`,
     { className: "min-w-0 flex-1 truncate text-lg font-semibold tracking-tight" },
     title,
+  )
+}
+
+/**
+ * The title, and under it the stamp of data the view re-loaded itself. The
+ * stamp is a second line of the title column, never an item beside the
+ * controls: the title keeps the row's width (it is the user's orientation),
+ * and the stamp truncates only against its own column. Its words carry its
+ * meaning, so it needs no tooltip that touch and keyboard users never reach.
+ * Without a stamp the title renders as before, straight in the row.
+ */
+function ToolbarHeading({
+  title,
+  mode,
+  level,
+  renderTitle,
+  stamp,
+}: {
+  title: string | undefined
+  mode: ViewTitleMode
+  level: ViewTitleLevel
+  renderTitle?: (title: string | undefined) => ReactNode
+  stamp: string | undefined
+}) {
+  const heading = <ToolbarTitle title={title} mode={mode} level={level} renderTitle={renderTitle} />
+  if (!stamp) return heading
+  return (
+    <div data-slot="view-heading" className="min-w-0 flex-1">
+      {heading}
+      <p data-slot="view-data-as-of" className="text-muted-foreground truncate text-sm">
+        {stamp}
+      </p>
+    </div>
   )
 }
 
@@ -256,7 +290,9 @@ function FullscreenButton({
  * `aria-label`; Fullscreen renders only when the host offers it. All three are
  * chrome buttons in the CI pattern (CI §8: surface, border, shadow-1, blue
  * hover; {@link CHROME_BUTTON}). A 16 px inset keeps the bar off the frame
- * edge, also in fullscreen.
+ * edge, also in fullscreen. The controls never shrink; the stamp of re-loaded
+ * data sits under the title ({@link ToolbarHeading}), so neither the title
+ * nor the stamp competes with the controls for width.
  */
 export function ViewToolbar({
   hidden,
@@ -279,23 +315,14 @@ export function ViewToolbar({
   return (
     <LucideProvider strokeWidth={DENSE_ICON_STROKE}>
       <div data-slot="view-toolbar" className="flex min-h-12 items-center gap-2 px-4 py-2">
-        <ToolbarTitle
+        <ToolbarHeading
           title={viewData.title}
           mode={titleMode}
           level={titleLevel}
           renderTitle={renderTitle}
+          stamp={dataAsOf ? labels.dataAsOf(dataAsOf) : undefined}
         />
-        <div className="ml-auto flex min-w-0 items-center gap-1">
-          {dataAsOf && (
-            <p
-              data-slot="view-data-as-of"
-              className="text-muted-foreground mr-1 truncate text-sm"
-              title={labels.dataAsOfHint}
-            >
-              {labels.dataAsOf(dataAsOf)}
-              <span className="sr-only"> {labels.dataAsOfHint}</span>
-            </p>
-          )}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {show.edit && (
             <Button
               type="button"

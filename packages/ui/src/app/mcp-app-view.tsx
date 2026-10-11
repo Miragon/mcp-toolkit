@@ -5,6 +5,7 @@ import { ToastProvider, useToast } from "../components/Toast.js"
 import { ToolkitLocaleFallback, useToolkitMessages } from "../locale/locale-provider.js"
 import { formatClockTime, type ViewMessages } from "../locale/toolkit-messages.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
+import { resolveToolSafety } from "../hooks/tool-result-recovery-model.js"
 import {
   DEFAULT_ASSUME_STRIPPED_AFTER_MS,
   resolveRecoveryToolName,
@@ -43,7 +44,7 @@ import type { WidgetComponent } from "./widget-renderer.js"
 
 export type { McpAppViewLabels, ViewTitleLevel, ViewTitleMode } from "./mcp-app-view-chrome.js"
 export type { DescribeStep } from "./mcp-app-view-chrome.js"
-export type { DescribeViewError } from "./mcp-app-view-states.js"
+export type { DescribeViewError, ViewErrorKind } from "./mcp-app-view-states.js"
 export type { RecoveryPolicy } from "../hooks/use-tool-result-recovery.js"
 
 export interface McpAppViewProps {
@@ -105,7 +106,10 @@ export interface McpAppViewProps {
    * `"auto"` (default): any tool the host does not report as writing
    * (`readOnlyHint: false` or `destructiveHint: true`); `"read-only"`: only
    * tools reported with `readOnlyHint: true`; `"never"`: none. A recovery
-   * the policy forbids shows the error state, whose retry is the user's call.
+   * the policy forbids shows a note that the chat did not pass the result to
+   * the view. It offers to load the view only for a tool the host does not
+   * report as writing; for a writing tool it asks for the current state in
+   * the chat, so one click never runs the write a second time.
    */
   recoverStrippedResult?: RecoveryPolicy
   /**
@@ -305,6 +309,8 @@ function useRenderCall() {
     callError: isCallError ? tool.error : undefined,
     initialViewData: tool.status === "ready" ? (tool.toolOutput as ViewData) : undefined,
     toolName: resolveRecoveryToolName(hostContext),
+    /** The host reports the tool as writing: the view never offers to re-run it after a block. */
+    toolWrites: resolveToolSafety(hostContext) === "writes",
   }
 }
 
@@ -353,7 +359,10 @@ function useShownView(
     setView,
     showRetried,
     showRefreshed,
-    recoveryFailed: recovery.failed || recovery.blocked !== null,
+    // Without a named tool nothing can re-run it: a plain failure. A policy
+    // block is its own state: the tool ran, and the view must not repeat it.
+    recoveryFailed: recovery.failed || recovery.blocked === "no-tool",
+    recoveryBlocked: recovery.blocked === "policy",
   }
 }
 
@@ -427,6 +436,8 @@ function McpAppViewShell({
     cancelled: call.isCancelled,
     callError: call.callError,
     recoveryFailed: shown.recoveryFailed,
+    recoveryBlocked: shown.recoveryBlocked,
+    toolWrites: call.toolWrites,
     toolName: call.toolName,
     toolInput: call.tool.toolInput,
     callTool,

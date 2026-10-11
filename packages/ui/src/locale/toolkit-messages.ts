@@ -97,16 +97,17 @@ export function formatCount(value: number, locale: string | undefined): string {
 
 /**
  * Format the clock time (hours and minutes) of `epochMs` in `locale`, in the
- * host's `timeZone` when it reports one: `14:32` / `02:32 PM`. An invalid tag
- * or zone falls back to English in the runtime's zone instead of throwing
- * inside a render.
+ * host's `timeZone` when it reports one: `14:32` / `2:32 PM`. The hour is
+ * `numeric`, so each locale pads it its own way (a 12-hour clock never shows
+ * `02:32 PM`). An invalid tag or zone falls back to English in the runtime's
+ * zone instead of throwing inside a render.
  */
 export function formatClockTime(
   epochMs: number,
   locale: string | undefined,
   timeZone?: string,
 ): string {
-  const clock: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" }
+  const clock: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" }
   try {
     return new Intl.DateTimeFormat(locale, { ...clock, timeZone }).format(epochMs)
   } catch {

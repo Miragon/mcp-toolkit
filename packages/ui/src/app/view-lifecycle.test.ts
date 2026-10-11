@@ -52,6 +52,53 @@ describe("resolveViewLifecycle (toolkit#176 state machine)", () => {
     })
   })
 
+  it("a blocked recovery is its own error kind: the tool ran, the view must not re-run it", () => {
+    // A tool the host reports as writing: no retry, one click would write twice.
+    expect(at({ recoveryBlocked: true, toolWrites: true })).toEqual({
+      phase: "error",
+      reason: undefined,
+      canRetry: false,
+      kind: "blocked",
+    })
+    // Any other tool (a stricter policy blocked it): loading it is the user's call.
+    expect(at({ recoveryBlocked: true, toolWrites: false })).toEqual({
+      phase: "error",
+      reason: undefined,
+      canRetry: true,
+      kind: "blocked",
+    })
+    expect(at({ recoveryBlocked: true })).toMatchObject({ canRetry: true, kind: "blocked" })
+    expect(at({ recoveryBlocked: true, canRetry: false })).toMatchObject({ canRetry: false })
+    // toolWrites alone changes nothing: a failure keeps its retry.
+    expect(at({ recoveryFailed: true, toolWrites: true })).toEqual({
+      phase: "error",
+      reason: undefined,
+      canRetry: true,
+    })
+    expect(at({ callStatus: "error", callErrorReason: "x", toolWrites: true })).toMatchObject({
+      canRetry: true,
+    })
+  })
+
+  it("a block yields to a payload, a retry, a cancellation and a call error, and wins over a failure", () => {
+    const blocked = { recoveryBlocked: true, toolWrites: true }
+    expect(at({ ...blocked, hasViewData: true })).toEqual({ phase: "result" })
+    expect(at({ ...blocked, retryState: { status: "running", attempt: 1 } })).toEqual({
+      phase: "waiting",
+      slow: false,
+    })
+    expect(
+      at({ ...blocked, retryState: { status: "failed", attempt: 1, reason: "down" } }),
+    ).toEqual({ phase: "error", reason: "down", canRetry: true })
+    expect(at({ ...blocked, cancelled: true })).toEqual({ phase: "cancelled" })
+    expect(at({ ...blocked, callStatus: "error", callErrorReason: "x" })).toEqual({
+      phase: "error",
+      reason: "x",
+      canRetry: true,
+    })
+    expect(at({ ...blocked, recoveryFailed: true })).toMatchObject({ kind: "blocked" })
+  })
+
   it("offers a retry only when the originating tool is known", () => {
     expect(at({ callStatus: "error", canRetry: false })).toMatchObject({
       phase: "error",
@@ -240,6 +287,21 @@ describe("describeViewForModel (the view's model context, toolkit#176 K20)", () 
     )
     expect(describeViewForModel({ lifecycle: error(undefined, false), toolName: undefined })).toBe(
       "The view could not be shown. The user sees an error message instead of the view.",
+    )
+  })
+
+  it("a block says the tool ran, nothing failed, and the model must not re-run it to show the view", () => {
+    const blocked = (canRetry: boolean) =>
+      ({ phase: "error", reason: undefined, canRetry, kind: "blocked" }) as const
+    expect(describeViewForModel({ lifecycle: blocked(false), toolName: "start_and_show" })).toBe(
+      "The view of start_and_show is not shown: start_and_show ran, but the host did not pass its " +
+        "result to the view, and the view did not re-run it. The user sees a note to ask in the chat " +
+        "for the current state instead of the view. Do not re-run start_and_show just to show the view.",
+    )
+    expect(describeViewForModel({ lifecycle: blocked(true), toolName: undefined })).toBe(
+      "The view is not shown: the tool ran, but the host did not pass its result to the view, " +
+        "and the view did not re-run it. The user sees a note with a button that loads the view " +
+        "instead of the view. Do not re-run the tool just to show the view.",
     )
   })
 

@@ -2,17 +2,27 @@
  * The pre-payload states of `McpAppView`, one per lifecycle phase
  * (`view-lifecycle.ts`): waiting (skeleton + status line + slow hint),
  * cancelled, and error (icon, title, what to do, raw reason under "Details",
- * retry when the originating tool is known). Hook-free and SSR-renderable, so
- * each phase is pinned by a test.
+ * retry when the originating tool is known). A `blocked` error is a notice in
+ * the info tone, not a failure: the tool ran, but the chat did not pass its
+ * result to the view. Hook-free and SSR-renderable, so each phase is pinned
+ * by a test.
  */
-import { ErrorState } from "../components/ErrorState.js"
+import { ErrorState, type ErrorStateTone } from "../components/ErrorState.js"
 import { Skeleton } from "../primitives/skeleton.js"
 import type { McpAppViewLabels } from "./mcp-app-view-chrome.js"
-import type { ViewLifecycle } from "./view-lifecycle.js"
+import type { ViewErrorKind, ViewLifecycle } from "./view-lifecycle.js"
 
-/** Human text for a raw error reason (e.g. map "503" to "the engine is down"). */
+export type { ViewErrorKind } from "./view-lifecycle.js"
+
+/**
+ * Human text for a raw error reason (e.g. map "503" to "the engine is down").
+ * `info.kind` tells a failure (`"failed"`) from a result the chat did not pass
+ * to the view (`"blocked"`, no reason); return `undefined` to keep the
+ * toolkit's words for that state.
+ */
 export type DescribeViewError = (
   reason: string | undefined,
+  info?: { kind: ViewErrorKind },
 ) => { title?: string; description?: string } | undefined
 
 export function ViewPlaceholder({
@@ -41,6 +51,7 @@ export function ViewPlaceholder({
     case "error":
       return (
         <ViewErrorState
+          kind={lifecycle.kind}
           reason={lifecycle.reason}
           canRetry={lifecycle.canRetry}
           labels={labels}
@@ -69,30 +80,59 @@ function ViewWaiting({ slow, labels }: { slow: boolean; labels: Required<McpAppV
   )
 }
 
+/** The words and tone of an error phase; the hint never promises a retry the state does not offer. */
+function errorStateCopy(
+  kind: ViewErrorKind,
+  canRetry: boolean,
+  labels: Required<McpAppViewLabels>,
+): { tone: ErrorStateTone; role: "alert" | "status"; title: string; hint: string; retry: string } {
+  if (kind === "blocked") {
+    // Nothing failed: a quiet notice that says what happened and what to do.
+    return {
+      tone: "info",
+      role: "status",
+      title: labels.blockedTitle,
+      hint: canRetry ? labels.blockedHint : labels.blockedHintNoRetry,
+      retry: labels.blockedRetry,
+    }
+  }
+  return {
+    tone: "danger",
+    role: "alert",
+    title: labels.errorTitle,
+    hint: canRetry ? labels.errorHint : labels.errorHintNoRetry,
+    retry: labels.retry,
+  }
+}
+
 function ViewErrorState({
+  kind = "failed",
   reason,
   canRetry,
   labels,
   onRetry,
   describeError,
 }: {
+  /** Absent for a failure (see `ViewLifecycle`). */
+  kind: ViewErrorKind | undefined
   reason: string | undefined
   canRetry: boolean
   labels: Required<McpAppViewLabels>
   onRetry: () => void
   describeError?: DescribeViewError
 }) {
-  const human = describeError?.(reason)
-  // The hint never promises a retry the state does not offer.
-  const hint = canRetry ? labels.errorHint : labels.errorHintNoRetry
+  const human = describeError?.(reason, { kind })
+  const copy = errorStateCopy(kind, canRetry, labels)
   return (
     <div className="px-4 py-4">
       <ErrorState
-        title={human?.title ?? labels.errorTitle}
-        description={human?.description ?? hint}
+        tone={copy.tone}
+        role={copy.role}
+        title={human?.title ?? copy.title}
+        description={human?.description ?? copy.hint}
         details={reason}
         detailsLabel={labels.errorDetails}
-        retryLabel={labels.retry}
+        retryLabel={copy.retry}
         onRetry={canRetry ? onRetry : undefined}
       />
     </div>

@@ -28,6 +28,11 @@ export const en: ToolkitMessages = {
     errorHint: "Try again. If it fails again, ask in the chat.",
     errorHintNoRetry: "Ask in the chat to open this view again.",
     retry: "Try again",
+    blockedTitle: "The chat didn't pass the result to this view",
+    blockedHint: "Load the view yourself, or ask in the chat for the current state.",
+    blockedHintNoRetry:
+      "The action already ran, so the view doesn't start it again. Ask in the chat for the current state.",
+    blockedRetry: "Load view",
     errorDetails: "Details",
     stepErrorsTitle: "Some data couldn't be loaded",
     stepErrorsHint: "Try again to load the missing data.",
@@ -35,9 +40,7 @@ export const en: ToolkitMessages = {
     refreshFailedHint: "You're seeing the last loaded data. Try again in a moment.",
     fullscreenFailed: "Couldn't switch the display mode.",
     fullscreenFailedHint: "The view stays as it is. Try again in a moment.",
-    dataAsOf: (time) => `As of ${time}`,
-    dataAsOfHint:
-      "The view loaded its data again when it opened. Figures can differ from the answer in the chat.",
+    dataAsOf: (time) => `Reloaded at ${time}`,
   },
   listFooter: {
     showing: ({ shown, total, noun }) => `Showing ${shown} of ${total} ${noun}`.trimEnd(),
