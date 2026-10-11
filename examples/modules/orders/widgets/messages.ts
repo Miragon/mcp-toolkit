@@ -13,7 +13,7 @@ export interface OrdersText {
   tier: Record<Customer["tier"], string>
   /** "4 orders"; `formatted` is the count in the widget's locale. */
   orderCount: (count: number, formatted: string) => string
-  /** Header of the KPI strip (the table below is titled "Orders"). */
+  /** Header of the strip with the counts by status (the table below is titled "Orders"). */
   kpiHeader: string
   revenue: string
   status: Record<OrderStatus, string>
@@ -27,7 +27,7 @@ export interface OrdersText {
 const en: OrdersText = {
   tier: { standard: "Standard customer", premium: "Premium customer" },
   orderCount: (count, formatted) => `${formatted} ${count === 1 ? "order" : "orders"}`,
-  kpiHeader: "Overview",
+  kpiHeader: "By status",
   revenue: "Revenue",
   status: { open: "Open", paid: "Paid", shipped: "Shipped", cancelled: "Cancelled" },
   tableTitle: "Orders",
@@ -40,7 +40,7 @@ const en: OrdersText = {
 const de: OrdersText = {
   tier: { standard: "Standardkunde", premium: "Premiumkunde" },
   orderCount: (count, formatted) => `${formatted} ${count === 1 ? "Bestellung" : "Bestellungen"}`,
-  kpiHeader: "Überblick",
+  kpiHeader: "Nach Status",
   revenue: "Umsatz",
   status: { open: "Offen", paid: "Bezahlt", shipped: "Versendet", cancelled: "Storniert" },
   tableTitle: "Bestellungen",

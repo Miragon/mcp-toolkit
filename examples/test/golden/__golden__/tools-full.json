@@ -971,7 +971,7 @@
       "openWorldHint": false,
       "readOnlyHint": true
     },
-    "description": "Show the orders dashboard for a customer: a KPI strip (per-status counts + revenue) next to a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
+    "description": "Show the orders dashboard for a customer: the revenue and the order counts by status above a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {

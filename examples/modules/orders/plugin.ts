@@ -56,7 +56,7 @@ const customerSchema = z.object({
 
 /**
  * The eager dashboard layout: TWO full-width rows — the KPI strip on top, the
- * orders table below. Side by side (5 + 7 columns) the five KPI figures and the
+ * orders table below. Side by side (5 + 7 columns) the KPI figures and the
  * table's Amount column ran out of room at a chat's inline width (about 760 px).
  * This is the same `LayoutConfig` shape `render-view` takes, so the eager path
  * and the pipeline path share an identical layout model (compare
@@ -129,7 +129,7 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
       name: SHOW_ORDERS_DASHBOARD,
       title: "Orders dashboard",
       description:
-        "Show the orders dashboard for a customer: a KPI strip (per-status counts + revenue) next to a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
+        "Show the orders dashboard for a customer: the revenue and the order counts by status above a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       inputSchema: z.object({
         customerId: z

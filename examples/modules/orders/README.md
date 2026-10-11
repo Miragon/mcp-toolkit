@@ -83,8 +83,8 @@ return { content: view.content, structuredContent: view.structuredContent }
 The native `view` binding (+ `appsSdkMeta` for Apps SDK hosts) tells the host to render the result as
 UI. The layout is a **12-column grid** of rows: the KPI strip and the table each
 take a full row (`span: 12`), so both stay readable at a chat's inline width
-(about 760 px). Side by side, the five KPI figures and the table's Amount column
-run out of room there.
+(about 760 px). Side by side, the KPI figures and the table's Amount column run
+out of room there.
 
 The data flow is direct — no executor in the loop:
 

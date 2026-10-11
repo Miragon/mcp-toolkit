@@ -3,8 +3,8 @@ import type { OrdersDashboardData } from "../store.js"
 import { formatEuro, useOrdersText } from "./messages.js"
 
 /**
- * OrdersKpi: the top widget of the orders dashboard, a KPI strip with the
- * customer's revenue and the per-status order counts. Its header names the
+ * OrdersKpi: the top widget of the orders dashboard: the customer's revenue
+ * as the headline figure and a KPI strip with the per-status order counts. Its header names the
  * customer, so the composed view needs no title of its own.
  *
  * Data contract: this is a single-data `({ data })` widget. It is registered via
@@ -42,12 +42,22 @@ export function OrdersKpi({ data }: { data: OrdersDashboardData | null }) {
         }
       />
 
-      {/* The headline metrics. Pre-format the currency: KpiGrid renders values verbatim. */}
+      {/* Revenue is the headline figure, on its own line: an amount needs more
+          room than a fifth of an inline chat frame gives a KPI cell (German
+          "1.998,00 €" touched the next cell at 760 px). Pre-formatted, since
+          the toolkit renders values verbatim. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <span className="text-muted-foreground text-sm font-medium">{text.revenue}</span>
+        <span className="text-foreground text-2xl font-bold tracking-tight tabular-nums">
+          {formatEuro(revenueCents, locale)}
+        </span>
+      </div>
+
+      {/* The order counts by status: four cells, so each keeps its figure readable. */}
       <KpiGrid
         boxed
         header={{ label: text.kpiHeader }}
         cells={[
-          { label: text.revenue, value: formatEuro(revenueCents, locale) },
           {
             label: text.status.open,
             value: count(counts.open),
