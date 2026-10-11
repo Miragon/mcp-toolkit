@@ -123,6 +123,7 @@ function IncidentPanel({
     Boolean(processKey), // ready: only fetch when the key is present
   )
   if (loading) return <Skeleton className="h-24 w-full" />
+  if (error) return <ErrorState title="Incident couldn't be loaded" details={error.message} />
   // … render from data
 }
 ```
@@ -321,6 +322,7 @@ House rules that apply to widget code (see `CONTRIBUTING.md` / `CLAUDE.md`):
 - [ ] Picked the widget shape (`{ data }` vs `{ keys }`) and the data path (Step 0/1).
 - [ ] Composed from the catalog's primitives/composed components — no `<div>` wüste, tokens not raw colors.
 - [ ] Host access only via `useHostBridge` / the data hooks — no direct `mcp-use/react` or `window.openai`.
-- [ ] Loading (`Skeleton`), empty, and error states handled.
+- [ ] Loading (`Skeleton`), empty (`EmptyState`) and error (`ErrorState` with `onRetry`) states handled; write outcomes reported with `useToast()`, never only `console`.
+- [ ] No hard-coded copy: user-facing text comes from props or the locale (`useTranslate` / `useToolkitMessages`).
 - [ ] A `Story` added to the playground and the widget seen rendering.
 - [ ] `typecheck` green; repo gates green before commit.

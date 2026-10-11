@@ -22,6 +22,7 @@ export function useSaveDashboard({
   stepEntries,
   draft,
   onSaved,
+  onSuccess,
 }: {
   callTool: (name: string, args: object) => Promise<unknown>
   saveToolName: string
@@ -31,6 +32,8 @@ export function useSaveDashboard({
   stepEntries: PipelineStepRef[]
   draft: DraftLayout
   onSaved?: (result: { id: string; name: string }) => void
+  /** Confirms every successful save (the builder raises a toast), with the saved name. */
+  onSuccess?: (name: string) => void
 }) {
   const [isBusy, setBusy] = useState(false)
   const [saveOpen, setSaveOpen] = useState(false)
@@ -56,6 +59,7 @@ export function useSaveDashboard({
       })
       const saved = parseToolResult<{ id?: string; name?: string } | null>(result)
       setSaveOpen(false)
+      onSuccess?.(saved?.name ?? saveName.trim())
       if (saved?.id && onSaved) {
         onSaved({
           id: saved.id,
@@ -75,6 +79,7 @@ export function useSaveDashboard({
     draft,
     keyEntries,
     onSaved,
+    onSuccess,
     saveDescription,
     saveName,
     saveToolName,

@@ -7,7 +7,7 @@ import {
   initBuilderState,
   type BuilderDraftState,
 } from "./builder/builder-reducer.js"
-import { DEFAULT_LABELS, type LayoutBuilderLabels } from "./builder/labels.js"
+import type { LayoutBuilderLabels } from "./builder/labels.js"
 import { Toolbar } from "./builder/Toolbar.js"
 import { PipelineStrip } from "./builder/PipelineStrip.js"
 import { CatalogueSheet } from "./builder/CatalogueSheet.js"
@@ -21,6 +21,8 @@ import { useBuilderCatalogue } from "./builder/use-builder-catalogue.js"
 import { useKeyStepEntries } from "./builder/use-key-step-entries.js"
 import { useSaveDashboard } from "./builder/use-save-dashboard.js"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../primitives/tabs.js"
+import { ToastProvider, useToast } from "../components/Toast.js"
+import { useToolkitMessages } from "../locale/locale-provider.js"
 import { type WidgetComponent } from "./widget-renderer.js"
 
 // -------------------------------------------------------------------------- //
@@ -73,7 +75,20 @@ export interface LayoutBuilderProps {
 // Main component
 // -------------------------------------------------------------------------- //
 
-export function LayoutBuilder({
+/**
+ * The visual view builder. Confirms a successful save with a toast (it mounts
+ * a `ToastProvider` when none is above it — inside `McpAppView` it shares the
+ * view's). Every caption follows the active locale (`labels` overrides).
+ */
+export function LayoutBuilder(props: LayoutBuilderProps) {
+  return (
+    <ToastProvider>
+      <LayoutBuilderImpl {...props} />
+    </ToastProvider>
+  )
+}
+
+function LayoutBuilderImpl({
   initialLayout,
   title,
   initialKeys,
@@ -87,7 +102,9 @@ export function LayoutBuilder({
   onSaved,
   onExit,
 }: LayoutBuilderProps) {
-  const L = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels])
+  const messages = useToolkitMessages()
+  const L = useMemo(() => ({ ...messages.builder, ...labels }), [messages.builder, labels])
+  const toast = useToast()
 
   // ── Draft layout (pure reducer) ─────────────────────────────────────────
   // The draft plus the UI indices coupled to draft mutations
@@ -176,6 +193,7 @@ export function LayoutBuilder({
     stepEntries,
     draft,
     onSaved,
+    onSuccess: (name) => toast.show({ tone: "success", title: L.saved(name) }),
   })
 
   // ── DnD ──────────────────────────────────────────────────────────────────

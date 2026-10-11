@@ -1,0 +1,63 @@
+/**
+ * Pure model behind `ToastProvider` / `useToast`: the toast list as a reducer
+ * plus the timing rules, so both are testable without a DOM (the house path,
+ * FITNESS.md) and the component stays a thin view over them.
+ */
+
+/** Status tone of a toast — the four status roles (`--success` … `--info`). */
+export type ToastTone = "success" | "warning" | "danger" | "info"
+
+/** What a caller passes to `useToast().show(...)`. */
+export interface ToastOptions {
+  /** Status tone; drives the edge, the icon and the default duration. Default `"info"`. */
+  tone?: ToastTone
+  /** The message. Say what happened, in one short sentence ("Job retried."). */
+  title: string
+  /** Optional second line (what you can do next, or the affected object). */
+  description?: string
+  /** Auto-dismiss after this many ms. Defaults per {@link toastDuration}. */
+  duration?: number
+}
+
+/** A toast as it sits in the list. */
+export interface ToastItem {
+  id: number
+  tone: ToastTone
+  title: string
+  description?: string
+  duration: number
+}
+
+/** Default lifetime of a toast (CI §8: about 2.8 s). */
+export const TOAST_DURATION_MS = 2800
+/** Lifetime of an error toast (CI §8: about 5 s) — long enough to read the reason. */
+export const TOAST_ERROR_DURATION_MS = 5000
+/** At most this many toasts stack; the oldest leaves first. */
+export const MAX_VISIBLE_TOASTS = 3
+
+/** The lifetime of a toast: an explicit positive duration, else the tone's default. */
+export function toastDuration(tone: ToastTone, explicit?: number): number {
+  if (explicit !== undefined && Number.isFinite(explicit) && explicit > 0) return explicit
+  return tone === "danger" ? TOAST_ERROR_DURATION_MS : TOAST_DURATION_MS
+}
+
+/** Normalise caller options into a list item. */
+export function createToast(id: number, options: ToastOptions): ToastItem {
+  const tone = options.tone ?? "info"
+  return {
+    id,
+    tone,
+    title: options.title,
+    ...(options.description ? { description: options.description } : {}),
+    duration: toastDuration(tone, options.duration),
+  }
+}
+
+export type ToastAction = { type: "add"; toast: ToastItem } | { type: "dismiss"; id: number }
+
+/** Add appends (dropping the oldest beyond {@link MAX_VISIBLE_TOASTS}); dismiss removes by id. */
+export function toastReducer(state: readonly ToastItem[], action: ToastAction): ToastItem[] {
+  if (action.type === "add") return [...state, action.toast].slice(-MAX_VISIBLE_TOASTS)
+  const next = state.filter((t) => t.id !== action.id)
+  return next.length === state.length ? (state as ToastItem[]) : next
+}

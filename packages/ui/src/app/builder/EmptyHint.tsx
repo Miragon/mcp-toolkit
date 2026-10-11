@@ -1,4 +1,5 @@
 import { Layers, SlidersHorizontal } from "lucide-react"
+import { EmptyState } from "../../components/EmptyState.js"
 import { Button } from "../../primitives/button.js"
 import type { LayoutBuilderLabels } from "./labels.js"
 
@@ -14,16 +15,16 @@ export function EmptyHint({
   onGotoPipeline: () => void
 }) {
   return (
-    <div className="border-muted-foreground/30 text-muted-foreground flex flex-col items-center gap-2 rounded-md border border-dashed p-10 text-sm">
-      <Layers className="size-5" />
-      <p>No widgets reachable yet.</p>
-      <p className="text-xs">
-        Open the <span className="font-medium">{L.viewPipelineTab}</span> tab to seed keys or add a
-        pipeline step — the palette unlocks as soon as a widget's contract is satisfied.
-      </p>
-      <Button variant="outline" size="sm" onClick={onGotoPipeline} className="mt-1">
-        <SlidersHorizontal /> Open {L.viewPipelineTab}
-      </Button>
-    </div>
+    <EmptyState
+      className="rounded-md border border-dashed"
+      icon={<Layers />}
+      title={L.emptyHintTitle}
+      description={L.emptyHintBody}
+      action={
+        <Button variant="outline" size="sm" onClick={onGotoPipeline}>
+          <SlidersHorizontal aria-hidden="true" /> {L.openDataSources}
+        </Button>
+      }
+    />
   )
 }

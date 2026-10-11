@@ -58,18 +58,19 @@ function ToolbarImpl({
         <span className="inline-flex items-center gap-1.5">
           <span aria-hidden="true" className={`size-1.5 rounded-full ${TONE_DOT.success}`} />
           <span>
-            <span className="text-foreground font-medium">{liveKeys}</span> live
+            <span className="text-foreground font-medium">{liveKeys}</span> {L.statsLive}
           </span>
         </span>
         <span className="bg-border h-3 w-px" aria-hidden="true" />
         <span>
-          <span className="text-foreground font-medium">{reachableCount}</span> reachable
+          <span className="text-foreground font-medium">{reachableCount}</span> {L.statsReachable}
         </span>
         {unreachableCount > 0 && (
           <>
             <span className="bg-border h-3 w-px" aria-hidden="true" />
             <span>
-              <span className="text-foreground font-medium">{unreachableCount}</span> unreachable
+              <span className="text-foreground font-medium">{unreachableCount}</span>{" "}
+              {L.statsUnreachable}
             </span>
           </>
         )}

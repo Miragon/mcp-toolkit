@@ -260,6 +260,11 @@ describe("formatLiveKeyValue", () => {
     expect(formatLiveKeyValue("abc")).toBe("live: abc")
   })
 
+  it("takes the localized prefix", () => {
+    expect(formatLiveKeyValue("abc", "vorhanden")).toBe("vorhanden: abc")
+    expect(formatLiveKeyValue(42, "vorhanden")).toBe("vorhanden: 42")
+  })
+
   it("JSON-stringifies non-string values", () => {
     expect(formatLiveKeyValue(42)).toBe("live: 42")
     expect(formatLiveKeyValue({ a: 1 })).toBe('live: {"a":1}')

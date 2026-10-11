@@ -91,9 +91,9 @@ function CanvasRowImpl({
     >
       <div className="mb-2 flex items-center justify-between">
         <div className="text-muted-foreground flex items-center gap-2 text-[11px]">
-          <span className="font-mono">row {rowIdx + 1}</span>
+          <span className="font-mono">{L.rowLabel(rowIdx + 1)}</span>
           <span className="bg-muted/60 rounded px-1 py-0.5 text-[10px]">
-            {row.row.length} {row.row.length === 1 ? "widget" : "widgets"}
+            {L.elementCount(row.row.length)}
           </span>
         </div>
         <div className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -105,7 +105,7 @@ function CanvasRowImpl({
               onMoveRow(rowIdx, -1)
             }}
             disabled={isFirst}
-            aria-label="Move row up"
+            aria-label={L.moveRowUp}
           >
             <ChevronUp />
           </Button>
@@ -117,7 +117,7 @@ function CanvasRowImpl({
               onMoveRow(rowIdx, 1)
             }}
             disabled={isLast}
-            aria-label="Move row down"
+            aria-label={L.moveRowDown}
           >
             <ChevronDown />
           </Button>
@@ -160,7 +160,7 @@ function CanvasRowImpl({
                       <span className="truncate font-mono">{cell.widget}</span>
                       <div className="flex shrink-0 items-center gap-2">
                         <label className="text-muted-foreground inline-flex items-center gap-0.5 font-mono">
-                          <span className="sr-only">Column span</span>
+                          <span className="sr-only">{L.columnSpan}</span>
                           <Select
                             value={String(span)}
                             onValueChange={(v) => onSetCellSpan(rowIdx, cellIdx, Number(v))}
@@ -168,7 +168,7 @@ function CanvasRowImpl({
                             <SelectTrigger
                               size="sm"
                               className="h-5 gap-0.5 border-none bg-transparent px-1 py-0 font-mono text-[10px] shadow-none"
-                              aria-label="Column span"
+                              aria-label={L.columnSpan}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <SelectValue />
@@ -191,11 +191,9 @@ function CanvasRowImpl({
                               e.stopPropagation()
                               onConfigureCell(rowIdx, cellIdx)
                             }}
-                            aria-label="Configure widget props"
+                            aria-label={L.configureElement}
                             title={
-                              propCount > 0
-                                ? `Configure widget props (${propCount} set)`
-                                : "Configure widget props"
+                              propCount > 0 ? L.configureElementSet(propCount) : L.configureElement
                             }
                             className={cn(propCount > 0 && "text-link")}
                           >
@@ -209,7 +207,7 @@ function CanvasRowImpl({
                             e.stopPropagation()
                             onRemoveCell(rowIdx, cellIdx)
                           }}
-                          aria-label="Remove widget"
+                          aria-label={L.removeElement}
                         >
                           <X />
                         </Button>
@@ -226,6 +224,7 @@ function CanvasRowImpl({
                       />
                     </div>
                     <ResizeHandle
+                      label={L.resizeElement}
                       rowIdx={rowIdx}
                       cellIdx={cellIdx}
                       span={span}
@@ -250,12 +249,14 @@ export const CanvasRow = memo(CanvasRowImpl)
 // -------------------------------------------------------------------------- //
 
 function ResizeHandle({
+  label,
   rowIdx,
   cellIdx,
   span,
   getGridEl,
   onSetCellSpan,
 }: {
+  label: string
   rowIdx: number
   cellIdx: number
   span: number
@@ -305,7 +306,7 @@ function ResizeHandle({
       onKeyDown={onKeyDown}
       tabIndex={0}
       className="hover:bg-primary/40 focus-visible:bg-primary/40 focus-visible:ring-focus absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none focus-visible:ring-2 focus-visible:outline-hidden"
-      aria-label="Resize widget"
+      aria-label={label}
       role="separator"
       aria-orientation="vertical"
       aria-valuenow={span}

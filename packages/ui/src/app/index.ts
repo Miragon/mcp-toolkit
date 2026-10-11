@@ -1,5 +1,12 @@
 export { McpAppView } from "./mcp-app-view.js"
-export type { McpAppViewProps, McpAppViewLabels } from "./mcp-app-view.js"
+export type {
+  McpAppViewProps,
+  McpAppViewLabels,
+  DescribeStep,
+  DescribeViewError,
+  ViewTitleLevel,
+  ViewTitleMode,
+} from "./mcp-app-view.js"
 export { McpToolkitApp, mountMcpToolkitApp } from "./mcp-toolkit-app.js"
 export {
   WidgetRenderer,

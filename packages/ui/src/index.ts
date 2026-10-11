@@ -100,6 +100,14 @@ export type { DrillButtonProps } from "./components/DrillButton.js"
 export { ListFooter } from "./components/ListFooter.js"
 export type { ListFooterProps } from "./components/ListFooter.js"
 
+// Feedback and states — one pattern each for toasts, empty and error states.
+export { ToastProvider, useToast } from "./components/Toast.js"
+export type { ToastApi, ToastOptions, ToastTone } from "./components/Toast.js"
+export { EmptyState } from "./components/EmptyState.js"
+export type { EmptyStateProps, StateHeadingLevel } from "./components/EmptyState.js"
+export { ErrorState } from "./components/ErrorState.js"
+export type { ErrorStateProps, ErrorStateTone } from "./components/ErrorState.js"
+
 // Providers
 export { AppQueryProvider, useCallTool, queryClient } from "./providers/query-provider.js"
 
@@ -143,8 +151,29 @@ export type {
 // <LocaleProvider locale=… translator=…> and reads the active locale with
 // useLocale/useTranslate. Pairs with `createTranslator` from
 // `@miragon/mcp-toolkit-core`. See packages/ui/src/locale/.
-export { LocaleProvider, useLocale, useTranslate } from "./locale/index.js"
-export type { LocaleContextValue, LocaleProviderProps, BoundTranslate } from "./locale/index.js"
+export {
+  LocaleProvider,
+  useLocale,
+  useTranslate,
+  useToolkitMessages,
+  TOOLKIT_MESSAGES,
+  formatCount,
+  resolveToolkitMessages,
+} from "./locale/index.js"
+export type {
+  LocaleContextValue,
+  LocaleProviderProps,
+  BoundTranslate,
+  BuilderMessages,
+  CommonMessages,
+  ListFooterMessages,
+  PropsSheetMessages,
+  RendererMessages,
+  ToolkitLocale,
+  ToolkitMessages,
+  ToolkitMessagesOverride,
+  ViewMessages,
+} from "./locale/index.js"
 
 // NOTE: MCP App shell (McpAppView, WidgetRenderer) is exported from the
 // `./app` subpath only. Keeping it out of the main barrel prevents consumers

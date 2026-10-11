@@ -14,7 +14,7 @@ and never lands in the LLM's context.
 > default**; pass `app: { builder: true }` to `createFrameworkApp` to enable
 > it. Lean servers leave it off: `render-view` reports
 > `structuredContent.builderAvailable` (derived from `app.builder`), and the
-> `McpAppView` shell shows its Build button only when that flag is set, so the
+> `McpAppView` shell shows its edit button ("Edit view") only when that flag is set, so the
 > affordance never appears against a server whose catalogue tool isn't
 > registered.
 
@@ -28,7 +28,7 @@ render-view { keys, steps, layout }
 structuredContent { context, layout, … }
    ↓
                                      <WidgetRenderer>      ← user sees rendered view
-                                     · click "Build" ↓
+                                     · click "Edit view" ↓
                                      <LayoutBuilder>
                                      · calls get-builder-catalogue
                                        (app-only, not visible to LLM)
@@ -179,6 +179,6 @@ reported instead of treated as absent — see
 - `packages/core/src/framework/dashboard-store.ts` — interface + impls.
 - `packages/core/src/tools/register-catalogue-tool.ts` — `get-builder-catalogue`.
 - `packages/core/src/tools/register-dashboard-tools.ts` — CRUD tools.
-- `packages/ui/src/app/mcp-app-view.tsx` — Build toggle in the toolbar.
+- `packages/ui/src/app/mcp-app-view.tsx` — edit toggle in the toolbar.
 - `packages/ui/src/app/layout-builder.tsx` — interactive composer.
 - [Guide: building dashboards](../guides/building-dashboards.md)

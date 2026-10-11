@@ -5,6 +5,7 @@ import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { FOCUS_RING } from "../lib/focus-ring.js"
+import { useToolkitMessages } from "../locale/locale-provider.js"
 import { cn } from "../lib/utils.js"
 import { usePortalContainer } from "../theme/portal-container.js"
 import { Button } from "./button.js"
@@ -56,10 +57,14 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  closeLabel,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /** Accessible name of the close button. Default: the locale's "Close". */
+  closeLabel?: string
 }) {
+  const messages = useToolkitMessages()
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -81,7 +86,7 @@ function DialogContent({
             )}
           >
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{closeLabel ?? messages.common.close}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -102,11 +107,15 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 function DialogFooter({
   className,
   showCloseButton = false,
+  closeLabel,
   children,
   ...props
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
+  /** Label of the footer close button. Default: the locale's "Close". */
+  closeLabel?: string
 }) {
+  const messages = useToolkitMessages()
   return (
     <div
       data-slot="dialog-footer"
@@ -116,7 +125,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">{closeLabel ?? messages.common.close}</Button>
         </DialogPrimitive.Close>
       )}
     </div>

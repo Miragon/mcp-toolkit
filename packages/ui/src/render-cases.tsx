@@ -1,8 +1,11 @@
 import type { ReactElement } from "react"
+import { Inbox } from "lucide-react"
 import {
   Button,
   CountPill,
   DrillButton,
+  EmptyState,
+  ErrorState,
   FilterBar,
   GridItem,
   GridLayout,
@@ -14,6 +17,7 @@ import {
   SectionHeading,
   ThemeProvider,
   themePresets,
+  ToastProvider,
   useLocale,
   WidgetHeader,
 } from "./index.js"
@@ -183,6 +187,46 @@ export const RENDER_CASES: RenderCase[] = [
     name: "ListFooter",
     marker: "of 42 tasks",
     render: () => <ListFooter shown={8} total={42} hasMore onLoadMore={noop} noun="tasks" />,
+  },
+
+  // ── Feedback and states ──
+  {
+    // The provider renders its children plus the (empty) live region.
+    name: "ToastProvider",
+    marker: "RC:ToastProvider",
+    render: () => (
+      <ToastProvider>
+        <div>RC:ToastProvider</div>
+      </ToastProvider>
+    ),
+  },
+  {
+    name: "EmptyState",
+    marker: "RC:EmptyState",
+    render: () => (
+      <EmptyState
+        icon={<Inbox />}
+        title="RC:EmptyState"
+        description="No orders in this period."
+        action={
+          <Button size="sm" onClick={noop}>
+            New order
+          </Button>
+        }
+      />
+    ),
+  },
+  {
+    name: "ErrorState",
+    marker: "RC:ErrorState",
+    render: () => (
+      <ErrorState
+        title="RC:ErrorState"
+        description="Check the connection and try again."
+        details="HTTP 503 Service Unavailable"
+        onRetry={noop}
+      />
+    ),
   },
 
   // ── Host seam / providers ──

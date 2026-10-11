@@ -53,7 +53,7 @@ export function SaveDialog({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Invoice overview"
+              placeholder={L.saveNamePlaceholder}
               autoFocus
             />
           </label>
@@ -62,7 +62,7 @@ export function SaveDialog({
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional"
+              placeholder={L.saveDescriptionPlaceholder}
             />
           </label>
           {error && (
