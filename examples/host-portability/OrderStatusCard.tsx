@@ -175,9 +175,16 @@ export function OrderStatusCard({ orderId = "ORD-4471" }: { orderId?: string }) 
           </div>
         ) : order ? (
           <>
+            {/* The total is the card's headline figure, on its own line: a
+                five-figure amount does not fit a third of a phone-width card. */}
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <span className="text-muted-foreground text-sm font-medium">{text.total}</span>
+              <span className="text-foreground text-2xl font-bold tracking-tight tabular-nums">
+                {formatMoney(order.total, order.currency, locale)}
+              </span>
+            </div>
             <KpiGrid
               cells={[
-                { label: text.total, value: formatMoney(order.total, order.currency, locale) },
                 { label: text.items, value: formatCount(order.items, locale) },
                 { label: text.delivery, value: formatDay(order.eta, locale) },
               ]}
