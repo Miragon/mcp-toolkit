@@ -61,3 +61,89 @@ export function toastReducer(state: readonly ToastItem[], action: ToastAction): 
   const next = state.filter((t) => t.id !== action.id)
   return next.length === state.length ? (state as ToastItem[]) : next
 }
+
+/**
+ * The clock a {@link createToastTimer} runs on. The default reads the global
+ * timers at call time, so fake timers installed in a test take effect.
+ */
+export interface ToastClock {
+  now: () => number
+  setTimeout: (callback: () => void, ms: number) => unknown
+  clearTimeout: (handle: unknown) => void
+}
+
+const SYSTEM_CLOCK: ToastClock = {
+  now: () => Date.now(),
+  setTimeout: (callback, ms) => globalThis.setTimeout(callback, ms),
+  clearTimeout: (handle) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>),
+}
+
+/** The countdown of one toast (see {@link createToastTimer}). */
+export interface ToastTimer {
+  /**
+   * Hold the toast for `reason` (`"pointer"`, `"focus"`): the countdown
+   * pauses and keeps the time that was left.
+   */
+  hold: (reason: string) => void
+  /** Release `reason`; once nothing holds the toast, it resumes with the time that was left. */
+  release: (reason: string) => void
+  /** The time left in ms — frozen while held. */
+  remaining: () => number
+  /** Stop for good (the toast left early or unmounted); `onExpire` never fires afterwards. */
+  cancel: () => void
+}
+
+/**
+ * A pausable countdown: starts at once, pauses while anything holds it
+ * (hover, keyboard focus — so a reader can finish), and on release RESUMES
+ * WITH THE REMAINING TIME instead of restarting the full duration. Fires
+ * `onExpire` once.
+ */
+export function createToastTimer(
+  duration: number,
+  onExpire: () => void,
+  clock: ToastClock = SYSTEM_CLOCK,
+): ToastTimer {
+  let left = Math.max(duration, 0)
+  let startedAt = 0
+  let handle: unknown
+  let running = false
+  let finished = false
+  const holds = new Set<string>()
+
+  const elapsed = () => (running ? clock.now() - startedAt : 0)
+  const start = () => {
+    if (finished || running || holds.size > 0) return
+    running = true
+    startedAt = clock.now()
+    handle = clock.setTimeout(() => {
+      running = false
+      finished = true
+      left = 0
+      onExpire()
+    }, left)
+  }
+  const pause = () => {
+    if (!running) return
+    left = Math.max(left - elapsed(), 0)
+    running = false
+    clock.clearTimeout(handle)
+  }
+
+  start()
+  return {
+    hold: (reason) => {
+      holds.add(reason)
+      pause()
+    },
+    release: (reason) => {
+      holds.delete(reason)
+      start()
+    },
+    remaining: () => Math.max(left - elapsed(), 0),
+    cancel: () => {
+      pause()
+      finished = true
+    },
+  }
+}

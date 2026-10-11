@@ -40,14 +40,34 @@ describe("Toast", () => {
 
   it("renders ONE persistent live region: role=status, aria-live=polite, a localized name", () => {
     const html = inGerman(<ToastViewport toasts={toasts} onDismiss={noop} />)
-    const [region, ...others] = openingTags(html, "div").filter((t) => /role="status"/.test(t))
+    const [region, ...others] = openingTags(html, "div").filter((t) => /aria-live=/.test(t))
     expect(others).toHaveLength(0)
+    expect(attribute(region ?? "", "role")).toBe("status")
     expect(attribute(region ?? "", "aria-live")).toBe("polite")
+    // Each new toast is announced on its own, not the whole stack again.
+    expect(attribute(region ?? "", "aria-atomic")).toBe("false")
     expect(attribute(region ?? "", "aria-label")).toBe(de.common.notifications)
-    // An empty stack keeps the region mounted, so the first toast is announced.
+    expect(html.match(/role="status"/g)).toHaveLength(1)
+  })
+
+  it("keeps the region mounted while idle, but as no second role=status", () => {
+    // An empty stack keeps the live region, so the first toast is announced…
     const empty = inGerman(<ToastViewport toasts={[]} onDismiss={noop} />)
-    expect(empty).toContain('role="status"')
-    expect(empty).toContain('aria-live="polite"')
+    const [region] = openingTags(empty, "div")
+    expect(attribute(region ?? "", "data-slot")).toBe("toast-viewport")
+    expect(attribute(region ?? "", "aria-live")).toBe("polite")
+    // …but is no "status" (nor a named element) beside a view's own loading
+    // status: getByRole("status") finds exactly the one that says something.
+    expect(attribute(region ?? "", "role")).toBeUndefined()
+    expect(attribute(region ?? "", "aria-label")).toBeUndefined()
+    expect(empty).not.toContain('role="status"')
+    const loading = inGerman(
+      <ToastProvider>
+        <p role="status">Ansicht wird geladen…</p>
+      </ToastProvider>,
+    )
+    expect(loading.match(/role="status"/g)).toHaveLength(1)
+    expect(loading.match(/aria-live="polite"/g)).toHaveLength(1)
   })
 
   it("shows the status as edge + icon next to plain text, never as coloured text", () => {
