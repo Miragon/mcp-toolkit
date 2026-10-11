@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [2.8.0](https://github.com/Miragon/mcp-toolkit/compare/v2.7.0...v2.8.0) (2026-10-11)
+
+
+### Features
+
+* **docs:** dress the docs site in the Miragon corporate design as the Miragon MCP Toolkit ([#191](https://github.com/Miragon/mcp-toolkit/issues/191)) ([9e61b43](https://github.com/Miragon/mcp-toolkit/commit/9e61b43905da029dfbb2944c86e94a918ff12d43)), closes [#178](https://github.com/Miragon/mcp-toolkit/issues/178)
+* **examples:** bring the toolkit's own surfaces onto the Miragon design system ([#190](https://github.com/Miragon/mcp-toolkit/issues/190)) ([4a95f2a](https://github.com/Miragon/mcp-toolkit/commit/4a95f2a27559e74b77fb755c99e9f9656feaa538)), closes [#178](https://github.com/Miragon/mcp-toolkit/issues/178)
+* **ui:** a view builder for people — titles, Apply and Discard, Advanced, keyboard and touch ([#188](https://github.com/Miragon/mcp-toolkit/issues/188)) ([78e523d](https://github.com/Miragon/mcp-toolkit/commit/78e523dfa7ce708d8548fd897e7bd698e15b2d54)), closes [#178](https://github.com/Miragon/mcp-toolkit/issues/178)
+* **ui:** one kit with one tone vocabulary and the CI type scale ([#186](https://github.com/Miragon/mcp-toolkit/issues/186)) ([376fe3a](https://github.com/Miragon/mcp-toolkit/commit/376fe3ab56b757b1fa611c55d50a7d80d56c834b)), closes [#178](https://github.com/Miragon/mcp-toolkit/issues/178)
+* **ui:** wait for the host's tool result, take TanStack query options and report the view to the model ([#189](https://github.com/Miragon/mcp-toolkit/issues/189)) ([8f48e96](https://github.com/Miragon/mcp-toolkit/commit/8f48e964a7910740399dae2c965c18623718d633))
+
 ## [2.7.0](https://github.com/Miragon/mcp-toolkit/compare/v2.6.0...v2.7.0) (2026-10-11)
 
 
