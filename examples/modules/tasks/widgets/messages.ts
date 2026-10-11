@@ -41,17 +41,26 @@ export interface TasksText {
   statusHeader: string
   /** Accessible name of a status cell: what it shows, then what a click does. */
   statusCellLabel: (status: string, count: string) => string
+  /** The same while the list shows only that status: a click shows all again. */
+  statusCellActiveLabel: (status: string, count: string) => string
+  /** The KPI header's badge while a status filter is on (the cells have no pressed state). */
+  statusFilterBadge: (status: string) => string
   total: string
   listTitle: string
   shown: (formatted: string) => string
   filterPlaceholder: string
+  /** Clears the status filter and names it, since nothing else in the list does. */
+  clearStatus: (status: string) => string
   clearFilters: string
   noMatchTitle: string
   noMatchHint: string
   /** The noun of the list footer ("Showing 8 of 12 tasks"). */
   listNoun: string
   complete: string
+  /** Accessible name of Complete; starts with the visible label (WCAG 2.5.3). */
   completeTask: (title: string) => string
+  /** Takes Complete's place once the task was completed here. */
+  justCompleted: string
   completed: string
   completeFailed: string
   completeFailedHint: string
@@ -81,16 +90,20 @@ const en: TasksText = {
   emptyHint: "Ask the agent to add your first task. It shows up here.",
   statusHeader: "Status",
   statusCellLabel: (status, count) => `${status} ${count}: show only these tasks`,
+  statusCellActiveLabel: (status, count) => `${status} ${count}: show all tasks again`,
+  statusFilterBadge: (status) => `Only “${status}”`,
   total: "Total",
   listTitle: "Tasks",
   shown: (formatted) => `${formatted} shown`,
   filterPlaceholder: "Filter tasks…",
+  clearStatus: (status) => `Show all, not only “${status}”`,
   clearFilters: "Clear filters",
   noMatchTitle: "No task matches this filter",
   noMatchHint: "Clear the filter to see all tasks again.",
   listNoun: "tasks",
   complete: "Complete",
   completeTask: (title) => `Complete “${title}”`,
+  justCompleted: "Just completed",
   completed: "Task completed",
   completeFailed: "The task couldn't be completed",
   completeFailedHint: "It is still open. Try again in a moment.",
@@ -121,16 +134,20 @@ const de: TasksText = {
   emptyHint: "Bitte den Agenten im Chat um deine erste Aufgabe. Danach steht sie hier.",
   statusHeader: "Status",
   statusCellLabel: (status, count) => `${status} ${count}: nur diese Aufgaben zeigen`,
+  statusCellActiveLabel: (status, count) => `${status} ${count}: wieder alle Aufgaben zeigen`,
+  statusFilterBadge: (status) => `Nur „${status}“`,
   total: "Gesamt",
   listTitle: "Aufgaben",
   shown: (formatted) => `${formatted} angezeigt`,
   filterPlaceholder: "Aufgaben filtern…",
+  clearStatus: (status) => `Alle zeigen, nicht nur „${status}“`,
   clearFilters: "Filter zurücksetzen",
   noMatchTitle: "Keine Aufgabe passt zu diesem Filter",
   noMatchHint: "Setz den Filter zurück, um wieder alle Aufgaben zu sehen.",
   listNoun: "Aufgaben",
   complete: "Erledigen",
-  completeTask: (title) => `„${title}“ erledigen`,
+  completeTask: (title) => `Erledigen: „${title}“`,
+  justCompleted: "Gerade erledigt",
   completed: "Aufgabe erledigt",
   completeFailed: "Die Aufgabe konnte nicht erledigt werden",
   completeFailedHint: "Die Aufgabe bleibt offen. Versuch es gleich noch einmal.",

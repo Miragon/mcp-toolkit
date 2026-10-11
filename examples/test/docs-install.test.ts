@@ -20,8 +20,18 @@ const INSTALL_DOCS = [
   "packages/ui/README.md",
 ]
 
-/** Docs that describe how the peers are pinned (the migration guide has a version table). */
-const PIN_DOCS = [...INSTALL_DOCS, "docs/guides/migrating-to-mcp-use-2.md"]
+/**
+ * Docs that describe how the peers are pinned (the migration guide has a
+ * version table; the starter's README is mirrored to Miragon/mcp-toolkit-starter).
+ */
+const PIN_DOCS = [
+  ...INSTALL_DOCS,
+  "docs/guides/migrating-to-mcp-use-2.md",
+  "templates/minimal-server/README.md",
+]
+
+/** A claim that every peer is exact, in the words the docs used. */
+const ALL_PEERS_EXACT = /peer (versions|dependencies) (are|stay) pinned exactly|\bexact peers\b/i
 
 function peersOf(pkg: string): Record<string, string> {
   const json = JSON.parse(
@@ -73,8 +83,15 @@ describe("install instructions name the published peer specs", () => {
     expect(PEERS["mcp-use"]).toMatch(/^\d/)
     for (const doc of PIN_DOCS) {
       const text = fs.readFileSync(path.join(REPO_ROOT, doc), "utf8")
-      expect(text, doc).not.toMatch(/peer (versions|dependencies) (are|stay) pinned exactly/i)
+      expect(text, doc).not.toMatch(ALL_PEERS_EXACT)
     }
+  })
+
+  it("recognises both phrasings of the claim (self-test)", () => {
+    const claims = (text: string) => ALL_PEERS_EXACT.test(text)
+    expect(claims("Peer versions are pinned exactly.")).toBe(true)
+    expect(claims("They must match the exact peers of the pinned packages.")).toBe(true)
+    expect(claims("`mcp-use` is pinned exactly: a second copy breaks it.")).toBe(false)
   })
 
   it("reads peer versions only, not other packages or prose (self-test)", () => {

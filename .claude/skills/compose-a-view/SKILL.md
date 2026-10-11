@@ -51,7 +51,7 @@ server.tool(
   {
     name: "show_orders_dashboard",
     title: "Orders dashboard",
-    description: "Show a customer's orders: a KPI strip next to an orders table.",
+    description: "Show a customer's orders: a KPI strip above an orders table.",
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({ customerId: z.string().optional() }),
     view: { name: "show_orders_dashboard" }, // tells the host to render the result as UI

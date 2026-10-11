@@ -40,6 +40,9 @@ const SAMPLES: Record<string, unknown[]> = {
   updatedAt: ["10:57"],
   addPrompt: ["show_tasks_board"],
   statusCellLabel: ["To do", "2"],
+  statusCellActiveLabel: ["To do", "2"],
+  statusFilterBadge: ["To do"],
+  clearStatus: ["To do"],
   shown: ["4"],
   completeTask: ["Draft the onboarding guide"],
   inTotal: ["4"],
@@ -136,6 +139,29 @@ describe("catalog choice by locale tag", () => {
       for (const tag of ["de", "de-DE", "de_AT", " DE-ch "]) expect(pick(tag)).toBe(pick("de"))
       for (const tag of ["en", "en-US", "fr-FR", "", "deu"]) expect(pick(tag)).toBe(pick("en"))
       expect(pick("de")).not.toBe(pick("en"))
+    }
+  })
+})
+
+describe("accessible names start with the visible label (WCAG 2.5.3)", () => {
+  // Speech input matches a control by the words it shows, so its accessible
+  // name has to begin with them ("Erledigen: „…“", not "„…“ erledigen").
+  for (const locale of ["en", "de"] as const) {
+    it(`${locale}: Complete and the status cells`, () => {
+      const text = TASKS_TEXT[locale]
+      expect(text.completeTask("Draft the onboarding guide")).toMatch(
+        new RegExp(`^${text.complete}\\b`),
+      )
+      for (const status of Object.values(text.status)) {
+        expect(text.statusCellLabel(status, "2").startsWith(`${status} 2`)).toBe(true)
+        expect(text.statusCellActiveLabel(status, "2").startsWith(`${status} 2`)).toBe(true)
+      }
+    })
+  }
+
+  it("the active cell says that a click shows all again, not that it filters", () => {
+    for (const text of Object.values(TASKS_TEXT)) {
+      expect(text.statusCellActiveLabel("x", "1")).not.toBe(text.statusCellLabel("x", "1"))
     }
   })
 })

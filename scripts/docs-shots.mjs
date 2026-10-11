@@ -17,8 +17,15 @@
  * inspector at the playground and follows the guided tour: the landing page,
  * the inspector, show_tasks_board, show_orders_dashboard, and the render-view
  * pipeline with its Edit view button open. Widgets are captured at a chat's
- * inline width (the inspector's response frame) at 2x. Both servers stop when
+ * inline width (the inspector's response frame) at 2x. All servers stop when
  * the script ends.
+ *
+ * The docs show the HOSTED playground, so no image may print a localhost URL
+ * a reader would copy: the landing page comes from a second boot with the
+ * hosted origin in `MCP_URL` (as deploy/playground/fly.toml sets it; its
+ * requests to that origin are served by the local boot, so nothing is
+ * deployed or fetched from Fly), and the inspector shot starts below the
+ * inspector's server bar.
  */
 import { spawn } from "node:child_process"
 import path from "node:path"
@@ -29,6 +36,10 @@ import { chromium } from "playwright"
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const OUT = path.join(ROOT, "docs", "playground", "images")
 const PLAYGROUND = "http://localhost:4520/mcp"
+/** The origin the hosted playground advertises (`MCP_URL` in deploy/playground/fly.toml). */
+const HOSTED_ORIGIN = "https://mcp-toolkit-playground.fly.dev"
+/** A boot that advertises the hosted origin, for the landing page only. */
+const LANDING_ORIGIN = "http://localhost:4522"
 const INSPECTOR =
   "http://localhost:4521/mcp/inspector?autoConnect=" + encodeURIComponent(PLAYGROUND) + "&tab=tools"
 
@@ -155,15 +166,48 @@ process.on("exit", stopServers)
 process.on("SIGINT", () => process.exit(130))
 
 start(["tsx", "host/playground.ts"], { PORT: "4520" })
+start(["tsx", "host/playground.ts"], { PORT: "4522", MCP_URL: HOSTED_ORIGIN })
 start(["mcp-use", "dev", "--path", "standalone-host", "--no-open", "--port", "4521"], {})
 await waitFor(PLAYGROUND, "The playground host")
+await waitFor(`${LANDING_ORIGIN}/mcp`, "The landing-page host")
 await waitFor("http://localhost:4521/mcp/inspector", "The inspector")
 
 const browser = await chromium.launch()
 try {
-  // The landing page a browser gets on the playground's MCP endpoint.
+  // The landing page a browser gets on the hosted playground's MCP endpoint:
+  // it prints the hosted URL. Its own requests to that origin are answered by
+  // the local boot through a route. The icon is a `/favicon.ico` URL, which
+  // Playwright's Chromium never sends through a route (it fails without a
+  // request event), so it is requested again with a query.
   const landing = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
-  await landing.goto(PLAYGROUND, { waitUntil: "networkidle" })
+  await landing.route(`${HOSTED_ORIGIN}/**`, async (route) => {
+    const url = new URL(route.request().url())
+    const response = await route.fetch({ url: `${LANDING_ORIGIN}${url.pathname}${url.search}` })
+    await route.fulfill({ response })
+  })
+  await landing.goto(`${LANDING_ORIGIN}/mcp`, { waitUntil: "networkidle" })
+  if ((await landing.getByText(`${HOSTED_ORIGIN}/mcp`).count()) === 0) {
+    throw new Error(`landing-page.png: the page does not show ${HOSTED_ORIGIN}/mcp`)
+  }
+  const icons = await landing.evaluate(
+    (hosted) =>
+      Promise.all(
+        [...document.images]
+          .filter((img) => img.src.startsWith(`${hosted}/`))
+          .map(
+            (img) =>
+              new Promise((resolve) => {
+                img.onload = () => resolve(img.naturalWidth > 0)
+                img.onerror = () => resolve(false)
+                img.src = `${img.src}?docs-shots`
+              }),
+          ),
+      ),
+    HOSTED_ORIGIN,
+  )
+  if (icons.length === 0 || icons.includes(false)) {
+    throw new Error("landing-page.png: the server icon did not load")
+  }
   await landing.screenshot({ path: path.join(OUT, "landing-page.png") })
   console.log("docs-shots: landing-page.png")
   await landing.close()
@@ -176,7 +220,16 @@ try {
   await page.locator("#tool-show_tasks_board").waitFor({ timeout: 30_000 })
 
   const tasks = await run(page, "show_tasks_board")
-  await page.screenshot({ path: path.join(OUT, "inspector.png"), scale: "css" })
+  // Below the inspector's server bar, which names the local URL it connected to.
+  const serverBar = await page.getByText("localhost:4520").first().boundingBox()
+  if (!serverBar) throw new Error("inspector.png: the inspector's server bar is not visible")
+  const top = Math.ceil(serverBar.y + serverBar.height + 12)
+  const viewport = page.viewportSize() ?? { width: 1440, height: 1300 }
+  await page.screenshot({
+    path: path.join(OUT, "inspector.png"),
+    scale: "css",
+    clip: { x: 0, y: top, width: viewport.width, height: viewport.height - top },
+  })
   console.log("docs-shots: inspector.png")
   await shootView(page, tasks, "tasks-board.png")
 

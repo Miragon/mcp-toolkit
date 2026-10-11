@@ -69,7 +69,12 @@ pills (`TONE_SOFT` + `ToneVariant`), `Badge`, `CountPill`, `LivePill`,
 
 **Complete** is a deterministic write: the button calls `complete_task` through
 `useToolMutation`, shows the row as done at once, rolls it back if the call
-fails, and reports the outcome as a toast (`useToast`). The tool carries
+fails, and reports the outcome as a toast (`useToast`). Each call settles on its
+own promise (`mutateAsync`), so two quick completions keep their own rollback.
+The completed row stays where it was until the next Refresh, so nothing moves
+under the pointer, and the focus moves to the row instead of falling to the
+page. An active status filter is named in the KPI header and in the control
+that clears it. The tool carries
 `openai/widgetAccessible` so Apps SDK hosts let the widget call it. **Adding** a
 task needs a title from the user, so it stays a chat hand-off: "Ask agent to
 add" hands a prompt to the host via `useHostActions()`, which the agent turns
@@ -151,7 +156,7 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
 
 Edit the JSON to re-render live; the **Model context** panel shows the
 `<ModelContext>` line the board reports; the **Host activity** panel logs every
-`callTool` (Refresh) and `sendFollowUpMessage` (the add/complete hand-offs). The
+`callTool` (Refresh and Complete) and `sendFollowUpMessage` (the add hand-off). The
 brand switcher proves the token-only styling re-skins cleanly.
 
 ## Verify

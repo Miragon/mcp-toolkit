@@ -1,11 +1,14 @@
-import { ChevronDown, ChevronsUp, Equal } from "lucide-react"
+import { useRef } from "react"
+import { Check, ChevronDown, ChevronsUp, Equal } from "lucide-react"
 import {
   Badge,
   Button,
   Card,
   CardContent,
+  FOCUS_RING,
   Skeleton,
   TONE_BORDER,
+  TONE_ICON,
   TONE_SOFT,
   cn,
   type ToneVariant,
@@ -55,18 +58,46 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
   )
 }
 
+/**
+ * Takes the place of Complete once the user completed the task here: the same
+ * size, so nothing moves, and not a control, so the second click of a
+ * double-click lands on nothing.
+ */
+function JustCompleted() {
+  const text = useTasksText()
+  return (
+    <span className="text-muted-foreground inline-flex h-8 items-center gap-1.5 px-2.5 text-sm font-medium select-none">
+      <Check aria-hidden="true" className={cn("size-4", TONE_ICON.success)} />
+      {text.justCompleted}
+    </span>
+  )
+}
+
+/**
+ * One task. Complete moves the focus to the row before the button gives way
+ * to {@link JustCompleted}: an unmounted button would drop the focus to the
+ * document, and the next Tab would start over at the top (WCAG 2.4.3). From
+ * the row, a screen reader reads the updated task and Tab goes on to the next
+ * one.
+ */
 export function TaskRow({
   task,
-  completing,
+  justCompleted,
   onComplete,
 }: {
   task: Task
-  completing: boolean
+  /** The user completed this task here; it stays in place until a refresh. */
+  justCompleted: boolean
   onComplete: (task: Task) => void
 }) {
   const text = useTasksText()
+  const row = useRef<HTMLDivElement>(null)
+  const complete = () => {
+    row.current?.focus({ preventScroll: true })
+    onComplete(task)
+  }
   return (
-    <Card size="sm">
+    <Card ref={row} tabIndex={-1} size="sm" className={FOCUS_RING}>
       <CardContent className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex min-w-0 items-center gap-2">
           <PriorityBadge priority={task.priority} />
@@ -81,16 +112,19 @@ export function TaskRow({
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <StatusPill status={task.status} />
-          {task.status !== "done" && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={completing}
-              onClick={() => onComplete(task)}
-              aria-label={text.completeTask(task.title)}
-            >
-              {text.complete}
-            </Button>
+          {justCompleted ? (
+            <JustCompleted />
+          ) : (
+            task.status !== "done" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={complete}
+                aria-label={text.completeTask(task.title)}
+              >
+                {text.complete}
+              </Button>
+            )
           )}
         </div>
       </CardContent>

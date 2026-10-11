@@ -18,7 +18,7 @@ export interface ArticlesText {
 
 const en: ArticlesText = {
   noArticleTitle: "No article selected",
-  noArticleHint: "Pick an article to show it here.",
+  noArticleHint: "Ask in the chat for the article you want to see.",
   loading: "Loading the article…",
   loadFailed: "The article couldn't be loaded",
   loadFailedHint: "Try again. If it fails again, check that the article still exists.",
@@ -27,7 +27,7 @@ const en: ArticlesText = {
 
 const de: ArticlesText = {
   noArticleTitle: "Kein Artikel ausgewählt",
-  noArticleHint: "Wähl einen Artikel aus, um ihn hier zu sehen.",
+  noArticleHint: "Bitte im Chat um den Artikel, den du sehen willst.",
   loading: "Artikel wird geladen…",
   loadFailed: "Der Artikel konnte nicht geladen werden",
   loadFailedHint:

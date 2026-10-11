@@ -4,6 +4,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  FOCUS_RING,
   FilterBar,
   KpiGrid,
   ListFooter,
@@ -26,6 +27,7 @@ import {
 } from "../store.js"
 import { SHOW_TASKS_BOARD } from "../tool-names.js"
 import { useTasksText } from "./messages.js"
+import { listTasks } from "./board/board-logic.js"
 import { BoardSkeleton, STATUS_TONE, TaskRow } from "./board/task-row.js"
 import { useBoard, useCompletion } from "./board/use-board.js"
 
@@ -54,15 +56,16 @@ import { useBoard, useCompletion } from "./board/use-board.js"
  * refreshes report their outcome as a toast.
  *
  * Interaction: KPI cells filter by status, the `FilterBar` by text and
- * priority. "Complete" is a deterministic write (`complete_task` through
- * `useToolMutation`, shown done at once and rolled back if the call fails).
+ * priority; an active status filter is named in the KPI header and in the
+ * control that clears it. "Complete" is a deterministic write
+ * (`complete_task` through `useToolMutation`, shown done at once and rolled
+ * back if the call fails). A completed row keeps its place until the next
+ * Refresh, so nothing moves under the pointer, and the focus stays on it.
  * Adding a task needs a title from the user, so it stays a chat hand-off,
  * labelled as one ("Ask agent to add") and styled as the secondary action.
  */
 
-const STATUS_ORDER: TaskStatus[] = ["todo", "doing", "done"]
 const PRIORITIES: TaskPriority[] = ["high", "medium", "low"]
-const PRIORITY_RANK: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 }
 const PAGE_SIZE = 8
 
 /** The model-context line: what the user is looking at, and how to act on it. */
@@ -106,6 +109,10 @@ function useTaskFilter() {
       setStatus((current) => (current === next ? null : next))
       setLimit(PAGE_SIZE)
     },
+    clearStatus: () => {
+      setStatus(null)
+      setLimit(PAGE_SIZE)
+    },
     togglePriority: (next: TaskPriority) => {
       setPriority((current) => (current === next ? null : next))
       setLimit(PAGE_SIZE)
@@ -125,25 +132,19 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
   const text = useTasksText()
   const host = useHostActions()
   const { query, board, refresh } = useBoard(pushed)
-  const { tasks, complete, pendingId } = useCompletion(board, () => void query.refetch())
+  const { tasks, placedAs, complete, release } = useCompletion(board, () => void query.refetch())
   const filter = useTaskFilter()
 
   const { debouncedSearch, status: statusFilter, priority: priorityFilter } = filter
-  const filtered = useMemo(() => {
-    const needle = debouncedSearch.trim().toLowerCase()
-    return tasks
-      .filter(
-        (task) =>
-          (needle === "" || task.title.toLowerCase().includes(needle)) &&
-          (!statusFilter || task.status === statusFilter) &&
-          (!priorityFilter || task.priority === priorityFilter),
-      )
-      .sort(
-        (a, b) =>
-          STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
-          PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority],
-      )
-  }, [tasks, debouncedSearch, statusFilter, priorityFilter])
+  const filtered = useMemo(
+    () =>
+      listTasks(tasks, placedAs, {
+        needle: debouncedSearch.trim().toLowerCase(),
+        status: statusFilter,
+        priority: priorityFilter,
+      }),
+    [tasks, placedAs, debouncedSearch, statusFilter, priorityFilter],
+  )
 
   // Loading / error states only matter on the self-fetch path (no pushed data).
   if (!board) {
@@ -181,9 +182,18 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
     value: count(counts[status]),
     tone: STATUS_TONE[status],
     onClick: () => filter.toggleStatus(status),
-    // The accessible name starts with what the cell shows (WCAG 2.5.3).
-    ariaLabel: text.statusCellLabel(text.status[status], count(counts[status])),
+    // The accessible name starts with what the cell shows (WCAG 2.5.3) and
+    // says what a click does now: filter, or show all again.
+    ariaLabel: (statusFilter === status ? text.statusCellActiveLabel : text.statusCellLabel)(
+      text.status[status],
+      count(counts[status]),
+    ),
   })
+  // A completed row stays where it is until an explicit refresh confirms it.
+  const refreshBoard = async () => {
+    const fresh = await refresh()
+    if (fresh) release(fresh)
+  }
 
   return (
     // The widget self-fetches, so it reports its own model context (rather
@@ -208,7 +218,7 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => void refresh()}
+                onClick={() => void refreshBoard()}
                 disabled={query.isFetching}
               >
                 {query.isFetching ? text.refreshing : text.refresh}
@@ -231,7 +241,11 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
             {/* KPI strip: counts by status; each cell filters the list below. */}
             <KpiGrid
               boxed
-              header={{ label: text.statusHeader }}
+              header={{
+                label: text.statusHeader,
+                // The cells have no pressed state: the header names the filter.
+                badge: statusFilter ? text.statusFilterBadge(text.status[statusFilter]) : undefined,
+              }}
               cells={[
                 statusCell("todo"),
                 statusCell("doing"),
@@ -245,11 +259,22 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
                 title={text.listTitle}
                 hint={text.shown(count(filtered.length))}
                 trailing={
-                  filter.active ? (
+                  // The status filter has no control of its own in the list,
+                  // so its clear control names it; search and priority show
+                  // their state in the FilterBar.
+                  statusFilter ? (
+                    <button
+                      type="button"
+                      onClick={filter.clearStatus}
+                      className={`text-link text-small font-medium hover:underline ${FOCUS_RING}`}
+                    >
+                      {text.clearStatus(text.status[statusFilter])}
+                    </button>
+                  ) : filter.active ? (
                     <button
                       type="button"
                       onClick={filter.clear}
-                      className="text-link text-small font-medium hover:underline"
+                      className={`text-link text-small font-medium hover:underline ${FOCUS_RING}`}
                     >
                       {text.clearFilters}
                     </button>
@@ -283,7 +308,7 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
                       <TaskRow
                         key={task.id}
                         task={task}
-                        completing={pendingId === task.id}
+                        justCompleted={placedAs.has(task.id)}
                         onComplete={complete}
                       />
                     ))}

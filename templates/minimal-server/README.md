@@ -100,9 +100,11 @@ because `@miragon/mcp-toolkit-ui` declares it as a peer; the Vite plugin that
 compiles it ships inside the mcp-use CLI, so this project needs no Vite
 dependency or config of its own.
 
-Version pinning: `mcp-use`, `react`, `react-dom` and `zod` here must match the
-exact peers of the pinned `@miragon` packages (see their `peerDependencies`) —
-keep them in step when bumping either side. `lucide-react` is pinned to the
+Version pinning: `mcp-use` here must be exactly the version the pinned
+`@miragon` packages name as their peer (a second copy breaks the widgets' host
+context); `react`, `react-dom` and `zod` only have to satisfy the peer ranges
+(see the packages' `peerDependencies`). Keep them in step when bumping either
+side. `lucide-react` is pinned to the
 exact version `@miragon/mcp-toolkit-ui` depends on, on purpose: a second copy
 in the graph splits mcp-use into two peer instances and crashes widgets at
 render time (see the toolkit's migration guide), and your own icons then miss

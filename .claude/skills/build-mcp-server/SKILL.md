@@ -117,7 +117,7 @@ export const definition: AppDefinition = {
     {
       id: "tasks:board",
       description:
-        "A task board: KPI counts by status, filterable task list, agentic add/complete.",
+        "A task board: KPI counts by status, a filterable task list, complete in place, add through the agent.",
       requires: [], // pushed by show_tasks_board, not resolved from a pipeline key
       consumes: ["tasks:board"], // the step dataType adaptDataWidget resolves `data` from
       size: "full",

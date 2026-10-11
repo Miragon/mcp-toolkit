@@ -178,7 +178,7 @@ carries an **Edit view** button (the eager view from stop 4 doesn't — only
 pipeline-rendered views carry the refresh params the builder re-runs). Open it
 and you get the in-iframe visual builder, fed by `get-builder-catalogue`:
 
-![The visual builder: a palette of reachable widgets on the left, an editable layout of rows and spans on the right](./images/builder.png)
+![The view editor: the available widgets listed above the layout's rows, each with its column span](./images/builder.png)
 
 Drag widgets from the palette, resize their column spans, switch to the
 **Data sources** tab to wire steps — no round-trip through the LLM. **Save** persists

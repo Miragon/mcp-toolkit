@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react"
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react"
 import {
   HostBridgeProvider,
   createChatGptHostBridge,
@@ -60,20 +60,38 @@ export interface HostSettings {
   locale: string
 }
 
+/** Reads the host's current settings (the page's switches) when a bridge asks. */
+type CurrentHost = () => HostSettings
+
+/**
+ * Let `bridge.theme` report the host's current colour scheme. The factories
+ * copy the theme once, at build time; a getter keeps the bridge itself when
+ * the scheme changes. A new bridge would re-run the card's fetch effect and
+ * log `get_order` calls nobody made: a real host keeps its bridge too.
+ */
+function withCurrentTheme(bridge: HostBridge, host: CurrentHost): HostBridge {
+  return Object.defineProperty(bridge, "theme", { get: () => host().theme, enumerable: true })
+}
+
 /**
  * Build the OpenAI Apps SDK stub (`window.openai` shape) the ChatGPT bridge
  * reads from. Routes `callTool` to the fake server and reports every action to
  * `log`. This is a *stub* of the real host object — exactly the surface
- * {@link createChatGptHostBridge} probes.
+ * {@link createChatGptHostBridge} probes. Theme and locale are getters, as
+ * the host's globals change under a bridge that stays.
  */
 function buildOpenAiStub(
   log: LogFn,
   orderId: string,
-  { theme, locale }: HostSettings,
+  host: CurrentHost,
 ): OpenAiAppsSdk & Record<string, unknown> {
   return {
-    theme,
-    locale,
+    get theme() {
+      return host().theme
+    },
+    get locale() {
+      return host().locale
+    },
     // Host-context globals a real Apps-SDK host exposes; harmless defaults.
     displayMode: "inline",
     maxHeight: 4096,
@@ -113,7 +131,7 @@ function buildOpenAiStub(
  * page stubs the surface and runs it through the *real* mapping —
  * {@link toHostBridge} — which is the adapter code widgets actually depend on.
  */
-function buildMcpUseSurfaceBridge(log: LogFn, orderId: string, theme: HostTheme): HostBridge {
+function buildMcpUseSurfaceBridge(log: LogFn, orderId: string, host: CurrentHost): HostBridge {
   const surface: McpUseWidgetSurface = {
     callTool: (name, args) => {
       log({ kind: "callTool", name, args })
@@ -127,14 +145,15 @@ function buildMcpUseSurfaceBridge(log: LogFn, orderId: string, theme: HostTheme)
       log({ kind: "openExternal", url })
     },
     output: seedOrder(orderId),
-    theme,
+    // No `theme` here: `toHostBridge` would copy it once; `withCurrentTheme`
+    // reports the current one instead.
     setState: (state) => {
       const ctx = state["__model_context"]
       if (typeof ctx === "string" && ctx.length > 0) log({ kind: "setModelContext", text: ctx })
       return Promise.resolve()
     },
   }
-  return toHostBridge(surface)
+  return withCurrentTheme(toHostBridge(surface), host)
 }
 
 /**
@@ -144,6 +163,10 @@ function buildMcpUseSurfaceBridge(log: LogFn, orderId: string, theme: HostTheme)
  * theme and locale apply the way a real host applies them: the colour scheme
  * to the widget's scope (and `bridge.theme`), the locale through a
  * `LocaleProvider`, so the card looks and reads the same under every bridge.
+ *
+ * The bridge is built once per host and order. The switches reach it through
+ * a ref, so changing the language or the colour scheme re-renders the card
+ * under the same bridge instead of re-running its fetch.
  */
 export function BridgeStage({
   bridgeId,
@@ -157,16 +180,22 @@ export function BridgeStage({
   host: HostSettings
 }): ReactNode {
   const { theme, locale } = host
+  const hostRef = useRef(host)
+  useLayoutEffect(() => {
+    hostRef.current = host
+  }, [host])
   const explicitBridge = useMemo<HostBridge | null>(() => {
+    const current: CurrentHost = () => hostRef.current
     if (bridgeId === "mcp-use") {
-      return buildMcpUseSurfaceBridge(log, orderId, theme)
+      return buildMcpUseSurfaceBridge(log, orderId, current)
     }
     if (bridgeId === "chatgpt") {
       // Pass the stub explicitly so the adapter doesn't depend on a global.
-      return createChatGptHostBridge(buildOpenAiStub(log, orderId, { theme, locale }))
+      const bridge = createChatGptHostBridge(buildOpenAiStub(log, orderId, current))
+      return withCurrentTheme(bridge, current)
     }
     if (bridgeId === "standalone") {
-      return createStandaloneHostBridge({
+      const bridge = createStandaloneHostBridge({
         callTool: (name, args) => {
           log({ kind: "callTool", name, args })
           return callFakeTool(name, args)
@@ -179,11 +208,11 @@ export function BridgeStage({
           window.open(url, "_blank", "noopener")
         },
         onModelContext: (text) => log({ kind: "setModelContext", text }),
-        theme,
       })
+      return withCurrentTheme(bridge, current)
     }
     return null
-  }, [bridgeId, orderId, log, theme, locale])
+  }, [bridgeId, orderId, log])
 
   if (!explicitBridge) return null
   return (

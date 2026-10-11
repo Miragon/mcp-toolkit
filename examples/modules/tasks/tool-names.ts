@@ -3,8 +3,9 @@
  *
  * Centralised because the names are referenced from two sides that must agree:
  * the server registers them (`plugin.ts`) and the widget calls them back
- * (`widgets/TasksBoard.tsx` self-fetches `TASKS_BOARD_DATA`; the agentic
- * hand-offs name `SHOW_TASKS_BOARD` via `buildShowWidgetIntent`). A rename then
+ * (`widgets/TasksBoard.tsx` self-fetches `TASKS_BOARD_DATA`, completes in
+ * place with `COMPLETE_TASK`, and its add hand-off names `SHOW_TASKS_BOARD`).
+ * A rename then
  * flows through this one file. Pure string constants → safe to import into the
  * browser widget bundle.
  */

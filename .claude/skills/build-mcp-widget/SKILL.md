@@ -31,7 +31,8 @@ data contract, and to iterate on it in isolation.
   (a plain-props `({ keys })` playground fixture), and
   [`TasksBoard`](../../../examples/modules/tasks/widgets/TasksBoard.tsx)
   (a `({ data })` widget pushed by a `show_*` tool, registered with
-  `adaptDataWidget`, with self-fetch refresh + agentic hand-offs).
+  `adaptDataWidget`, with self-fetch refresh, an in-place Complete through
+  `useToolMutation` and a chat hand-off for adding a task).
 - **End-to-end module** — when you also own the server, the
   [`tasks` module](../../../examples/modules/tasks/README.md) is the full worked
   example: domain tools via `createToolRegistrar`, a `show_tasks_board` widget
