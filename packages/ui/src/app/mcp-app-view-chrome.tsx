@@ -280,7 +280,13 @@ export function ViewToolbar({
         />
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {show.edit && (
-            <Button type="button" {...CHROME_BUTTON} size="sm" onClick={onEnterBuildMode}>
+            <Button
+              type="button"
+              {...CHROME_BUTTON}
+              size="sm"
+              data-slot="view-edit"
+              onClick={onEnterBuildMode}
+            >
               <Pencil aria-hidden="true" />
               {labels.build}
             </Button>

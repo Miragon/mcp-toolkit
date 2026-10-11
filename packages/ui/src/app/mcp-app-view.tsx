@@ -27,6 +27,7 @@ import {
 } from "./mcp-app-view-chrome.js"
 import { ViewPlaceholder, type DescribeViewError } from "./mcp-app-view-states.js"
 import type { LayoutBuilderLabels } from "./layout-builder.js"
+import { useBuildModeFocus } from "./use-build-mode-focus.js"
 import { useRetryFocus, useViewLifecycle } from "./use-view-lifecycle.js"
 import { DEFAULT_SLOW_HINT_MS, decodeViewResult } from "./view-lifecycle.js"
 import type { WidgetComponent } from "./widget-renderer.js"
@@ -295,6 +296,7 @@ function McpAppViewShell({
   const fullscreen = useFullscreenToggle(L)
   // In-iframe build mode is purely a UI state — the LLM never sees the catalogue.
   const [buildMode, setBuildMode] = useState(false)
+  useBuildModeFocus(buildMode, frameRef)
   const exitBuildMode = useCallback(
     (commit?: BuilderCommit) => {
       if (commit) setViewData((prev) => (prev ? applyBuilderCommit(prev, commit) : prev))

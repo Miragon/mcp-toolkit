@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type {
   AvailableStep,
+  DisplayText,
   KeyCatalogEntry,
   PipelineContext,
   PipelineStepRef,
@@ -154,6 +155,15 @@ export function useBuilderCatalogue({
     return map
   }, [liveReachable, liveUnreachable])
 
+  // Display text (title, summary, their keys) per widget id, from both lists:
+  // a canvas cell or the props sheet may name a widget the current keys do
+  // not reach.
+  const displayByWidgetId = useMemo(() => {
+    const map = new Map<string, DisplayText>()
+    for (const w of [...liveUnreachable, ...liveReachable]) map.set(w.id, w)
+    return map
+  }, [liveReachable, liveUnreachable])
+
   const paletteByApp = useMemo(() => {
     const groups = new Map<string, ReachableWidget[]>()
     for (const w of liveReachable) {
@@ -186,6 +196,7 @@ export function useBuilderCatalogue({
     retryCatalogue,
     widgetById,
     propsSchemaByWidgetId,
+    displayByWidgetId,
     paletteByApp,
     liveKeyCount,
     stepsByApp,

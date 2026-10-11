@@ -24,6 +24,9 @@ const SAMPLES: Record<string, unknown[]> = {
   configureElementSet: [2],
   unsupportedType: ["array"],
   valueType: ["num"],
+  renameTabNamed: ["Übersicht"],
+  removeTabNamed: ["Übersicht"],
+  keyValueFor: ["demo:id"],
 }
 
 /** Every message of a catalog as `[path, rendered text]`. */
@@ -155,6 +158,40 @@ describe("toolkit catalogs", () => {
     expect(de.propsSheet.unsupportedType("array")).toBe(
       "Diesen Feldtyp (array) kannst du hier nicht bearbeiten.",
     )
+    expect(en.builder.renameTabNamed("Ops")).toBe("Rename tab “Ops”")
+    expect(de.builder.renameTabNamed("Ops")).toBe("Tab „Ops“ umbenennen")
+    expect(en.builder.removeTabNamed("Ops")).toBe("Remove tab “Ops”")
+    expect(de.builder.removeTabNamed("Ops")).toBe("Tab „Ops“ entfernen")
+    expect(en.builder.keyValueFor("demo:id")).toBe("Value of demo:id")
+    expect(de.builder.keyValueFor("demo:id")).toBe("Wert von demo:id")
+    // A key row without a name yet still has an accessible name.
+    expect(en.builder.keyValueFor("")).toBe("Value")
+    expect(de.builder.keyValueFor("")).toBe("Wert")
+  })
+
+  it("builder: names Apply, Discard and Save apart in user words (U18)", () => {
+    const { en, de } = TOOLKIT_MESSAGES
+    expect([en.builder.apply, en.builder.discard, en.builder.save]).toEqual([
+      "Apply",
+      "Discard",
+      "Save as dashboard",
+    ])
+    expect([de.builder.apply, de.builder.discard, de.builder.save]).toEqual([
+      "Übernehmen",
+      "Verwerfen",
+      "Als Dashboard speichern",
+    ])
+    expect(de.builder.advanced).toBe("Erweitert")
+    // The refresh state no longer reuses the Apply verb.
+    for (const m of [en.builder, de.builder]) {
+      expect(m.statusPending).not.toMatch(/apply|übernomm/i)
+      expect(m.statusRefreshing).not.toMatch(/apply|übernomm/i)
+    }
+    // Rename is announced with its keyboard path, not double-click alone.
+    expect(en.builder.renameHint).toContain("F2")
+    expect(de.builder.renameHint).toContain("F2")
+    expect(en.builder.renameTitle).toContain("F2")
+    expect(de.builder.renameTitle).toContain("F2")
   })
 })
 

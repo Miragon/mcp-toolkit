@@ -1,7 +1,14 @@
 import { useCallback, useMemo, useReducer, useState } from "react"
 import { Eye, Layers, SlidersHorizontal } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef, RowDef, WidgetProps } from "@miragon/mcp-toolkit-core"
-import { draftToLayout, entriesToKeys, initDraft, sizeToSpan } from "./builder/builder-model.js"
+import {
+  builderSnapshot,
+  initDraft,
+  sizeToSpan,
+  toExitCommit,
+  type BuilderExitCommit,
+  type BuilderView,
+} from "./builder/builder-model.js"
 import {
   draftReducer,
   initBuilderState,
@@ -12,12 +19,14 @@ import { Toolbar } from "./builder/Toolbar.js"
 import { PipelineStrip } from "./builder/PipelineStrip.js"
 import { CatalogueSheet } from "./builder/CatalogueSheet.js"
 import { SaveDialog } from "./builder/SaveDialog.js"
+import { DiscardDialog } from "./builder/DiscardDialog.js"
 import { PreviewPane } from "./builder/PreviewPane.js"
 import { LayoutSurface } from "./builder/LayoutSurface.js"
 import { BuilderBanners } from "./builder/BuilderBanners.js"
 import { EmptyHint } from "./builder/EmptyHint.js"
 import { CellPropsSheet } from "./builder/CellPropsSheet.js"
 import { useBuilderCatalogue } from "./builder/use-builder-catalogue.js"
+import { useBuilderMode, useDraftStatus } from "./builder/use-builder-session.js"
 import { useKeyStepEntries } from "./builder/use-key-step-entries.js"
 import { useSaveDashboard } from "./builder/use-save-dashboard.js"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../primitives/tabs.js"
@@ -50,25 +59,13 @@ export interface LayoutBuilderProps {
   labels?: LayoutBuilderLabels
   onSaved?: (result: { id: string; name: string }) => void
   /**
-   * Called when the user clicks "Done" / exits the builder. Receives
-   * the final draft so the parent can swap into the rendered view with
-   * the just-built layout. Omit `commit` to leave parent state untouched.
+   * Leaves the builder. "Apply" calls it WITH the final draft (`commit`) so
+   * the parent swaps the just-built layout into its view; "Discard" calls it
+   * WITHOUT one, so the parent keeps the view as it was before editing (after
+   * a confirmation when the draft has unsaved changes). Without `onExit` the
+   * builder has no Apply, and Discard resets the draft in place.
    */
-  onExit?: (commit?: {
-    layout: LayoutConfig
-    keys?: Record<string, unknown>
-    steps?: PipelineStepRef[]
-    title?: string
-    context?: {
-      keys: Record<string, unknown>
-      stepIds: string[]
-      stepData: Record<
-        string,
-        { data: unknown; keys: Record<string, unknown>; _app: string; _dataType: string }
-      >
-      errors: { stepId: string; reason: string }[]
-    }
-  }) => void
+  onExit?: (commit?: BuilderExitCommit) => void
 }
 
 // -------------------------------------------------------------------------- //
@@ -76,16 +73,56 @@ export interface LayoutBuilderProps {
 // -------------------------------------------------------------------------- //
 
 /**
- * The visual view builder. Confirms a successful save with a toast (it mounts
- * a `ToastProvider` when none is above it — inside `McpAppView` it shares the
+ * The visual view builder. People see widgets and steps by their titles
+ * (`title`/`titleKey` of the definitions, else the id); the data sources, the
+ * catalogue and the technical ids sit behind "Advanced". "Apply" shows the
+ * draft in the view, "Save as dashboard" stores it, "Discard" restores the
+ * view as it was. Confirms a successful save with a toast (it mounts a
+ * `ToastProvider` when none is above it — inside `McpAppView` it shares the
  * view's). Every caption follows the active locale (`labels` overrides).
  */
 export function LayoutBuilder(props: LayoutBuilderProps) {
+  // Discard without an `onExit` restores the initial props by remounting.
+  const [generation, setGeneration] = useState(0)
+  const reset = useCallback(() => setGeneration((g) => g + 1), [])
   return (
     <ToastProvider>
-      <LayoutBuilderImpl {...props} />
+      <LayoutBuilderImpl key={generation} {...props} onReset={reset} />
     </ToastProvider>
   )
+}
+
+/** The catalog strings, overrides merged; an override of the deprecated `done` still labels Apply. */
+function useBuilderLabels(labels: LayoutBuilderLabels | undefined): Required<LayoutBuilderLabels> {
+  const messages = useToolkitMessages()
+  return useMemo(
+    () => ({
+      ...messages.builder,
+      ...labels,
+      apply: labels?.apply ?? labels?.done ?? messages.builder.apply,
+    }),
+    [messages.builder, labels],
+  )
+}
+
+/**
+ * Inline rename feedback. The reducer rejects duplicate tab labels and bumps
+ * `renameRejectedAt`; each bump shows "name already exists" until the inline
+ * editor closes (render-phase setState, the house pattern for derived state).
+ */
+function useRenameFeedback(renameRejectedAt: number, editingTabIdx: number | null): boolean {
+  const [renameRejected, setRenameRejected] = useState(false)
+  const [prevRenameRejectedAt, setPrevRenameRejectedAt] = useState(renameRejectedAt)
+  if (renameRejectedAt !== prevRenameRejectedAt) {
+    setPrevRenameRejectedAt(renameRejectedAt)
+    setRenameRejected(true)
+  }
+  const [prevEditingTabIdx, setPrevEditingTabIdx] = useState(editingTabIdx)
+  if (editingTabIdx !== prevEditingTabIdx) {
+    setPrevEditingTabIdx(editingTabIdx)
+    if (editingTabIdx === null) setRenameRejected(false)
+  }
+  return renameRejected
 }
 
 function LayoutBuilderImpl({
@@ -101,16 +138,12 @@ function LayoutBuilderImpl({
   labels,
   onSaved,
   onExit,
-}: LayoutBuilderProps) {
-  const messages = useToolkitMessages()
-  const L = useMemo(() => ({ ...messages.builder, ...labels }), [messages.builder, labels])
+  onReset,
+}: LayoutBuilderProps & { onReset: () => void }) {
+  const L = useBuilderLabels(labels)
   const toast = useToast()
 
   // ── Draft layout (pure reducer) ─────────────────────────────────────────
-  // The draft plus the UI indices coupled to draft mutations
-  // (activeTabIndex / focusedRowIndex / editingTabIdx) live in a single pure
-  // reducer (see ./builder/builder-reducer.ts) so every mutation is testable
-  // and the old setState-in-updater pattern is gone.
   const [builderState, dispatch] = useReducer(
     draftReducer,
     initialLayout,
@@ -128,64 +161,28 @@ function LayoutBuilderImpl({
   const setEditingTabIdx = useCallback((idx: number | null) => {
     dispatch(idx === null ? { type: "stopEditingTab" } : { type: "startEditingTab", tabIdx: idx })
   }, [])
-  const [view, setView] = useState<"layout" | "pipeline" | "preview">("layout")
+  const { advanced, view, setView, toggleAdvanced, openDataSources } = useBuilderMode()
   const [catalogueOpen, setCatalogueOpen] = useState(false)
-
-  // ── Inline rename feedback ──────────────────────────────────────────────
-  // The reducer rejects duplicate tab labels and bumps `renameRejectedAt`
-  // (Phase 1 signal). Mirror each bump into a transient flag so the rename
-  // input can show "name already exists" inline (Finding [3]). Tracked via
-  // the render-phase setState pattern used elsewhere in this codebase; cleared
-  // when the inline editor closes (editingTabIdx → null).
-  const [renameRejected, setRenameRejected] = useState(false)
-  const [prevRenameRejectedAt, setPrevRenameRejectedAt] = useState(renameRejectedAt)
-  if (renameRejectedAt !== prevRenameRejectedAt) {
-    setPrevRenameRejectedAt(renameRejectedAt)
-    setRenameRejected(true)
-  }
-  const [prevEditingTabIdx, setPrevEditingTabIdx] = useState(editingTabIdx)
-  if (editingTabIdx !== prevEditingTabIdx) {
-    setPrevEditingTabIdx(editingTabIdx)
-    if (editingTabIdx === null) setRenameRejected(false)
-  }
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const renameRejected = useRenameFeedback(renameRejectedAt, editingTabIdx)
 
   // ── Keys + steps editor state ───────────────────────────────────────────
   const { keyEntries, stepEntries, addKey, updateKey, removeKey, addStep, updateStep, removeStep } =
     useKeyStepEntries({ initialKeys, initialSteps })
 
+  // ── Draft status: what Apply / Discard / the unsaved marker compare ─────
+  const snapshot = useMemo(
+    () => builderSnapshot(draft, keyEntries, stepEntries),
+    [draft, keyEntries, stepEntries],
+  )
+  const draftState = useDraftStatus(snapshot)
+
   // ── Catalogue fetch (mount + on key/step edits) ─────────────────────────
-  // The builder fetches its own catalogue from the app-only
-  // `get-builder-catalogue` tool; the LLM never sees this data.
-  const {
-    liveReachable,
-    liveUnreachable,
-    liveCatalog,
-    liveSteps,
-    liveContext,
-    validationIssues,
-    status,
-    refreshError,
-    retryCatalogue,
-    widgetById,
-    propsSchemaByWidgetId,
-    paletteByApp,
-    liveKeyCount,
-    stepsByApp,
-  } = useBuilderCatalogue({ callTool, catalogueToolName, keyEntries, stepEntries })
+  const catalogue = useBuilderCatalogue({ callTool, catalogueToolName, keyEntries, stepEntries })
+  const { liveReachable, liveCatalog, liveContext, widgetById } = catalogue
 
   // ── Save dialog ─────────────────────────────────────────────────────────
-  const {
-    isBusy,
-    saveOpen,
-    setSaveOpen,
-    saveName,
-    setSaveName,
-    saveDescription,
-    setSaveDescription,
-    saveError,
-    setSaveError,
-    saveDraft,
-  } = useSaveDashboard({
+  const save = useSaveDashboard({
     callTool,
     saveToolName,
     dashboardId,
@@ -194,17 +191,14 @@ function LayoutBuilderImpl({
     stepEntries,
     draft,
     onSaved,
-    onSuccess: (name) => toast.show({ tone: "success", title: L.saved(name) }),
+    onSuccess: (name) => {
+      draftState.markSaved(snapshot)
+      toast.show({ tone: "success", title: L.saved(name) })
+    },
   })
 
-  // ── DnD ──────────────────────────────────────────────────────────────────
+  // ── DnD + the cell whose props are being configured ─────────────────────
   const [dragOverRow, setDragOverRow] = useState<number | null>(null)
-
-  // Which cell (if any) is having its props configured. The
-  // WidgetPropsSheet is mounted once at the LayoutBuilder root so that
-  // exactly one editor can be open at a time across the entire workspace
-  // — including across tabs. Stored as `{ rowIdx, cellIdx }` against the
-  // currently active draft surface (rows or active tab's rows).
   const [configuringCell, setConfiguringCell] = useState<{
     rowIdx: number
     cellIdx: number
@@ -227,47 +221,34 @@ function LayoutBuilderImpl({
     },
     [widgetById],
   )
-
   const addRow = useCallback(() => dispatch({ type: "addRow" }), [])
-
   const removeRow = useCallback((rowIdx: number) => dispatch({ type: "removeRow", rowIdx }), [])
-
   const moveRow = useCallback(
     (rowIdx: number, direction: -1 | 1) => dispatch({ type: "moveRow", rowIdx, direction }),
     [],
   )
-
   const setCellSpan = useCallback(
     (rowIdx: number, cellIdx: number, span: number) =>
       dispatch({ type: "setCellSpan", rowIdx, cellIdx, span }),
     [],
   )
-
   const removeCell = useCallback(
     (rowIdx: number, cellIdx: number) => dispatch({ type: "removeCell", rowIdx, cellIdx }),
     [],
   )
-
-  // Sets (or clears, when `next` is undefined) the per-instance `props` on
-  // a cell. Triggered by the WidgetPropsSheet's Apply button. Storing
-  // `undefined` rather than `{}` keeps the saved layout's wire format
-  // identical to one a hand-coded LLM call would produce — the field is
-  // simply absent.
+  // Sets (or clears, when `next` is undefined) a cell's per-instance `props`
+  // from the props sheet's Apply; `undefined` keeps the field absent on the wire.
   const setCellProps = useCallback(
     (rowIdx: number, cellIdx: number, next: Record<string, unknown> | undefined) =>
       dispatch({ type: "setCellProps", rowIdx, cellIdx, next }),
     [],
   )
-
   const addTab = useCallback(() => dispatch({ type: "addTab" }), [])
-
-  // Commit an inline tab rename and decide whether to close the editor.
-  // Dispatches the rename, then keeps the input open when the trimmed label
-  // collides with another tab so the reducer's rejection (`renameRejectedAt`)
-  // can drive the inline "name already exists" feedback instead of the editor
-  // silently snapping shut on the old label.
+  // Commit an inline tab rename. A label that collides with another tab keeps
+  // the editor open (the reducer's rejection drives the inline error); the
+  // return value tells the field whether it closed.
   const commitRename = useCallback(
-    (tabIdx: number, label: string) => {
+    (tabIdx: number, label: string): boolean => {
       dispatch({ type: "renameTab", tabIdx, label })
       const trimmed = label.trim()
       const isDuplicate =
@@ -275,10 +256,10 @@ function LayoutBuilderImpl({
         trimmed.length > 0 &&
         draft.tabs.some((t, i) => i !== tabIdx && t.label === trimmed)
       if (!isDuplicate) setEditingTabIdx(null)
+      return !isDuplicate
     },
     [draft, setEditingTabIdx],
   )
-
   const removeTab = useCallback((tabIdx: number) => dispatch({ type: "removeTab", tabIdx }), [])
 
   // ── Smart action: add a producing step for a missing key ────────────────
@@ -291,87 +272,80 @@ function LayoutBuilderImpl({
     [addStep, liveCatalog],
   )
 
+  // ── Leaving: Apply commits, Discard restores (asking first when unsaved) ─
+  const apply = onExit
+    ? () => onExit(toExitCommit(draft, keyEntries, stepEntries, title, liveContext))
+    : undefined
+  const discardNow = () => {
+    setDiscardOpen(false)
+    if (onExit) onExit()
+    else onReset()
+  }
+  const discard = () => {
+    if (draftState.unsaved) setDiscardOpen(true)
+    else discardNow()
+  }
+
   const widgetProps: WidgetProps = useMemo(
     () => ({ keys: liveContext.keys, context: liveContext }),
     [liveContext],
   )
   const hasAnyCell = activeRows.some((r) => r.row.length > 0)
-  const liveKeysMap = liveContext.keys
 
   return (
     <div className="flex min-h-[60vh] flex-col gap-4 p-1">
       <Toolbar
         L={L}
         previewMode={view === "preview"}
-        isBusy={isBusy}
-        status={status}
-        liveKeys={liveKeyCount}
+        isBusy={save.isBusy}
+        status={catalogue.status}
+        liveKeys={catalogue.liveKeyCount}
         reachableCount={liveReachable.length}
-        unreachableCount={liveUnreachable.length}
+        unreachableCount={catalogue.liveUnreachable.length}
+        advanced={advanced}
+        onToggleAdvanced={toggleAdvanced}
+        unsaved={draftState.unsaved}
         onOpenCatalogue={() => setCatalogueOpen(true)}
-        onOpenSave={() => setSaveOpen(true)}
-        onDone={
-          onExit
-            ? () =>
-                onExit({
-                  layout: draftToLayout(draft),
-                  keys: entriesToKeys(keyEntries),
-                  steps: stepEntries.filter((s) => s.step.trim().length > 0),
-                  title,
-                  context: {
-                    keys: liveContext.keys,
-                    stepIds: Object.keys(liveContext.steps),
-                    stepData: Object.fromEntries(
-                      Object.entries(liveContext.steps).map(([id, result]) => [
-                        id,
-                        {
-                          data: result.data,
-                          keys: result.keys,
-                          _app: result._app,
-                          _dataType: result._dataType,
-                        },
-                      ]),
-                    ),
-                    errors: liveContext.errors,
-                  },
-                })
-            : undefined
-        }
+        onOpenSave={() => save.setSaveOpen(true)}
+        onDiscard={discard}
+        onApply={apply}
         hasAnyCell={hasAnyCell}
       />
 
       <BuilderBanners
         L={L}
         catalogueToolName={catalogueToolName}
-        refreshError={refreshError}
-        validationIssues={validationIssues}
-        onRetry={retryCatalogue}
+        refreshError={catalogue.refreshError}
+        validationIssues={catalogue.validationIssues}
+        onRetry={catalogue.retryCatalogue}
       />
 
-      <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
+      <Tabs value={view} onValueChange={(v) => setView(v as BuilderView)}>
         <TabsList>
           <TabsTrigger value="layout">
-            <Layers className="size-3.5" />
+            <Layers aria-hidden="true" className="size-3.5" />
             {L.viewLayoutTab}
           </TabsTrigger>
-          <TabsTrigger value="pipeline">
-            <SlidersHorizontal className="size-3.5" />
-            {L.viewPipelineTab}
-            {(keyEntries.length > 0 || stepEntries.length > 0) && (
-              <span className="bg-muted text-muted-foreground ml-1 rounded px-1 font-mono text-[10px]">
-                {keyEntries.length}/{stepEntries.length}
-              </span>
-            )}
-          </TabsTrigger>
+          {advanced && (
+            <TabsTrigger value="pipeline">
+              <SlidersHorizontal aria-hidden="true" className="size-3.5" />
+              {L.viewPipelineTab}
+              {(keyEntries.length > 0 || stepEntries.length > 0) && (
+                <span className="bg-muted text-muted-foreground ml-1 rounded px-1 text-xs tabular-nums">
+                  {keyEntries.length}/{stepEntries.length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="preview" disabled={!hasAnyCell}>
-            <Eye className="size-3.5" />
+            <Eye aria-hidden="true" className="size-3.5" />
             {L.viewPreviewTab}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="layout" className="mt-4">
           {liveReachable.length === 0 && !hasAnyCell ? (
-            <EmptyHint L={L} onGotoPipeline={() => setView("pipeline")} />
+            <EmptyHint L={L} onGotoPipeline={openDataSources} />
           ) : (
             <LayoutSurface
               L={L}
@@ -386,7 +360,7 @@ function LayoutBuilderImpl({
               onRemoveTab={removeTab}
               workspace={{
                 L,
-                paletteByApp,
+                paletteByApp: catalogue.paletteByApp,
                 paletteCount: liveReachable.length,
                 activeRows,
                 focusedRowIndex,
@@ -400,7 +374,9 @@ function LayoutBuilderImpl({
                 onRemoveCell: removeCell,
                 onAddWidget: addWidgetToRow,
                 onConfigureCell: (rowIdx, cellIdx) => setConfiguringCell({ rowIdx, cellIdx }),
-                propsSchemaByWidgetId,
+                propsSchemaByWidgetId: catalogue.propsSchemaByWidgetId,
+                displayByWidgetId: catalogue.displayByWidgetId,
+                advanced,
                 widgets,
                 widgetProps,
               }}
@@ -408,24 +384,26 @@ function LayoutBuilderImpl({
           )}
         </TabsContent>
 
-        <TabsContent value="pipeline" className="mt-4">
-          <PipelineStrip
-            L={L}
-            keyEntries={keyEntries}
-            stepEntries={stepEntries}
-            keyCatalog={liveCatalog}
-            availableSteps={liveSteps}
-            stepsByApp={stepsByApp}
-            liveKeys={liveKeysMap}
-            onAddKey={addKey}
-            onUpdateKey={updateKey}
-            onRemoveKey={removeKey}
-            onAddStep={addStep}
-            onUpdateStep={updateStep}
-            onRemoveStep={removeStep}
-            status={status}
-          />
-        </TabsContent>
+        {advanced && (
+          <TabsContent value="pipeline" className="mt-4">
+            <PipelineStrip
+              L={L}
+              keyEntries={keyEntries}
+              stepEntries={stepEntries}
+              keyCatalog={liveCatalog}
+              availableSteps={catalogue.liveSteps}
+              stepsByApp={catalogue.stepsByApp}
+              liveKeys={liveContext.keys}
+              onAddKey={addKey}
+              onUpdateKey={updateKey}
+              onRemoveKey={removeKey}
+              onAddStep={addStep}
+              onUpdateStep={updateStep}
+              onRemoveStep={removeStep}
+              status={catalogue.status}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="preview" className="mt-4">
           <PreviewPane
@@ -443,8 +421,8 @@ function LayoutBuilderImpl({
         open={catalogueOpen}
         onOpenChange={setCatalogueOpen}
         keyCatalog={liveCatalog}
-        availableSteps={liveSteps}
-        unreachableWidgets={liveUnreachable}
+        availableSteps={catalogue.liveSteps}
+        unreachableWidgets={catalogue.liveUnreachable}
         onSeedKey={(name) => {
           addKey(name)
           setCatalogueOpen(false)
@@ -459,26 +437,34 @@ function LayoutBuilderImpl({
 
       <SaveDialog
         L={L}
-        open={saveOpen}
+        open={save.saveOpen}
         onOpenChange={(open) => {
           // Clear any stale save error whenever the dialog is opened or
           // dismissed so a fresh attempt starts clean.
-          setSaveError(null)
-          setSaveOpen(open)
+          save.setSaveError(null)
+          save.setSaveOpen(open)
         }}
-        name={saveName}
-        setName={setSaveName}
-        description={saveDescription}
-        setDescription={setSaveDescription}
-        onSubmit={saveDraft}
-        busy={isBusy}
-        error={saveError}
+        name={save.saveName}
+        setName={save.setSaveName}
+        description={save.saveDescription}
+        setDescription={save.setSaveDescription}
+        onSubmit={save.saveDraft}
+        busy={save.isBusy}
+        error={save.saveError}
+      />
+
+      <DiscardDialog
+        L={L}
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        onConfirm={discardNow}
       />
 
       <CellPropsSheet
         configuringCell={configuringCell}
         activeRows={activeRows}
-        propsSchemaByWidgetId={propsSchemaByWidgetId}
+        propsSchemaByWidgetId={catalogue.propsSchemaByWidgetId}
+        displayByWidgetId={catalogue.displayByWidgetId}
         onApply={setCellProps}
         onClose={() => setConfiguringCell(null)}
       />

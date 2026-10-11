@@ -7,8 +7,18 @@
  * `parseKeyValue ↔ keysToEntries ↔ entriesToKeys` round-trip and
  * `draftToLayout` — unit-testable in isolation.
  */
-import type { LayoutConfig, PipelineContext, RowDef } from "@miragon/mcp-toolkit-core"
-import { normalizeLayout } from "@miragon/mcp-toolkit-core"
+import type {
+  DisplayText,
+  LayoutConfig,
+  PipelineContext,
+  PipelineStepRef,
+  RowDef,
+} from "@miragon/mcp-toolkit-core"
+import {
+  normalizeLayout,
+  PROPS_SCHEMA_DISPLAY_KEYWORD,
+  resolveLocalizedText,
+} from "@miragon/mcp-toolkit-core"
 
 // -------------------------------------------------------------------------- //
 // Draft types
@@ -211,4 +221,226 @@ export function toPipelineContext(ctx: WireContext): PipelineContext {
     steps[id] = { ...result, _step: id }
   }
   return { steps, keys: ctx.keys, errors: ctx.errors }
+}
+
+// -------------------------------------------------------------------------- //
+// Display text — what the builder calls a widget, a step or a props field
+// -------------------------------------------------------------------------- //
+
+/** Resolves an i18n key in the active locale; `undefined` when it is unknown. */
+export type DisplayKeyResolver = (key: string) => string | undefined
+
+/**
+ * A {@link DisplayKeyResolver} over a translate function that echoes unknown
+ * keys (the `createTranslator` / `useTranslate` contract): the echo, or a
+ * blank result, means "unknown", so the caller falls back to its inline text.
+ */
+export function keyResolverFrom(translate: (key: string) => string): DisplayKeyResolver {
+  return (key) => {
+    const text = translate(key).trim()
+    return text.length > 0 && text !== key ? text : undefined
+  }
+}
+
+/**
+ * The i18n key's text when the resolver knows it, else the inline (per-locale)
+ * text. Display text crosses the wire (the catalogue, a `propsSchema`), so a
+ * key that is not a string is ignored instead of reaching the translator.
+ */
+function keyedText(
+  key: unknown,
+  text: DisplayText["title"],
+  locale: string,
+  resolveKey: DisplayKeyResolver | undefined,
+): string | undefined {
+  const viaKey = typeof key === "string" && resolveKey ? resolveKey(key) : undefined
+  return viaKey ?? resolveLocalizedText(text, locale)
+}
+
+/** How the builder names one entry: a label, the technical id as a quiet hint, a one-liner. */
+export interface DisplayLabel {
+  /** The name people read: the entry's title, else its id. */
+  label: string
+  /** The technical id, set only when the label is a real title (so it is never shown twice). */
+  hint?: string
+  /** The one-line summary, when the entry has one. */
+  summary?: string
+}
+
+/**
+ * The builder's name for a widget or a step: its `titleKey` (when `resolveKey`
+ * knows it), its `title` in `locale`, else the id. The id comes back as `hint`
+ * only next to a real title. The `description` is the LLM's text and never
+ * appears here.
+ */
+export function displayLabel(
+  entry: DisplayText,
+  id: string,
+  locale: string,
+  resolveKey?: DisplayKeyResolver,
+): DisplayLabel {
+  const title = keyedText(entry.titleKey, entry.title, locale, resolveKey)
+  const summary = keyedText(entry.summaryKey, entry.summary, locale, resolveKey)
+  return {
+    label: title ?? id,
+    ...(title !== undefined && title !== id ? { hint: id } : {}),
+    ...(summary !== undefined ? { summary } : {}),
+  }
+}
+
+/** A props-sheet field: its label, the raw property name as a hint, and its help line. */
+export interface PropFieldText {
+  label: string
+  /** The property name, set only when the label differs from it. */
+  hint?: string
+  help?: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+/**
+ * The props sheet's text for one `propsSchema` property. Label: the
+ * `x-display` title (key or text), else the standard JSON Schema `title`,
+ * else the property name. Help: the `x-display` summary, else the property's
+ * `description`.
+ */
+export function propFieldText(
+  name: string,
+  prop: Record<string, unknown>,
+  locale: string,
+  resolveKey?: DisplayKeyResolver,
+): PropFieldText {
+  const raw = prop[PROPS_SCHEMA_DISPLAY_KEYWORD]
+  const display: DisplayText = isRecord(raw) ? raw : {}
+  const schemaTitle = typeof prop.title === "string" ? prop.title : undefined
+  const label =
+    keyedText(display.titleKey, display.title, locale, resolveKey) ??
+    resolveLocalizedText(schemaTitle, locale) ??
+    name
+  const schemaHelp = typeof prop.description === "string" ? prop.description : undefined
+  const help =
+    keyedText(display.summaryKey, display.summary, locale, resolveKey) ??
+    resolveLocalizedText(schemaHelp, locale)
+  return {
+    label,
+    ...(label !== name ? { hint: name } : {}),
+    ...(help !== undefined ? { help } : {}),
+  }
+}
+
+// -------------------------------------------------------------------------- //
+// Draft status — what Apply, Discard and the unsaved marker compare
+// -------------------------------------------------------------------------- //
+
+/**
+ * A comparable fingerprint of what Apply and Save hand on: the layout, the
+ * keys (blank names dropped, values parsed) and the steps that name a step.
+ * An empty key or step row the user has not filled in changes nothing.
+ */
+export function builderSnapshot(
+  draft: DraftLayout,
+  keyEntries: KeyEntry[],
+  stepEntries: PipelineStepRef[],
+): string {
+  return JSON.stringify({
+    layout: draftToLayout(draft),
+    keys: entriesToKeys(keyEntries),
+    steps: stepEntries.filter((s) => s.step.trim().length > 0),
+  })
+}
+
+/** What Apply hands to `onExit`: the draft, plus the live context it was previewed with. */
+export interface BuilderExitCommit {
+  layout: LayoutConfig
+  keys?: Record<string, unknown>
+  steps?: PipelineStepRef[]
+  title?: string
+  context?: WireContext
+}
+
+/**
+ * The commit of Apply: the layout, keys and steps exactly as a save would send
+ * them, and the live context in its wire shape (`stepIds` + keyed `stepData`)
+ * so the view renders the just-built layout without another round trip.
+ */
+export function toExitCommit(
+  draft: DraftLayout,
+  keyEntries: KeyEntry[],
+  stepEntries: PipelineStepRef[],
+  title: string | undefined,
+  live: PipelineContext,
+): BuilderExitCommit {
+  return {
+    layout: draftToLayout(draft),
+    keys: entriesToKeys(keyEntries),
+    steps: stepEntries.filter((s) => s.step.trim().length > 0),
+    title,
+    context: {
+      keys: live.keys,
+      stepIds: Object.keys(live.steps),
+      stepData: Object.fromEntries(
+        Object.entries(live.steps).map(([id, result]) => [
+          id,
+          { data: result.data, keys: result.keys, _app: result._app, _dataType: result._dataType },
+        ]),
+      ),
+      errors: live.errors,
+    },
+  }
+}
+
+export interface DraftStatus {
+  /** The draft differs from the view as it was before editing. */
+  changed: boolean
+  /**
+   * The draft has changes that Discard would lose: it differs from the last
+   * saved dashboard, or from the view before editing when nothing was saved.
+   * Drives the unsaved marker and the discard confirmation.
+   */
+  unsaved: boolean
+}
+
+/** Compares the current {@link builderSnapshot} with the pre-edit one and the last saved one. */
+export function draftStatus(current: string, baseline: string, saved: string | null): DraftStatus {
+  return { changed: current !== baseline, unsaved: current !== (saved ?? baseline) }
+}
+
+// -------------------------------------------------------------------------- //
+// Keyboard — tab rename without a double-click
+// -------------------------------------------------------------------------- //
+
+/**
+ * What a key press on a tab trigger does: F2 renames any tab; Enter renames
+ * the tab that is already active (on another tab Enter keeps selecting it,
+ * the tabs' own behaviour). `null` leaves the key to the tabs.
+ */
+export function tabTriggerKeyAction(key: string, isActive: boolean): "rename" | null {
+  if (key === "F2") return "rename"
+  if (key === "Enter" && isActive) return "rename"
+  return null
+}
+
+/** What a key press in a tab's rename field does: Enter commits, Escape cancels. */
+export function renameFieldKeyAction(key: string): "commit" | "cancel" | null {
+  if (key === "Enter") return "commit"
+  if (key === "Escape") return "cancel"
+  return null
+}
+
+// -------------------------------------------------------------------------- //
+// Views — the data sources live behind "Advanced"
+// -------------------------------------------------------------------------- //
+
+export type BuilderView = "layout" | "pipeline" | "preview"
+
+/** The builder's views in tab order: the data sources ("pipeline") only in advanced mode. */
+export function builderViews(advanced: boolean): BuilderView[] {
+  return advanced ? ["layout", "pipeline", "preview"] : ["layout", "preview"]
+}
+
+/** The view to show after advanced mode switches: a view that is now hidden falls back to the layout. */
+export function viewAfterAdvancedToggle(view: BuilderView, advanced: boolean): BuilderView {
+  return builderViews(advanced).includes(view) ? view : "layout"
 }

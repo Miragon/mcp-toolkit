@@ -122,8 +122,47 @@ export interface BuilderMessages {
   builderBadge: string
   previewBadge: string
   catalogue: string
+  /** Toolbar button that opens the save dialog: saves the draft as a dashboard. */
   save: string
+  /**
+   * @deprecated Since 2.8 the builder's commit button is Apply
+   * ({@link BuilderMessages.apply}). An override of `done` still labels it.
+   */
   done: string
+  /** Primary action: show the edited view in place and leave the builder (saves nothing). */
+  apply: string
+  /** Tooltip of {@link BuilderMessages.apply}: what it does, and that it saves nothing. */
+  applyHint: string
+  /** Leave the builder without the edits: the view stays as it was before editing. */
+  discard: string
+  /** Tooltip of {@link BuilderMessages.discard}. */
+  discardHint: string
+  /** Tooltip of {@link BuilderMessages.save}: what a dashboard is for. */
+  saveHint: string
+  /** Marker next to the title while the draft has changes that are neither applied nor saved. */
+  unsavedChanges: string
+  /** Title of the confirmation before unsaved changes are discarded. */
+  discardDialogTitle: string
+  /** What discarding does to the view. */
+  discardDialogDescription: string
+  /** Safe choice of the discard confirmation (it keeps the draft). */
+  keepEditing: string
+  /** Destructive choice of the discard confirmation. */
+  discardConfirm: string
+  /** Toggle that shows the technical parts: data sources, catalogue, ids. */
+  advanced: string
+  /** Tooltip of {@link BuilderMessages.advanced}: what it shows. */
+  advancedHint: string
+  /** Accessible name of a tab's rename button, with the tab's label. */
+  renameTabNamed: (label: string) => string
+  /** Accessible name of a tab's remove button, with the tab's label. */
+  removeTabNamed: (label: string) => string
+  /** Marks the row that receives the next element added from the list. */
+  rowTarget: string
+  /** Lead word of a step's output line ("provides …"), next to {@link BuilderMessages.catalogueNeedsKeys}. */
+  stepProvides: string
+  /** Accessible name of a key's value field, with the key name (or none yet). */
+  keyValueFor: (key: string) => string
   viewLayoutTab: string
   viewPipelineTab: string
   viewPreviewTab: string

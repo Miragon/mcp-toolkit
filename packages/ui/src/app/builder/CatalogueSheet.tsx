@@ -13,7 +13,9 @@ import {
 } from "../../primitives/sheet.js"
 import { TONE_DOT, TONE_TEXT } from "../../lib/tone-utils.js"
 import { cn } from "../../lib/utils.js"
+import { displayLabel } from "./builder-model.js"
 import type { LayoutBuilderLabels } from "./labels.js"
+import { useDisplayResolver } from "./use-display-resolver.js"
 
 // -------------------------------------------------------------------------- //
 // Catalogue Sheet — slides in from the right
@@ -38,6 +40,7 @@ export function CatalogueSheet({
   onSeedKey: (name: string) => void
   onAddProducingStep: (key: string) => void
 }) {
+  const { locale, resolveKey } = useDisplayResolver()
   const producerOf = useMemo(() => {
     const map = new Map<string, string | undefined>()
     for (const e of keyCatalog) map.set(e.key, e.producedBySteps[0])
@@ -72,7 +75,7 @@ export function CatalogueSheet({
                         <span className="truncate font-mono">{entry.key}</span>
                         <span
                           className={cn(
-                            "inline-flex shrink-0 items-center gap-1 text-[10px]",
+                            "inline-flex shrink-0 items-center gap-1 text-xs",
                             entry.inContext ? TONE_TEXT.success : "text-muted-foreground",
                           )}
                         >
@@ -91,7 +94,7 @@ export function CatalogueSheet({
                       {(entry.producedBySteps.length > 0 ||
                         entry.consumedBySteps.length > 0 ||
                         entry.consumedByWidgets.length > 0) && (
-                        <div className="text-muted-foreground flex flex-col gap-0.5 text-[10px]">
+                        <div className="text-muted-foreground flex flex-col gap-0.5 text-xs">
                           {entry.producedBySteps.length > 0 && (
                             <span>
                               {L.catalogueProducedBy}{" "}
@@ -142,22 +145,36 @@ export function CatalogueSheet({
                 <p className="text-muted-foreground text-xs italic">{L.noStepsRegistered}</p>
               ) : (
                 <ul className="flex flex-col gap-1">
-                  {availableSteps.map((s) => (
-                    <li
-                      key={s.id}
-                      className="flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
-                    >
-                      <span className="truncate font-mono">{s.id}</span>
-                      <div className="text-muted-foreground flex flex-wrap gap-x-3 text-[10px]">
-                        <span className="font-mono">
-                          ← {s.requires.length ? s.requires.join(", ") : L.noInputs}
-                        </span>
-                        <span className="font-mono">
-                          → {s.produces.length ? s.produces.join(", ") : L.noOutputs}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
+                  {availableSteps.map((s) => {
+                    const name = displayLabel(s, s.id, locale, resolveKey)
+                    return (
+                      <li
+                        key={s.id}
+                        className="flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
+                      >
+                        <span className="truncate font-medium">{name.label}</span>
+                        {name.hint && (
+                          <span className="text-muted-foreground truncate font-mono">
+                            {name.hint}
+                          </span>
+                        )}
+                        <div className="text-muted-foreground flex flex-wrap gap-x-3">
+                          <span>
+                            {L.catalogueNeedsKeys}{" "}
+                            <span className="font-mono">
+                              {s.requires.length ? s.requires.join(", ") : L.noInputs}
+                            </span>
+                          </span>
+                          <span>
+                            {L.stepProvides}{" "}
+                            <span className="font-mono">
+                              {s.produces.length ? s.produces.join(", ") : L.noOutputs}
+                            </span>
+                          </span>
+                        </div>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </section>
@@ -177,13 +194,19 @@ export function CatalogueSheet({
                     const candidate = w.missingKeys
                       .map((k) => ({ key: k, step: producerOf.get(k) }))
                       .find((c) => c.step)
+                    const name = displayLabel(w, w.id, locale, resolveKey)
                     return (
                       <li
                         key={w.id}
                         className="bg-muted/20 flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
                       >
-                        <span className="truncate font-mono">{w.id}</span>
-                        <span className="text-muted-foreground text-[10px]">
+                        <span className="truncate font-medium">{name.label}</span>
+                        {name.hint && (
+                          <span className="text-muted-foreground truncate font-mono">
+                            {name.hint}
+                          </span>
+                        )}
+                        <span className="text-muted-foreground">
                           {L.catalogueNeedsKeys}{" "}
                           <span className="font-mono">{w.missingKeys.join(", ")}</span>
                         </span>
@@ -220,11 +243,9 @@ export function CatalogueSheet({
 function CatalogueSectionHeader({ title, count }: { title: string; count: number }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
-        {title}
-      </span>
+      <h3 className="text-muted-foreground text-xs font-semibold">{title}</h3>
       <span className="bg-border h-px flex-1" aria-hidden="true" />
-      <Badge variant="outline" className="px-1.5 text-[10px]">
+      <Badge variant="outline" className="px-1.5 text-xs">
         {count}
       </Badge>
     </div>

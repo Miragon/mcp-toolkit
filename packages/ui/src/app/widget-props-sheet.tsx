@@ -18,6 +18,8 @@ import {
 import { Switch } from "../primitives/switch.js"
 import { useToolkitMessages } from "../locale/locale-provider.js"
 import type { PropsSheetMessages } from "../locale/toolkit-messages.js"
+import { propFieldText, type PropFieldText } from "./builder/builder-model.js"
+import { useDisplayResolver } from "./builder/use-display-resolver.js"
 
 /**
  * Tiny JSON-Schema-driven editor for a layout cell's `props`. The
@@ -31,6 +33,12 @@ import type { PropsSheetMessages } from "../locale/toolkit-messages.js"
  *   - Nested objects/arrays/$ref/anyOf are not supported — the field
  *     shows an "edit JSON manually" hint so authors know to fall back.
  *
+ * Each field is labelled in user words: the property's `x-display` title
+ * (`PROPS_SCHEMA_DISPLAY_KEYWORD`, a key or per-locale text), else its JSON
+ * Schema `title`, else its name; the raw property name then follows as a
+ * quiet hint, and the help line is the `x-display` summary or the
+ * `description`.
+ *
  * The sheet writes a clean `Record<string, unknown>` (empty values
  * stripped) and reports `undefined` when the user clears every field, so
  * the cell's `props` field stays absent rather than `{}` — matches the
@@ -39,6 +47,7 @@ import type { PropsSheetMessages } from "../locale/toolkit-messages.js"
 
 interface JsonSchemaProperty {
   type?: string
+  title?: string
   description?: string
   enum?: unknown[]
   default?: unknown
@@ -59,6 +68,8 @@ export interface WidgetPropsSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   widgetId: string
+  /** The widget's human name (its title); the id then shows as a quiet hint under it. */
+  widgetTitle?: string
   schema: Record<string, unknown> | undefined
   value: Record<string, unknown> | undefined
   onApply: (next: Record<string, unknown> | undefined) => void
@@ -69,12 +80,14 @@ export function WidgetPropsSheet({
   open,
   onOpenChange,
   widgetId,
+  widgetTitle,
   schema,
   value,
   onApply,
   labels,
 }: WidgetPropsSheetProps) {
   const messages = useToolkitMessages()
+  const { locale, resolveKey } = useDisplayResolver()
   const L = { ...messages.propsSheet, ...labels }
   const obj = (schema ?? {}) as JsonSchemaObject
   const [draft, setDraft] = useState<Record<string, unknown>>(value ?? {})
@@ -109,6 +122,7 @@ export function WidgetPropsSheet({
           <SheetTitle>{L.title}</SheetTitle>
           <SheetDescription className="flex flex-col items-start gap-1">
             <span>{L.description}</span>
+            {widgetTitle && <span className="text-foreground font-medium">{widgetTitle}</span>}
             <span className="bg-muted rounded px-1 font-mono text-xs">{widgetId}</span>
           </SheetDescription>
         </SheetHeader>
@@ -120,6 +134,7 @@ export function WidgetPropsSheet({
               <PropertyField
                 key={key}
                 name={key}
+                text={propFieldText(key, prop as Record<string, unknown>, locale, resolveKey)}
                 prop={prop}
                 value={draft[key]}
                 unsetLabel={L.unsetOption}
@@ -156,6 +171,7 @@ export function WidgetPropsSheet({
 
 function PropertyField({
   name,
+  text,
   prop,
   value,
   unsetLabel,
@@ -163,6 +179,7 @@ function PropertyField({
   onChange,
 }: {
   name: string
+  text: PropFieldText
   prop: JsonSchemaProperty
   value: unknown
   unsetLabel: string
@@ -175,12 +192,12 @@ function PropertyField({
     const options = prop.enum.filter((v): v is string => typeof v === "string")
     const current = typeof value === "string" && value !== "" ? value : UNSET_SENTINEL
     return (
-      <FieldShell id={id} name={name} description={prop.description}>
+      <FieldShell id={id} text={text}>
         <Select
           value={current}
           onValueChange={(v) => onChange(v === UNSET_SENTINEL ? undefined : v)}
         >
-          <SelectTrigger id={id}>
+          <SelectTrigger id={id} aria-describedby={helpId(id, text)}>
             <SelectValue placeholder={unsetLabel} />
           </SelectTrigger>
           <SelectContent>
@@ -199,9 +216,10 @@ function PropertyField({
   if (prop.type === "string") {
     const current = typeof value === "string" ? value : ""
     return (
-      <FieldShell id={id} name={name} description={prop.description}>
+      <FieldShell id={id} text={text}>
         <Input
           id={id}
+          aria-describedby={helpId(id, text)}
           value={current}
           onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
         />
@@ -212,9 +230,10 @@ function PropertyField({
   if (prop.type === "number" || prop.type === "integer") {
     const current = typeof value === "number" ? String(value) : ""
     return (
-      <FieldShell id={id} name={name} description={prop.description}>
+      <FieldShell id={id} text={text}>
         <Input
           id={id}
+          aria-describedby={helpId(id, text)}
           type="number"
           value={current}
           onChange={(e) => {
@@ -232,9 +251,10 @@ function PropertyField({
   if (prop.type === "boolean") {
     const current = value === true
     return (
-      <FieldShell id={id} name={name} description={prop.description}>
+      <FieldShell id={id} text={text}>
         <Switch
           id={id}
+          aria-describedby={helpId(id, text)}
           checked={current}
           onCheckedChange={(checked) => onChange(checked || undefined)}
         />
@@ -243,30 +263,49 @@ function PropertyField({
   }
 
   return (
-    <FieldShell id={id} name={name} description={prop.description}>
+    <FieldShell id={id} text={text}>
       <p className="text-muted-foreground text-xs italic">{unsupportedLabel(prop.type ?? "?")}</p>
     </FieldShell>
   )
 }
 
+/** The id of a field's help line, when it has one (its `aria-describedby`). */
+function helpId(id: string, text: PropFieldText): string | undefined {
+  return text.help ? `${id}-help` : undefined
+}
+
+/**
+ * Label (the human title), the raw property name as a quiet hint beside it
+ * (outside the label, so the accessible name stays the title), the control,
+ * and the help line it is described by.
+ */
 function FieldShell({
   id,
-  name,
-  description,
+  text,
   children,
 }: {
   id: string
-  name: string
-  description?: string
+  text: PropFieldText
   children: ReactNode
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">
-        {name}
-      </label>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <label htmlFor={id} className="text-sm font-medium">
+          {text.label}
+        </label>
+        {text.hint && (
+          <code data-slot="prop-name" className="text-muted-foreground font-mono text-xs">
+            {text.hint}
+          </code>
+        )}
+      </div>
       {children}
-      {description ? <p className="text-muted-foreground text-xs">{description}</p> : null}
+      {text.help ? (
+        <p id={helpId(id, text)} className="text-muted-foreground text-xs">
+          {text.help}
+        </p>
+      ) : null}
     </div>
   )
 }

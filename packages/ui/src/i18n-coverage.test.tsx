@@ -17,6 +17,7 @@ import { BuilderBanners } from "./app/builder/BuilderBanners.js"
 import { PipelineStrip } from "./app/builder/PipelineStrip.js"
 import { StatusChip } from "./app/builder/status-chip.js"
 import { Toolbar } from "./app/builder/Toolbar.js"
+import { Workspace } from "./app/builder/Workspace.js"
 import { WidgetCrashFallback, WidgetRenderer } from "./app/widget-renderer.js"
 
 /**
@@ -236,7 +237,7 @@ const CHROME_CASES: { name: string; render: () => ReactElement }[] = [
     ),
   },
   {
-    name: "Builder toolbar",
+    name: "Builder toolbar (advanced, unsaved)",
     render: () => (
       <Toolbar
         L={PSEUDO.builder}
@@ -246,10 +247,57 @@ const CHROME_CASES: { name: string; render: () => ReactElement }[] = [
         liveKeys={2}
         reachableCount={5}
         unreachableCount={1}
+        advanced
+        onToggleAdvanced={noop}
+        unsaved
         onOpenCatalogue={noop}
         onOpenSave={noop}
-        onDone={noop}
+        onDiscard={noop}
+        onApply={noop}
         hasAnyCell
+      />
+    ),
+  },
+  {
+    name: "Builder workspace (titled and untitled palette entries, canvas cells)",
+    render: () => (
+      <Workspace
+        L={PSEUDO.builder}
+        paletteByApp={[
+          [
+            "demo",
+            [
+              {
+                id: "demo:orders",
+                app: "demo",
+                requires: ["demo:key"],
+                size: "full",
+                title: { en: "Orders", de: "Bestellungen" },
+                summary: { de: "Alle offenen Bestellungen." },
+              },
+              { id: "demo:raw", app: "demo", requires: [], size: "half" },
+            ],
+          ],
+        ]}
+        paletteCount={2}
+        activeRows={[{ row: [{ widget: "demo:orders" }] }, { row: [] }]}
+        focusedRowIndex={0}
+        setFocusedRowIndex={noop}
+        dragOverRow={null}
+        setDragOverRow={noop}
+        onAddRow={noop}
+        onRemoveRow={noop}
+        onMoveRow={noop}
+        onSetCellSpan={noop}
+        onRemoveCell={noop}
+        onAddWidget={noop}
+        onConfigureCell={noop}
+        propsSchemaByWidgetId={new Map([["demo:orders", { type: "object" }]])}
+        displayByWidgetId={new Map([["demo:orders", { title: { de: "Bestellungen" } }]])}
+        advanced
+        widgets={{}}
+        widgetProps={{ keys: {}, context: { keys: {}, steps: {}, errors: [] } }}
+        onAddTab={noop}
       />
     ),
   },

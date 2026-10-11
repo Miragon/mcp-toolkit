@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef } from "react"
 import { ChevronDown, ChevronUp, SlidersHorizontal, Trash2, X } from "lucide-react"
-import type { RowDef, WidgetProps } from "@miragon/mcp-toolkit-core"
+import type { DisplayText, RowDef, WidgetProps } from "@miragon/mcp-toolkit-core"
 import { GridItem, GridLayout } from "../../components/GridLayout.js"
 import { Button } from "../../primitives/button.js"
 import {
@@ -10,10 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../primitives/select.js"
+import { FOCUS_RING, FOCUS_RING_INSET } from "../../lib/focus-ring.js"
 import { cn } from "../../lib/utils.js"
 import { RenderedWidget, type WidgetComponent } from "../widget-renderer.js"
+import { displayLabel } from "./builder-model.js"
 import type { LayoutBuilderLabels } from "./labels.js"
 import { WIDGET_DRAG_MIME } from "./labels.js"
+import { REVEAL_ON_INTENT } from "./reveal.js"
+import { useDisplayResolver } from "./use-display-resolver.js"
 
 // -------------------------------------------------------------------------- //
 // Canvas row — drop target + per-cell controls + resize handle
@@ -36,6 +40,8 @@ function CanvasRowImpl({
   onAddWidget,
   onConfigureCell,
   propsSchemaByWidgetId,
+  displayByWidgetId,
+  advanced,
   widgets,
   widgetProps,
 }: {
@@ -55,14 +61,25 @@ function CanvasRowImpl({
   onAddWidget: (widgetId: string, targetRowIdx?: number) => void
   onConfigureCell: (rowIdx: number, cellIdx: number) => void
   propsSchemaByWidgetId: Map<string, Record<string, unknown>>
+  displayByWidgetId: Map<string, DisplayText>
+  advanced: boolean
   widgets: Record<string, WidgetComponent>
   widgetProps: WidgetProps
 }) {
   const gridRef = useRef<HTMLDivElement | null>(null)
+  const { locale, resolveKey } = useDisplayResolver()
+  // The target row follows the pointer AND the keyboard: focus moving into a
+  // row (its actions, a cell control) makes it the row the palette adds to.
+  const target = () => {
+    if (!focused) setFocusedRowIndex(rowIdx)
+  }
 
   return (
     <div
-      onClick={() => setFocusedRowIndex(rowIdx)}
+      data-slot="builder-row"
+      data-target={focused ? "" : undefined}
+      onClick={target}
+      onFocus={target}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes(WIDGET_DRAG_MIME)) return
         e.preventDefault()
@@ -89,14 +106,21 @@ function CanvasRowImpl({
         dragOver && "bg-primary/5 border-l-primary",
       )}
     >
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-muted-foreground flex items-center gap-2 text-[11px]">
-          <span className="font-mono">{L.rowLabel(rowIdx + 1)}</span>
-          <span className="bg-muted/60 rounded px-1 py-0.5 text-[10px]">
-            {L.elementCount(row.row.length)}
-          </span>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-medium">{L.rowLabel(rowIdx + 1)}</span>
+          <span className="bg-muted rounded px-1.5 py-0.5">{L.elementCount(row.row.length)}</span>
+          {focused && (
+            <span className="text-foreground inline-flex items-center gap-1.5">
+              <span aria-hidden="true" className="bg-primary size-1.5 rounded-full" />
+              {L.rowTarget}
+            </span>
+          )}
         </div>
-        <div className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <div
+          data-slot="builder-row-actions"
+          className={cn("flex items-center", focused ? "opacity-100" : REVEAL_ON_INTENT)}
+        >
           <Button
             variant="ghost"
             size="icon-xs"
@@ -137,7 +161,7 @@ function CanvasRowImpl({
       {row.row.length === 0 ? (
         <div
           className={cn(
-            "rounded-md border border-dashed py-6 text-center text-[11px] transition-colors",
+            "rounded-md border border-dashed py-6 text-center text-xs transition-colors",
             dragOver
               ? "border-focus bg-accent text-accent-foreground"
               : "border-input text-muted-foreground",
@@ -153,13 +177,24 @@ function CanvasRowImpl({
               const Widget = widgets[cell.widget]
               const hasPropsSchema = propsSchemaByWidgetId.has(cell.widget)
               const propCount = cell.props ? Object.keys(cell.props).length : 0
+              const name = displayLabel(
+                displayByWidgetId.get(cell.widget) ?? {},
+                cell.widget,
+                locale,
+                resolveKey,
+              )
               return (
                 <GridItem key={`${cell.widget}-${cellIdx}`} span={span}>
                   <div className="border-border bg-card shadow-1 relative overflow-hidden rounded-md border">
-                    <div className="text-muted-foreground bg-muted/30 flex items-center justify-between gap-2 border-b px-2 py-1 text-[10px]">
-                      <span className="truncate font-mono">{cell.widget}</span>
+                    <div className="text-muted-foreground bg-muted/30 flex items-center justify-between gap-2 border-b px-2 py-1 text-xs">
+                      <span className="flex min-w-0 items-baseline gap-2" title={name.hint}>
+                        <span className="text-foreground truncate font-medium">{name.label}</span>
+                        {advanced && name.hint && (
+                          <span className="truncate font-mono">{name.hint}</span>
+                        )}
+                      </span>
                       <div className="flex shrink-0 items-center gap-2">
-                        <label className="text-muted-foreground inline-flex items-center gap-0.5 font-mono">
+                        <label className="text-muted-foreground inline-flex items-center gap-0.5 tabular-nums">
                           <span className="sr-only">{L.columnSpan}</span>
                           <Select
                             value={String(span)}
@@ -167,7 +202,11 @@ function CanvasRowImpl({
                           >
                             <SelectTrigger
                               size="sm"
-                              className="h-5 gap-0.5 border-none bg-transparent px-1 py-0 font-mono text-[10px] shadow-none"
+                              className={cn(
+                                "h-6 gap-0.5 border-none bg-transparent px-1 py-0 text-xs tabular-nums shadow-none",
+                                // Borderless, so the input focus edge is gone: the kit ring instead.
+                                FOCUS_RING,
+                              )}
                               aria-label={L.columnSpan}
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -175,7 +214,11 @@ function CanvasRowImpl({
                             </SelectTrigger>
                             <SelectContent>
                               {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                                <SelectItem key={n} value={String(n)} className="font-mono text-xs">
+                                <SelectItem
+                                  key={n}
+                                  value={String(n)}
+                                  className="text-xs tabular-nums"
+                                >
                                   {n}
                                 </SelectItem>
                               ))}
@@ -220,7 +263,7 @@ function CanvasRowImpl({
                         props={widgetProps}
                         cellProps={cell.props}
                         showEmptyHint
-                        notBundledClassName="text-muted-foreground rounded border border-dashed p-3 text-center text-[11px]"
+                        notBundledClassName="text-muted-foreground rounded border border-dashed p-3 text-center text-xs"
                       />
                     </div>
                     <ResizeHandle
@@ -305,7 +348,10 @@ function ResizeHandle({
       onClick={(e) => e.stopPropagation()}
       onKeyDown={onKeyDown}
       tabIndex={0}
-      className="hover:bg-primary/40 focus-visible:bg-primary/40 focus-visible:ring-focus absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none focus-visible:ring-2 focus-visible:outline-hidden"
+      className={cn(
+        "hover:bg-primary/40 focus-visible:bg-primary/40 absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none",
+        FOCUS_RING_INSET,
+      )}
       aria-label={label}
       role="separator"
       aria-orientation="vertical"
