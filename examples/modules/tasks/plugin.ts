@@ -74,8 +74,9 @@ function rawData(data: TasksBoardData) {
 function boardSummary(board: TasksBoardData): string {
   const c = board.counts
   return (
-    `Task board: ${c.total} task(s) — ${c.todo} to do, ${c.doing} in progress, ` +
-    `${c.done} done. Use create_task to add and complete_task to finish a task.`
+    `Task board: ${c.total} ${c.total === 1 ? "task" : "tasks"} (${c.todo} to do, ` +
+    `${c.doing} in progress, ${c.done} done). Use create_task to add and complete_task ` +
+    `to finish a task.`
   )
 }
 
@@ -138,7 +139,10 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
 
   register({
     name: COMPLETE_TASK,
-    definition: { title: "Complete task" },
+    // The board's "Complete" button calls this tool from inside the widget
+    // (`useToolMutation`). MCP Apps hosts allow that by default; Apps SDK hosts
+    // (ChatGPT) only for tools flagged widget-accessible.
+    definition: { title: "Complete task", _meta: { "openai/widgetAccessible": true } },
     category: "tasks",
     description:
       "Mark a task as done by its id. Idempotent: completing an already-done task is a no-op. Returns the updated task.",
@@ -191,7 +195,8 @@ function registerTaskWidgetTools(server: MCPServer, store: TaskStore) {
         app: "tasks",
         dataType: "tasks:board",
         data: board,
-        title: "Tasks",
+        // No view title: the widget's own header ("Task board") is the view's
+        // one title, so the toolbar above it doesn't repeat it.
         summary: boardSummary(board),
       })
       // Return a fresh object literal (not the named `ViewToolResult`) so it

@@ -159,7 +159,8 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
       // object and render their own slice"). Stable `id`s keep the step keys distinct.
       const input: ComposedViewInput = {
         app: "orders",
-        title: `Orders: ${dashboard.kpi.customer.name}`,
+        // No view title: the KPI widget's header names the customer, so a
+        // toolbar title would say it twice. A view carries one title.
         summary: dashboardSummary(dashboard),
         layout: DASHBOARD_LAYOUT,
         entries: [

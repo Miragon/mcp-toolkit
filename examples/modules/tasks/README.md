@@ -67,11 +67,20 @@ cells), `FilterBar` + `useDebouncedValue`, `SectionHeading`, tone-tinted status
 pills (`TONE_SOFT` + `ToneVariant`), `Badge`, `CountPill`, `LivePill`,
 `ListFooter`. No auto-UI, no `<div>` soup, theme tokens only (so it white-labels).
 
-The two boundary-crossing actions (add a task, complete a task) are deliberately
-**agentic**: they hand a prompt to the host via `useHostActions()` /
-`buildShowWidgetIntent`, which the agent turns into the right `create_task` /
-`complete_task` + `show_tasks_board` calls. Everything else (KPI filter, search,
-pagination) is deterministic in-widget interaction with no model round-trip.
+**Complete** is a deterministic write: the button calls `complete_task` through
+`useToolMutation`, shows the row as done at once, rolls it back if the call
+fails, and reports the outcome as a toast (`useToast`). The tool carries
+`openai/widgetAccessible` so Apps SDK hosts let the widget call it. **Adding** a
+task needs a title from the user, so it stays a chat hand-off: "Ask agent to
+add" hands a prompt to the host via `useHostActions()`, which the agent turns
+into `create_task` + `show_tasks_board`. The button says so and is styled as the
+secondary action. Everything else (KPI filter, search, pagination) is
+deterministic in-widget interaction with no model round-trip.
+
+The widget also shows the states a user needs: a failed self-fetch renders an
+`ErrorState` with a retry (the raw reason sits under Details), an empty board
+and an empty filter result are two different `EmptyState`s with their next
+step, and a refresh reports its outcome as a toast.
 
 ### 4. Registration — host + bundle
 

@@ -1,5 +1,8 @@
 [
   {
+    "_meta": {
+      "openai/widgetAccessible": true
+    },
     "annotations": {
       "destructiveHint": false,
       "idempotentHint": true,

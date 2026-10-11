@@ -189,13 +189,13 @@ import { withToolErrors } from "@miragon/mcp-toolkit-core/tools"
 server.tool(
   {
     name: "show_tasks_board",
-    title: "Task Board",
+    title: "Task board",
     description: "Show the task board; use it whenever the user wants to see their tasks.",
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}),
     view: { name: "show_tasks_board" }, // render this result as UI
     outputSchema: z.object({}).passthrough(), // a view binding requires one
-    _meta: appsSdkMeta({ resourceUri: viewResourceUri("show_tasks_board"), title: "Task Board" }),
+    _meta: appsSdkMeta({ resourceUri: viewResourceUri("show_tasks_board"), title: "Task board" }),
   },
   withToolErrors(() => {
     const board = store.board()
@@ -204,7 +204,7 @@ server.tool(
       app: "tasks",
       dataType: "tasks:board", // adaptDataWidget matches the widget on this
       data: board,
-      title: "Tasks",
+      // no `title`: the widget's own header titles the view (one title per view)
       summary: boardSummary(board), // short, model-facing text (never the full list)
     })
     return Promise.resolve({ content: view.content, structuredContent: view.structuredContent })

@@ -51,8 +51,8 @@ function rawData(data: TasksBoardData) {
 function boardSummary(board: TasksBoardData): string {
   const c = board.counts
   return (
-    `Task board: ${c.total} task(s) — ${c.todo} to do, ${c.doing} in progress, ` +
-    `${c.done} done. Use create_task to add a task.`
+    `Task board: ${c.total} ${c.total === 1 ? "task" : "tasks"} (${c.todo} to do, ` +
+    `${c.doing} in progress, ${c.done} done). Use create_task to add a task.`
   )
 }
 
@@ -133,7 +133,8 @@ function registerTaskWidgetTools(server: MCPServer, store: TaskStore) {
         app: "tasks",
         dataType: "tasks:board",
         data: board,
-        title: "Tasks",
+        // No view title: the widget's own header ("Task board") is the view's
+        // one title, so the toolbar above it doesn't repeat it.
         summary: boardSummary(board),
       })
       return Promise.resolve({ content: view.content, structuredContent: view.structuredContent })

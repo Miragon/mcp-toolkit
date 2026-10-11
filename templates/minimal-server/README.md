@@ -113,6 +113,27 @@ release, so `pnpm install` can report an unmet `mcp-use` peer until the next
 release lifts them. It is a warning, not a break — install, typecheck and
 `mcp-use build` all succeed.
 
+## Look and language
+
+- **Look.** The widgets render in the Miragon design system, the toolkit's
+  default theme, light or dark as the host is. To give them your brand,
+  override **role variables** only (`--primary`, `--primary-hover`, `--link`,
+  `--focus`, `--radius-md`, …) in `views/shared/styles.css`: the commented
+  block there has the light and the dark selectors. Never override the
+  `--cd-*` tokens or component classes. The
+  [white-labeling guide](https://github.com/Miragon/mcp-toolkit/blob/main/docs/guides/white-labeling.md)
+  lists every role.
+- **Fonts.** The theme names Geist and Geist Mono first and falls back to the
+  host's font. Loading Geist is opt-in: uncomment the `fonts.css` import in
+  `views/shared/styles.css`. The files come from npm through the bundler, no
+  font CDN; they are inlined into every view, so weigh the size.
+- **Language.** The toolkit's own text (list footers, empty and error states,
+  toasts, the view toolbar) follows the host's locale, in English or German.
+  `TaskListCard`'s own words are English. To translate them, give the module
+  a typed en/de catalog the way the toolkit's
+  [tasks example](https://github.com/Miragon/mcp-toolkit/blob/main/examples/modules/tasks/widgets/messages.ts)
+  does, and format counts and dates with `useLocale()`.
+
 ## CI
 
 The included CI (`.github/workflows/ci.yml`) typechecks and runs

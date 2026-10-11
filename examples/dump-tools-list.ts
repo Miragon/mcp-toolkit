@@ -63,7 +63,7 @@ tools.sort((a, b) => a.name.localeCompare(b.name))
 const out = process.argv[2]
 if (!out) {
   console.error(
-    "usage: pnpm dump:tools <out.json> — the dump goes to a file, stdout carries server logs",
+    "usage: pnpm dump:tools <out.json> (the dump goes to a file; stdout carries server logs)",
   )
   process.exit(1)
 }

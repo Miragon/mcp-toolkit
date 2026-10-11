@@ -15,7 +15,7 @@ const ORDERS: Record<string, Order> = {
     total: 12480.5,
     currency: "EUR",
     items: 7,
-    eta: "Jun 12",
+    eta: "2026-06-12",
     trackingUrl: "https://tracking.example/ORD-4471",
   },
   "ORD-4490": {
@@ -25,7 +25,7 @@ const ORDERS: Record<string, Order> = {
     total: 3299.0,
     currency: "EUR",
     items: 2,
-    eta: "Jun 16",
+    eta: "2026-06-16",
     trackingUrl: "https://tracking.example/ORD-4490",
   },
 }

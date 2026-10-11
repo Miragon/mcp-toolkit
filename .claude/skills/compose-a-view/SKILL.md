@@ -65,7 +65,7 @@ server.tool(
     const dashboard = store.dashboard(args.customerId ?? "c-1") // ONE pass → { kpi, table }
     const view = buildComposedView({
       app: "orders",
-      title: `Orders: ${dashboard.kpi.customer.name}`,
+      // no title: the KPI widget's header names the customer (one title per view)
       summary: dashboardSummary(dashboard), // 1-line, model-facing — NOT the full data
       layout: {
         rows: [

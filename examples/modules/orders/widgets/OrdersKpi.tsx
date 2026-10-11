@@ -1,30 +1,34 @@
-import { Badge, KpiGrid, LivePill, WidgetHeader } from "@miragon/mcp-toolkit-ui"
+import { Badge, KpiGrid, WidgetHeader, formatCount, useLocale } from "@miragon/mcp-toolkit-ui"
 import type { OrdersDashboardData } from "../store.js"
+import { formatEuro, useOrdersText } from "./messages.js"
 
 /**
- * OrdersKpi — the first cell of the orders dashboard: a KPI strip with the
- * per-status order counts and the customer's revenue.
+ * OrdersKpi: the top widget of the orders dashboard, a KPI strip with the
+ * customer's revenue and the per-status order counts. Its header names the
+ * customer, so the composed view needs no title of its own.
  *
  * Data contract: this is a single-data `({ data })` widget. It is registered via
  * `adaptDataWidget(OrdersKpi, "orders:dashboard")`, so it receives the COMBINED
  * `OrdersDashboardData` object and reads only its `kpi` slice. The sibling
- * `OrdersTable` reads the `table` slice of the same object — that shared dataType
+ * `OrdersTable` reads the `table` slice of the same object; that shared dataType
  * is what lets one widget registration serve both the eager `buildComposedView`
  * dashboard and the `render-view` pipeline (see `store.ts` `OrdersDashboardData`).
  *
- * Built from the slim composed UI layer (`WidgetHeader`, `KpiGrid`, `LivePill`,
- * `Badge`) — theme tokens only, so it white-labels for free. No tool calls: the
- * data is pushed in, so this widget is pure props.
+ * Built from the slim composed UI layer (`WidgetHeader`, `KpiGrid`, `Badge`),
+ * theme tokens only, so it white-labels for free. No tool calls: the data is
+ * pushed in, so this widget is pure props. Every word comes from the module's
+ * en/de catalog (`messages.ts`); money and counts are formatted in the
+ * widget's locale.
+ *
+ * Colour stays for states: an open or cancelled order is a state and carries a
+ * status dot; revenue and the customer's tier are facts, so they stay neutral.
  */
-
-/** Cents → a localized currency string (the store keeps money in minor units). */
-function formatEuro(cents: number): string {
-  return new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(cents / 100)
-}
-
 export function OrdersKpi({ data }: { data: OrdersDashboardData | null }) {
+  const locale = useLocale()
+  const text = useOrdersText()
   if (!data) return null
   const { customer, counts, revenueCents } = data.kpi
+  const count = (n: number) => formatCount(n, locale)
 
   return (
     <div className="bg-card text-card-foreground flex flex-col gap-4 p-5">
@@ -32,27 +36,28 @@ export function OrdersKpi({ data }: { data: OrdersDashboardData | null }) {
         title={customer.name}
         sub={
           <>
-            <LivePill tone="success">Orders</LivePill>
-            <Badge variant={customer.tier === "premium" ? "default" : "secondary"}>
-              {customer.tier}
-            </Badge>
+            <Badge variant="outline">{text.tier[customer.tier]}</Badge>
+            <span>{text.orderCount(counts.total, count(counts.total))}</span>
           </>
         }
       />
 
-      {/* The headline metrics. `revenue` is tone-tinted; the status cells are
-          plain counts. Pre-format the currency — KpiGrid renders values verbatim. */}
+      {/* The headline metrics. Pre-format the currency: KpiGrid renders values verbatim. */}
       <KpiGrid
         boxed
-        header={{ label: "This customer", badge: `${counts.total} orders` }}
+        header={{ label: text.kpiHeader }}
         cells={[
-          { label: "Revenue", value: formatEuro(revenueCents), tone: "success" },
-          { label: "Open", value: counts.open, tone: counts.open > 0 ? "info" : "neutral" },
-          { label: "Paid", value: counts.paid },
-          { label: "Shipped", value: counts.shipped },
+          { label: text.revenue, value: formatEuro(revenueCents, locale) },
           {
-            label: "Cancelled",
-            value: counts.cancelled,
+            label: text.status.open,
+            value: count(counts.open),
+            tone: counts.open > 0 ? "info" : "neutral",
+          },
+          { label: text.status.paid, value: count(counts.paid) },
+          { label: text.status.shipped, value: count(counts.shipped) },
+          {
+            label: text.status.cancelled,
+            value: count(counts.cancelled),
             tone: counts.cancelled > 0 ? "danger" : "neutral",
           },
         ]}

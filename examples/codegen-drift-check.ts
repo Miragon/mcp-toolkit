@@ -49,7 +49,7 @@ const portFree = await new Promise<boolean>((resolve) => {
 })
 if (!portFree) {
   console.error(
-    `codegen-drift-check: port ${port} is already in use (a dev codegen-source running?). Stop it or set ARTICLES_CODEGEN_SOURCE_PORT — but note the committed generated/ header pins the default URL.`,
+    `codegen-drift-check: port ${port} is already in use (a dev codegen-source running?). Stop it or set ARTICLES_CODEGEN_SOURCE_PORT; note that the committed generated/ header pins the default URL.`,
   )
   process.exit(1)
 }

@@ -46,7 +46,7 @@ server.tool(
   {
     name: "echo",
     title: "Echo",
-    description: "Echoes the input back — a plain mcp-use tool next to the toolkit surface.",
+    description: "Echoes the input back: a plain mcp-use tool next to the toolkit surface.",
     inputSchema: z.object({ message: z.string().describe("Text to echo back.") }),
     annotations: { readOnlyHint: true },
   },

@@ -1,5 +1,7 @@
+import { PackageOpen } from "lucide-react"
 import {
   Badge,
+  EmptyState,
   SectionHeading,
   Table,
   TableBody,
@@ -10,12 +12,15 @@ import {
   TONE_BORDER,
   TONE_SOFT,
   cn,
+  formatCount,
+  useLocale,
   type ToneVariant,
 } from "@miragon/mcp-toolkit-ui"
 import type { OrderStatus, OrdersDashboardData } from "../store.js"
+import { formatDay, formatEuro, useOrdersText } from "./messages.js"
 
 /**
- * OrdersTable — the second cell of the orders dashboard: a table of the
+ * OrdersTable — the second widget of the orders dashboard: a table of the
  * customer's orders built from the shared `Table` primitive plus `SectionHeading`
  * and tone-tinted status `Badge`s.
  *
@@ -33,27 +38,9 @@ const STATUS_TONE: Record<OrderStatus, ToneVariant> = {
   cancelled: "danger",
 }
 
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  open: "Open",
-  paid: "Paid",
-  shipped: "Shipped",
-  cancelled: "Cancelled",
-}
-
-function formatEuro(cents: number): string {
-  return new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(cents / 100)
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" })
-  } catch {
-    return iso
-  }
-}
-
 /** Small tone-tinted status pill, built from the shared `TONE_SOFT`/`TONE_BORDER` token maps. */
 function StatusPill({ status }: { status: OrderStatus }) {
+  const text = useOrdersText()
   return (
     <span
       className={cn(
@@ -62,29 +49,34 @@ function StatusPill({ status }: { status: OrderStatus }) {
         TONE_BORDER[STATUS_TONE[status]],
       )}
     >
-      {STATUS_LABEL[status]}
+      {text.status[status]}
     </span>
   )
 }
 
 export function OrdersTable({ data }: { data: OrdersDashboardData | null }) {
+  const locale = useLocale()
+  const text = useOrdersText()
   if (!data) return null
   const { orders } = data.table
 
   return (
     <div className="bg-card text-card-foreground flex flex-col gap-3 p-5">
-      <SectionHeading title="Orders" hint={`${orders.length} total`} />
+      <SectionHeading
+        title={text.tableTitle}
+        hint={text.inTotal(formatCount(orders.length, locale))}
+      />
 
       {orders.length === 0 ? (
-        <p className="text-muted-foreground text-sm">This customer has no orders yet.</p>
+        <EmptyState icon={<PackageOpen />} title={text.emptyTitle} description={text.emptyHint} />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Order</TableHead>
-              <TableHead>Placed</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>{text.columns.order}</TableHead>
+              <TableHead>{text.columns.placed}</TableHead>
+              <TableHead>{text.columns.status}</TableHead>
+              <TableHead className="text-right">{text.columns.amount}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -97,7 +89,7 @@ export function OrdersTable({ data }: { data: OrdersDashboardData | null }) {
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {formatDate(order.placedAt)}
+                  {formatDay(order.placedAt, locale)}
                 </TableCell>
                 <TableCell>
                   <StatusPill status={order.status} />
@@ -108,7 +100,7 @@ export function OrdersTable({ data }: { data: OrdersDashboardData | null }) {
                     order.status === "cancelled" && "text-muted-foreground line-through",
                   )}
                 >
-                  {formatEuro(order.amountCents)}
+                  {formatEuro(order.amountCents, locale)}
                 </TableCell>
               </TableRow>
             ))}

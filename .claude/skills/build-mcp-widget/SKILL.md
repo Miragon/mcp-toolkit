@@ -340,6 +340,6 @@ House rules that apply to widget code (see `CONTRIBUTING.md` / `CLAUDE.md`):
 - [ ] Composed from the catalog's primitives/composed components — no `<div>` wüste, tokens not raw colors.
 - [ ] Host access only via `useHostBridge` / the data hooks — no direct `mcp-use/react` or `window.openai`.
 - [ ] Loading (`Skeleton`), empty (`EmptyState`) and error (`ErrorState` with `onRetry`) states handled; write outcomes reported with `useToast()`, never only `console`.
-- [ ] No hard-coded copy: user-facing text comes from props or the locale (`useTranslate` / `useToolkitMessages`).
+- [ ] No hard-coded copy: user-facing text comes from props or the locale (`useTranslate`, or a typed en/de catalog picked with `useLocale()` like `examples/modules/tasks/widgets/messages.ts`; the toolkit's own via `useToolkitMessages`).
 - [ ] A `Story` added to the playground and the widget seen rendering.
 - [ ] `typecheck` green; repo gates green before commit.
