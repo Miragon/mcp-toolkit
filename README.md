@@ -2,13 +2,13 @@
 
 Shared framework runtime and UI primitives for MCP servers built on top of [mcp-use](https://github.com/mcp-use/mcp-use).
 
-This monorepo ships three packages that are consumed by multiple MCP server projects (currently `miranum-ai` and `automation-mcp`):
+This monorepo ships three packages that MCP server projects build on (currently Miragon AI):
 
-| Package                                                        | Description                                                                                                                                                                                                                                                                                  |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@miragon/mcp-toolkit-core`](./packages/core)                 | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM.                                                                                                             |
-| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen) | Build-time codegen + runtime glue for type-safe MCP tool calls: `TypedCallTool` and a CLI (`mcp-tool-codegen`) that generates TypeScript types and React Query hooks from an MCP server's `tools/list`.                                                                                      |
-| [`@miragon/mcp-toolkit-ui`](./packages/ui)                     | React UI: shadcn primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing) for bundling widgets into the app bundle served through mcp-use's native `ui://views/<name>.html` view resources. |
+| Package                                                        | Description                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@miragon/mcp-toolkit-core`](./packages/core)                 | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM.                                                                                                                                                                                           |
+| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen) | Build-time codegen + runtime glue for type-safe MCP tool calls: `TypedCallTool` and a CLI (`mcp-tool-codegen`) that generates TypeScript types and React Query hooks from an MCP server's `tools/list`.                                                                                                                                                                    |
+| [`@miragon/mcp-toolkit-ui`](./packages/ui)                     | React UI in the Miragon design system (the default theme; white-label it through role tokens): primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing) for bundling widgets into the app bundle served through mcp-use's native `ui://views/<name>.html` view resources. |
 
 Every toolkit server is self-contained — its own tools, steps, widgets, and UI bundle; aggregating several MCP servers into one surface is an external MCP gateway's job (e.g. [agentgateway](https://agentgateway.dev)) — see the [architecture concept](./docs/concepts/architecture.md).
 
@@ -91,7 +91,7 @@ pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-ui
 pnpm add -D @miragon/mcp-toolkit-tool-codegen
 ```
 
-The peer dependencies are pinned exactly — install `mcp-use@2.7.3` and `zod@4.5.4` alongside (see each package's `peerDependencies` for the authoritative list).
+Install the peers alongside: `mcp-use@2.7.3` (pinned exactly: a second copy breaks the widgets' host context) and `zod@^4.4.0`, plus `react@^19.2.0`, `react-dom@^19.2.0` and `tailwindcss@^4.3.0` for the UI package. Each package's `peerDependencies` is the authoritative list.
 
 The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) — a self-contained mcp-use project with the toolkit on top: one module with its own tools, one widget, `views/` built and served by the mcp-use CLI, plus pinned versions and CI. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
 

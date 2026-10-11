@@ -1,7 +1,8 @@
 # @miragon/mcp-toolkit-ui
 
-React UI for MCP servers: shadcn primitives, composite components, TanStack
-Query hooks, and the MCP App shell (McpAppView + WidgetRenderer).
+React UI for MCP servers in the Miragon design system (the default theme;
+white-label it through role tokens): primitives, composite components,
+TanStack Query hooks, and the MCP App shell (McpAppView + WidgetRenderer).
 
 ## Install
 
@@ -9,10 +10,12 @@ Published to the public npm registry under the `@miragon` scope — no `.npmrc`
 or token needed.
 
 ```sh
-pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@2.7.3 react@19.2.8 react-dom@19.2.8 tailwindcss@4.3.3
+pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@2.7.3 react@^19.2.0 react-dom@^19.2.0 tailwindcss@^4.3.0
 ```
 
-Peer versions are pinned exactly — install the versions above.
+`mcp-use` is pinned exactly: a second copy in the graph breaks the widgets'
+host context. `react`, `react-dom` and `tailwindcss` are ranges, so your own
+versions dedupe against them.
 
 ## Import paths
 

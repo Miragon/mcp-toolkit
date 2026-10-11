@@ -9,11 +9,11 @@ several MCP servers into one surface is an external MCP gateway's job
 
 ## Packages
 
-| Package                             | Purpose                                                                                                                                       |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@miragon/mcp-toolkit-core`         | Plugin contract, step/widget registries, pipeline executor, framework-tool registrars, middleware helpers, `createFrameworkApp` factory.      |
-| `@miragon/mcp-toolkit-ui`           | React widget shell (`McpToolkitApp` / `McpAppView`) with host auto-sizing, shadcn primitives, composed components, typed `useToolQuery` hook. |
-| `@miragon/mcp-toolkit-tool-codegen` | Build-time codegen (`mcp-tool-codegen` CLI) that turns an MCP server's `tools/list` into typed TS + typed React Query hooks.                  |
+| Package                             | Purpose                                                                                                                                                                                                  |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@miragon/mcp-toolkit-core`         | Plugin contract, step/widget registries, pipeline executor, framework-tool registrars, middleware helpers, `createFrameworkApp` factory.                                                                 |
+| `@miragon/mcp-toolkit-ui`           | React widget shell (`McpToolkitApp` / `McpAppView`) with host auto-sizing, primitives and composed components in the Miragon design system (white-label through role tokens), typed `useToolQuery` hook. |
+| `@miragon/mcp-toolkit-tool-codegen` | Build-time codegen (`mcp-tool-codegen` CLI) that turns an MCP server's `tools/list` into typed TS + typed React Query hooks.                                                                             |
 
 ## Start here
 

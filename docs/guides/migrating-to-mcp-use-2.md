@@ -18,10 +18,12 @@ if you are already on 0.11.0, there is nothing further to migrate.
 | --------------------------- | -------- | -------------------------- |
 | `mcp-use`                   | `1.34.1` | `2.7.3`                    |
 | `@modelcontextprotocol/sdk` | `1.29.0` | removed — no longer a peer |
-| `zod`                       | `4.4.3`  | `4.5.4`                    |
+| `zod`                       | `4.4.3`  | `^4.4.0` (a peer range)    |
 | Node.js                     | —        | `>=22.22.2` (engines)      |
 
-Peer versions stay pinned exactly — install the versions above.
+`mcp-use` stays pinned exactly (a second copy in the graph breaks the widgets'
+host context); `zod`, and `react`, `react-dom` and `tailwindcss` for the UI
+package, are peer ranges, so your own versions dedupe against them.
 
 ::: warning Pin `lucide-react` to one version everywhere
 mcp-use 2.x's graph carries a `lucide-react@^0.562.0` peer (via the built-in

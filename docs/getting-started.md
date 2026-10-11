@@ -80,14 +80,32 @@ repo — copying that directory works just as well.
 
 ### By hand
 
-The packages live on the public npm registry under the `@miragon` scope — no
-`.npmrc` or token needed. Install — the peer dependencies are pinned exactly,
-so match them:
+The packages live on the public npm registry under the `@miragon` scope, so no
+`.npmrc` or token is needed. Install the server package with its peers.
+`mcp-use` is pinned exactly (a second copy in the graph breaks the widgets'
+host context); the other peers are ranges, so your own versions dedupe:
 
 ```sh
-pnpm add @miragon/mcp-toolkit-core
-pnpm add mcp-use@2.7.3 zod@4.5.4
+pnpm add @miragon/mcp-toolkit-core mcp-use@2.7.3 zod@^4.4.0
 ```
+
+For widgets, add the UI package and its peers:
+
+```sh
+pnpm add @miragon/mcp-toolkit-ui react@^19.2.0 react-dom@^19.2.0
+pnpm add -D tailwindcss@^4.3.0
+```
+
+**Look and language.** The UI package renders in the Miragon design system by
+default, light or dark as the host is: import
+`@miragon/mcp-toolkit-ui/globals.css` once in your view's CSS, and give it your
+brand by overriding role variables only (see
+[white-labeling](./guides/white-labeling.md)). Geist and Geist Mono are named
+first in the font stacks; loading them is opt-in
+(`@miragon/mcp-toolkit-ui/fonts.css`). The toolkit's own text follows the
+host's locale in English or German; your widgets' text is yours, and the
+[`tasks` example](../examples/modules/tasks/widgets/messages.ts) shows a typed
+en/de catalog for it.
 
 ### The standard path — a plain mcp-use project, toolkit on top
 

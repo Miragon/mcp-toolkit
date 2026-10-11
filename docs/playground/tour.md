@@ -93,8 +93,8 @@ premium) and **c-2** (Nordwind Logistik, standard). Feed one to
 { "customerId": "c-1" }
 ```
 
-One tool call, one view, **two** widgets — a KPI strip (span 5) and an orders
-table (span 7) on the 12-column grid:
+One tool call, one view, **two** widgets: a KPI strip above an orders table,
+each a full-width row of the 12-column grid:
 
 ![The orders dashboard: a KPI strip and an orders table composed into one view](./images/orders-dashboard.png)
 
@@ -120,12 +120,8 @@ steps whose inputs depend on earlier outputs. Call `render-view` with:
   ],
   "layout": {
     "rows": [
-      {
-        "row": [
-          { "widget": "orders:kpi", "span": 5 },
-          { "widget": "orders:table", "span": 7 }
-        ]
-      }
+      { "row": [{ "widget": "orders:kpi", "span": 12 }] },
+      { "row": [{ "widget": "orders:table", "span": 12 }] }
     ]
   },
   "title": "Orders pipeline view"
@@ -178,14 +174,14 @@ Reading: [debugging pipeline steps](../recipes/debugging-pipeline-steps.md)
 ## 7. Builder & dashboards
 
 The playground boots with `app.builder: true`, so the pipeline view from stop 5
-carries a **Build** affordance (the eager view from stop 4 doesn't — only
+carries an **Edit view** button (the eager view from stop 4 doesn't — only
 pipeline-rendered views carry the refresh params the builder re-runs). Open it
 and you get the in-iframe visual builder, fed by `get-builder-catalogue`:
 
 ![The visual builder: a palette of reachable widgets on the left, an editable layout of rows and spans on the right](./images/builder.png)
 
 Drag widgets from the palette, resize their column spans, switch to the
-**Pipeline** tab to wire steps — no round-trip through the LLM. **Save** persists
+**Data sources** tab to wire steps — no round-trip through the LLM. **Save** persists
 through the dashboard CRUD tools, which you can also drive directly:
 `save-dashboard` with the keys/steps/layout from stop 5, then `list-dashboards`,
 then `load-dashboard` — whose result feeds straight back into `render-view`. A
