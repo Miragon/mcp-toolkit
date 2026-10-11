@@ -108,6 +108,7 @@ function registerOrderTools(server: MCPServer, store: OrderStore) {
 
   register({
     name: LIST_CUSTOMERS,
+    definition: { title: "List customers" },
     category: "orders",
     description:
       "List the customers the orders dashboard / pipeline can be scoped to. Returns id, name, and tier. Use a returned id as customerId for show_orders_dashboard or as the orders:customerId key for render-view.",
@@ -128,7 +129,7 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
   server.tool(
     {
       name: SHOW_ORDERS_DASHBOARD,
-      title: "Orders Dashboard",
+      title: "Orders dashboard",
       description:
         "Show the orders dashboard for a customer: a KPI strip (per-status counts + revenue) next to a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
@@ -144,7 +145,7 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
       outputSchema: z.object({}).passthrough(),
       _meta: appsSdkMeta({
         resourceUri: viewResourceUri(SHOW_ORDERS_DASHBOARD),
-        title: "Orders Dashboard",
+        title: "Orders dashboard",
       }),
     },
     withToolErrors((args: { customerId?: string }) => {
@@ -160,7 +161,7 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
       // object and render their own slice"). Stable `id`s keep the step keys distinct.
       const input: ComposedViewInput = {
         app: "orders",
-        title: `Orders — ${dashboard.kpi.customer.name}`,
+        title: `Orders: ${dashboard.kpi.customer.name}`,
         summary: dashboardSummary(dashboard),
         layout: DASHBOARD_LAYOUT,
         entries: [

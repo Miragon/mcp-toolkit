@@ -62,7 +62,7 @@ describe("registerFrameworkTools widget contract", () => {
 
     const meta = tools.get("render-view")?.definition._meta as Record<string, unknown>
     expect(meta["openai/outputTemplate"]).toBe("ui://views/render-view.html")
-    expect(meta["openai/toolInvocation/invoking"]).toBe("Rendering view...")
+    expect(meta["openai/toolInvocation/invoking"]).toBe("Rendering view…")
     expect(meta["openai/toolInvocation/invoked"]).toBe("View rendered")
     expect(meta["openai/widgetAccessible"]).toBe(true)
     expect(meta["openai/resultCanProduceWidget"]).toBe(true)

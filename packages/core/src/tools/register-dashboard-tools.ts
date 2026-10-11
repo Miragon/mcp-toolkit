@@ -169,7 +169,7 @@ export function registerDashboardTools(
   server.tool(
     {
       name: "save-dashboard",
-      title: "Save Dashboard",
+      title: "Save dashboard",
       description:
         "Persists a dashboard (render-view input bundle + name). Pass an existing `id` to update, omit to create. The builder UI's Save button invokes this tool.",
       inputSchema: saveSchema,
@@ -228,7 +228,7 @@ export function registerDashboardTools(
   server.tool(
     {
       name: "list-dashboards",
-      title: "List Dashboards",
+      title: "List dashboards",
       description:
         "Returns the dashboards visible to the caller (scoped by userId when auth is enabled). Metadata only — fetch a full record via `load-dashboard`.",
       annotations: { readOnlyHint: true },
@@ -246,7 +246,7 @@ export function registerDashboardTools(
   server.tool(
     {
       name: "load-dashboard",
-      title: "Load Dashboard",
+      title: "Load dashboard",
       description:
         "Returns the full dashboard bundle. The returned `{ keys, steps, layout, title }` fields can be handed straight to `render-view`.",
       inputSchema: idSchema,
@@ -292,7 +292,7 @@ export function registerDashboardTools(
   server.tool(
     {
       name: "delete-dashboard",
-      title: "Delete Dashboard",
+      title: "Delete dashboard",
       description: "Permanently removes a dashboard by id.",
       inputSchema: idSchema,
     },

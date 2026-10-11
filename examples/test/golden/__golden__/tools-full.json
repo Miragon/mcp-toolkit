@@ -53,7 +53,8 @@
       },
       "required": ["id", "title", "status", "priority", "createdAt", "completedAt"],
       "type": "object"
-    }
+    },
+    "title": "Complete task"
   },
   {
     "annotations": {
@@ -115,7 +116,8 @@
       },
       "required": ["id", "title", "status", "priority", "createdAt", "completedAt"],
       "type": "object"
-    }
+    },
+    "title": "Create task"
   },
   {
     "description": "Permanently removes a dashboard by id.",
@@ -131,7 +133,7 @@
       "type": "object"
     },
     "name": "delete-dashboard",
-    "title": "Delete Dashboard"
+    "title": "Delete dashboard"
   },
   {
     "_meta": {
@@ -177,7 +179,7 @@
       "type": "object"
     },
     "name": "get-builder-catalogue",
-    "title": "Get Builder Catalogue"
+    "title": "Get builder catalogue"
   },
   {
     "annotations": {
@@ -188,7 +190,8 @@
       "properties": {},
       "type": "object"
     },
-    "name": "get-framework-manifest"
+    "name": "get-framework-manifest",
+    "title": "Get framework manifest"
   },
   {
     "annotations": {
@@ -233,7 +236,8 @@
       },
       "required": ["data"],
       "type": "object"
-    }
+    },
+    "title": "List customers"
   },
   {
     "annotations": {
@@ -302,7 +306,8 @@
       },
       "required": ["data"],
       "type": "object"
-    }
+    },
+    "title": "List tasks"
   },
   {
     "annotations": {
@@ -314,7 +319,7 @@
       "type": "object"
     },
     "name": "list-dashboards",
-    "title": "List Dashboards"
+    "title": "List dashboards"
   },
   {
     "annotations": {
@@ -333,7 +338,7 @@
       "type": "object"
     },
     "name": "load-dashboard",
-    "title": "Load Dashboard"
+    "title": "Load dashboard"
   },
   {
     "_meta": {
@@ -548,14 +553,14 @@
       "type": "object"
     },
     "name": "refresh-view",
-    "title": "Refresh View"
+    "title": "Refresh view"
   },
   {
     "_meta": {
       "openai/outputTemplate": "ui://views/render-view.html",
       "openai/resultCanProduceWidget": true,
       "openai/toolInvocation/invoked": "View rendered",
-      "openai/toolInvocation/invoking": "Rendering view...",
+      "openai/toolInvocation/invoking": "Rendering view…",
       "openai/widgetAccessible": true,
       "openai/widgetDescription": "Interactive view composed of pipeline-driven widgets",
       "ui": {
@@ -751,7 +756,7 @@
       "properties": {},
       "type": "object"
     },
-    "title": "Render View"
+    "title": "Render view"
   },
   {
     "description": "Persists a dashboard (render-view input bundle + name). Pass an existing `id` to update, omit to create. The builder UI's Save button invokes this tool.",
@@ -944,14 +949,14 @@
       "type": "object"
     },
     "name": "save-dashboard",
-    "title": "Save Dashboard"
+    "title": "Save dashboard"
   },
   {
     "_meta": {
       "openai/outputTemplate": "ui://views/show_orders_dashboard.html",
       "openai/resultCanProduceWidget": true,
-      "openai/toolInvocation/invoked": "Orders Dashboard ready",
-      "openai/toolInvocation/invoking": "Loading Orders Dashboard...",
+      "openai/toolInvocation/invoked": "Orders dashboard ready",
+      "openai/toolInvocation/invoking": "Loading Orders dashboard…",
       "openai/widgetAccessible": true,
       "ui": {
         "resourceUri": "ui://views/show_orders_dashboard.html"
@@ -981,14 +986,14 @@
       "properties": {},
       "type": "object"
     },
-    "title": "Orders Dashboard"
+    "title": "Orders dashboard"
   },
   {
     "_meta": {
       "openai/outputTemplate": "ui://views/show_tasks_board.html",
       "openai/resultCanProduceWidget": true,
-      "openai/toolInvocation/invoked": "Task Board ready",
-      "openai/toolInvocation/invoking": "Loading Task Board...",
+      "openai/toolInvocation/invoked": "Task board ready",
+      "openai/toolInvocation/invoking": "Loading Task board…",
       "openai/widgetAccessible": true,
       "ui": {
         "resourceUri": "ui://views/show_tasks_board.html"
@@ -1013,7 +1018,7 @@
       "properties": {},
       "type": "object"
     },
-    "title": "Task Board"
+    "title": "Task board"
   },
   {
     "_meta": {

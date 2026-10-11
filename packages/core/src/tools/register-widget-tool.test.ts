@@ -84,7 +84,7 @@ describe("createWidgetToolRegistrar", () => {
     })
     expect(firstTool(tools).definition._meta).toEqual({
       "openai/outputTemplate": "ui://views/render_thing.html",
-      "openai/toolInvocation/invoking": "Loading Render Thing...",
+      "openai/toolInvocation/invoking": "Loading Render Thing…",
       "openai/toolInvocation/invoked": "Render Thing ready",
       "openai/widgetAccessible": true,
       "openai/resultCanProduceWidget": true,
@@ -102,7 +102,7 @@ describe("createWidgetToolRegistrar", () => {
       handler: () => Promise.resolve({ text: "ok", structuredContent: {} }),
     })
     const meta = firstTool(tools).definition._meta
-    expect(meta?.["openai/toolInvocation/invoking"]).toBe("Loading render_thing...")
+    expect(meta?.["openai/toolInvocation/invoking"]).toBe("Loading render_thing…")
     expect(meta?.["openai/toolInvocation/invoked"]).toBe("render_thing ready")
   })
 

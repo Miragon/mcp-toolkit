@@ -64,7 +64,7 @@ their data, lay them out":
 const dashboard = store.dashboard(customerId) // ONE pass → { kpi, table }
 const view = buildComposedView({
   app: "orders",
-  title: `Orders — ${dashboard.kpi.customer.name}`,
+  title: `Orders: ${dashboard.kpi.customer.name}`,
   summary: dashboardSummary(dashboard), // 1-line, model-facing
   layout: {
     rows: [

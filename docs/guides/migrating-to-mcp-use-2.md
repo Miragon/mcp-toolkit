@@ -207,7 +207,7 @@ server.tool(
     _meta: appsSdkMeta({
       // the openai/* half for Apps SDK hosts
       resourceUri: viewResourceUri("show_tasks_board"),
-      title: "Task Board",
+      title: "Task board",
     }),
   },
   handler,
