@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [2.7.0](https://github.com/Miragon/mcp-toolkit/compare/v2.6.0...v2.7.0) (2026-10-11)
+
+
+### Features
+
+* **ui:** ship the Miragon design system as the default theme ([#183](https://github.com/Miragon/mcp-toolkit/issues/183)) ([8ceafd1](https://github.com/Miragon/mcp-toolkit/commit/8ceafd17857dc82ab7c3be46434b827a645d66af)), closes [#178](https://github.com/Miragon/mcp-toolkit/issues/178)
+* **ui:** view lifecycle with error and retry, toasts, empty and error states, an en/de catalog and a quieter toolbar ([#185](https://github.com/Miragon/mcp-toolkit/issues/185)) ([bc222bf](https://github.com/Miragon/mcp-toolkit/commit/bc222bf35ce86c824e8cf83c975e92a0c9bb00b8))
+
 ## [2.6.0](https://github.com/Miragon/mcp-toolkit/compare/v2.5.0...v2.6.0) (2026-10-09)
 
 
