@@ -11,28 +11,37 @@
 
 export type Rgba = { r: number; g: number; b: number; a: number }
 export type Decls = Record<string, string>
-export type CssBlock = { selector: string; decls: Decls }
+/**
+ * One rule block: its selector list, its custom properties (`decls`), every
+ * declaration including the standard ones (`props`, the last of a repeated
+ * property winning) and its position in the stylesheet (`index`).
+ */
+export type CssBlock = { selector: string; decls: Decls; props: Decls; index: number }
 
 const TRANSPARENT: Rgba = { r: 0, g: 0, b: 0, a: 0 }
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim()
 
 /**
- * The innermost rule blocks of a stylesheet with their custom properties.
- * An at-rule wrapper (`@media … { :root { … } }`) is dropped: the block
- * reports its own selector.
+ * The innermost rule blocks of a stylesheet in source order. An at-rule
+ * wrapper (`@media … { :root { … } }`) is dropped: the block reports its own
+ * selector.
  */
 export function cssBlocks(css: string): CssBlock[] {
   const source = css.replace(/\/\*[\s\S]*?\*\//g, "")
-  return [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((match) => {
+  return [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((match, index) => {
     const selector = norm((match[1] ?? "").split(";").pop() ?? "")
     const decls: Decls = {}
+    const props: Decls = {}
     for (const decl of (match[2] ?? "").split(";")) {
       const at = decl.indexOf(":")
       const name = decl.slice(0, at).trim()
-      if (at > 0 && name.startsWith("--")) decls[name] = norm(decl.slice(at + 1))
+      if (at <= 0) continue
+      const value = norm(decl.slice(at + 1))
+      props[name] = value
+      if (name.startsWith("--")) decls[name] = value
     }
-    return { selector, decls }
+    return { selector, decls, props, index }
   })
 }
 

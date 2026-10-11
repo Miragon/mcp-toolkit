@@ -26,10 +26,11 @@ recorded in Miragon/miragon-ai's CLAUDE.md; don't undo them here):
   (`data-theme-mode="light"` marks such an island).
 - **The docs site and the starter wear it too.** The docs (`docs/.vitepress/theme/`) are
   "Miragon MCP Toolkit" (the npm names stay `@miragon/mcp-toolkit-*`): the same vendored
-  token file, `custom.css` mapping VitePress' variables onto `--cd-*` (light on white, dark
-  and the always-dark landing by the dark-ground rules, focus ring `--cd-blau-link` /
-  `--cd-blau-hell`), Geist via @fontsource, the CI's wordmarks and the Komet favicon
-  unchanged; `examples/test/docs-theme.test.ts` holds the copies and every pair at AA.
+  token file, `custom.css` mapping VitePress' variables onto `--cd-*` (light on white with
+  tokens only, never a mixed grey; dark and the always-dark landing by the dark-ground
+  rules; focus ring `--cd-blau-link` / `--cd-blau-hell`), Geist via @fontsource, the CI's
+  wordmarks and the Komet favicon unchanged; `examples/test/docs-theme.test.ts` holds the
+  copies, every pair at AA in cascade order and the focus-ring rule against VitePress'.
   The starter (`templates/minimal-server`) loads Geist by default and keeps its words in
   an en/de catalog; its README shows the role override.
 - **UI texts follow the host locale (en/de).** German follows `brand-tone` fully; English

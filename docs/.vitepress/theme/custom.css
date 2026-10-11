@@ -10,7 +10,9 @@
  *
  * Every colour below is a `--cd-*` token or a color-mix() of tokens, and every
  * text/background pair VitePress renders from them reaches WCAG AA (text
- * 4.5:1, focus ring 3:1), light and dark.
+ * 4.5:1, focus ring 3:1), light and dark. The light block mixes a token only
+ * with `transparent` (the CI's transparency); greys come from the UI tokens
+ * (`--cd-linie`, `--cd-kontur`, `--cd-text-leise`), never from a mix.
  *
  * Scoping:
  * - Light appearance (`:root`) follows the CI on white: text `--cd-schwarz`,
@@ -87,9 +89,11 @@
   --vp-c-bg-soft: var(--cd-grau);
   --vp-c-bg-elv: var(--cd-weiss);
 
-  /* Text: black, quiet text --cd-text-leise (≥ 4.5:1 on white and grau). */
+  /* Text: black; the CI has one quiet text, --cd-text-leise (5.65:1 on
+     white, 5.29:1 on grau), so text-2 (sidebar, outline, menus, footer)
+     and text-3 both take it rather than a grey of their own. */
   --vp-c-text-1: var(--cd-schwarz);
-  --vp-c-text-2: color-mix(in srgb, var(--cd-schwarz) 40%, var(--cd-text-leise));
+  --vp-c-text-2: var(--cd-text-leise);
   --vp-c-text-3: var(--cd-text-leise);
 
   /* Lines: --cd-linie for dividers and decorative rims, --cd-kontur where a
@@ -99,10 +103,13 @@
   --vp-c-gutter: var(--cd-linie);
   --vp-input-border-color: var(--cd-kontur);
 
-  /* Neutral scale (switch track, badges, inline-code background) */
+  /* Neutral scale. gray-soft is what VitePress reads (switch track, info
+     badge and block, inline-code background): --cd-linie made translucent
+     from the token. gray-1/-2/-3 only feed the secondary-button fills, which
+     are mapped above; they hold CI tokens anyway, never a mixed grey. */
   --vp-c-gray-1: var(--cd-linie);
-  --vp-c-gray-2: color-mix(in srgb, var(--cd-linie) 75%, var(--cd-weiss));
-  --vp-c-gray-3: color-mix(in srgb, var(--cd-linie) 50%, var(--cd-weiss));
+  --vp-c-gray-2: var(--cd-linie);
+  --vp-c-gray-3: var(--cd-grau);
   --vp-c-gray-soft: color-mix(in srgb, var(--cd-linie) 50%, transparent);
   --vp-c-neutral: var(--cd-schwarz);
   --vp-c-neutral-inverse: var(--cd-weiss);
@@ -114,10 +121,13 @@
   /* Status blocks and badges (CI §3.3): the tint, black text, a rim in the
      status colour. Green and amber are never text on light, so the links,
      code and badges of their blocks are black; red and blue carry text.
-     -1 is the block's link and badge colour, -2 its link hover. */
+     -1 is the block's link and badge colour, -2 its link hover. The note
+     block (`> [!NOTE]`) is the info status; VitePress paints it from its
+     block variables, not from --vp-c-note-soft. `::: info`, `details` and
+     the info badge stay neutral (VitePress' grey, no status). */
   --vp-c-tip-1: var(--cd-blau-link);
   --vp-c-tip-soft: var(--cd-info-soft);
-  --vp-c-note-soft: var(--cd-info-soft);
+  --vp-custom-block-note-bg: var(--cd-info-soft);
   --vp-c-important-1: var(--cd-blau-link);
   --vp-c-important-2: var(--cd-blau);
   --vp-c-important-soft: var(--cd-info-soft);
@@ -133,11 +143,25 @@
   --vp-c-caution-1: var(--cd-danger);
   --vp-c-caution-2: var(--cd-danger);
   --vp-c-caution-soft: var(--cd-danger-soft);
+  --vp-custom-block-note-border: var(--cd-info);
   --vp-custom-block-tip-border: var(--cd-info);
   --vp-custom-block-important-border: var(--cd-info);
   --vp-custom-block-warning-border: var(--cd-warning);
   --vp-custom-block-danger-border: var(--cd-danger);
   --vp-custom-block-caution-border: var(--cd-danger);
+  --vp-badge-tip-border: var(--cd-info);
+  --vp-badge-warning-border: var(--cd-warning);
+  --vp-badge-danger-border: var(--cd-danger);
+
+  /* Inline code in a status block keeps a chip of its own: white on the
+     tint (the same step as the prose chip on white). VitePress' default
+     paints it in the block's own fill, so it would vanish into the block. */
+  --vp-custom-block-note-code-bg: var(--cd-weiss);
+  --vp-custom-block-tip-code-bg: var(--cd-weiss);
+  --vp-custom-block-important-code-bg: var(--cd-weiss);
+  --vp-custom-block-warning-code-bg: var(--cd-weiss);
+  --vp-custom-block-danger-code-bg: var(--cd-weiss);
+  --vp-custom-block-caution-code-bg: var(--cd-weiss);
 
   /* Overlays: the CI dialog backdrop (--cd-schwarz at 42 %) */
   --vp-backdrop-bg-color: color-mix(in srgb, var(--cd-schwarz) 42%, transparent);
@@ -216,7 +240,7 @@
      text, badge and rim take the -hell values. */
   --vp-c-tip-1: var(--cd-gruen);
   --vp-c-tip-soft: var(--vp-c-bg-soft);
-  --vp-c-note-soft: var(--vp-c-bg-soft);
+  --vp-custom-block-note-bg: var(--vp-c-bg-soft);
   --vp-c-important-1: var(--cd-blau-hell);
   --vp-c-important-2: var(--cd-blau-hell);
   --vp-c-important-soft: var(--vp-c-bg-soft);
@@ -232,11 +256,25 @@
   --vp-c-caution-1: var(--cd-danger-hell);
   --vp-c-caution-2: var(--cd-danger-hell);
   --vp-c-caution-soft: var(--vp-c-bg-soft);
+  --vp-custom-block-note-border: var(--cd-info-hell);
   --vp-custom-block-tip-border: var(--cd-info-hell);
   --vp-custom-block-important-border: var(--cd-info-hell);
   --vp-custom-block-warning-border: var(--cd-warning-hell);
   --vp-custom-block-danger-border: var(--cd-danger-hell);
   --vp-custom-block-caution-border: var(--cd-danger-hell);
+  --vp-badge-tip-border: var(--cd-info-hell);
+  --vp-badge-warning-border: var(--cd-warning-hell);
+  --vp-badge-danger-border: var(--cd-danger-hell);
+
+  /* Inline code in a status block: the ground itself, set into the block's
+     lift (the same step as the prose chip). A further lift would drop the
+     blue-hell link code of an important block below 4.5:1. */
+  --vp-custom-block-note-code-bg: var(--vp-c-bg);
+  --vp-custom-block-tip-code-bg: var(--vp-c-bg);
+  --vp-custom-block-important-code-bg: var(--vp-c-bg);
+  --vp-custom-block-warning-code-bg: var(--vp-c-bg);
+  --vp-custom-block-danger-code-bg: var(--vp-c-bg);
+  --vp-custom-block-caution-code-bg: var(--vp-c-bg);
 
   /* Overlays: the CI's --cd-schwarz backdrop with opacity */
   --vp-backdrop-bg-color: color-mix(in srgb, var(--cd-schwarz) 60%, transparent);
@@ -258,8 +296,9 @@ button:focus-visible,
 }
 
 /* Code inside a status block takes the block's text colour like inline code
-   anywhere else (VitePress paints it in the tone's link colour); linked code
-   keeps the link colour. */
+   anywhere else (VitePress paints it in the tone's link colour), on its own
+   chip (the --vp-custom-block-*-code-bg values above); linked code keeps the
+   link colour. */
 .vp-doc .custom-block :not(a) > code {
   color: inherit;
 }
@@ -273,7 +312,9 @@ button:focus-visible,
 
 /* The product name sits next to the wordmark in Geist (CI: products show
    the wordmark and write their name next to it), clear of the wordmark by
-   its own height, the protection zone of the logo. */
+   its own height, the protection zone of the logo. (No colour in a :root
+   block down here: `.dark` has :root's specificity, so a later :root value
+   would win on dark pages too.) */
 :root {
   --vp-nav-logo-height: 18px;
 }
@@ -293,10 +334,11 @@ button:focus-visible,
 :root:has(.VPHome) {
   color-scheme: dark;
 
-  /* Hero: the product name is the one highlighted word, in the green accent
-     (10.1:1 on --cd-schwarz, plain: the CI rules out gradient text); the
-     claim below it stays white. No ambient glow behind a hero image. */
-  --vp-home-hero-name-color: var(--cd-gruen);
+  /* Hero: the product name in the heading white like the claim below it
+     (CI: headlines in Geist 700, black or white, at most one word in green,
+     never gradient text), as on the miragon-ai docs. No ambient glow behind
+     a hero image. */
+  --vp-home-hero-name-color: var(--vp-c-text-1);
   --vp-home-hero-name-background: transparent;
   --vp-home-hero-image-background-image: none;
   --vp-home-hero-image-filter: none;
