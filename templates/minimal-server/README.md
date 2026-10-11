@@ -102,9 +102,11 @@ dependency or config of its own.
 
 Version pinning: `mcp-use`, `react`, `react-dom` and `zod` here must match the
 exact peers of the pinned `@miragon` packages (see their `peerDependencies`) —
-keep them in step when bumping either side. `lucide-react` is pinned alongside
-on purpose: a second copy in the graph splits mcp-use into two peer instances
-and crashes widgets at render time (see the toolkit's migration guide).
+keep them in step when bumping either side. `lucide-react` is pinned to the
+exact version `@miragon/mcp-toolkit-ui` depends on, on purpose: a second copy
+in the graph splits mcp-use into two peer instances and crashes widgets at
+render time (see the toolkit's migration guide), and your own icons then miss
+the stroke the toolkit sets for its views.
 
 Between toolkit releases the `@miragon` pins here still point at the previous
 release, so `pnpm install` can report an unmet `mcp-use` peer until the next

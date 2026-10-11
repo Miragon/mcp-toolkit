@@ -27,14 +27,24 @@ Peer versions stay pinned exactly — install the versions above.
 mcp-use 2.x's graph carries a `lucide-react@^0.562.0` peer (via the built-in
 inspector). If your app resolves a _different_ `lucide-react` than
 `@miragon/mcp-toolkit-ui` does, pnpm splits `mcp-use` into **two peer
-instances** — and the bundled `mcp-use/react` view runtime exists twice. The
+instances**, and the bundled `mcp-use/react` view runtime exists twice. The
 symptom is a widget that crashes at render time with
 `mcp-use/react hooks require a browser view mounted by bootstrapView` even
 though the view _is_ mounted (the 2.x runtime context is module-scoped; the
-1.x `window.openai` global masked this failure mode). Pin
-`lucide-react@0.562.0` in your app, and add
+1.x `window.openai` global masked this failure mode). Pin `lucide-react` to
+the exact version `@miragon/mcp-toolkit-ui` depends on (see its
+`package.json`; `1.47.0` in 2.7), and add
 `resolve.dedupe: ["mcp-use", "react", "react-dom"]` to any Vite config that
-bundles widgets as a second guard.
+bundles widgets as a second guard. In a pnpm workspace with several
+packages, also pin the inspector's peer itself so every package resolves the
+same variant:
+
+```yaml
+# pnpm-workspace.yaml
+overrides:
+  "@mcp-use/inspector>lucide-react": 1.47.0
+```
+
 :::
 
 ## 2. Update the server import path
@@ -308,7 +318,7 @@ better, rewritten against `useHostBridge`.
 ## 7. Migration checklist
 
 - [ ] Bump `mcp-use` to `2.7.3`, drop the `@modelcontextprotocol/sdk` peer; Node `>=22.22.2`.
-- [ ] Pin `lucide-react@0.562.0` next to the toolkit (one version across the graph).
+- [ ] Pin `lucide-react` to the version `@miragon/mcp-toolkit-ui` depends on (one version across the graph).
 - [ ] `mcp-use/server` imports → `mcp-use`; `text`/`object`/`error` → `textResult`/`objectResult`/`errorResult`.
 - [ ] Pick a path: `installToolkit` + `views/` + CLI (standard) or `createFrameworkApp` + `app.bundle` (adapter).
 - [ ] `schema:` → `inputSchema:` everywhere.
