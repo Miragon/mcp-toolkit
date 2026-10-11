@@ -164,19 +164,22 @@ describe("orders module smoke", () => {
   })
 
   // ── (2) The EAGER multi-widget dashboard via buildComposedView ──────────────
-  it("show_orders_dashboard returns a multi-widget view with a two-cell layout", async () => {
+  it("show_orders_dashboard returns a multi-widget view, the KPI stacked above the table", async () => {
     const result = await session.callTool("show_orders_dashboard", { customerId: "c-1" })
     expect(result.isError).toBeFalsy()
 
     const sc = result.structuredContent as ViewEnvelope | undefined
     expect(sc, "show_orders_dashboard must return structuredContent").toBeTruthy()
 
-    // The composed layout has ONE row with TWO cells — the multi-widget proof.
-    const layout = sc!.layout as { rows: { row: { widget: string }[] }[] }
-    expect(layout.rows).toHaveLength(1)
-    const cells = layout.rows[0]!.row
-    expect(cells).toHaveLength(2)
-    expect(cells.map((c) => c.widget)).toEqual(["orders:kpi", "orders:table"])
+    // Two widgets in one view (the multi-widget proof), each a full-width row:
+    // side by side, the KPI figures and the table's columns don't fit a chat's
+    // inline width.
+    const layout = sc!.layout as { rows: { row: { widget: string; span?: number }[] }[] }
+    expect(layout.rows.map((r) => r.row.map((c) => c.widget))).toEqual([
+      ["orders:kpi"],
+      ["orders:table"],
+    ])
+    expect(layout.rows.flatMap((r) => r.row.map((c) => c.span))).toEqual([12, 12])
 
     // Both composed entries carry the `orders:dashboard` data so each widget can
     // render its slice. `buildComposedView` keyed them by their stable ids.

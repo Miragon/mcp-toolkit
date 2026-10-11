@@ -123,7 +123,7 @@ export function WidgetPropsSheet({
           <SheetDescription className="flex flex-col items-start gap-1">
             <span>{L.description}</span>
             {widgetTitle && <span className="text-foreground font-medium">{widgetTitle}</span>}
-            <span className="bg-muted rounded px-1 font-mono text-xs">{widgetId}</span>
+            <span className="bg-muted text-small rounded px-1 font-mono">{widgetId}</span>
           </SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-4 px-4 py-4">
@@ -264,7 +264,9 @@ function PropertyField({
 
   return (
     <FieldShell id={id} text={text}>
-      <p className="text-muted-foreground text-xs italic">{unsupportedLabel(prop.type ?? "?")}</p>
+      <p className="text-muted-foreground text-small italic">
+        {unsupportedLabel(prop.type ?? "?")}
+      </p>
     </FieldShell>
   )
 }
@@ -295,14 +297,14 @@ function FieldShell({
           {text.label}
         </label>
         {text.hint && (
-          <code data-slot="prop-name" className="text-muted-foreground font-mono text-xs">
+          <code data-slot="prop-name" className="text-muted-foreground text-small font-mono">
             {text.hint}
           </code>
         )}
       </div>
       {children}
       {text.help ? (
-        <p id={helpId(id, text)} className="text-muted-foreground text-xs">
+        <p id={helpId(id, text)} className="text-muted-foreground text-small">
           {text.help}
         </p>
       ) : null}

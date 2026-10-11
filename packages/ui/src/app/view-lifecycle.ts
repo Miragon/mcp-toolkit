@@ -222,24 +222,27 @@ export interface ViewModelContextInput {
   /**
    * How it re-loaded: it re-ran the tool because the host did not pass the
    * result along (`"recovery"`, the default: its own recovery or the user's
-   * retry), or the user refreshed the view (`"refresh"`).
+   * retry), the user refreshed the view (`"refresh"`), or the user applied an
+   * edit from the view builder, which ran the data steps again (`"builder"`).
    */
-  reloadedBy?: "recovery" | "refresh"
+  reloadedBy?: "recovery" | "refresh" | "builder"
 }
 
 /**
  * Where the shown payload came from: the host's tool result, the view's own
- * re-execution when the host stripped it, the user's retry, or a refresh.
+ * re-execution when the host stripped it, the user's retry, a refresh, or the
+ * user's Apply in the view builder (its figures are the builder's own run of
+ * the data steps).
  */
-export type ViewSource = "host" | "recovered" | "retry" | "refresh"
+export type ViewSource = "host" | "recovered" | "retry" | "refresh" | "builder"
 
 /**
  * When a payload counts as re-loaded by the view itself (N23): `at` when its
  * figures can differ from the result the chat answered from, else `null`. A
- * recovery and a refresh always; a retry only after a call whose result
- * reached the chat (a stripped or unusable one), never after a failed or
- * cancelled call, of which the model never had figures. The host's own
- * payload never.
+ * recovery, a refresh and a builder Apply always; a retry only after a call
+ * whose result reached the chat (a stripped or unusable one), never after a
+ * failed or cancelled call, of which the model never had figures. The host's
+ * own payload never.
  */
 export function reloadedAtOf(source: ViewSource, at: number, callFailed: boolean): number | null {
   if (source === "host") return null
@@ -247,14 +250,27 @@ export function reloadedAtOf(source: ViewSource, at: number, callFailed: boolean
   return at
 }
 
+/** How the view says, to the model, that it loaded the shown figures itself. */
+const RELOADED_BY: Record<
+  NonNullable<ViewModelContextInput["reloadedBy"]>,
+  (at: string) => string
+> = {
+  recovery: (at) =>
+    `re-ran the tool at ${at} because the host did not pass the original result to the view`,
+  refresh: (at) => `was refreshed by the user at ${at}`,
+  builder: (at) =>
+    `was edited by the user in the view builder, which loaded its data again at ${at}`,
+}
+
 /**
  * The view's own line of model context (toolkit#176 K20): what failed and
  * that the user sees an error instead of the view; a blocked recovery (the
  * tool ran, its result never reached the view, and the model must not re-run
  * it just to show the view); failed data steps; a payload the view re-loaded
- * itself, whose figures can differ from the tool result the model answered
- * from (N23). `null` while there is nothing to report (waiting, or a plain
- * host-delivered view). English: it is read by the model, never shown.
+ * itself (a recovery, a retry, a refresh, a builder Apply), whose figures can
+ * differ from the tool result the model answered from (N23). `null` while
+ * there is nothing to report (waiting, or a plain host-delivered view).
+ * English: it is read by the model, never shown.
  */
 export function describeViewForModel(input: ViewModelContextInput): string | null {
   const subject = input.toolName ? `The view of ${input.toolName}` : "The view"
@@ -274,10 +290,7 @@ export function describeViewForModel(input: ViewModelContextInput): string | nul
   const lines: string[] = []
   if (input.reloadedAt != null) {
     const at = new Date(input.reloadedAt).toISOString()
-    const how =
-      input.reloadedBy === "refresh"
-        ? `was refreshed by the user at ${at}`
-        : `re-ran the tool at ${at} because the host did not pass the original result to the view`
+    const how = RELOADED_BY[input.reloadedBy ?? "recovery"](at)
     lines.push(
       `${subject} ${how}; its figures are live as of then and can differ from the original result.`,
     )

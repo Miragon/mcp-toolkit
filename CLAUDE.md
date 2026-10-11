@@ -101,8 +101,10 @@ no raw or named colours outside the theme files, no status/primary/destructive a
 no ink on a tint, no translucent text, no `outline-none`, a lifted surface switches its
 text, no text below 13 px (`text-xs`, an arbitrary `text-[…]`, a CSS `font-size` or a
 React `fontSize` under 13 px), no typed icon glyph (arrows, chevrons, ✓ ×, ⚠ ⚙, shapes,
-emoji) in `.tsx`/`.css`/`.html` or the toolkit catalogs; its `RULE_EXEMPTIONS` list the
-builder files that still await the 13 px floor, shrink-only, a stale entry fails),
+emoji) in `.tsx`/`.css`/`.html` or the toolkit catalogs; its exemptions, like those of
+`examples/test/example-ui-copy.test.ts`, live in `ratchets/design-exemptions.json`
+(empty: the builder holds the 13 px floor too), shrink-only by `scripts/check-ratchets.mjs`,
+and a stale entry fails the gate),
 `packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast, the
 type scale),
 `components/tone-figures.test.tsx` (no coloured digits), `components/feedback-states.test.tsx`

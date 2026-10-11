@@ -1133,7 +1133,7 @@ fixture data and a mocked host (no backend, no real host).
 | `data`           | `Record<string, unknown>`          | `keys` map for `({ keys })` widgets; forwarded as `data` for `({ data })`. |
 | `dataType`       | `string`                           | For `adaptDataWidget` components — seeds a step whose `_dataType` matches. |
 | `tools`          | `Record<string, FixtureToolEntry>` | Tool fixtures: a static value or a `(args) => result` handler.             |
-| `globals`        | `Record<string, unknown>`          | Host-context overrides (`theme`, `displayMode`, `locale`, …).              |
+| `globals`        | `Record<string, unknown>`          | Host context: `theme` (on the bridge) and `locale` (the toolkit's text).   |
 | `onModelContext` | `(text: string) => void`           | Receives the serialized `<ModelContext>` the widget reports.               |
 | `onHostAction`   | `(action: HostActionLog) => void`  | Receives every host action (tool call, link, follow-up).                   |
 

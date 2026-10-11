@@ -36,6 +36,12 @@ export const GATES = [
     fix: "Fix the build; later gates (dist reachability, exports, goldens) run against these artifacts.",
   },
   {
+    id: "standalone-dev",
+    title: "Standalone dev loop (one mcp-use/react runtime per view)",
+    cmd: ["node", "scripts/check-standalone-dev.mjs"],
+    fix: "pnpm split mcp-use into peer variants — pin the drifting peer in pnpm-workspace.yaml overrides (examples/test/peer-variants.test.ts names it); never relax this check.",
+  },
+  {
     id: "depcruise",
     title: "Dependency rules (source)",
     cmd: ["pnpm", "depcruise"],

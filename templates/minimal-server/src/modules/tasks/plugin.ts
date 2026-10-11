@@ -51,8 +51,8 @@ function rawData(data: TasksBoardData) {
 function boardSummary(board: TasksBoardData): string {
   const c = board.counts
   return (
-    `Task board: ${c.total} task(s) — ${c.todo} to do, ${c.doing} in progress, ` +
-    `${c.done} done. Use create_task to add a task.`
+    `Task board: ${c.total} ${c.total === 1 ? "task" : "tasks"} (${c.todo} to do, ` +
+    `${c.doing} in progress, ${c.done} done). Use create_task to add a task.`
   )
 }
 
@@ -62,6 +62,7 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
 
   register({
     name: LIST_TASKS,
+    definition: { title: "List tasks" },
     category: "tasks",
     description:
       "List tasks, optionally filtered by status and/or priority. Returns id, title, status, priority, and the creation timestamp.",
@@ -81,6 +82,7 @@ function registerTaskTools(server: MCPServer, store: TaskStore) {
 
   register({
     name: CREATE_TASK,
+    definition: { title: "Create task" },
     category: "tasks",
     description: "Create a new task (it starts in the 'todo' status). Returns the created task.",
     // Writes state and every call adds another task — neither read-only nor
@@ -115,14 +117,14 @@ function registerTaskWidgetTools(server: MCPServer, store: TaskStore) {
   server.tool(
     {
       name: SHOW_TASKS_BOARD,
-      title: "Task Board",
+      title: "Task board",
       description:
         "Show the task board: KPI counts by status and the task list. Use it whenever the user wants to see their tasks.",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       inputSchema: z.object({}),
       view: { name: SHOW_TASKS_BOARD },
       outputSchema: z.object({}).passthrough(),
-      _meta: appsSdkMeta({ resourceUri: viewResourceUri(SHOW_TASKS_BOARD), title: "Task Board" }),
+      _meta: appsSdkMeta({ resourceUri: viewResourceUri(SHOW_TASKS_BOARD), title: "Task board" }),
     },
     withToolErrors(() => {
       const board = store.board()
@@ -131,7 +133,8 @@ function registerTaskWidgetTools(server: MCPServer, store: TaskStore) {
         app: "tasks",
         dataType: "tasks:board",
         data: board,
-        title: "Tasks",
+        // No view title: the widget's own header ("Task board") is the view's
+        // one title, so the toolbar above it doesn't repeat it.
         summary: boardSummary(board),
       })
       return Promise.resolve({ content: view.content, structuredContent: view.structuredContent })

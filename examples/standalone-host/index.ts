@@ -45,7 +45,8 @@ installToolkit(server, {
 server.tool(
   {
     name: "echo",
-    description: "Echoes the input back — a plain mcp-use tool next to the toolkit surface.",
+    title: "Echo",
+    description: "Echoes the input back: a plain mcp-use tool next to the toolkit surface.",
     inputSchema: z.object({ message: z.string().describe("Text to echo back.") }),
     annotations: { readOnlyHint: true },
   },

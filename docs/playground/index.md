@@ -25,7 +25,7 @@ call per stop. Each stop is a feature plus the concept doc behind it:
 | Break it — fail-soft         | per-step error isolation                     |
 | Builder & dashboards         | the visual builder + dashboard CRUD          |
 
-→ **[Take the guided tour](tour.md)**
+**[Take the guided tour](tour.md)**
 
 ## Connect
 
@@ -37,7 +37,6 @@ playground:
 ![The playground landing page: server description, connection URL, an Open in Inspector button, and per-client install instructions](./images/landing-page.png)
 
 - **Browser** — the "Open in Inspector" button above; nothing to install.
-- **Claude Code**:
 - **Claude Code**:
 
   ```sh

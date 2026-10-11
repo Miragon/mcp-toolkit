@@ -4,7 +4,8 @@ packages:
   - "examples/modules/articles"
   - "docs"
 
-# Transitive security fixes that upstream cannot deliver yet.
+# Transitive security fixes that upstream cannot deliver yet, and the two
+# peer pins that keep mcp-use ONE instance across the workspace.
 # Keep pinned (see .claude/rules/package-json-fixed-versions.md) and drop an
 # entry as soon as the dependency ships the fix in its own range.
 overrides:
@@ -14,3 +15,16 @@ overrides:
   # same step. Scoped to vitepress so the vite 8 used by ui/examples is
   # untouched. Revisit when vitepress 2.x leaves alpha.
   vitepress>vite: 6.4.3
+  # One mcp-use peer variant (examples/test/peer-variants.test.ts). mcp-use
+  # carries two OPTIONAL peers that pnpm otherwise resolves per importer: the
+  # bundled inspector's `lucide-react@^0.562.0` (an importer without its own
+  # lucide-react gets 0.562.0, one with the toolkit's gets 1.x) and ext-apps'
+  # `@modelcontextprotocol/server@^2` (auto-installed at the newest 2.x where
+  # an importer has none). Each split is a second mcp-use instance, and the
+  # standalone views then bundle two `mcp-use/react` runtimes: every widget
+  # fails with "mcp-use/react hooks require a browser view mounted by
+  # bootstrapView". Pin both peers to what the graph already runs:
+  # lucide-react = packages/ui's dependency, server = mcp-use's own exact
+  # dependency. Bump them together with those two.
+  "@mcp-use/inspector>lucide-react": 1.47.0
+  "@modelcontextprotocol/ext-apps>@modelcontextprotocol/server": 2.0.0

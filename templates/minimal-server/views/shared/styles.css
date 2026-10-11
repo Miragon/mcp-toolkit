@@ -1,6 +1,9 @@
 @import "@miragon/mcp-toolkit-ui/globals.css";
-/* Fonts are opt-in: Geist + Geist Mono through the bundler. */
-/* @import "@miragon/mcp-toolkit-ui/fonts.css"; */
+/* Geist + Geist Mono, the theme's fonts, through the bundler (no font CDN).
+   The view build inlines the files into every view; to keep views small,
+   drop this line and serve the files with `fontFaces({ baseUrl })` instead,
+   or let the host's font stand in. */
+@import "@miragon/mcp-toolkit-ui/fonts.css";
 
 /* Widget code lives under views/ — Tailwind scans it from here. */
 @source "../**/*.{ts,tsx}";

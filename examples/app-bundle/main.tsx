@@ -1,4 +1,6 @@
-import { mountMcpToolkitApp, adaptDataWidget } from "@miragon/mcp-toolkit-ui/app"
+import { bootstrapView, useHostContext } from "mcp-use/react"
+import { LocaleProvider } from "@miragon/mcp-toolkit-ui"
+import { McpToolkitApp, adaptDataWidget } from "@miragon/mcp-toolkit-ui/app"
 import { ArticleCard } from "../modules/articles/widgets/ArticleCard.js"
 import { TasksBoard } from "../modules/tasks/widgets/TasksBoard.js"
 import type { TasksBoardData } from "../modules/tasks/store.js"
@@ -6,6 +8,9 @@ import { OrdersKpi } from "../modules/orders/widgets/OrdersKpi.js"
 import { OrdersTable } from "../modules/orders/widgets/OrdersTable.js"
 import type { OrdersDashboardData } from "../modules/orders/store.js"
 import "./main.css"
+
+/** "1 order" / "4 orders" for the model-context lines below. */
+const orderCount = (n: number) => `${n} ${n === 1 ? "order" : "orders"}`
 
 // Host-bundled widget registry: every widget id declared in a plugin's
 // `definition.ts` maps to its React component here — the bundle is the single
@@ -31,17 +36,36 @@ const widgets = {
     OrdersKpi,
     "orders:dashboard",
     (d) =>
-      `Orders KPI for ${d.kpi.customer.name}: ${d.kpi.counts.total} order(s), ` +
+      `Orders KPI for ${d.kpi.customer.name}: ${orderCount(d.kpi.counts.total)}, ` +
       `${d.kpi.counts.open} open. Revenue €${(d.kpi.revenueCents / 100).toFixed(2)}.`,
   ),
   "orders:table": adaptDataWidget<OrdersDashboardData>(
     OrdersTable,
     "orders:dashboard",
-    (d) => `Orders table for ${d.table.customer.name}: ${d.table.orders.length} order(s) listed.`,
+    (d) =>
+      `Orders table for ${d.table.customer.name}: ${orderCount(d.table.orders.length)} listed.`,
   ),
 }
 
-// Since mcp-use 2.x the view runtime owns the mount: `mountMcpToolkitApp`
-// wraps `bootstrapView`, which creates the root, connects the ext-apps
-// postMessage bridge to the host, and auto-reports size changes.
-mountMcpToolkitApp({ widgets })
+/**
+ * The view root: the toolkit app in the host's language. The toolkit's own
+ * chrome follows the host locale by itself; the example widgets read theirs
+ * with `useLocale()`, so the app hands the host locale to a `LocaleProvider`
+ * (each module picks its en/de catalog from it and formats numbers and dates
+ * in it). `useHostContext` runs here because `bootstrapView` mounts this
+ * component, the one place the mcp-use view hooks are available.
+ */
+function ExamplesApp() {
+  const { locale } = useHostContext()
+  return (
+    <LocaleProvider locale={locale}>
+      <McpToolkitApp widgets={widgets} />
+    </LocaleProvider>
+  )
+}
+
+// Since mcp-use 2.x the view runtime owns the mount: `bootstrapView` creates
+// the root, connects the ext-apps postMessage bridge to the host, and
+// auto-reports size changes (`mountMcpToolkitApp({ widgets })` does the same
+// for an app that needs no wrapper).
+bootstrapView({ default: ExamplesApp })

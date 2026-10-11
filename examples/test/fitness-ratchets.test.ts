@@ -86,3 +86,22 @@ describe("eslint ratchet hygiene", () => {
     expect(config.includes("ratchets/eslint-ratchets.json")).toBe(true)
   })
 })
+
+describe("design-exemptions ratchet wiring", () => {
+  it("both source-scan gates take their exemptions from the ratchet file", async () => {
+    // An exemption list inlined into a gate again would leave the direction
+    // check of scripts/check-ratchets.mjs watching a file nothing reads.
+    for (const gate of ["design-system", "example-ui-copy"]) {
+      const rel = `examples/test/${gate}.test.ts`
+      const source = await fs.readFile(path.join(REPO_ROOT, rel), "utf8")
+      expect(
+        source.includes('from "../../ratchets/design-exemptions.json"'),
+        `${rel} must import ratchets/design-exemptions.json`,
+      ).toBe(true)
+      expect(
+        source.includes(`designExemptions["${gate}"]`),
+        `${rel} must read the "${gate}" section of the ratchet file`,
+      ).toBe(true)
+    }
+  })
+})

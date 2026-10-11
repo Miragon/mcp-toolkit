@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  LocaleProvider,
   ScrollArea,
   Separator,
   Switch,
@@ -36,43 +37,79 @@ const THEME_OPTIONS: { id: string; label: string; theme: ThemeDefinition | null 
   { id: "emerald", label: "Emerald", theme: themePresets.emerald },
 ]
 
-/**
- * Brand + light/dark switcher. Drives the {@link ThemeProvider} that wraps the
- * live preview, so the same widget can be seen re-skinning across client brands.
- */
-function ThemeSwitcher({
-  activeId,
-  onSelect,
-  dark,
-  onDarkChange,
+/** The host languages the preview can simulate (the host's locale, BCP 47). */
+const LANGUAGE_OPTIONS = [
+  { id: "en-US", label: "English" },
+  { id: "de-DE", label: "Deutsch" },
+] as const
+
+type HostLocale = (typeof LANGUAGE_OPTIONS)[number]["id"]
+
+/** A labelled group of toggle buttons, one of them pressed. */
+function ToggleGroup<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
 }: {
-  activeId: string
-  onSelect: (id: string) => void
-  dark: boolean
-  onDarkChange: (dark: boolean) => void
+  label: string
+  options: readonly { id: T; label: string }[]
+  value: T
+  onChange: (id: T) => void
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <span className="text-muted-foreground text-small font-semibold tracking-wide uppercase">
-        Brand
-      </span>
+    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-2">
+      <span className="text-muted-foreground text-sm font-medium">{label}</span>
       <div className="flex flex-wrap gap-1">
-        {THEME_OPTIONS.map((option) => (
+        {options.map((option) => (
           <Button
             key={option.id}
             type="button"
             size="sm"
-            variant={option.id === activeId ? "default" : "outline"}
-            onClick={() => onSelect(option.id)}
+            variant={option.id === value ? "default" : "outline"}
+            aria-pressed={option.id === value}
+            onClick={() => onChange(option.id)}
           >
             {option.label}
           </Button>
         ))}
       </div>
-      <Separator orientation="vertical" className="h-5" />
+    </div>
+  )
+}
+
+/**
+ * The host the preview simulates: the brand (a {@link ThemeProvider} theme),
+ * its colour scheme and its language. Brand and Dark re-skin the same widget;
+ * Dark and the language are also what the widget is told about its host.
+ */
+function HostSwitcher({
+  themeId,
+  onThemeChange,
+  dark,
+  onDarkChange,
+  locale,
+  onLocaleChange,
+}: {
+  themeId: string
+  onThemeChange: (id: string) => void
+  dark: boolean
+  onDarkChange: (dark: boolean) => void
+  locale: HostLocale
+  onLocaleChange: (locale: HostLocale) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <ToggleGroup label="Brand" options={THEME_OPTIONS} value={themeId} onChange={onThemeChange} />
+      <ToggleGroup
+        label="Language"
+        options={LANGUAGE_OPTIONS}
+        value={locale}
+        onChange={onLocaleChange}
+      />
       <label className="flex items-center gap-2 text-sm">
-        <Switch checked={dark} onCheckedChange={onDarkChange} aria-label="Toggle dark mode" />
-        <span className="text-muted-foreground">Dark</span>
+        <Switch checked={dark} onCheckedChange={onDarkChange} />
+        <span className="text-muted-foreground font-medium">Dark host</span>
       </label>
     </div>
   )
@@ -107,6 +144,37 @@ const ACTION_VARIANT: Record<HostActionLog["type"], "default" | "secondary" | "o
   setWidgetState: "outline",
 }
 
+/** Below `md` the sidebar gives way to this select, so the editor keeps the width. */
+function StorySelect({
+  stories,
+  activeId,
+  onSelect,
+}: {
+  stories: Story[]
+  activeId: string
+  onSelect: (story: Story) => void
+}) {
+  return (
+    <label className="flex flex-col gap-1 border-b px-4 py-3 text-sm md:hidden">
+      <span className="text-muted-foreground font-medium">Widget</span>
+      <select
+        value={activeId}
+        onChange={(e) => {
+          const next = stories.find((s) => s.id === e.target.value)
+          if (next) onSelect(next)
+        }}
+        className="border-input bg-background text-foreground focus-visible:ring-focus h-9 rounded-md border px-2 focus-visible:ring-2 focus-visible:outline-hidden"
+      >
+        {stories.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 /** Sidebar widget picker. Selecting a story resets the editor + logs. */
 function StoryList({
   stories,
@@ -119,9 +187,7 @@ function StoryList({
 }) {
   return (
     <nav className="flex flex-col gap-1 p-3">
-      <div className="text-muted-foreground text-small px-2 pb-2 font-semibold tracking-wide uppercase">
-        Widgets
-      </div>
+      <div className="text-muted-foreground px-2 pb-2 text-sm font-medium">Widgets</div>
       {stories.map((story) => {
         const active = story.id === activeId
         return (
@@ -162,6 +228,7 @@ export function App() {
   const [log, setLog] = useState<LogEntry[]>([])
   const [themeId, setThemeId] = useState("default")
   const [dark, setDark] = useState(false)
+  const [locale, setLocale] = useState<HostLocale>("en-US")
 
   const activeTheme = useMemo(
     () => THEME_OPTIONS.find((t) => t.id === themeId) ?? DEFAULT_THEME_OPTION,
@@ -201,14 +268,11 @@ export function App() {
   return (
     <div className="bg-background text-foreground flex h-screen w-full overflow-hidden">
       {/* Sidebar — widget selection */}
-      <aside className="bg-sidebar flex w-72 shrink-0 flex-col border-r">
-        <div className="flex h-14 items-center gap-2 border-b px-4">
-          <div className="bg-primary text-primary-foreground text-small flex h-7 w-7 items-center justify-center rounded-md font-bold">
-            UI
-          </div>
-          <div>
-            <div className="text-sm leading-none font-semibold">Widget Playground</div>
-            <div className="text-muted-foreground text-small mt-0.5">Storybook for MCP widgets</div>
+      <aside className="bg-sidebar hidden w-72 shrink-0 flex-col border-r md:flex">
+        <div className="flex h-14 flex-col justify-center border-b px-4">
+          <div className="text-sm leading-none font-semibold">Widget playground</div>
+          <div className="text-muted-foreground text-small mt-0.5">
+            Develop widgets against fixture data
           </div>
         </div>
         <ScrollArea className="flex-1">
@@ -218,10 +282,11 @@ export function App() {
 
       {/* Center — editor + live preview */}
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b px-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold">{story.label}</h1>
-            <Badge variant="outline">fixture</Badge>
+        <StorySelect stories={STORIES} activeId={story.id} onSelect={selectStory} />
+        <header className="flex h-14 items-center justify-between gap-3 border-b px-4 md:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <h1 className="truncate text-lg font-semibold">{story.label}</h1>
+            <Badge variant="outline">Fixture</Badge>
           </div>
           <p className="text-muted-foreground hidden max-w-xl truncate text-sm md:block">
             {story.description}
@@ -229,7 +294,7 @@ export function App() {
         </header>
 
         <ScrollArea className="flex-1">
-          <div className="grid gap-6 p-6 lg:grid-cols-2">
+          <div className="grid gap-6 p-4 md:p-6 lg:grid-cols-2">
             {/* Data editor */}
             <Card className="flex flex-col">
               <CardHeader>
@@ -241,6 +306,7 @@ export function App() {
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-3">
                 <textarea
+                  aria-label="Fixture data (JSON)"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   spellCheck={false}
@@ -253,7 +319,7 @@ export function App() {
                   </Alert>
                 ) : (
                   <p className="text-muted-foreground text-small">
-                    Valid JSON — preview reflects the latest edit.
+                    Valid JSON. The preview shows the latest edit.
                   </p>
                 )}
               </CardContent>
@@ -265,14 +331,18 @@ export function App() {
                 <CardTitle className="text-base">Live preview</CardTitle>
                 <CardDescription>
                   Rendered through <code>WidgetFixtureHost</code>, wrapped in a{" "}
-                  <code>ThemeProvider</code> — switch the brand to see the same widget re-skin.
+                  <code>ThemeProvider</code> and a <code>LocaleProvider</code>. Switch the brand to
+                  see the same widget re-skin, the language to read it in German, and Dark host to
+                  render it on a dark host.
                 </CardDescription>
                 <div className="pt-2">
-                  <ThemeSwitcher
-                    activeId={activeTheme.id}
-                    onSelect={setThemeId}
+                  <HostSwitcher
+                    themeId={activeTheme.id}
+                    onThemeChange={setThemeId}
                     dark={dark}
                     onDarkChange={setDark}
+                    locale={locale}
+                    onLocaleChange={setLocale}
                   />
                 </div>
               </CardHeader>
@@ -285,31 +355,39 @@ export function App() {
                   mode={dark ? "dark" : "light"}
                   className="rounded-lg border border-dashed p-4"
                 >
-                  <WidgetFixtureHost
-                    key={story.id}
-                    widget={story.widget}
-                    data={lastValid}
-                    dataType={story.dataType}
-                    tools={story.tools}
-                    onModelContext={setModelContext}
-                    onHostAction={(action) =>
-                      setLog((prev) =>
-                        [{ at: new Date().toLocaleTimeString(), action }, ...prev].slice(0, 50),
-                      )
-                    }
-                  />
+                  {/* The host's language: the LocaleProvider gives it to the widget's
+                      own text (`useLocale()`), as an app does with the host locale;
+                      `globals.locale` is what the toolkit's own text follows. */}
+                  <LocaleProvider locale={locale}>
+                    <WidgetFixtureHost
+                      key={story.id}
+                      widget={story.widget}
+                      data={lastValid}
+                      dataType={story.dataType}
+                      tools={story.tools}
+                      // The Dark switch is the host's colour scheme: it styles the
+                      // preview AND is what `useHostBridge().theme` reports.
+                      globals={{ theme: dark ? "dark" : "light", locale }}
+                      onModelContext={setModelContext}
+                      onHostAction={(action) =>
+                        setLog((prev) =>
+                          [{ at: new Date().toLocaleTimeString(), action }, ...prev].slice(0, 50),
+                        )
+                      }
+                    />
+                  </LocaleProvider>
                 </ThemeProvider>
               </CardContent>
             </Card>
           </div>
 
           {/* Model context + activity log */}
-          <div className="grid gap-6 px-6 pb-6 lg:grid-cols-2">
+          <div className="grid gap-6 px-4 pb-6 md:px-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Model context</CardTitle>
                 <CardDescription>
-                  What the model would see — the serialized <code>&lt;ModelContext&gt;</code> the
+                  What the model would see: the serialized <code>&lt;ModelContext&gt;</code> the
                   widget reports.
                 </CardDescription>
               </CardHeader>
@@ -357,9 +435,9 @@ export function App() {
             </Card>
           </div>
           <Separator />
-          <p className="text-muted-foreground text-small p-6">
+          <p className="text-muted-foreground text-small p-4 md:p-6">
             Add a widget to this playground by appending a <code>Story</code> to{" "}
-            <code>stories.ts</code> — no host, no backend.
+            <code>stories.ts</code>. No host or backend needed.
           </p>
         </ScrollArea>
       </main>

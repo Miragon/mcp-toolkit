@@ -37,7 +37,7 @@ const ARTICLE = {
   author: "Dominik Horn",
   publishedAt: "2026-05-21",
   body:
-    "Federating several CIB Seven engines behind one MCP surface lets an operator " +
+    "Federating several CIB seven engines behind one MCP surface lets an operator " +
     "drive incidents, jobs, and analytics from a single cockpit. This article walks " +
     "through the registry, the per-engine clients, and the metric-first analytics path.",
 }
@@ -132,6 +132,13 @@ const ORDERS_DASHBOARD: OrdersDashboardData = {
   },
 }
 
+/** The `complete_task` fixture: the task as done, or a tool error for an unknown id. */
+function completeFixtureTask(args: Record<string, unknown>) {
+  const task = TASKS_BOARD.tasks.find((t) => t.id === args.taskId)
+  if (!task) throw new Error(`Unknown task id: ${String(args.taskId)}`)
+  return { ...task, status: "done", completedAt: "2026-06-10T12:05:00.000Z" }
+}
+
 /** Zero-task board for the empty-state story — same shape, nothing to show. */
 const EMPTY_TASKS_BOARD: TasksBoardData = {
   generatedAt: "2026-06-10T12:00:00.000Z",
@@ -160,7 +167,7 @@ export const STORIES: Story[] = [
     id: "tasks-board",
     label: "TasksBoard",
     description:
-      "Self-owned module widget: host-pushed data via adaptDataWidget, KPI counts, FilterBar, tone status pills, and agentic add/complete handoffs. Refresh self-fetches tasks_board_data.",
+      "Self-owned module widget: host-pushed data via adaptDataWidget, KPI counts, FilterBar, tone status pills. Complete writes through complete_task with a toast; adding hands off to the agent. Refresh self-fetches tasks_board_data.",
     widget: TasksBoard as FixtureWidget,
     // Raw `({ data })` widget: the fixture object is forwarded as `data` verbatim.
     data: TASKS_BOARD as unknown as Record<string, unknown>,
@@ -168,13 +175,16 @@ export const STORIES: Story[] = [
       // The Refresh button calls this feed; the fixture echoes the board so the
       // Host activity panel logs the callTool and the preview re-renders.
       tasks_board_data: () => TASKS_BOARD,
+      // "Complete" writes through this tool; the fixture answers with the
+      // completed task, the way the real tool does.
+      complete_task: (args: Record<string, unknown>) => completeFixtureTask(args),
     },
   },
   {
     id: "customer-card",
     label: "CustomerCard",
     description:
-      "Dependency-free fixture card (inline styles, no toolkit primitives). Reads keys['customers:customer'] — pure props, no tool calls.",
+      "Dependency-free fixture card (inline styles, no toolkit primitives). Reads keys['customers:customer']: pure props, no tool calls.",
     widget: CustomerCard,
     data: {
       "customers:customer": {
@@ -239,7 +249,7 @@ export const STORIES: Story[] = [
     id: "tasks-board-empty",
     label: "TasksBoard (empty)",
     description:
-      "Empty state of the task board: zero counts in the KPI strip and the 'No tasks match the current filter.' row — proves the widget renders without a single task.",
+      "Empty board: the 'No tasks yet' state with its next step (ask the agent to add one) instead of a strip of zeros.",
     widget: TasksBoard as FixtureWidget,
     data: EMPTY_TASKS_BOARD as unknown as Record<string, unknown>,
     tools: {

@@ -95,7 +95,7 @@ export interface AppsSdkMetaOptions {
   resourceUri: string
   /**
    * Display name used to derive the default `invoking`/`invoked` status
-   * strings (`Loading <name>...` / `<name> ready`). Typically the tool title.
+   * strings (`Loading <name>…` / `<name> ready`). Typically the tool title.
    */
   title?: string
   /** Host status line while the tool call runs (`openai/toolInvocation/invoking`). */
@@ -125,7 +125,7 @@ export function appsSdkMeta(opts: AppsSdkMetaOptions): Record<string, unknown> {
   const meta: Record<string, unknown> = {
     "openai/outputTemplate": opts.resourceUri,
     "openai/toolInvocation/invoking":
-      opts.invoking ?? (opts.title ? `Loading ${opts.title}...` : "Loading view..."),
+      opts.invoking ?? (opts.title ? `Loading ${opts.title}…` : "Loading view…"),
     "openai/toolInvocation/invoked":
       opts.invoked ?? (opts.title ? `${opts.title} ready` : "View ready"),
     "openai/widgetAccessible": true,

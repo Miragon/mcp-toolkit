@@ -159,6 +159,7 @@ export function McpAppView(props: McpAppViewProps) {
   )
 }
 
+/** The payload the view shows, where it came from, and when the view loaded it itself. */
 interface ShownView {
   data: ViewData | null
   source: ViewSource | null
@@ -330,7 +331,7 @@ function ViewModelContext({
     stepErrors: view.data?.context.errors,
     stepsRetryable: Boolean(view.data?._refreshParams),
     reloadedAt: view.reloadedAt,
-    reloadedBy: view.source === "refresh" ? "refresh" : "recovery",
+    reloadedBy: reloadedByOf(view.source),
   })
   return content ? <HostModelContext content={content} /> : null
 }
@@ -492,9 +493,25 @@ function McpAppViewShell({
   )
 }
 
-/** The shown view with a builder commit applied (nothing to apply without data). */
+/** How the model line names the view's own re-load of the shown payload. */
+function reloadedByOf(source: ViewSource | null): "recovery" | "refresh" | "builder" {
+  if (source === "refresh" || source === "builder") return source
+  return "recovery"
+}
+
+/**
+ * The shown view with a builder commit applied (nothing to apply without
+ * data). A commit that carries the builder's live context shows figures the
+ * builder loaded itself (its catalogue call ran the steps again), so it is
+ * stamped like a refresh: the toolbar says when, and the model learns that
+ * they can differ from the result the chat answered from. A commit without a
+ * context keeps the shown figures, and with them their source and stamp.
+ */
 function withBuilderCommit(view: ShownView, commit: BuilderCommit): ShownView {
-  return view.data ? { ...view, data: applyBuilderCommit(view.data, commit) } : view
+  if (!view.data) return view
+  const data = applyBuilderCommit(view.data, commit)
+  if (!commit.context) return { ...view, data }
+  return { data, source: "builder", reloadedAt: reloadedAtOf("builder", Date.now(), false) }
 }
 
 /** The toolbar's "as of" time of a re-loaded payload, `undefined` for any other. */

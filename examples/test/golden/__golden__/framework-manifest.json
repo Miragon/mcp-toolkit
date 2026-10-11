@@ -43,7 +43,7 @@
     {
       "app": "tasks",
       "consumes": ["tasks:board"],
-      "description": "A task board: KPI counts by status, filterable task list, agentic add/complete.",
+      "description": "A task board: KPI counts by status, a filterable task list, complete in place, add through the agent.",
       "id": "tasks:board",
       "requires": [],
       "size": "full"

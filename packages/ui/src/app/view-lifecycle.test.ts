@@ -401,15 +401,32 @@ describe("describeViewForModel (the view's model context, toolkit#176 K20)", () 
         "as of then and can differ from the original result.",
     )
   })
+
+  it("a payload applied from the view builder says the user edited it there, and when it loaded", () => {
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "show_orders_dashboard",
+        reloadedAt: Date.UTC(2026, 9, 11, 10, 5),
+        reloadedBy: "builder",
+      }),
+    ).toBe(
+      "The view of show_orders_dashboard was edited by the user in the view builder, which loaded " +
+        "its data again at 2026-10-11T10:05:00.000Z; its figures are live as of then and can " +
+        "differ from the original result.",
+    )
+  })
 })
 
 describe("reloadedAtOf (which payload carries the data-as-of stamp, N23)", () => {
   const now = 42_000
 
-  it("a recovery and a refresh always: the chat answered from the original call", () => {
+  it("a recovery, a refresh and a builder Apply always: the view loaded the figures itself", () => {
     expect(reloadedAtOf("recovered", now, false)).toBe(now)
     expect(reloadedAtOf("refresh", now, false)).toBe(now)
     expect(reloadedAtOf("refresh", now, true)).toBe(now)
+    expect(reloadedAtOf("builder", now, false)).toBe(now)
+    expect(reloadedAtOf("builder", now, true)).toBe(now)
   })
 
   it("a retry only when the original result reached the chat", () => {

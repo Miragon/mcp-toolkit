@@ -54,7 +54,7 @@ produce one, and most modules should reach for the first:
 1. **Eager — `buildComposedView`.** From a `*_show_*` tool, compute the
    whole view-model up front and lay the widgets out. No step registry,
    no validation pass — you already have the data. This is the
-   **recommended default** and the path the real CIB Seven cockpit uses
+   **recommended default** and the path the real CIB seven cockpit uses
    for every dashboard.
 
    ```ts
@@ -66,12 +66,8 @@ produce one, and most modules should reach for the first:
      summary: "Orders dashboard for …", // 1-line; full data in structuredContent
      layout: {
        rows: [
-         {
-           row: [
-             { widget: "orders:kpi", span: 5 },
-             { widget: "orders:table", span: 7 },
-           ],
-         },
+         { row: [{ widget: "orders:kpi", span: 12 }] }, // the KPI strip on top,
+         { row: [{ widget: "orders:table", span: 12 }] }, // the orders table below
        ],
      },
      entries: [

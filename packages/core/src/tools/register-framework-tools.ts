@@ -122,6 +122,7 @@ export function registerFrameworkTools(
   server.tool(
     {
       name: "get-framework-manifest",
+      title: "Get framework manifest",
       description:
         "Returns all active apps, available pipeline steps, widgets, and their key contracts. Call this first to discover which step-ids and widget-ids exist — and which `props` each widget accepts (see each widget's `propsSchema`) — before building a view.",
       annotations: { readOnlyHint: true },
@@ -151,7 +152,7 @@ export function registerFrameworkTools(
   server.tool(
     {
       name: "render-view",
-      title: "Render View",
+      title: "Render view",
       description:
         "Builds a UI from pipeline steps and widgets. IMPORTANT: call get-framework-manifest first to learn which step-ids and widget-ids are available — only use ids listed there. Each widget entry's optional `propsSchema` (JSON Schema) describes the per-instance `props` you can set on a layout cell to scope or configure that widget (e.g. one tab per `processDefinitionKey`).",
       inputSchema: renderViewSchema,
@@ -166,8 +167,8 @@ export function registerFrameworkTools(
       outputSchema: z.object({}).passthrough(),
       _meta: appsSdkMeta({
         resourceUri: viewResourceUri(RENDER_VIEW_NAME),
-        title: "Render View",
-        invoking: "Rendering view...",
+        title: "Render view",
+        invoking: "Rendering view…",
         invoked: "View rendered",
         widgetDescription: "Interactive view composed of pipeline-driven widgets",
         widgetCSP,
@@ -185,7 +186,7 @@ export function registerFrameworkTools(
   server.tool(
     {
       name: refreshToolName,
-      title: "Refresh View",
+      title: "Refresh view",
       description: "Re-runs the pipeline with the stored parameters.",
       inputSchema: renderViewSchema,
       // App-only: called by the already-rendered view, never by the model —

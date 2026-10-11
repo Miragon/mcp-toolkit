@@ -8,7 +8,8 @@
       "properties": {},
       "type": "object"
     },
-    "name": "get-framework-manifest"
+    "name": "get-framework-manifest",
+    "title": "Get framework manifest"
   },
   {
     "_meta": {
@@ -198,14 +199,14 @@
       "type": "object"
     },
     "name": "refresh-view",
-    "title": "Refresh View"
+    "title": "Refresh view"
   },
   {
     "_meta": {
       "openai/outputTemplate": "ui://views/render-view.html",
       "openai/resultCanProduceWidget": true,
       "openai/toolInvocation/invoked": "View rendered",
-      "openai/toolInvocation/invoking": "Rendering view...",
+      "openai/toolInvocation/invoking": "Rendering view…",
       "openai/widgetAccessible": true,
       "openai/widgetDescription": "Interactive view composed of pipeline-driven widgets",
       "ui": {
@@ -401,6 +402,6 @@
       "properties": {},
       "type": "object"
     },
-    "title": "Render View"
+    "title": "Render view"
   }
 ]

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { ExternalLink, MessageSquare, RefreshCw } from "lucide-react"
 import { useHostBridge } from "@miragon/mcp-toolkit-ui/app"
 import { parseToolResult } from "@miragon/mcp-toolkit-ui"
 import {
@@ -9,108 +10,46 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ErrorState,
   KpiGrid,
   Separator,
   Skeleton,
+  formatCount,
+  useLocale,
 } from "@miragon/mcp-toolkit-ui"
+import { useOrderCardText } from "./messages.js"
+import type { Order } from "./order.js"
 
-/**
- * Inline SVG icons keep this example dependency-free (no `lucide-react`) while
- * staying crisp at any size. `currentColor` lets them inherit the button's text
- * colour across the host themes.
- */
-function IconRefresh({ spinning }: { spinning?: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      className={spinning ? "animate-spin" : undefined}
-    >
-      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-      <path d="M21 3v6h-6" />
-    </svg>
-  )
-}
+export type { Order } from "./order.js"
 
-function IconMessage() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  )
-}
-
-function IconExternal() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M7 17 17 7" />
-      <path d="M7 7h10v10" />
-    </svg>
-  )
-}
-
-/**
- * The shape `get_order` returns. The same shape is produced by all three host
- * bridges in this example, because the widget never knows (or cares) which host
- * it runs in — it only talks to `useHostBridge()`.
- */
-export interface Order {
-  id: string
-  customer: string
-  status: "processing" | "shipped" | "delivered" | "cancelled"
-  total: number
-  currency: string
-  items: number
-  eta: string
-  trackingUrl: string
-}
-
-const STATUS_VARIANT: Record<Order["status"], "default" | "secondary" | "outline" | "danger"> = {
+/** The order status is a state, so it takes a status tone (tint, rim, foreground text). */
+const STATUS_VARIANT: Record<Order["status"], "secondary" | "info" | "success" | "danger"> = {
   processing: "secondary",
-  shipped: "default",
-  delivered: "outline",
+  shipped: "info",
+  delivered: "success",
   cancelled: "danger",
 }
 
-const STATUS_LABEL: Record<Order["status"], string> = {
-  processing: "Processing",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-}
-
-function formatMoney(total: number, currency: string): string {
+function formatMoney(total: number, currency: string, locale: string): string {
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(total)
+    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(total)
   } catch {
     return `${total} ${currency}`
+  }
+}
+
+/** An ISO date (`2026-06-14`) as day and month in the widget's locale; anything else verbatim. */
+function formatDay(iso: string, locale: string): string {
+  const date = new Date(`${iso}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return iso
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(date)
+  } catch {
+    return iso
   }
 }
 
@@ -125,10 +64,19 @@ function formatMoney(total: number, currency: string): string {
  * - `callTool()` — refresh the order from the server.
  * - `sendFollowup()` — hand a prompt back to the conversation (ask the agent).
  * - `openExternal()` — open the carrier tracking page outside the frame.
- * - `theme` — adapt to the host's colour scheme.
+ *
+ * Every word comes from its en/de catalog (`messages.ts`); money, counts and
+ * dates are formatted in the locale the host sets (`useLocale()`).
+ *
+ * Icons are Lucide (`lucide-react`, the version the toolkit depends on), so
+ * they take the stroke the toolkit sets instead of a hand-drawn one. The
+ * deterministic action (tracking) leads; the chat hand-off is the secondary
+ * button and says that it asks the agent.
  */
 export function OrderStatusCard({ orderId = "ORD-4471" }: { orderId?: string }) {
   const bridge = useHostBridge()
+  const locale = useLocale()
+  const text = useOrderCardText()
 
   // Seed from host-pushed data when present (ChatGPT toolOutput / mcp-use
   // structuredContent), so the first paint has content instead of a spinner.
@@ -159,11 +107,10 @@ export function OrderStatusCard({ orderId = "ORD-4471" }: { orderId?: string }) 
   const askAboutDelay = useCallback(() => {
     if (!order) return
     bridge.sendFollowup(
-      `Order ${order.id} for ${order.customer} is "${order.status}" with ETA ${order.eta}. ` +
-        `Is it running late, and what should I tell the customer? (use get_order)`,
+      text.askPrompt(order, text.status[order.status], formatDay(order.eta, locale)),
     )
     bridge.setModelContext?.(`Viewing order ${order.id} (${order.status})`)
-  }, [bridge, order])
+  }, [bridge, order, text, locale])
 
   const openTracking = useCallback(() => {
     if (order) bridge.openExternal(order.trackingUrl)
@@ -174,63 +121,72 @@ export function OrderStatusCard({ orderId = "ORD-4471" }: { orderId?: string }) 
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-base">
               {order ? order.id : orderId}
               {order && (
-                <Badge variant={STATUS_VARIANT[order.status]}>{STATUS_LABEL[order.status]}</Badge>
+                <Badge variant={STATUS_VARIANT[order.status]}>{text.status[order.status]}</Badge>
               )}
             </CardTitle>
             <CardDescription className="truncate">
-              {order ? order.customer : "Loading order…"}
+              {order ? order.customer : text.loading}
             </CardDescription>
           </div>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon-sm"
             onClick={() => void load()}
             disabled={loading}
-            aria-label="Refresh order"
+            aria-label={text.refresh}
           >
-            <IconRefresh spinning={loading} />
+            <RefreshCw aria-hidden="true" className={loading ? "motion-safe:animate-spin" : ""} />
           </Button>
         </div>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">
         {error ? (
-          <div className="border-danger bg-danger-soft text-foreground rounded-md border p-3 text-sm">
-            {error}
-          </div>
+          // What happened and what to do; the raw reason stays under Details.
+          <ErrorState
+            variant="inline"
+            title={text.loadFailed}
+            description={text.loadFailedHint}
+            details={error}
+            onRetry={() => void load()}
+          />
         ) : loading && !order ? (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3" role="status" aria-label={text.loading}>
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
           </div>
         ) : order ? (
           <>
+            {/* The total is the card's headline figure, on its own line: a
+                five-figure amount does not fit a third of a phone-width card. */}
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <span className="text-muted-foreground text-sm font-medium">{text.total}</span>
+              <span className="text-foreground text-2xl font-bold tracking-tight tabular-nums">
+                {formatMoney(order.total, order.currency, locale)}
+              </span>
+            </div>
             <KpiGrid
               cells={[
-                { label: "Total", value: formatMoney(order.total, order.currency) },
-                { label: "Items", value: order.items },
-                { label: "ETA", value: order.eta },
+                { label: text.items, value: formatCount(order.items, locale) },
+                { label: text.delivery, value: formatDay(order.eta, locale) },
               ]}
             />
 
             <Separator />
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="default" onClick={askAboutDelay}>
-                <IconMessage />
-                Ask the agent
+              <Button size="sm" variant="default" onClick={openTracking}>
+                <ExternalLink aria-hidden="true" />
+                {text.track}
               </Button>
-              <Button size="sm" variant="outline" onClick={openTracking}>
-                <IconExternal />
-                Track shipment
+              <Button size="sm" variant="outline" onClick={askAboutDelay}>
+                <MessageSquare aria-hidden="true" />
+                {text.ask}
               </Button>
-              <span className="text-muted-foreground text-small ml-auto">
-                {bridge.theme ? `host theme: ${bridge.theme}` : "host theme: unknown"}
-              </span>
             </div>
           </>
         ) : null}

@@ -1,3 +1,4 @@
+import { FileText } from "lucide-react"
 import type { WidgetProps } from "@miragon/mcp-toolkit-core"
 import {
   Card,
@@ -5,28 +6,35 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  EmptyState,
   ErrorState,
   Skeleton,
-  useToolkitMessages,
+  useLocale,
 } from "@miragon/mcp-toolkit-ui"
 import { useArticlesGetArticle } from "../generated/hooks.js"
+import { formatPublished, useArticlesText } from "./messages.js"
 
 export function ArticleCard({ keys }: WidgetProps) {
+  const locale = useLocale()
+  const text = useArticlesText()
   const raw = keys["articles:articleId"]
   const id = typeof raw === "string" ? raw : ""
   const { data, isLoading, error, refetch } = useArticlesGetArticle({ id }, { enabled: !!id })
-  const { common } = useToolkitMessages()
 
   if (!id) {
     return (
       <Card>
-        <CardContent className="text-muted-foreground text-sm">(no article id)</CardContent>
+        <EmptyState
+          icon={<FileText />}
+          title={text.noArticleTitle}
+          description={text.noArticleHint}
+        />
       </Card>
     )
   }
   if (isLoading) {
     return (
-      <Card>
+      <Card role="status" aria-label={text.loading}>
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-3 w-32" />
@@ -38,12 +46,11 @@ export function ArticleCard({ keys }: WidgetProps) {
     )
   }
   if (error) {
-    // What happened and what you can do, from the toolkit's en/de catalog; the
-    // raw reason stays under "Details" instead of leading the card.
+    // What happened and what you can do; the raw reason stays under Details.
     return (
       <ErrorState
-        title={common.loadFailed}
-        description={common.loadFailedHint}
+        title={text.loadFailed}
+        description={text.loadFailedHint}
         details={error.message}
         onRetry={() => void refetch()}
       />
@@ -56,7 +63,7 @@ export function ArticleCard({ keys }: WidgetProps) {
       <CardHeader>
         <CardTitle>{data.title}</CardTitle>
         <CardDescription>
-          by {data.author} · {data.publishedAt}
+          {text.byline(data.author, formatPublished(data.publishedAt, locale))}
         </CardDescription>
       </CardHeader>
       <CardContent className="text-sm leading-relaxed">{data.body}</CardContent>

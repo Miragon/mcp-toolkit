@@ -6,15 +6,16 @@ import { TOOLKIT_MESSAGES } from "../locale/toolkit-messages.js"
 import { advanceTimers, inAct, renderWithEffects, type EffectRender } from "../render-effects.js"
 import { createStandaloneHostBridge, HostBridgeProvider } from "./host-bridge.js"
 import { McpAppView } from "./mcp-app-view.js"
-import type { ViewData } from "./mcp-app-view-chrome.js"
+import type { BuilderCommit, ViewData } from "./mcp-app-view-chrome.js"
 
 /**
  * McpAppView's lifecycle with its effects running (toolkit#176 K13, N23): the
  * view takes the document's tool-result observer by default, so a slow tool
  * on a compliant host is never re-run and a stripped result re-runs from the
  * observer's notification alone; and a payload the view re-loaded itself (a
- * recovery, a retry after a result the chat got, a refresh) carries the
- * data-as-of stamp and its model-context line. The SSR suite
+ * recovery, a retry after a result the chat got, a refresh, an Apply from
+ * the view builder) carries the data-as-of stamp and its model-context line.
+ * The SSR suite
  * (`mcp-app-view.test.tsx`) pins every state's markup.
  */
 
@@ -24,6 +25,19 @@ const host = vi.hoisted(
     observer: null,
   }),
 )
+
+/** The commit the stubbed builder hands back on Apply (`toExitCommit` in the real one). */
+const builder = vi.hoisted((): { commit: BuilderCommit | undefined } => ({ commit: undefined }))
+
+// The builder's own UI is not this suite's subject: a stub hands McpAppView
+// the commit Apply would, so the test drives only the view's wiring of it.
+vi.mock(import("./layout-builder.js"), async (importOriginal) => {
+  const actual = await importOriginal()
+  const { createElement } = await import("react")
+  const LayoutBuilder: typeof actual.LayoutBuilder = ({ onExit }) =>
+    createElement("button", { type: "button", onClick: () => onExit?.(builder.commit) }, "Apply")
+  return { ...actual, LayoutBuilder }
+})
 
 vi.mock(import("../lib/tool-result-observer.js"), async (importOriginal) => {
   const actual = await importOriginal()
@@ -120,6 +134,7 @@ const click = (target: HTMLElement) => inAct(() => target.click())
 const toolCalls = (name: string) => callTool.mock.calls.filter(([called]) => called === name)
 
 beforeEach(() => {
+  builder.commit = undefined
   vi.useFakeTimers()
   vi.setSystemTime(NOW)
   host.tool = { status: "pending", toolInput: { id: 7 }, toolOutput: undefined }
@@ -216,5 +231,62 @@ describe("McpAppView data-as-of stamp on a user's re-run (N23)", () => {
       "The view of render-view was refreshed by the user at 2026-10-11T15:10:00.000Z; its figures " +
         "are live as of then and can differ from the original result.",
     )
+  })
+})
+
+describe("McpAppView data-as-of stamp on a builder Apply (N23)", () => {
+  /** The view as a builder-enabled server delivers it. */
+  const EDITABLE: ViewData = { ...VIEW, builderAvailable: true }
+  /** The builder's live context: its catalogue call ran the steps again. */
+  const LIVE: ViewData["context"] = {
+    keys: { region: "north" },
+    stepIds: ["kpi"],
+    stepData: {
+      kpi: { data: { open: 12 }, keys: {}, _app: "demo", _dataType: "demo:kpis" },
+    },
+    errors: [],
+  }
+  const edit = async (view: EffectRender, commit: BuilderCommit) => {
+    builder.commit = commit
+    await click(button(view, en.build))
+    await click(button(view, "Apply"))
+  }
+
+  it("an Apply with the builder's live figures is stamped and told to the model as the user's edit", async () => {
+    host.tool = { status: "ready", toolInput: { id: 7 }, toolOutput: EDITABLE }
+    const view = await render()
+    expect(stamp(view), "the host's own payload").toBeNull()
+    vi.setSystemTime(NOW + 5 * 60_000)
+    await edit(view, { layout: EDITABLE.layout!, context: LIVE })
+    expect(stamp(view)).toBe("Reloaded at 2:37 PM")
+    expect(modelContext.at(-1)).toBe(
+      "The view of render-view was edited by the user in the view builder, which loaded its data " +
+        "again at 2026-10-11T14:37:00.000Z; its figures are live as of then and can differ from " +
+        "the original result.",
+    )
+  })
+
+  it("an Apply after a refresh moves the stamp to the builder's figures", async () => {
+    host.tool = { status: "ready", toolInput: { id: 7 }, toolOutput: EDITABLE }
+    callTool.mockResolvedValue({ structuredContent: EDITABLE })
+    const view = await render()
+    vi.setSystemTime(NOW + 60_000)
+    await click(button(view, en.refresh))
+    expect(stamp(view)).toBe("Reloaded at 2:33 PM")
+    vi.setSystemTime(NOW + 5 * 60_000)
+    await edit(view, { layout: EDITABLE.layout!, context: LIVE })
+    expect(stamp(view), "the stamp of the refresh above the builder's figures").toBe(
+      "Reloaded at 2:37 PM",
+    )
+  })
+
+  it("an Apply without a context keeps the shown figures, and with them their stamp", async () => {
+    host.tool = { status: "ready", toolInput: { id: 7 }, toolOutput: EDITABLE }
+    const view = await render()
+    vi.setSystemTime(NOW + 5 * 60_000)
+    await edit(view, { layout: EDITABLE.layout!, title: "Renamed" })
+    expect(view.container.textContent).toContain("Renamed")
+    expect(stamp(view)).toBeNull()
+    expect(modelContext.some((line) => line.includes("view builder"))).toBe(false)
   })
 })

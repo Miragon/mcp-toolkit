@@ -23,7 +23,7 @@ export const definition: AppDefinition = {
         de: "Aufgaben nach Status, mit Filter, Anlegen und Erledigen.",
       },
       description:
-        "A task board: KPI counts by status, filterable task list, agentic add/complete.",
+        "A task board: KPI counts by status, a filterable task list, complete in place, add through the agent.",
       requires: [],
       consumes: ["tasks:board"],
       size: "full",

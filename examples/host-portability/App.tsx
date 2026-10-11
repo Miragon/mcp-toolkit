@@ -9,12 +9,19 @@ import {
   CardTitle,
   ScrollArea,
   Separator,
+  Switch,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@miragon/mcp-toolkit-ui"
-import { BRIDGE_OPTIONS, BridgeStage, type BridgeCall, type BridgeId } from "./bridges.js"
+import {
+  BRIDGE_OPTIONS,
+  BridgeStage,
+  type BridgeCall,
+  type BridgeId,
+  type HostSettings,
+} from "./bridges.js"
 import { ORDER_IDS } from "./fake-server.js"
 
 interface LogEntry {
@@ -36,6 +43,12 @@ function formatCall(call: BridgeCall): string {
   }
 }
 
+/** The host languages the page can simulate (the host's locale, BCP 47). */
+const HOST_LOCALES = [
+  { id: "en-US", label: "English" },
+  { id: "de-DE", label: "Deutsch" },
+] as const
+
 const CALL_VARIANT: Record<BridgeCall["kind"], "default" | "secondary" | "outline"> = {
   callTool: "default",
   sendFollowup: "secondary",
@@ -47,6 +60,7 @@ export function App() {
   const [bridgeId, setBridgeId] = useState<BridgeId>("mcp-use")
   const [orderId, setOrderId] = useState(ORDER_IDS[0] ?? "ORD-4471")
   const [log, setLog] = useState<LogEntry[]>([])
+  const [host, setHost] = useState<HostSettings>({ theme: "light", locale: "en-US" })
 
   // `log` is passed into the bridges; keep it stable so the bridges (and the
   // mcp-use shim effect) don't re-install on every render.
@@ -63,37 +77,63 @@ export function App() {
     <div className="bg-background text-foreground min-h-screen w-full">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 md:p-10">
         <header className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary text-primary-foreground text-small flex h-8 w-8 items-center justify-center rounded-md font-bold">
-              HB
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">Host portability</h1>
             <Badge variant="outline">HostBridge</Badge>
           </div>
           <p className="text-muted-foreground max-w-2xl text-sm">
-            One hand-built widget, three hosts. The same <code>OrderStatusCard</code> — written only
-            against <code>useHostBridge()</code> — renders unchanged under the mcp-use host, ChatGPT
+            One hand-built widget, three hosts. The same <code>OrderStatusCard</code>, written only
+            against <code>useHostBridge()</code>, renders unchanged under the mcp-use host, ChatGPT
             (OpenAI Apps SDK), and a standalone web app driven against an existing MCP server.
-            Switch the host below and watch the activity log show the bridge calls.
+            Switch the host below and watch the activity log show the bridge calls; switch its
+            language and colour scheme to see the card follow them under every bridge.
           </p>
         </header>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground text-small font-medium">Order:</span>
-          {ORDER_IDS.map((id) => (
-            <Button
-              key={id}
-              size="sm"
-              variant={id === orderId ? "default" : "outline"}
-              onClick={() => setOrderId(id)}
-            >
-              {id}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div role="group" aria-label="Order" className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground text-sm font-medium">Order</span>
+            {ORDER_IDS.map((id) => (
+              <Button
+                key={id}
+                size="sm"
+                variant={id === orderId ? "default" : "outline"}
+                aria-pressed={id === orderId}
+                onClick={() => setOrderId(id)}
+              >
+                {id}
+              </Button>
+            ))}
+          </div>
+          <div
+            role="group"
+            aria-label="Host language"
+            className="flex flex-wrap items-center gap-2"
+          >
+            <span className="text-muted-foreground text-sm font-medium">Host language</span>
+            {HOST_LOCALES.map(({ id, label }) => (
+              <Button
+                key={id}
+                size="sm"
+                variant={id === host.locale ? "default" : "outline"}
+                aria-pressed={id === host.locale}
+                onClick={() => setHost((h) => ({ ...h, locale: id }))}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Switch
+              checked={host.theme === "dark"}
+              onCheckedChange={(dark) => setHost((h) => ({ ...h, theme: dark ? "dark" : "light" }))}
+            />
+            <span className="text-muted-foreground font-medium">Dark host</span>
+          </label>
         </div>
 
         <Tabs value={bridgeId} onValueChange={(v) => setBridgeId(v as BridgeId)}>
-          <TabsList>
+          <TabsList className="max-w-full justify-start overflow-x-auto">
             {BRIDGE_OPTIONS.map((opt) => (
               <TabsTrigger key={opt.id} value={opt.id}>
                 {opt.label}
@@ -111,7 +151,7 @@ export function App() {
                     <CardDescription>{opt.blurb}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="bg-muted/30 flex justify-center rounded-lg border border-dashed p-5">
+                    <div className="overflow-hidden rounded-lg border border-dashed">
                       {/* key forces a clean remount per host + order so each bridge
                           starts from its own initial state. */}
                       <BridgeStage
@@ -119,6 +159,7 @@ export function App() {
                         bridgeId={opt.id}
                         orderId={orderId}
                         log={pushLog}
+                        host={host}
                       />
                     </div>
                   </CardContent>
@@ -137,7 +178,7 @@ export function App() {
                   <CardContent className="flex-1">
                     {log.length === 0 ? (
                       <p className="text-muted-foreground text-sm">
-                        No bridge calls yet — interact with the widget.
+                        No bridge calls yet. Use the widget's buttons to make one.
                       </p>
                     ) : (
                       <ScrollArea className="h-[360px] pr-3">
@@ -167,9 +208,9 @@ export function App() {
 
         <Separator />
         <p className="text-muted-foreground text-small">
-          The widget never imports <code>mcp-use/react</code> or touches <code>window.openai</code>{" "}
-          — only <code>useHostBridge()</code>. See <code>OrderStatusCard.tsx</code> for the widget
-          and <code>bridges.tsx</code> for the three adapters.
+          The widget never imports <code>mcp-use/react</code> or touches <code>window.openai</code>.
+          It only calls <code>useHostBridge()</code>. See <code>OrderStatusCard.tsx</code> for the
+          widget and <code>bridges.tsx</code> for the three adapters.
         </p>
       </div>
     </div>

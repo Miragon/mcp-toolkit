@@ -36,11 +36,13 @@
 #     · orders:table renders the `.table` slice
 #
 # The layout is identical in shape to the eager path's `DASHBOARD_LAYOUT`
-# (modules/orders/plugin.ts): one row, two cells, same spans — proving both paths
-# converge on one rendered view.
+# (modules/orders/plugin.ts): two full-width rows, the KPI strip above the table,
+# so both stay readable at a chat's inline width. Both paths converge on one
+# rendered view.
 rows:
   - row:
       - widget: orders:kpi
-        span: 5
+        span: 12
+  - row:
       - widget: orders:table
-        span: 7
+        span: 12

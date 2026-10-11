@@ -1,4 +1,4 @@
-# Widget Playground
+# Widget playground
 
 A "Storybook for MCP widgets" — develop hand-built widgets in isolation with
 fixture data, without booting a real MCP host or backend.

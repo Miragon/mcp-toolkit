@@ -7,7 +7,9 @@
         "scripts/check-package-exports.mjs",
         "scripts/check-pins.mjs",
         "scripts/check-ratchets.mjs",
-        "scripts/check-test-erosion.mjs"
+        "scripts/check-standalone-dev.mjs",
+        "scripts/check-test-erosion.mjs",
+        "scripts/docs-shots.mjs"
       ],
       "project": ["scripts/**/*.mjs", "*.mjs"]
     },

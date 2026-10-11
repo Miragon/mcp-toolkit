@@ -104,6 +104,10 @@ describe("every Story SSR-renders through WidgetFixtureHost", () => {
         tools: story!.tools,
       }),
     )
-    expect(html).toContain("No tasks match the current filter.")
+    // An empty board is "nothing yet" with its next step, not an empty filter
+    // result: the two empty states say different things.
+    expect(html).toContain("No tasks yet")
+    expect(html).toContain("Ask agent to add")
+    expect(html).not.toContain("No task matches this filter")
   })
 })

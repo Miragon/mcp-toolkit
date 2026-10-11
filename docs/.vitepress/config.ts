@@ -139,6 +139,22 @@ export default defineConfig({
       text: "Edit this page on GitHub",
     },
 
+    // A plain date in the site's language ("Oct 11, 2026"), not the reader's
+    // short date and time ("10/11/26, 10:44 AM").
+    lastUpdated: {
+      text: "Last updated",
+      formatOptions: { dateStyle: "medium", forceLocale: true },
+    },
+
+    // Say what happened and what to do, in sentence case (VitePress' default
+    // is an all-caps "PAGE NOT FOUND" and a quote).
+    notFound: {
+      title: "This page doesn't exist",
+      quote: "The link may be outdated. Search the docs, or start at the docs home.",
+      linkLabel: "Go to the docs home",
+      linkText: "Go to the docs home",
+    },
+
     footer: {
       message: "Released under the MIT License.",
       copyright: "Copyright © Miragon",

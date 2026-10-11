@@ -20,7 +20,8 @@ export const widgets = {
     TaskListCard,
     "tasks:board",
     (d) =>
-      `The user is viewing the task board: ${d.counts.total} task(s) — ` +
-      `${d.counts.todo} to do, ${d.counts.doing} in progress, ${d.counts.done} done.`,
+      `The user is viewing the task board: ${d.counts.total} ` +
+      `${d.counts.total === 1 ? "task" : "tasks"} (${d.counts.todo} to do, ` +
+      `${d.counts.doing} in progress, ${d.counts.done} done).`,
   ),
 }

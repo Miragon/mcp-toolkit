@@ -60,7 +60,7 @@ export function registerCatalogueTool(
   server.tool(
     {
       name: toolName,
-      title: "Get Builder Catalogue",
+      title: "Get builder catalogue",
       description:
         "App-only. Returns the live pipeline context plus the reachable / unreachable widgets, available steps and key catalogue for the current keys + steps. Used by the in-iframe LayoutBuilder.",
       inputSchema: catalogueSchema,

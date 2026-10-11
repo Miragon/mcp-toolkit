@@ -48,12 +48,13 @@ const paletteRegex =
   "/(^|[\\s\"'`])(bg|text|border|ring|fill|stroke|from|via|to)-(red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone)-[0-9]/"
 const paletteMessage =
   "Hard-coded Tailwind palette colours break white-labeling — use theme tokens (text-primary, bg-card, text-muted-foreground, …) or the tone system (TONE_SOFT/TONE_DOT/TONE_TEXT) from @miragon/mcp-toolkit-ui."
+const noMcpUseReactInWidgets = {
+  selector: 'ImportDeclaration[source.value="mcp-use/react"][importKind!="type"]',
+  message:
+    "Widgets reach the host ONLY through useHostBridge() from @miragon/mcp-toolkit-ui/app — never mcp-use/react (its hooks throw outside a bootstrapView mount).",
+}
 const widgetSyntaxRestrictions = [
-  {
-    selector: 'ImportDeclaration[source.value="mcp-use/react"][importKind!="type"]',
-    message:
-      "Widgets reach the host ONLY through useHostBridge() from @miragon/mcp-toolkit-ui/app — never mcp-use/react (its hooks throw outside a bootstrapView mount).",
-  },
+  noMcpUseReactInWidgets,
   {
     selector: 'MemberExpression[object.name="window"][property.name="openai"]',
     message:
@@ -334,6 +335,22 @@ export default tseslint.config(
     ],
     rules: {
       "no-restricted-syntax": ["error", ...baseSyntaxRestrictions, ...widgetSyntaxRestrictions],
+    },
+  },
+
+  // The starter's view ENTRIES (`views/<tool>/view.tsx`) are the components
+  // the mcp-use CLI mounts through bootstrapView, so mcp-use/react's view hooks
+  // work there: they hand the host's locale to a LocaleProvider, as
+  // examples/standalone-host does. Everything they render (`views/shared/`)
+  // keeps the full widget discipline, the host-import ban included.
+  {
+    files: ["templates/**/views/*/view.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...baseSyntaxRestrictions,
+        ...widgetSyntaxRestrictions.filter((r) => r !== noMcpUseReactInWidgets),
+      ],
     },
   },
 

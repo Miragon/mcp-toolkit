@@ -20,15 +20,18 @@ export async function withProbeFiles<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   const paths = Object.keys(files).map((p) => path.resolve(REPO_ROOT, p))
+  // Directories a probe needed (e.g. a `views/<name>/view.tsx` entry) go too.
+  const createdDirs: string[] = []
   try {
     for (const [rel, contents] of Object.entries(files)) {
       const abs = path.resolve(REPO_ROOT, rel)
-      await fs.mkdir(path.dirname(abs), { recursive: true })
+      const created = await fs.mkdir(path.dirname(abs), { recursive: true })
+      if (created) createdDirs.push(created)
       await fs.writeFile(abs, contents, "utf8")
     }
     return await fn()
   } finally {
-    for (const abs of paths) {
+    for (const abs of [...paths, ...createdDirs]) {
       await fs.rm(abs, { force: true, recursive: true })
     }
   }

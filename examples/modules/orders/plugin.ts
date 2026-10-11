@@ -55,10 +55,12 @@ const customerSchema = z.object({
 })
 
 /**
- * The eager dashboard layout: ONE row with TWO cells — the KPI strip on the left,
- * the orders table on the right. This is the same `LayoutConfig` shape `render-view`
- * takes, so the eager path and the pipeline path share an identical layout model
- * (compare `examples/layouts/orders-dashboard.yaml`).
+ * The eager dashboard layout: TWO full-width rows — the KPI strip on top, the
+ * orders table below. Side by side (5 + 7 columns) the KPI figures and the
+ * table's Amount column ran out of room at a chat's inline width (about 760 px).
+ * This is the same `LayoutConfig` shape `render-view` takes, so the eager path
+ * and the pipeline path share an identical layout model (compare
+ * `examples/layouts/orders-dashboard.yaml`).
  *
  * Each cell names a widget id (registered in the app bundle) and a 12-column `span`.
  * Both cells reference widgets that read the `orders:dashboard` `_dataType`, so a
@@ -68,12 +70,8 @@ const customerSchema = z.object({
  */
 const DASHBOARD_LAYOUT: LayoutConfig = {
   rows: [
-    {
-      row: [
-        { widget: "orders:kpi", span: 5 },
-        { widget: "orders:table", span: 7 },
-      ],
-    },
+    { row: [{ widget: "orders:kpi", span: 12 }] },
+    { row: [{ widget: "orders:table", span: 12 }] },
   ],
 }
 
@@ -82,8 +80,8 @@ function dashboardSummary(dashboard: OrdersDashboardData): string {
   const { customer, counts, revenueCents } = dashboard.kpi
   const euros = (revenueCents / 100).toFixed(2)
   return (
-    `Orders dashboard for ${customer.name}: ${counts.total} order(s) — ${counts.open} open, ` +
-    `${counts.paid} paid, ${counts.shipped} shipped, ${counts.cancelled} cancelled; ` +
+    `Orders dashboard for ${customer.name}: ${counts.total} ${counts.total === 1 ? "order" : "orders"} ` +
+    `(${counts.open} open, ${counts.paid} paid, ${counts.shipped} shipped, ${counts.cancelled} cancelled), ` +
     `€${euros} revenue. Full breakdown is shown in the dashboard.`
   )
 }
@@ -108,6 +106,7 @@ function registerOrderTools(server: MCPServer, store: OrderStore) {
 
   register({
     name: LIST_CUSTOMERS,
+    definition: { title: "List customers" },
     category: "orders",
     description:
       "List the customers the orders dashboard / pipeline can be scoped to. Returns id, name, and tier. Use a returned id as customerId for show_orders_dashboard or as the orders:customerId key for render-view.",
@@ -128,9 +127,9 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
   server.tool(
     {
       name: SHOW_ORDERS_DASHBOARD,
-      title: "Orders Dashboard",
+      title: "Orders dashboard",
       description:
-        "Show the orders dashboard for a customer: a KPI strip (per-status counts + revenue) next to a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
+        "Show the orders dashboard for a customer: the revenue and the order counts by status above a table of the customer's orders. The orders view; use it whenever the user wants to see a customer's orders at a glance.",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       inputSchema: z.object({
         customerId: z
@@ -144,7 +143,7 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
       outputSchema: z.object({}).passthrough(),
       _meta: appsSdkMeta({
         resourceUri: viewResourceUri(SHOW_ORDERS_DASHBOARD),
-        title: "Orders Dashboard",
+        title: "Orders dashboard",
       }),
     },
     withToolErrors((args: { customerId?: string }) => {
@@ -160,7 +159,8 @@ function registerOrderWidgetTools(server: MCPServer, store: OrderStore) {
       // object and render their own slice"). Stable `id`s keep the step keys distinct.
       const input: ComposedViewInput = {
         app: "orders",
-        title: `Orders — ${dashboard.kpi.customer.name}`,
+        // No view title: the KPI widget's header names the customer, so a
+        // toolbar title would say it twice. A view carries one title.
         summary: dashboardSummary(dashboard),
         layout: DASHBOARD_LAYOUT,
         entries: [

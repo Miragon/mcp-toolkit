@@ -207,7 +207,10 @@ describe("titles: the palette and the canvas speak user words", () => {
     const orders = items.find((i) => i.includes("demo:orders")) ?? ""
     expect(orders).toMatch(/font-medium">Bestellungen</)
     expect(orders).toContain("Alle offenen Bestellungen.")
-    expect(orders).toMatch(/font-mono text-xs">demo:orders</)
+    // A quiet mono id at the 13 px floor of the type scale, never 12 px.
+    const id = /<span class="([^"]*)">demo:orders</.exec(orders)?.[1]?.split(" ") ?? []
+    expect(id).toContain("font-mono")
+    expect(id).toContain("text-small")
   })
 
   it("resolves a titleKey through the LocaleProvider's translator", () => {
@@ -463,6 +466,20 @@ describe("toolbar: Apply, Discard and Save as dashboard are three different thin
     expect(attribute(buttonTag(advanced, de.advanced), "aria-pressed")).toBe("true")
     expect(button(advanced, de.catalogue)).toBeDefined()
     expect(advanced).toContain(de.statsReachable)
+  })
+
+  it("names the mode in words next to the title, with no status-tinted tile before it", () => {
+    // A mode is no status (CI §3.3), and a tinted icon tile before a title is
+    // the pattern WidgetHeader.icon deprecates (anti-slop U2).
+    for (const previewMode of [false, true]) {
+      const html = inGerman(toolbar({ previewMode }))
+      const lead = html.slice(0, html.indexOf("<h2"))
+      expect(lead, `previewMode ${previewMode}`).not.toMatch(
+        /bg-(?:success|warning|danger|info)-soft/,
+      )
+      expect(lead, `previewMode ${previewMode}`).not.toContain("<svg")
+      expect(html).toContain(previewMode ? de.previewBadge : de.builderBadge)
+    }
   })
 
   it("titles the builder with the focus target of the hand-off from the view", () => {

@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react"
+import { SearchX } from "lucide-react"
 import {
   Card,
   CardContent,
   CountPill,
+  EmptyState,
   FilterBar,
   KpiGrid,
   LivePill,
@@ -33,7 +35,8 @@ export function MetricsShowcase({ data }: { data?: { rows?: Row[] } | null }) {
   const debounced = useDebouncedValue(search, 200)
 
   const chips: FilterChip[] = [
-    { id: "danger", label: "Critical", active: activeChip === "danger" },
+    // Chip labels name the tone they filter by, in the kit's tone vocabulary.
+    { id: "danger", label: "Danger", active: activeChip === "danger" },
     { id: "warning", label: "Warning", active: activeChip === "warning" },
   ]
 
@@ -68,6 +71,13 @@ export function MetricsShowcase({ data }: { data?: { rows?: Row[] } | null }) {
           chips={chips}
           onChipToggle={(id) => setActiveChip((c) => (c === id ? null : id))}
         />
+        {filtered.length === 0 && (
+          <EmptyState
+            icon={<SearchX />}
+            title="No item matches this filter"
+            description="Change the search or the chip to see items again."
+          />
+        )}
         <div className="mt-3 flex flex-col gap-2">
           {filtered.map((row) => (
             <Card key={row.id} size="sm">

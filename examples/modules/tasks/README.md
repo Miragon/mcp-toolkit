@@ -63,15 +63,30 @@ owns its data in-process instead of fetching through a declarative step.
 
 A curated `({ data }: { data: TasksBoardData | null })` component built from the
 slim composed UI layer — `WidgetHeader`, `KpiGrid` (boxed, click-to-filter
-cells), `FilterBar` + `useDebouncedValue`, `SectionHeading`, tone-tinted status
-pills (`TONE_SOFT` + `ToneVariant`), `Badge`, `CountPill`, `LivePill`,
-`ListFooter`. No auto-UI, no `<div>` soup, theme tokens only (so it white-labels).
+cells), `FilterBar` + `useDebouncedValue`, `SectionHeading`, `StatusBadge` for
+each task's state, `Badge`, `LivePill`, `ListFooter` (mounted next to the empty
+filter result too, so its live region announces "No entries"). No auto-UI, no
+`<div>` soup, theme tokens only (so it white-labels).
 
-The two boundary-crossing actions (add a task, complete a task) are deliberately
-**agentic**: they hand a prompt to the host via `useHostActions()` /
-`buildShowWidgetIntent`, which the agent turns into the right `create_task` /
-`complete_task` + `show_tasks_board` calls. Everything else (KPI filter, search,
-pagination) is deterministic in-widget interaction with no model round-trip.
+**Complete** is a deterministic write: the button calls `complete_task` through
+`useToolMutation`, shows the row as done at once, rolls it back if the call
+fails, and reports the outcome as a toast (`useToast`). Each call settles on its
+own promise (`mutateAsync`), so two quick completions keep their own rollback.
+The completed row stays where it was until the next Refresh, so nothing moves
+under the pointer, and the focus moves to the row instead of falling to the
+page. An active status filter is named in the KPI header and in the control
+that clears it. The tool carries
+`openai/widgetAccessible` so Apps SDK hosts let the widget call it. **Adding** a
+task needs a title from the user, so it stays a chat hand-off: "Ask agent to
+add" hands a prompt to the host via `useHostActions()`, which the agent turns
+into `create_task` + `show_tasks_board`. The button says so and is styled as the
+secondary action. Everything else (KPI filter, search, pagination) is
+deterministic in-widget interaction with no model round-trip.
+
+The widget also shows the states a user needs: a failed self-fetch renders an
+`ErrorState` with a retry (the raw reason sits under Details), an empty board
+and an empty filter result are two different `EmptyState`s with their next
+step, and a refresh reports its outcome as a toast.
 
 ### 4. Registration — host + bundle
 
@@ -142,7 +157,7 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
 
 Edit the JSON to re-render live; the **Model context** panel shows the
 `<ModelContext>` line the board reports; the **Host activity** panel logs every
-`callTool` (Refresh) and `sendFollowUpMessage` (the add/complete hand-offs). The
+`callTool` (Refresh and Complete) and `sendFollowUpMessage` (the add hand-off). The
 brand switcher proves the token-only styling re-skins cleanly.
 
 ## Verify

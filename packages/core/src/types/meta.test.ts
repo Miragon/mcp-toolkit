@@ -26,7 +26,7 @@ describe("appsSdkMeta", () => {
   it("emits the Apps SDK widget-rendering keys", () => {
     expect(appsSdkMeta({ resourceUri: URI, title: "Widget" })).toEqual({
       "openai/outputTemplate": URI,
-      "openai/toolInvocation/invoking": "Loading Widget...",
+      "openai/toolInvocation/invoking": "Loading Widget…",
       "openai/toolInvocation/invoked": "Widget ready",
       "openai/widgetAccessible": true,
       "openai/resultCanProduceWidget": true,
@@ -44,7 +44,7 @@ describe("appsSdkMeta", () => {
     expect(explicit["openai/toolInvocation/invoked"]).toBe("Done")
 
     const untitled = appsSdkMeta({ resourceUri: URI })
-    expect(untitled["openai/toolInvocation/invoking"]).toBe("Loading view...")
+    expect(untitled["openai/toolInvocation/invoking"]).toBe("Loading view…")
     expect(untitled["openai/toolInvocation/invoked"]).toBe("View ready")
   })
 
