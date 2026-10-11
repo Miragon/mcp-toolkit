@@ -1,5 +1,5 @@
 import { useLocale } from "@miragon/mcp-toolkit-ui"
-import type { Order } from "./OrderStatusCard.js"
+import type { Order } from "./order.js"
 
 /**
  * The order card's UI text: one typed catalog per language, English and

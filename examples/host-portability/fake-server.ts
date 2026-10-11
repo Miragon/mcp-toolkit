@@ -1,4 +1,4 @@
-import type { Order } from "./OrderStatusCard.js"
+import type { Order } from "./order.js"
 
 /**
  * A tiny in-memory stand-in for a real MCP server. All three host bridges in
