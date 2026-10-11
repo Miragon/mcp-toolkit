@@ -4,7 +4,6 @@ import { Check } from "lucide-react"
 import { ListFooter } from "../components/ListFooter.js"
 import { ICON_STROKE } from "../lib/icon-stroke.js"
 import { LocaleProvider, useLocale } from "../locale/locale-provider.js"
-import { TOOLKIT_MESSAGES } from "../locale/toolkit-messages.js"
 import { useHostBridge } from "./host-bridge.js"
 import { WidgetFixtureHost } from "./widget-fixture.js"
 
@@ -66,9 +65,15 @@ describe("WidgetFixtureHost host scope", () => {
     expect(render(undefined, () => <Check />)).toContain(`stroke-width="${ICON_STROKE}"`)
   })
 
-  it("mounts a toast stack, labelled in the host locale", () => {
+  it("mounts the toast stack as the view's one polite live region", () => {
+    // Like McpAppView's: fixed attributes, no role and no name, so the first
+    // toast lands in a region the browser already tracks.
     const html = render({ locale: "de" })
-    expect(html).toContain('data-slot="toast-viewport"')
-    expect(html).toContain(`aria-label="${TOOLKIT_MESSAGES.de.common.notifications}"`)
+    const viewport = /<div data-slot="toast-viewport"[^>]*>/.exec(html)?.[0]
+    expect(viewport).toBeDefined()
+    expect(viewport).toContain('aria-live="polite"')
+    expect(viewport).toContain('aria-atomic="false"')
+    expect(viewport).not.toContain("aria-label")
+    expect(viewport).not.toContain("role=")
   })
 })
