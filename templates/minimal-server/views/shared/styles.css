@@ -16,7 +16,8 @@
 /* Your brand: the toolkit renders in the Miragon theme by default. Override
    ROLE variables only (--primary, --primary-hover, --link, --focus, --ring,
    --radius-md, …), never --cd-* tokens or component classes, and declare each
-   colour in both blocks. See docs/guides/white-labeling.md in mcp-toolkit.
+   colour in both blocks. README.md ("Your brand") has a worked example,
+   docs/guides/white-labeling.md in mcp-toolkit every role.
 
 :root,
 [data-theme-mode="light"] {
