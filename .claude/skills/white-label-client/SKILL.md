@@ -43,6 +43,7 @@ roles only.** The contract (`ROLE_TOKENS`):
 | `--destructive` (+ `--destructive-foreground`)                             | Destructive action fill, its text |
 | `--radius-sm/md/lg/pill`, `--shadow-1/2/3`, `--scrim`                      | Shape, elevation, backdrop        |
 | `--motion-fast/base/slow`, `--ease`, `--font-sans`, `--font-mono`          | Motion, typography                |
+| `--text-title/section/body/dense/small`                                    | Type scale (13 px floor)          |
 
 `createTheme` has one optional field per role (`primary`, `primaryHover`, `link`,
 `focus`, `muted`, `mutedForeground`, `input`, `dangerInk`, `radiusMd`, `fontMono`,

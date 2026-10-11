@@ -144,9 +144,11 @@ Quality rules:
 - **No `<div>` wüste.** Compose from the slim composed layer: `Card` /
   `CardHeader` / `CardContent`, `GridLayout` + `GridItem`, `KpiGrid` / `KpiCell`,
   `Table`, `WidgetHeader`, `SectionHeading`, `GroupCard`, `FilterBar` /
-  `FilterChip`, `DrillButton`, `ListFooter`, the pills (`LivePill` / `CountPill`),
-  and the tone utilities (`ToneVariant` / `TONE_*`) — they carry the design tokens
-  (spacing, focus rings, dark mode). `TasksBoard` is built entirely from these.
+  `FilterChip`, `DrillButton`, `ListFooter` / `PagedListFooter`, the pills
+  (`LivePill` / `StatusBadge` / `CountPill`), `ErrorState` / `EmptyState`, and
+  the tone utilities (`ToneVariant` / `TONE_*` / `resolveTone`); they carry the
+  design tokens (spacing, focus rings, dark mode, the type scale). `TasksBoard`
+  is built entirely from these.
 - **Use role tokens, never hard-coded colors.** Class names like `text-link`,
   `text-muted-foreground`, `bg-card`, `border-input`, `ring-focus`, `rounded-md`
   and the `TONE_*` maps resolve to the active theme's role variables (the Miragon
@@ -154,18 +156,26 @@ Quality rules:
   light/dark automatically. A hard-coded `#hex`, `bg-blue-600`, or
   `rounded-[10px]` breaks white-labeling: it ignores the brand a `ThemeProvider`
   sets. Status is never text in its own colour (`text-success` is 1.67:1 on
-  white): use the tone's ink (`TONE_TEXT`) next to a dot or icon; text on a
+  white): use the tone's ink (`TONE_INK`) next to a dot or icon; text on a
   tint (`TONE_SOFT`) is the foreground with the tone on the rim
   (`TONE_BORDER`); figures (counts, KPI values, trends) stay in the
   foreground next to a `TONE_DOT`. `FOCUS_RING` on custom controls. Icons are
   Lucide in `currentColor` (a status icon takes `TONE_ICON`); `McpAppView` sets
-  the stroke once (2.5, 2 in dense bars), so never pass `strokeWidth` per icon. Merge conditional classes with `cn(...)`. See
+  the stroke once (2.5, 2 in dense bars), so never pass `strokeWidth` per icon;
+  never type a glyph (→ › ✓ ×) as an icon. Text sizes come from the type
+  scale (`text-title`, `text-section`, `text-body`, `text-dense`,
+  `text-small`): nothing below 13 px, so no `text-xs` and no `text-[10px]`
+  (a caption is `MICRO_LABEL`). Merge conditional classes with `cn(...)`. See
   the [white-labeling guide](../../../docs/guides/white-labeling.md) and the
   playground's brand switcher.
-- **Metrics → `KpiGrid`** (a row of headline cells; set a cell `tone`/`onClick`).
-  **Tabular data → `Table`** (+ `ListFooter` for pagination). **Filtering →
-  `FilterBar` + `useDebouncedValue`.** **Loading → `Skeleton`.** **Status colour →
-  the tone system** (`ToneVariant` + `LivePill`/`CountPill`/`TONE_*`).
+- **Metrics → `KpiGrid`** (a row of headline cells; set a cell `tone`, and
+  `onClick` + `actionHint` for a drill). **Tabular data → `Table`** (+
+  `ListFooter`, or `PagedListFooter` for a paged query). **Filtering →
+  `FilterBar` + `useDebouncedValue`.** **Loading → `Skeleton` /
+  `KpiGridSkeleton`.** **A failed fetch → `ErrorState`** (a catalog title and
+  next step, the raw `error.message` under `details`, `onRetry`), never the raw
+  message as text. **Status colour → the tone system** (`ToneVariant` +
+  `StatusBadge`/`LivePill`/`CountPill`/`TONE_*`).
 - **Pre-format** numbers/currency for the locale before passing them in.
 
 Sketch (mirrors `OrderStatusCard`'s structure):
@@ -189,9 +199,7 @@ function OrderCard({ data }: { data: Order | null }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {data.id}
-          <Badge variant={data.status === "cancelled" ? "destructive" : "default"}>
-            {data.status}
-          </Badge>
+          <Badge variant={data.status === "cancelled" ? "danger" : "default"}>{data.status}</Badge>
         </CardTitle>
         <CardDescription>{data.customer}</CardDescription>
       </CardHeader>

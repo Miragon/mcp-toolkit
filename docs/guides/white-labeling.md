@@ -36,6 +36,7 @@ The role-token contract (`ROLE_TOKENS`):
 | `--shadow-1` `--shadow-2` `--shadow-3` `--scrim`                             | Elevation; dialog and sheet backdrop                                  |
 | `--motion-fast` `--motion-base` `--motion-slow` `--ease`                     | Transitions (reduced motion is always respected)                      |
 | `--font-sans` `--font-mono`                                                  | Typography (Geist first; loading it is opt-in)                        |
+| `--text-title` `--text-section` `--text-body` `--text-dense` `--text-small`  | The type scale: 28, 21, 16, 14 and 13 px (keep the floor at 13 px)    |
 
 Three rules keep a brand accessible:
 

@@ -50,27 +50,36 @@ Tailwind preset.
 ### Composed components
 
 Focused, pure widget building blocks (React + primitives + `cn`). Several are
-**tone-aware** — a `ToneVariant` (`"neutral" | "info" | "success" | "warning" | "danger"`)
-maps to the status roles in `theme.css`: the colour (`--<tone>`: fill, dot,
-border, icon), the tint (`--<tone>-soft`) and the text colour (`--<tone>-ink`).
-Status is never text in its own colour.
+**tone-aware**: they take a tone from ONE vocabulary (`"success" | "warning" |
+"danger" | "info" | "neutral"`; retired names resolve through `resolveTone`)
+that maps to the status roles in `theme.css`: the colour (`--<tone>`: fill,
+dot, border, icon), the tint (`--<tone>-soft`) and the text colour
+(`--<tone>-ink`). Status is never text in its own colour. Text sits on the
+type scale (`text-title` … `text-small`), 13 px at least.
 
-| Symbol                                 | Purpose                                                                                       |
-| -------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `GridLayout` / `GridItem`              | 12-column responsive grid used by `WidgetRenderer`.                                           |
-| `KpiGrid`                              | Bordered strip of KPI cells (replaces the old `KPICard`).                                     |
-| `KpiCell` / `KpiGridHeader`            | Types for `KpiGrid`.                                                                          |
-| `LivePill` / `CountPill`               | Tone-driven pills: live-data dot, tabular count badge.                                        |
-| `SectionHeading`                       | Section title row + optional muted hint/control.                                              |
-| `WidgetHeader`                         | Page-level widget header: icon tile, title, meta, actions.                                    |
-| `GroupCard`                            | Expandable card with a clickable summary bar.                                                 |
-| `FilterBar` / `FilterChip`             | Search input + toggleable chip row for filtering a list.                                      |
-| `DrillButton`                          | Neutral in-widget navigation button (drill into a detail view).                               |
-| `ListFooter`                           | "Showing X of Y" + "Load more" footer; text + numbers per locale.                             |
-| `TONE_SOFT` / `TONE_DOT` / `TONE_TEXT` | `Record<ToneVariant, string>` tone → Tailwind class maps: tint + foreground, dot, text (ink). |
-| `TONE_BORDER` / `TONE_ICON`            | Tone → border colour / SVG icon colour (icons only, never text).                              |
-| `ToneVariant`                          | The status-tone union behind the tone-aware components.                                       |
-| `FOCUS_RING` / `FOCUS_RING_INSET`      | The kit's opaque focus ring (`--focus`, 2px) as class strings for custom controls.            |
+| Symbol                                                     | Purpose                                                                                                                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GridLayout` / `GridItem`                                  | 12-column responsive grid used by `WidgetRenderer`.                                                                                                    |
+| `KpiGrid`                                                  | Row of KPI cells (replaces the old `KPICard`): responsive columns, `strip` or `soft` variant, neutral figures, `actionHint` as the cell's description. |
+| `KpiGridSkeleton`                                          | Loading placeholder with `KpiGrid`'s geometry (`aria-busy`).                                                                                           |
+| `KpiCell` / `KpiGridHeader` / `KpiGridSkeletonProps`       | Types for `KpiGrid` / `KpiGridSkeleton`.                                                                                                               |
+| `LivePill` / `StatusBadge` / `CountPill`                   | Tone-driven pills: live-data dot, a state in words (text required), tabular count badge.                                                               |
+| `StatusBadgeProps` / `StatusBadgeText`                     | Types for `StatusBadge` (`StatusBadgeText`: string, number, element or a list of them, never empty).                                                   |
+| `SectionHeading`                                           | Section title row + optional muted hint/control.                                                                                                       |
+| `WidgetHeader` / `WidgetHeadingLevel`                      | Page-level widget header: state badge, title at a configurable heading level (`as`), meta, actions.                                                    |
+| `GroupCard`                                                | Expandable card with a clickable summary bar.                                                                                                          |
+| `FilterBar` / `FilterChip`                                 | Labelled search input + toggle chips (`aria-pressed`) for filtering a list.                                                                            |
+| `DrillButton`                                              | Neutral in-widget navigation button with a Lucide arrow (drill into a detail view).                                                                    |
+| `ListFooter`                                               | "Showing X of Y" + "Load more" footer in a polite live region; "Updating…" while a first page is in flight; text + numbers per locale.                 |
+| `PagedListFooter` / `PagedListState`                       | The tail of a paged list: a failed first page and a failed load-more as separate inline `ErrorState`s with their own retries, then the `ListFooter`.   |
+| `TONE_SOFT` / `TONE_TINT` / `TONE_DOT` / `TONE_INK`        | `Record<ToneVariant, string>` tone → Tailwind class maps: tint + foreground, tint alone, dot, text (ink). `TONE_TEXT` is `TONE_INK`'s deprecated name. |
+| `TONE_BORDER` / `TONE_ICON`                                | Tone → border colour / SVG icon colour (icons only, never text).                                                                                       |
+| `TONE_VARIANTS` / `TONE_ALIASES`                           | The five tones in severity order; the retired names and the tone each one means (`critical`/`error`/`destructive` → `danger`, …).                      |
+| `resolveTone` / `isToneVariant`                            | `(name: unknown, fallback = "neutral") → ToneVariant`: any tone name onto the vocabulary; the type guard for a tone from the wire.                     |
+| `ToneVariant` / `ToneAlias` / `ToneName`                   | The five tones; a retired name; what a tone-aware prop accepts (either).                                                                               |
+| `TYPE_SCALE` / `TYPE_STEPS` / `TYPE_FLOOR_PX` / `TypeStep` | The type scale: `text-title` (28/700), `text-section` (21/600), `text-body` (16), `text-dense` (14), `text-small` (13, the floor).                     |
+| `MICRO_LABEL`                                              | `"text-small font-semibold"`: the caption of a column or value (formerly 10–11 px uppercase).                                                          |
+| `FOCUS_RING` / `FOCUS_RING_INSET`                          | The kit's opaque focus ring (`--focus`, 2px) as class strings for custom controls.                                                                     |
 
 ### Theming
 
@@ -93,14 +102,14 @@ Status is never text in its own colour.
 One pattern each for transient feedback, empty and failed states
 (`packages/ui/src/components/{Toast,EmptyState,ErrorState}.tsx`).
 
-| Symbol                                    | Signature / purpose                                                                                                                                                                                                       |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ToastProvider`                           | `({ children }) → JSX.Element`. Toast state + the bottom-centre stack: one persistent `role="status"` `aria-live="polite"` region, status colour as edge + icon, 2.8 s (errors 5 s). Idempotent when nested.              |
-| `useToast`                                | `() → ToastApi`. `{ show(options) → id, dismiss(id) }`; a no-op outside a provider. `McpAppView` mounts a provider. Title and description are catalog text; a raw error goes to the console or an `ErrorState`'s Details. |
-| `ToastApi` / `ToastOptions` / `ToastTone` | Types. `ToastOptions = { tone?: "success" \| "warning" \| "danger" \| "info", title, description?, duration? }`.                                                                                                          |
-| `EmptyState`                              | `(props: EmptyStateProps) → JSX.Element`. Icon-or-mark slot, title (600), one help line, `action` + `secondaryAction`. Static, no live region.                                                                            |
-| `ErrorState`                              | `(props: ErrorStateProps) → JSX.Element`. Lucide icon, title, description, raw `details` in a disclosure, `onRetry`, `actions`; `variant: "block" \| "inline"`, `role` default `"alert"`.                                 |
-| `EmptyStateProps` / `ErrorStateProps`     | Prop types; `StateHeadingLevel` (`"h2" \| "h3" \| "h4" \| "p"`) and `ErrorStateTone` (`"danger" \| "warning" \| "info"`).                                                                                                 |
+| Symbol                                    | Signature / purpose                                                                                                                                                                                                                                                                |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ToastProvider`                           | `({ children }) → JSX.Element`. Toast state + the bottom-centre stack: one persistent `aria-live="polite"` region (`role="status"` only while it holds toasts), status colour as edge + icon, 2.8 s (errors 5 s); a held toast resumes its remaining time. Idempotent when nested. |
+| `useToast`                                | `() → ToastApi`. `{ show(options) → id, dismiss(id) }`; a no-op outside a provider. `McpAppView` mounts a provider. Title and description are catalog text; a raw error goes to the console or an `ErrorState`'s Details.                                                          |
+| `ToastApi` / `ToastOptions` / `ToastTone` | Types. `ToastOptions = { tone?: "success" \| "warning" \| "danger" \| "info", title, description?, duration? }`.                                                                                                                                                                   |
+| `EmptyState`                              | `(props: EmptyStateProps) → JSX.Element`. Icon-or-mark slot, title (600), one help line, `action` + `secondaryAction`. Static, no live region.                                                                                                                                     |
+| `ErrorState`                              | `(props: ErrorStateProps) → JSX.Element`. Lucide icon, title, description, raw `details` in a disclosure, `onRetry`, `actions`; `variant: "block" \| "inline"`, `role` default `"alert"`.                                                                                          |
+| `EmptyStateProps` / `ErrorStateProps`     | Prop types; `StateHeadingLevel` (`"h2" \| "h3" \| "h4" \| "p"`) and `ErrorStateTone` (`"danger" \| "warning" \| "info"`).                                                                                                                                                          |
 
 ### Localization
 
@@ -109,16 +118,16 @@ The toolkit ships its own strings as a typed catalog per locale
 them from the nearest `LocaleProvider`, so passing a locale localizes the whole
 chrome. English is the fallback for any other locale.
 
-| Symbol                   | Signature / purpose                                                                                                                                                                                              |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `LocaleProvider`         | `({ locale, translator?, toolkitMessages?, children })`. Active locale, an optional consumer translator, and per-section overrides of the toolkit's own strings.                                                 |
-| `useLocale`              | `() → string`. The active locale tag (`"en"` outside a provider; `McpAppView`'s host-locale fallback does not change it).                                                                                        |
-| `useTranslate`           | `() → BoundTranslate`. The consumer translator bound to the locale (echoes keys without one).                                                                                                                    |
-| `useToolkitMessages`     | `() → ToolkitMessages`. The toolkit's strings for the active locale (`common`, `view`, `listFooter`, `filterBar`, `pills`, `renderer`, `builder`, `propsSheet`).                                                 |
-| `TOOLKIT_MESSAGES`       | `Readonly<Record<"en" \| "de", ToolkitMessages>>`. The shipped catalogs.                                                                                                                                         |
-| `resolveToolkitMessages` | `(locale, override?) → ToolkitMessages`. Pure resolution behind the provider: primary language subtag, English fallback, per-section merge.                                                                      |
-| `formatCount`            | `(value, locale) → string`. Locale grouping (`1,234` / `1.234`), English fallback for an invalid tag.                                                                                                            |
-| `ToolkitMessages` & co.  | Types: `ToolkitMessages`, `ToolkitMessagesOverride`, `ToolkitLocale`, `CommonMessages`, `ViewMessages`, `ListFooterMessages`, `RendererMessages`, `BuilderMessages`, `PropsSheetMessages`, `LocaleContextValue`. |
+| Symbol                   | Signature / purpose                                                                                                                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LocaleProvider`         | `({ locale, translator?, toolkitMessages?, children })`. Active locale, an optional consumer translator, and per-section overrides of the toolkit's own strings.                                                                      |
+| `useLocale`              | `() → string`. The active locale tag (`"en"` outside a provider; `McpAppView`'s host-locale fallback does not change it).                                                                                                             |
+| `useTranslate`           | `() → BoundTranslate`. The consumer translator bound to the locale (echoes keys without one).                                                                                                                                         |
+| `useToolkitMessages`     | `() → ToolkitMessages`. The toolkit's strings for the active locale (`common`, `view`, `listFooter`, `filterBar`, `pills`, `renderer`, `builder`, `propsSheet`).                                                                      |
+| `TOOLKIT_MESSAGES`       | `Readonly<Record<"en" \| "de", ToolkitMessages>>`. The shipped catalogs.                                                                                                                                                              |
+| `resolveToolkitMessages` | `(locale, override?) → ToolkitMessages`. Pure resolution behind the provider: primary language subtag, English fallback, per-section merge.                                                                                           |
+| `formatCount`            | `(value, locale) → string`. Locale grouping (`1,234` / `1.234`), English fallback for an invalid tag.                                                                                                                                 |
+| `ToolkitMessages` & co.  | Types: `ToolkitMessages`, `ToolkitMessagesOverride`, `ToolkitLocale`, `CommonMessages`, `ViewMessages`, `ListFooterMessages`, `FilterBarMessages`, `RendererMessages`, `BuilderMessages`, `PropsSheetMessages`, `LocaleContextValue`. |
 
 ### Hooks
 
@@ -149,7 +158,7 @@ Widened from `Record<string, unknown>` so generated tool input interfaces
 
 | Symbol                   | Signature                                                                                                                                                                                                                                          |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cn`                     | `(...classes) → string`. `clsx` + `tailwind-merge`.                                                                                                                                                                                                |
+| `cn`                     | `(...classes) → string`. `clsx` + `tailwind-merge`, extended with the type scale (`text-small` merges as a size, not a colour).                                                                                                                    |
 | `parseToolResult`        | `(result, opts?: ParseToolResultOptions) → unknown`. Decode a raw MCP tool result to its payload. `structuredContent`-first: `isError` → throw, then `structuredContent`, then JSON-decoded `text`, then raw. `useToolQuery` decodes through this. |
 | `parseViewToolResult`    | `(result) → unknown`. Unwrap a `*_show_*` view envelope (`context.stepData`) to flat widget data: single-step → that step's data; multi-step → keyed by step id. Non-envelope results fall through `parseToolResult`.                              |
 | `ParseToolResultOptions` | `{ prefer?: "structured" \| "text" }`. Channel preference for `parseToolResult`. Default `"structured"`.                                                                                                                                           |
@@ -290,7 +299,7 @@ kept out of the main barrel.
 packages/ui/src/
 ├── primitives/          shadcn base (card, table, button, …)
 ├── components/          composed components (KpiGrid, Pills, FilterBar, …)
-├── lib/                 cn(), parse-tool-result, tone-utils (TONE_*/ToneVariant), focus-ring
+├── lib/                 cn(), parse-tool-result, tone-utils (TONE_*/resolveTone), typography (TYPE_SCALE), focus-ring
 ├── theme/               createTheme + ThemeProvider + themePresets + CD_TOKENS + fontFaces
 │                        + cd-tokens.generated.css (vendored Miragon tokens)
 ├── theme.css            role tokens (light + dark) over the --cd-* tokens
