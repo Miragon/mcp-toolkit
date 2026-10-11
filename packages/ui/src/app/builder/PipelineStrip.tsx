@@ -62,7 +62,7 @@ function PipelineStripImpl({
         <span className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
           {L.pipelineHeader}
         </span>
-        <span className="text-muted-foreground/60 text-[10px]">· auto-applies on edit</span>
+        <span className="text-muted-foreground text-[10px]">· auto-applies on edit</span>
         <div className="ml-auto text-[11px]">
           <StatusChip status={status} L={L} />
         </div>
@@ -111,7 +111,7 @@ function PipelineStripImpl({
                               <div className="flex flex-col gap-0.5">
                                 <span className="font-mono text-xs">{c.key}</span>
                                 {c.consumedByWidgets.length + c.consumedBySteps.length > 0 && (
-                                  <span className="text-muted-foreground/80 font-mono text-[10px]">
+                                  <span className="text-muted-foreground font-mono text-[10px]">
                                     → {[...c.consumedByWidgets, ...c.consumedBySteps].join(", ")}
                                   </span>
                                 )}
@@ -130,7 +130,7 @@ function PipelineStripImpl({
                           className="h-7 pr-10 font-mono text-xs"
                         />
                         <span
-                          className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums"
+                          className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums"
                           title="parsed type"
                         >
                           {valueTypeLabel(entry.rawValue)}
@@ -228,7 +228,7 @@ function PipelineStripImpl({
                       </Button>
                     </div>
                     {meta && (
-                      <div className="text-muted-foreground/80 ml-1 flex flex-wrap gap-x-2 pl-24 text-[10px]">
+                      <div className="text-muted-foreground ml-1 flex flex-wrap gap-x-2 pl-24 text-[10px]">
                         <span className="font-mono">
                           ← {meta.requires.length ? meta.requires.join(", ") : "(no inputs)"}
                         </span>

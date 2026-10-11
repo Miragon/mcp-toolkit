@@ -150,7 +150,7 @@ export function App() {
                               <code className="text-muted-foreground min-w-0 flex-1 text-xs break-all">
                                 {formatCall(entry.call)}
                               </code>
-                              <span className="text-muted-foreground/60 shrink-0 text-[10px]">
+                              <span className="text-muted-foreground shrink-0 text-[10px]">
                                 {entry.at}
                               </span>
                             </li>

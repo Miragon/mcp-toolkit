@@ -1,4 +1,5 @@
 import { CircleDot, Loader2 } from "lucide-react"
+import { TONE_DOT, TONE_TEXT } from "../../lib/tone-utils.js"
 import type { LayoutBuilderLabels, RefreshStatus } from "./labels.js"
 
 /**
@@ -22,15 +23,18 @@ export function StatusChip({
   }
   if (status === "pending") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-        <span className="size-1.5 animate-pulse rounded-full bg-amber-500" />
+      <span className={`inline-flex items-center gap-1.5 ${TONE_TEXT.warning}`}>
+        <span
+          aria-hidden="true"
+          className={`size-1.5 animate-pulse rounded-full ${TONE_DOT.warning}`}
+        />
         {L.statusPending}
       </span>
     )
   }
   return (
-    <span className="text-primary inline-flex items-center gap-1.5">
-      <Loader2 className="size-3 animate-spin" />
+    <span className={`inline-flex items-center gap-1.5 ${TONE_TEXT.info}`}>
+      <Loader2 aria-hidden="true" className="size-3 animate-spin" />
       {L.statusRefreshing}
     </span>
   )

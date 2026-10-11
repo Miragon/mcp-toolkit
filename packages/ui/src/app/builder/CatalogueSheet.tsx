@@ -11,6 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "../../primitives/sheet.js"
+import { TONE_DOT, TONE_TEXT } from "../../lib/tone-utils.js"
 import { cn } from "../../lib/utils.js"
 import type { LayoutBuilderLabels } from "./labels.js"
 
@@ -65,22 +66,23 @@ export function CatalogueSheet({
                   {keyCatalog.map((entry) => (
                     <li
                       key={entry.key}
-                      className="hover:bg-accent/40 flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
+                      className="hover:bg-muted flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="truncate font-mono">{entry.key}</span>
                         <span
                           className={cn(
                             "inline-flex shrink-0 items-center gap-1 text-[10px]",
-                            entry.inContext
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-muted-foreground",
+                            entry.inContext ? TONE_TEXT.success : "text-muted-foreground",
                           )}
                         >
                           <span
+                            aria-hidden="true"
                             className={cn(
                               "size-1.5 rounded-full",
-                              entry.inContext ? "bg-emerald-500" : "bg-muted-foreground/40",
+                              entry.inContext
+                                ? TONE_DOT.success
+                                : "border-input border bg-transparent",
                             )}
                           />
                           {entry.inContext ? L.catalogueLive : L.catalogueMissing}
@@ -89,7 +91,7 @@ export function CatalogueSheet({
                       {(entry.producedBySteps.length > 0 ||
                         entry.consumedBySteps.length > 0 ||
                         entry.consumedByWidgets.length > 0) && (
-                        <div className="text-muted-foreground/80 flex flex-col gap-0.5 text-[10px]">
+                        <div className="text-muted-foreground flex flex-col gap-0.5 text-[10px]">
                           {entry.producedBySteps.length > 0 && (
                             <span>
                               {L.catalogueProducedBy}{" "}
@@ -146,7 +148,7 @@ export function CatalogueSheet({
                       className="flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
                     >
                       <span className="truncate font-mono">{s.id}</span>
-                      <div className="text-muted-foreground/80 flex flex-wrap gap-x-3 text-[10px]">
+                      <div className="text-muted-foreground flex flex-wrap gap-x-3 text-[10px]">
                         <span className="font-mono">
                           ← {s.requires.length ? s.requires.join(", ") : "(no inputs)"}
                         </span>
@@ -181,7 +183,7 @@ export function CatalogueSheet({
                         className="bg-muted/20 flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
                       >
                         <span className="truncate font-mono">{w.id}</span>
-                        <span className="text-muted-foreground/80 text-[10px]">
+                        <span className="text-muted-foreground text-[10px]">
                           {L.catalogueNeedsKeys}{" "}
                           <span className="font-mono">{w.missingKeys.join(", ")}</span>
                         </span>

@@ -82,7 +82,7 @@ importers:
         version: 1.47.0(react@19.3.0)
       mcp-use:
         specifier: 2.7.3
-        version: 2.7.3(@base-ui/react@1.8.0(@date-fns/tz@1.4.1)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mcp-use/client@2.3.4(@modelcontextprotocol/server@2.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5))(@types/node@26.6.4)(class-variance-authority@0.7.1)(clsx@2.1.1)(esbuild@0.28.2)(express@5.2.1)(jiti@2.7.0)(lucide-react@1.47.0(react@19.3.0))(markdown-to-jsx@9.10.2(react@19.3.0)(vue@3.5.34(typescript@6.0.3)))(motion@12.43.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-resizable-panels@4.12.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(sonner@2.0.7(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(tailwind-merge@3.7.0)(tsx@4.23.15)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(yaml@2.9.1)(zod@4.6.5)
+        version: 2.7.3(@base-ui/react@1.8.0(@date-fns/tz@1.4.1)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mcp-use/client@2.3.4(@modelcontextprotocol/server@2.2.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5))(@types/node@26.6.4)(class-variance-authority@0.7.1)(clsx@2.1.1)(esbuild@0.28.2)(express@5.2.1)(jiti@2.7.0)(lucide-react@1.47.0(react@19.3.0))(markdown-to-jsx@9.10.2(react@19.3.0)(vue@3.5.34(typescript@6.0.3)))(motion@12.43.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-resizable-panels@4.12.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(sonner@2.0.7(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(tailwind-merge@3.7.0)(tsx@4.23.15)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(yaml@2.9.1)(zod@4.6.5)
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -95,7 +95,7 @@ importers:
     devDependencies:
       '@mcp-use/client':
         specifier: 2.3.4
-        version: 2.3.4(@modelcontextprotocol/server@2.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)
+        version: 2.3.4(@modelcontextprotocol/server@2.2.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)
       '@miragon/mcp-toolkit-tool-codegen':
         specifier: workspace:*
         version: link:../packages/tool-codegen
@@ -223,6 +223,9 @@ importers:
       '@fontsource-variable/geist':
         specifier: 5.3.0
         version: 5.3.0
+      '@fontsource-variable/geist-mono':
+        specifier: 5.3.0
+        version: 5.3.0
       '@tanstack/react-query':
         specifier: 5.103.2
         version: 5.103.2(react@19.3.0)
@@ -254,6 +257,9 @@ importers:
       '@stryker-mutator/vitest-runner':
         specifier: 10.0.0
         version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.6.4))(vitest@4.1.11)
+      '@types/node':
+        specifier: 26.6.4
+        version: 26.6.4
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
@@ -268,7 +274,7 @@ importers:
         version: 4.10.2
       mcp-use:
         specifier: 2.7.3
-        version: 2.7.3(@base-ui/react@1.8.0(@date-fns/tz@1.4.1)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mcp-use/client@2.3.4(@modelcontextprotocol/server@2.2.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5))(@types/node@26.6.4)(class-variance-authority@0.7.1)(clsx@2.1.1)(esbuild@0.28.2)(express@5.2.1)(jiti@2.7.0)(lucide-react@1.47.0(react@19.3.0))(markdown-to-jsx@9.10.2(react@19.3.0)(vue@3.5.34(typescript@6.0.3)))(motion@12.43.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-resizable-panels@4.12.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(sonner@2.0.7(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(tailwind-merge@3.7.0)(tsx@4.23.15)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(yaml@2.9.1)(zod@4.6.5)
+        version: 2.7.3(@base-ui/react@1.8.0(@date-fns/tz@1.4.1)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mcp-use/client@2.3.4(@modelcontextprotocol/server@2.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5))(@types/node@26.6.4)(class-variance-authority@0.7.1)(clsx@2.1.1)(esbuild@0.28.2)(express@5.2.1)(jiti@2.7.0)(lucide-react@1.47.0(react@19.3.0))(markdown-to-jsx@9.10.2(react@19.3.0)(vue@3.5.34(typescript@6.0.3)))(motion@12.43.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-resizable-panels@4.12.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(sonner@2.0.7(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(tailwind-merge@3.7.0)(tsx@4.23.15)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(yaml@2.9.1)(zod@4.6.5)
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -1099,6 +1105,9 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@fontsource-variable/geist-mono@5.3.0':
+    resolution: {integrity: sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw==}
 
   '@fontsource-variable/geist@5.3.0':
     resolution: {integrity: sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA==}
@@ -6107,6 +6116,8 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
+  '@fontsource-variable/geist-mono@5.3.0': {}
+
   '@fontsource-variable/geist@5.3.0': {}
 
   '@humanfs/core@0.19.2':
@@ -6369,6 +6380,7 @@ snapshots:
     transitivePeerDependencies:
       - '@modelcontextprotocol/server'
       - react-dom
+    optional: true
 
   '@mcp-use/client@2.3.4(@modelcontextprotocol/server@2.2.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)':
     dependencies:
@@ -6381,7 +6393,6 @@ snapshots:
     transitivePeerDependencies:
       - '@modelcontextprotocol/server'
       - react-dom
-    optional: true
 
   '@mcp-use/inspector@20.3.15(c1cc609b9a4a49a70ddb4faeb855bb80)':
     optionalDependencies:
@@ -6473,7 +6484,6 @@ snapshots:
       '@modelcontextprotocol/server': 2.2.0
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-    optional: true
 
   '@modelcontextprotocol/server@2.0.0':
     dependencies:

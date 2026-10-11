@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react"
+import { TONE_ICON } from "../../lib/tone-utils.js"
 import type { LayoutBuilderLabels } from "./labels.js"
 
 // -------------------------------------------------------------------------- //
@@ -31,19 +32,25 @@ export function BuilderBanners({
   return (
     <div className="flex flex-col gap-2" role="status" aria-live="polite">
       {refreshError && (
-        <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-md border px-3 py-2 text-xs">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        <div className="border-danger bg-danger-soft text-foreground flex items-start gap-2 rounded-md border px-3 py-2 text-xs">
+          <AlertTriangle
+            className={`mt-0.5 size-3.5 shrink-0 ${TONE_ICON.danger}`}
+            aria-hidden="true"
+          />
           <div className="min-w-0">
             <p className="font-medium">{L.catalogueError}</p>
-            <p className="text-destructive/80 mt-0.5 break-words">
+            <p className="text-foreground mt-0.5 break-words">
               <span className="font-mono">{catalogueToolName}</span>: {refreshError}
             </p>
           </div>
         </div>
       )}
       {validationIssues.length > 0 && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        <div className="border-warning bg-warning-soft text-foreground flex items-start gap-2 rounded-md border px-3 py-2 text-xs">
+          <AlertTriangle
+            className={`mt-0.5 size-3.5 shrink-0 ${TONE_ICON.warning}`}
+            aria-hidden="true"
+          />
           <div className="min-w-0">
             <p className="font-medium">{L.validationWarning}</p>
             <ul className="mt-0.5 list-inside list-disc space-y-0.5">

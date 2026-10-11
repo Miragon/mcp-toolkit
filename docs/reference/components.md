@@ -55,7 +55,7 @@ of building a bordered `<div>` by hand.
 
 ### Badge
 
-Props: `variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link"`, `className?`.
+Props: `variant?: "default" | "secondary" | "destructive" | "success" | "warning" | "info" | "outline" | "ghost" | "link"`, `className?`. The status variants follow the tone model: tint, foreground text, a border in the tone.
 
 ```tsx
 import { Badge } from "@miragon/mcp-toolkit-ui"
@@ -175,8 +175,9 @@ real widgets keep needing. Reach for these before re-implementing the same thing
 from `<div>`s. All import from `@miragon/mcp-toolkit-ui` (pure: React +
 primitives + `cn`, no host dependency). Many are **tone-aware**: a
 `ToneVariant` (`"neutral" | "info" | "success" | "warning" | "danger"`) maps to
-the semantic status tokens in `globals.css`, so they re-skin with the theme — see
-[`TONE_SOFT`/`TONE_DOT`/`TONE_TEXT`](#tone-tokens).
+the status roles in `theme.css`, so they re-skin with the theme. Status shows
+as a dot, icon or border next to readable text, never as coloured text; see
+[the tone tokens](#tone-tokens).
 
 ### KpiGrid
 
@@ -201,7 +202,7 @@ import { KpiGrid } from "@miragon/mcp-toolkit-ui"
 ```
 
 **When to use:** a row of metrics at the top of a widget. Pre-format values for
-locale/currency. Set a cell `tone` for emphasis and `onClick` to make a metric a
+locale/currency. A cell `tone` shows as a status dot next to its label (figures stay in the foreground colour); set `onClick` to make a metric a
 drill target.
 
 ### LivePill / CountPill
@@ -352,19 +353,49 @@ internally.
 
 ### Tone tokens
 
-`TONE_SOFT` / `TONE_DOT` / `TONE_TEXT` — `Record<ToneVariant, string>` maps from a
-tone (`"neutral" | "info" | "success" | "warning" | "danger"`) to Tailwind class
-strings backed by the semantic status tokens in `globals.css`. They re-skin with
-the theme (light/dark).
+`Record<ToneVariant, string>` maps from a tone (`"neutral" | "info" | "success" |
+"warning" | "danger"`) to Tailwind class strings. Every status tone has three
+roles (Miragon CI), each with light and dark values:
+
+| Role                    | Token           | Maps                                   |
+| ----------------------- | --------------- | -------------------------------------- |
+| fill, dot, border, icon | `--<tone>`      | `TONE_DOT`, `TONE_BORDER`, `TONE_ICON` |
+| tint                    | `--<tone>-soft` | `TONE_SOFT` (tint + foreground text)   |
+| text on a plain surface | `--<tone>-ink`  | `TONE_TEXT`                            |
+
+Status is never text in its own colour: success and warning reach only
+1.67:1 / 1.83:1 on white, so their ink is the foreground. Text on a tint is
+always the foreground (pair `TONE_SOFT` with `TONE_BORDER`), and figures (KPI
+values, trends, counts) never take a tone colour: the tone shows as a dot next
+to them. In dark mode the colours are the `-hell` values and the tints are
+transparent.
 
 ```tsx
-import { TONE_TEXT, type ToneVariant } from "@miragon/mcp-toolkit-ui"
-;<span className={TONE_TEXT[tone]}>{value}</span>
+import { TONE_DOT, TONE_TEXT, type ToneVariant } from "@miragon/mcp-toolkit-ui"
+;<span className="inline-flex items-center gap-1.5">
+  <span aria-hidden="true" className={`size-2 rounded-full ${TONE_DOT[tone]}`} />
+  <span className={TONE_TEXT[tone]}>{label}</span>
+</span>
 ```
 
 **When to use:** colour a custom element by status without hand-rolling a
-`tone === "x" ? …` ternary. The tone-aware components (`KpiGrid`, `LivePill`,
-`CountPill`, `WidgetHeader`) consume these internally.
+`tone === "x" ? …` ternary. `TONE_ICON` is for SVG icons only. The tone-aware
+components (`KpiGrid`, `LivePill`, `CountPill`, `Badge`, `WidgetHeader`)
+consume these internally.
+
+### FOCUS_RING
+
+`FOCUS_RING` / `FOCUS_RING_INSET`: the kit's opaque focus ring (2px in
+`--focus`, 3:1 or more in both modes) as a class string; the inset variant
+draws inside the element, for cells flush with a container edge.
+
+```tsx
+import { FOCUS_RING, cn } from "@miragon/mcp-toolkit-ui"
+;<button className={cn("rounded-md border px-3 py-1.5", FOCUS_RING)}>Open</button>
+```
+
+**When to use:** any custom interactive element. (Elements without a ring of
+their own still get an opaque `:focus-visible` outline from `theme.css`.)
 
 ## Data hooks
 
@@ -609,31 +640,36 @@ later conflicting utilities win.
 
 ## Theming
 
-White-label the toolkit from a single switch. The CSS variables in
-[`globals.css`](../../packages/ui/src/globals.css) (`--primary`, `--background`,
-`--radius`, …) are the public theming surface; these helpers set a curated subset
-of them per scope. All import from the **root** `@miragon/mcp-toolkit-ui` (React +
-DOM only, no `mcp-use/react`). Full walkthrough: the
-[white-labeling guide](../guides/white-labeling.md).
+The toolkit renders in the **Miragon theme** by default. The role variables in
+[`theme.css`](../../packages/ui/src/theme.css) (`--primary`, `--link`, `--focus`,
+`--<tone>-ink`, `--radius-md`, …, listed in `ROLE_TOKENS`) are the public theming
+surface; a customer brand overrides those, never the `--cd-*` tokens below them.
+These helpers set them per scope. All import from the **root**
+`@miragon/mcp-toolkit-ui` (React + DOM only, no `mcp-use/react`). Full
+walkthrough: the [white-labeling guide](../guides/white-labeling.md).
 
 ### createTheme
 
-`createTheme(tokens, opts?)` — map curated brand tokens onto the real CSS
-variables and return a serializable `ThemeDefinition` (`{ vars, darkVars?,
-toStyle() }`). All token fields are optional and inherit the toolkit default when
-omitted: `primary`, `primaryForeground`, `accent`, `accentForeground`,
-`background`, `foreground`, `card`, `cardForeground`, `border`, `ring`, `radius`,
-`fontSans`, `fontHeading`. Colours are any CSS colour string (`oklch`/`hex`/`hsl`).
+`createTheme(tokens, opts?)`: map brand tokens onto the real CSS variables and
+return a serializable `ThemeDefinition` (`{ vars, darkVars?, toStyle() }`). One
+optional field per role (`primary`, `primaryHover`, `link`, `focus`,
+`background`, `card`, `muted`, `mutedForeground`, `input`, `successInk`,
+`radiusMd`, `fontMono`, …) plus the legacy `accent*`, `cardForeground`,
+`radius`, `fontHeading`. Colours are any CSS colour string.
 
 ```tsx
 import { createTheme } from "@miragon/mcp-toolkit-ui"
 const acme = createTheme(
-  { primary: "oklch(0.55 0.2 264)", radius: "0.5rem" },
-  { dark: { primary: "oklch(0.7 0.16 264)" } },
+  { primary: "#0f766e", link: "#0f766e", focus: "#0f766e", radiusMd: "6px" },
+  { dark: { link: "#5eead4", focus: "#5eead4" } },
 )
 ```
 
-**When to use:** define a client's brand once. Apply it with `ThemeProvider`.
+**When to use:** define a client's brand once. Apply it with `ThemeProvider`
+(or spread `resolveThemeVars(theme, mode)` / `theme.toStyle()` onto a wrapper).
+A theme written against the old knobs keeps one brand: `primary` also gives
+the hover fill (90 %) and links, `ring` the focus ring, and `radius` the
+sm/md/lg steps, unless the theme sets those roles itself (in either mode).
 
 ### ThemeProvider
 
@@ -648,21 +684,80 @@ import { ThemeProvider } from "@miragon/mcp-toolkit-ui"
 ```
 
 **When to use:** wrap a widget or app to apply a theme. Renders a wrapper with the
-theme's CSS variables inline (overriding `:root`) and toggles the `.dark` class on
-that scope per `mode` — so it tracks `HostBridge.theme` or the OS preference. Two
+theme's CSS variables inline and sets the `.dark` class and `data-theme-mode` on
+that scope per `mode`, so it tracks `HostBridge.theme` or the OS preference. In
+dark mode the scope gets the toolkit's dark roles plus the theme's dark and
+mode-invariant tokens, never its light surfaces. A nested provider without
+`theme` re-applies the enclosing one's theme in its own mode. Dialogs, sheets
+and select menus opened inside portal into the scope (`usePortalContainer`):
+the portal node is the wrapper's first child, an empty `display: contents`
+element, so `space-*`, `divide-*` and `last:` see only your children. Two
 differently themed subtrees can coexist on one page.
 
 ### useTheme
 
-`useTheme()` — read the active `{ theme, mode, resolvedMode }` from the nearest
+`useTheme()`: read the active `{ theme, mode, resolvedMode }` from the nearest
 `ThemeProvider` (`resolvedMode` is `"system"` resolved to `"light"` | `"dark"`).
 Throws outside a provider.
 
+### usePortalContainer
+
+`usePortalContainer()`: the nearest `ThemeProvider`'s portal node, or `null`.
+Pass it as `container` to a portal of your own so it keeps the scope's theme
+and mode; the toolkit's `Dialog`, `Sheet` and `Select` already do.
+
 ### themePresets
 
-`themePresets.miragon` / `.violet` / `.emerald` — ready-made `ThemeDefinition`s
-(distinct `primary`/`radius` + dark overrides). A demonstration of `createTheme`
-and a fork-able starting point; pass one to `ThemeProvider`'s `theme` prop.
+`themePresets.emerald`: a ready-made `ThemeDefinition` (its own `primary`,
+hover, link, focus and `radius`, light and dark, contrast-tested like the
+default). A demonstration of `createTheme` and a fork-able starting point;
+pass it to `ThemeProvider`'s `theme` prop.
+`themePresets.miragon` and `.violet` are **deprecated**: the Miragon theme is
+the toolkit's default (render without a theme), and violet is the look the
+Miragon design system rules out. Both go in the next major.
+
+### CD_TOKENS
+
+`CD_TOKENS`: the Miragon corporate-design tokens as plain TypeScript, keys
+without the `--cd-` prefix (`CD_TOKENS.blau`, `CD_TOKENS["danger-soft"]`), and
+`CD_TOKENS_VERSION` (the miragon-brand release). Drift-tested against the
+vendored `cd-tokens.generated.css`.
+
+**When to use:** code that cannot read CSS variables: an SVG or canvas
+renderer, chart marks, a server-side image. UI components style through the
+role tokens instead.
+
+### fontFaces
+
+`fontFaces({ baseUrl, files?, display? })`: the `@font-face` rules for Geist
+and Geist Mono (latin, variable weight 100 to 900) served from `baseUrl`;
+`GEIST_FONT_FILES` names the woff2 files `@fontsource-variable` ships.
+
+```tsx
+import { fontFaces } from "@miragon/mcp-toolkit-ui"
+;<style>{fontFaces({ baseUrl: "https://mcp.example.com/fonts" })}</style>
+```
+
+**When to use:** load Geist without inlining it into every view (allow the
+origin in the view CSP). The bundled alternative is
+`@import "@miragon/mcp-toolkit-ui/fonts.css"`. Without either, the host's
+font or the system stack renders.
+
+### adoptHostFontVariables
+
+`adoptHostFontVariables(style, hostVariables)`: SEP-1865 hosts send their font
+as `--font-sans`/`--font-mono`, the same names as the font roles, and would
+replace the Geist-first stacks whole. This moves them to
+`--host-font-sans`/`--host-font-mono` (`HOST_FONT_VARIABLES`), the fallback
+slot right after Geist.
+
+```tsx
+import { adoptHostFontVariables } from "@miragon/mcp-toolkit-ui"
+adoptHostFontVariables(document.documentElement.style, hostContext.styles?.variables)
+```
+
+**When to use:** only in an app with its own host-document layer, right after
+it applied the host's style variables. `McpToolkitApp` already does it.
 
 ## App shell
 

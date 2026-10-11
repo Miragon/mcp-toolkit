@@ -22,19 +22,17 @@ import { STORIES, type Story } from "./stories.js"
 
 /**
  * The white-label themes the preview can be skinned with. `null` is the
- * toolkit's own default tokens (no `ThemeProvider` override), so you can compare
- * a brand against the baseline. The rest come straight from `themePresets`.
+ * toolkit's own default, the Miragon theme (no `ThemeProvider` override), so
+ * you can compare a customer brand against the baseline.
  */
 const DEFAULT_THEME_OPTION: { id: string; label: string; theme: ThemeDefinition | null } = {
   id: "default",
-  label: "Default",
+  label: "Miragon (default)",
   theme: null,
 }
 
 const THEME_OPTIONS: { id: string; label: string; theme: ThemeDefinition | null }[] = [
   DEFAULT_THEME_OPTION,
-  { id: "miragon", label: "Miragon", theme: themePresets.miragon },
-  { id: "violet", label: "Violet", theme: themePresets.violet },
   { id: "emerald", label: "Emerald", theme: themePresets.emerald },
 ]
 
@@ -133,12 +131,19 @@ function StoryList({
             onClick={() => onSelect(story)}
             aria-current={active ? "true" : undefined}
             className={
-              "hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none " +
-              (active ? "bg-accent text-accent-foreground font-medium" : "text-foreground/80")
+              "group hover:bg-accent hover:text-accent-foreground focus-visible:ring-focus rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-hidden " +
+              (active ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground")
             }
           >
             <div className="font-medium">{story.label}</div>
-            <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
+            {/* Quiet text on the --accent surface takes its foreground: dark
+                --muted-foreground reaches only 3.66:1 on the 10 % lift. */}
+            <div
+              className={
+                "group-hover:text-accent-foreground mt-0.5 line-clamp-2 text-xs " +
+                (active ? "text-accent-foreground" : "text-muted-foreground")
+              }
+            >
               {story.description}
             </div>
           </button>
@@ -239,7 +244,7 @@ export function App() {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   spellCheck={false}
-                  className="border-input bg-muted/40 focus-visible:ring-ring min-h-[280px] flex-1 resize-y rounded-md border p-3 font-mono text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-none"
+                  className="border-input bg-muted/40 focus-visible:ring-ring min-h-[280px] flex-1 resize-y rounded-md border p-3 font-mono text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-hidden"
                 />
                 {parsed.error ? (
                   <Alert variant="destructive">
@@ -341,7 +346,7 @@ export function App() {
                         <code className="text-muted-foreground min-w-0 flex-1 text-xs break-all">
                           {formatAction(entry.action)}
                         </code>
-                        <span className="text-muted-foreground/60 shrink-0 text-[10px]">
+                        <span className="text-muted-foreground shrink-0 text-[10px]">
                           {entry.at}
                         </span>
                       </li>

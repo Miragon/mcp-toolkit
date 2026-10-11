@@ -3,81 +3,72 @@ name: white-label-client
 description: >-
   White-label a client UI with the @miragon/mcp-toolkit theming system. Use when
   asked to "re-brand"/"white-label" a UI, apply a client's brand colours, set up
-  createTheme / ThemeProvider / themePresets, support light/dark mode, theme a
-  widget or app for a specific customer, or fix hard-coded colours that ignore the
-  brand. The rule: use theme tokens (text-primary, bg-card, rounded-lg), never
-  hard-coded colours.
+  createTheme / ThemeProvider, support light/dark mode, theme a widget or app for
+  a specific customer, or fix hard-coded colours that ignore the brand. The rule:
+  use role tokens (bg-primary, text-link, bg-card, rounded-md, the TONE_* maps),
+  never hard-coded colours.
 ---
 
 # White-label a client UI with the toolkit theming system
 
-Every consultancy build wears a different client's brand. The toolkit ships a
-**CSS-variable token system** so you flip **one switch** — a `ThemeProvider` with
-a brand theme — and every primitive (`Card`, `Button`, `Badge`, `bg-card`,
-`text-primary`, `rounded-lg`) re-skins. Widgets authored to the rules
-(tokens, never hard-coded colours) inherit the brand **for free**.
+The toolkit renders in the **Miragon theme** by default. Every consultancy build
+that wears a different client's brand flips **one switch**: it overrides the
+**role tokens**, in CSS or with a `ThemeProvider`, and every primitive (`Card`,
+`Button`, `Badge`, `bg-card`, `text-link`, `rounded-md`) re-skins. Widgets
+authored to the rules (role tokens, never hard-coded colours) inherit the brand
+**for free**. A brand needs no toolkit release.
 
 **Ground truth:** the [white-labeling guide](../../../docs/guides/white-labeling.md)
-(full token table + wiring) and the brand switcher in
+(full role table, CSS path, mode rules) and the brand switcher in
 [`examples/widget-playground/App.tsx`](../../../examples/widget-playground/App.tsx).
 The exports live on the **root** barrel (`createTheme`, `ThemeProvider`,
-`useTheme`, `themePresets`) — React + DOM only, no host required.
+`useTheme`, `resolveThemeVars`, `ROLE_TOKENS`, `usePortalContainer`), React +
+DOM only, no host required.
 
-## The contract: CSS variables are the surface
+## The contract: role variables are the surface
 
-The design system is built on CSS custom properties in
-[`packages/ui/src/globals.css`](../../../packages/ui/src/globals.css): `:root`
-holds the light tokens, `.dark` the dark ones. **Setting those variables on any
-scope re-skins everything below it.** `createTheme` exposes the brand-relevant
-subset as plain fields:
+[`packages/ui/src/theme.css`](../../../packages/ui/src/theme.css) has three layers:
+the vendored Miragon `--cd-*` tokens (never touch), the **roles** (light AND dark,
+each pointing at a `--cd-*` token) and Tailwind's utility mapping. **Override
+roles only.** The contract (`ROLE_TOKENS`):
 
-| Token field                     | CSS variable                     | Skins                                 |
-| ------------------------------- | -------------------------------- | ------------------------------------- |
-| `primary` / `primaryForeground` | `--primary` / `-fg`              | Brand colour (buttons, accents)       |
-| `accent` / `accentForeground`   | `--accent` / `-fg`               | Subtle highlights, hover states       |
-| `background` / `foreground`     | `--background` / `-fg`           | Page surface + default text           |
-| `card` / `cardForeground`       | `--card` / `-fg`                 | Card / panel surface                  |
-| `border` / `ring`               | `--border` / `--ring`            | Dividers, outlines / focus rings      |
-| `radius`                        | `--radius`                       | Corner roundness (drives `rounded-*`) |
-| `fontSans` / `fontHeading`      | `--font-sans` / `--font-heading` | Typography                            |
+| Roles                                                                      | Skins                             |
+| -------------------------------------------------------------------------- | --------------------------------- |
+| `--background` `--card` `--popover` `--muted` `--secondary`                | Surfaces                          |
+| `--foreground` `--muted-foreground`                                        | Text                              |
+| `--border` `--input`                                                       | Lines; input borders (3:1)        |
+| `--primary` `--primary-foreground` `--primary-hover`                       | Primary button                    |
+| `--link` `--ring` `--focus`                                                | Links; focus ring (opaque, 3:1)   |
+| `--<tone>` `--<tone>-soft` `--<tone>-ink` (success, warning, danger, info) | Status colour, tint, TEXT colour  |
+| `--destructive` (+ `--destructive-foreground`)                             | Destructive action fill, its text |
+| `--radius-sm/md/lg/pill`, `--shadow-1/2/3`, `--scrim`                      | Shape, elevation, backdrop        |
+| `--motion-fast/base/slow`, `--ease`, `--font-sans`, `--font-mono`          | Motion, typography                |
 
-Every field is optional — a theme overrides only what it cares about and inherits
-the rest. Colours accept any CSS colour string; the toolkit palette is authored in
-`oklch`, so prefer it.
+`createTheme` has one optional field per role (`primary`, `primaryHover`, `link`,
+`focus`, `muted`, `mutedForeground`, `input`, `dangerInk`, `radiusMd`, `fontMono`,
+…). Keep the brand accessible: text 4.5:1, focus ring and input border 3:1, in
+both modes.
 
-## Step 1 — Define the brand theme (or fork a preset)
-
-`createTheme` is pure: it maps the curated fields onto the real CSS variable names
-and returns a serializable `ThemeDefinition`.
+## Step 1: Define the brand theme
 
 ```ts
 import { createTheme } from "@miragon/mcp-toolkit-ui"
 
 export const acme = createTheme(
-  {
-    primary: "oklch(0.55 0.2 264)", // brand blue
-    primaryForeground: "oklch(0.985 0 0)",
-    accent: "oklch(0.95 0.03 264)",
-    ring: "oklch(0.55 0.2 264)",
-    radius: "0.5rem",
-  },
-  {
-    // Dark-mode overrides, layered on the toolkit's `.dark` defaults:
-    dark: { primary: "oklch(0.7 0.16 264)", primaryForeground: "oklch(0.18 0.02 264)" },
-  },
+  { primary: "#0f766e", primaryHover: "#115e59", link: "#0f766e", focus: "#0f766e" },
+  // Dark overrides, layered on the toolkit's dark roles:
+  { dark: { link: "#5eead4", focus: "#5eead4" } },
 )
 ```
 
-Or skip authoring and start from a built-in preset —
-[`themePresets.miragon` / `.violet` / `.emerald`](../../../packages/ui/src/theme/presets.ts)
-(they double as fork-able examples).
+`themePresets.emerald` is a fork-able example. `themePresets.miragon` and
+`.violet` are deprecated: the Miragon theme is the default (use no theme).
 
-## Step 2 — Apply it with `ThemeProvider`
+## Step 2: Apply it
 
-`ThemeProvider` renders a wrapper carrying the theme's CSS variables as inline
-`style` (overriding `:root`) and toggles `.dark` on that scope. Because the class
-is scoped to the wrapper (not `<html>`), two differently themed subtrees coexist
-on one page.
+`ThemeProvider` puts the theme's variables on a wrapper and sets `.dark` /
+`data-theme-mode` on that scope. Dialogs, sheets and select menus opened inside
+portal into the scope, so they keep the brand and mode.
 
 ```tsx
 import { ThemeProvider } from "@miragon/mcp-toolkit-ui"
@@ -85,21 +76,26 @@ import { ThemeProvider } from "@miragon/mcp-toolkit-ui"
 function ClientApp() {
   return (
     <ThemeProvider theme={acme} mode="system">
-      {/* Every widget below now wears the acme brand. */}
       <YourWidget />
     </ThemeProvider>
   )
 }
 ```
 
-## Step 3 — Light / dark
+For a whole app, overriding the roles in CSS after the toolkit import works as
+well; declare each colour role in the light AND the dark selector block (see the
+guide). In CSS set `--radius-sm/md/lg` themselves: a bare `--radius` reshapes
+them only through a theme (`ThemeProvider`, `resolveThemeVars`, `toStyle()`).
 
-`mode` is `"light"` (default), `"dark"`, or `"system"` (tracks
-`prefers-color-scheme`, SSR-safe). A host that already knows the scheme passes it
-straight through; read the active theme anywhere below with `useTheme()`:
+## Step 3: Light / dark
+
+`mode` is `"light"` (default), `"dark"`, or `"system"`. Without a provider the
+toolkit follows the document (`.dark` or `data-theme="dark"`). Dark mode gets
+the toolkit's dark roles plus the theme's dark and mode-invariant tokens (button
+colour, radii, fonts), never its light surfaces (`resolveThemeVars`).
 
 ```tsx
-import { ThemeProvider, useTheme } from "@miragon/mcp-toolkit-ui"
+import { ThemeProvider } from "@miragon/mcp-toolkit-ui"
 import { useHostBridge } from "@miragon/mcp-toolkit-ui/app"
 
 function ThemedWidget() {
@@ -110,37 +106,40 @@ function ThemedWidget() {
     </ThemeProvider>
   )
 }
-// const { theme, mode, resolvedMode } = useTheme()  // resolvedMode resolves "system"
 ```
 
-## The one rule for widgets: tokens, never hard-coded colours
+## The one rule for widgets: role tokens, never hard-coded colours
 
-A theme only reaches a widget that **reads tokens**. Token classes resolve to the
-active theme's CSS variables; raw colours ignore the brand a `ThemeProvider` sets.
+A theme only reaches a widget that **reads role tokens**. The design-system gate
+(`examples/test/design-system.test.ts`) fails on palette utilities, raw colours,
+status-as-text and translucent text.
 
 ```tsx
-// GOOD — inherits the client's brand and light/dark automatically:
-<div className="bg-card text-card-foreground rounded-lg border">…</div>
+// GOOD: inherits the client's brand and light/dark automatically
+<div className="bg-card text-card-foreground rounded-md border">…</div>
 <Button>Primary</Button> // already uses --primary
-<span className="text-primary">accent</span>
+<a className="text-link">details</a>
+<span className={`border ${TONE_SOFT.danger} ${TONE_BORDER.danger}`}>3 failed</span>
 
-// BAD — hard-coded, white-labeling breaks (the brand switcher can't reach these):
+// BAD: hard-coded or unreadable
 <div style={{ background: "#fff", color: "#111" }}>…</div>
 <button className="bg-blue-600 rounded-[10px]">…</button>
+<span className="text-success">Done</span>      // 1.67:1 on white: use the ink + a dot
+<span className="text-muted-foreground/60">…</span> // translucent text drops below 4.5:1
 ```
 
-Use the [tone system](../../../docs/reference/components.md) (`ToneVariant` +
-`LivePill` / `CountPill` / `TONE_*`) for status colour rather than picking hexes.
-This is exactly what makes [`TasksBoard`](../../../examples/modules/tasks/widgets/TasksBoard.tsx)
-re-skin cleanly across brands.
+Use the [tone system](../../../docs/reference/components.md#tone-tokens)
+(`ToneVariant` + `LivePill` / `CountPill` / `TONE_*`) for status: colour as a dot,
+icon or border; text on a tint in the foreground, a tone's words on a plain
+surface in its ink, figures always in the foreground. This is what makes
+[`TasksBoard`](../../../examples/modules/tasks/widgets/TasksBoard.tsx) re-skin
+cleanly across brands.
 
 ## See it live
 
 The [widget playground](../../../docs/guides/developing-widgets-in-isolation.md) has
-a brand + light/dark switcher above the preview — pick a preset and watch the same
-widget re-skin. The switcher is just the `ThemeProvider` wrapping the preview; read
-[`examples/widget-playground/App.tsx`](../../../examples/widget-playground/App.tsx)
-for the exact wiring. Run it:
+a brand + light/dark switcher above the preview: compare the Miragon default with
+a customer preset. Run it:
 
 ```sh
 pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground
@@ -148,6 +147,6 @@ pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground
 
 ## See also
 
-- [`build-mcp-widget`](../build-mcp-widget/SKILL.md) — why widgets must use tokens.
-- [White-labeling guide](../../../docs/guides/white-labeling.md) — the full token
-  table, scoped subtrees, and the `host.theme` hand-off.
+- [`build-mcp-widget`](../build-mcp-widget/SKILL.md): why widgets must use role tokens.
+- [White-labeling guide](../../../docs/guides/white-labeling.md): the full role
+  table, the CSS path, scoped subtrees and the `host.theme` hand-off.

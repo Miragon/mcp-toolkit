@@ -1,3 +1,4 @@
+import { FOCUS_RING } from "../lib/focus-ring.js"
 import { Input } from "../primitives/input.js"
 
 export interface FilterChip {
@@ -50,15 +51,15 @@ export function FilterBar({
             type="button"
             key={chip.id}
             onClick={() => onChipToggle(chip.id)}
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+            className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium transition-colors ${FOCUS_RING} ${
               chip.active
-                ? "bg-accent border-border text-accent-foreground font-semibold"
+                ? "bg-accent border-focus text-accent-foreground font-semibold"
                 : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             {chip.label}
             {chip.count !== undefined && chip.count !== "" && (
-              <span className="tabular-nums opacity-60">{chip.count}</span>
+              <span className="font-normal tabular-nums">{chip.count}</span>
             )}
           </button>
         ))}

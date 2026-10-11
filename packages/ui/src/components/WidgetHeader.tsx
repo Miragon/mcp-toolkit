@@ -31,7 +31,7 @@ export function WidgetHeader({
       <div className="min-w-0">
         {icon && (
           <div
-            className={`mb-3.5 grid size-11 place-items-center rounded-xl text-xl ${TONE_SOFT[iconTone]}`}
+            className={`mb-3.5 grid size-11 place-items-center rounded-md text-xl ${TONE_SOFT[iconTone]}`}
           >
             {icon}
           </div>

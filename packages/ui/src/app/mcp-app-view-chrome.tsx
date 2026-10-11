@@ -7,6 +7,7 @@
  */
 import { Maximize2, Minimize2, Pencil, RefreshCw } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef } from "@miragon/mcp-toolkit-core"
+import { FOCUS_RING } from "../lib/focus-ring.js"
 import { Skeleton } from "../primitives/skeleton.js"
 import { LayoutBuilder, type LayoutBuilderProps } from "./layout-builder.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
@@ -116,6 +117,9 @@ export interface ViewToolbarProps {
   onToggleFullscreen: () => Promise<void>
 }
 
+/** The toolbar's text buttons: outline, opaque focus ring, blue on hover (CI §8). */
+const TOOLBAR_BUTTON = `hover:border-focus hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${FOCUS_RING}`
+
 export function ViewToolbar({
   hidden,
   viewData,
@@ -138,7 +142,7 @@ export function ViewToolbar({
               void onRefresh()
             }}
             disabled={isRefreshing}
-            className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+            className={TOOLBAR_BUTTON}
           >
             <RefreshCw
               aria-hidden="true"
@@ -148,11 +152,8 @@ export function ViewToolbar({
           </button>
         )}
         {builderAvailable && viewData._refreshParams && (
-          <button
-            onClick={onEnterBuildMode}
-            className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-          >
-            <Pencil className="h-4 w-4" />
+          <button onClick={onEnterBuildMode} className={TOOLBAR_BUTTON}>
+            <Pencil aria-hidden="true" className="h-4 w-4" />
             {labels.build}
           </button>
         )}
@@ -160,7 +161,7 @@ export function ViewToolbar({
           onClick={() => {
             void onToggleFullscreen()
           }}
-          className="hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+          className={TOOLBAR_BUTTON}
         >
           {isFullscreen ? (
             <Minimize2 aria-hidden="true" className="h-4 w-4" />
@@ -190,7 +191,10 @@ export function StepErrors({
   return (
     <div className="mb-4 flex flex-col gap-2">
       {errors.map((err) => (
-        <div key={err.stepId} className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
+        <div
+          key={err.stepId}
+          className="border-danger bg-danger-soft text-foreground rounded-md border p-3 text-sm"
+        >
           <strong>{err.stepId}:</strong> {err.reason}
         </div>
       ))}

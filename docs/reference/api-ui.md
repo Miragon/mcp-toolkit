@@ -1,7 +1,23 @@
 # `@miragon/mcp-toolkit-ui` — API reference
 
-Three exports: the root barrel, `./app` (the MCP app shell + host bridge), and
-`./hooks` (the view-tool hooks).
+Three module exports: the root barrel, `./app` (the MCP app shell + host
+bridge), and `./hooks` (the view-tool hooks), plus the stylesheets below.
+
+## Stylesheets
+
+| Subpath                     | Contents                                                                                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `./globals.css`             | One-line app entry: `@import "tailwindcss"` + `./theme.css` + the toolkit's `@source`.                                                                                                     |
+| `./theme.css`               | The design tokens without Tailwind's entry: the vendored `--cd-*` tokens, the role tokens (light + dark), the `@theme` utility mapping, the base layer (focus outline) and reduced motion. |
+| `./fonts.css`               | Opt-in Geist + Geist Mono through the bundler (`@fontsource-variable`). Nothing loads a font unless you import this or use `fontFaces()`.                                                  |
+| `./cd-tokens.generated.css` | The Miragon corporate-design tokens (`--cd-*`), vendored unchanged from `Miragon/corporate-identity`.                                                                                      |
+
+The defaults are the **Miragon theme**: every role (`--primary`, `--link`,
+`--focus`, `--<tone>`, `--<tone>-soft`, `--<tone>-ink`, radii, shadows, motion,
+fonts; `ROLE_TOKENS`) points at a `--cd-*` token, in light and in dark. Dark
+follows the host (`.dark` or `data-theme="dark"`); `data-theme-mode="light"`
+marks a forced-light island. A brand overrides role variables only, see
+[White-labeling](../guides/white-labeling.md).
 
 ## `@miragon/mcp-toolkit-ui` (main)
 
@@ -35,22 +51,42 @@ Tailwind preset.
 
 Focused, pure widget building blocks (React + primitives + `cn`). Several are
 **tone-aware** — a `ToneVariant` (`"neutral" | "info" | "success" | "warning" | "danger"`)
-maps to the semantic status tokens in `globals.css`.
+maps to the status roles in `theme.css`: the colour (`--<tone>`: fill, dot,
+border, icon), the tint (`--<tone>-soft`) and the text colour (`--<tone>-ink`).
+Status is never text in its own colour.
 
-| Symbol                                 | Purpose                                                         |
-| -------------------------------------- | --------------------------------------------------------------- |
-| `GridLayout` / `GridItem`              | 12-column responsive grid used by `WidgetRenderer`.             |
-| `KpiGrid`                              | Bordered strip of KPI cells (replaces the old `KPICard`).       |
-| `KpiCell` / `KpiGridHeader`            | Types for `KpiGrid`.                                            |
-| `LivePill` / `CountPill`               | Tone-driven pills: live-data dot, tabular count badge.          |
-| `SectionHeading`                       | Section title row + optional muted hint/control.                |
-| `WidgetHeader`                         | Page-level widget header: icon tile, title, meta, actions.      |
-| `GroupCard`                            | Expandable card with a clickable summary bar.                   |
-| `FilterBar` / `FilterChip`             | Search input + toggleable chip row for filtering a list.        |
-| `DrillButton`                          | Neutral in-widget navigation button (drill into a detail view). |
-| `ListFooter`                           | "Showing X of Y" + "Load more" footer for paginated lists.      |
-| `TONE_SOFT` / `TONE_DOT` / `TONE_TEXT` | `Record<ToneVariant, string>` tone → Tailwind class maps.       |
-| `ToneVariant`                          | The status-tone union behind the tone-aware components.         |
+| Symbol                                 | Purpose                                                                                       |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `GridLayout` / `GridItem`              | 12-column responsive grid used by `WidgetRenderer`.                                           |
+| `KpiGrid`                              | Bordered strip of KPI cells (replaces the old `KPICard`).                                     |
+| `KpiCell` / `KpiGridHeader`            | Types for `KpiGrid`.                                                                          |
+| `LivePill` / `CountPill`               | Tone-driven pills: live-data dot, tabular count badge.                                        |
+| `SectionHeading`                       | Section title row + optional muted hint/control.                                              |
+| `WidgetHeader`                         | Page-level widget header: icon tile, title, meta, actions.                                    |
+| `GroupCard`                            | Expandable card with a clickable summary bar.                                                 |
+| `FilterBar` / `FilterChip`             | Search input + toggleable chip row for filtering a list.                                      |
+| `DrillButton`                          | Neutral in-widget navigation button (drill into a detail view).                               |
+| `ListFooter`                           | "Showing X of Y" + "Load more" footer for paginated lists.                                    |
+| `TONE_SOFT` / `TONE_DOT` / `TONE_TEXT` | `Record<ToneVariant, string>` tone → Tailwind class maps: tint + foreground, dot, text (ink). |
+| `TONE_BORDER` / `TONE_ICON`            | Tone → border colour / SVG icon colour (icons only, never text).                              |
+| `ToneVariant`                          | The status-tone union behind the tone-aware components.                                       |
+| `FOCUS_RING` / `FOCUS_RING_INSET`      | The kit's opaque focus ring (`--focus`, 2px) as class strings for custom controls.            |
+
+### Theming
+
+| Symbol                                                                                                                                              | Signature                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createTheme`                                                                                                                                       | `(tokens: ThemeTokens, opts?: { dark?: ThemeTokens }) → ThemeDefinition`. Map brand tokens (one field per role) to their CSS variables.                                                                                                                   |
+| `resolveThemeVars`                                                                                                                                  | `(theme, mode: "light" \| "dark") → ThemeVars`. The variables a theme scope applies: light = `vars`; dark = mode-invariant light vars + `darkVars`. Legacy knobs derive unset roles: `--radius` → sm/md/lg, `--primary` → hover + link, `--ring` → focus. |
+| `ThemeProvider`                                                                                                                                     | `{ theme?, mode?: "light" \| "dark" \| "system", as?, className?, children }`. Applies a theme + mode to a scope; overlays portal inside it.                                                                                                              |
+| `useTheme`                                                                                                                                          | `() → { theme, mode, resolvedMode }`. Throws outside a `ThemeProvider`.                                                                                                                                                                                   |
+| `usePortalContainer`                                                                                                                                | `() → HTMLElement \| null`. The nearest `ThemeProvider`'s portal node; pass it as a portal `container`.                                                                                                                                                   |
+| `ROLE_TOKENS`                                                                                                                                       | `readonly` list of the role-token contract (`--background` … `--font-mono`).                                                                                                                                                                              |
+| `themePresets`                                                                                                                                      | `{ miragon, violet, emerald }` example `ThemeDefinition`s. `miragon` and `violet` are **deprecated** (the Miragon theme is the default).                                                                                                                  |
+| `CD_TOKENS` / `CD_TOKENS_VERSION`                                                                                                                   | The `--cd-*` values as TS (`CD_TOKENS.blau`, `CD_TOKENS["danger-soft"]`) for SVG/canvas code; drift-tested against the vendored CSS. `CdTokenName` is its key type.                                                                                       |
+| `fontFaces` / `GEIST_FONT_FILES`                                                                                                                    | `({ baseUrl, files?, display? }) → string`. Opt-in `@font-face` rules for Geist + Geist Mono served from `baseUrl` (latin, variable weight). `FontFacesOptions` is its options type.                                                                      |
+| `adoptHostFontVariables` / `HOST_FONT_VARIABLES`                                                                                                    | `(style, hostVariables) → void`. Moves a host's SEP-1865 `--font-sans`/`--font-mono` to `--host-font-*`, the fallback slot after Geist. `McpToolkitApp` calls it; `InlineStyleTarget` is its style type.                                                  |
+| `ThemeTokens` / `ThemeDefinition` / `ThemeVars` / `CreateThemeOptions` / `ThemeMode` / `ThemeContextValue` / `ThemeProviderProps` / `ThemePresetId` | Types of the theming surface.                                                                                                                                                                                                                             |
 
 ### Hooks
 
@@ -199,8 +235,12 @@ kept out of the main barrel.
 packages/ui/src/
 ├── primitives/          shadcn base (card, table, button, …)
 ├── components/          composed components (KpiGrid, Pills, FilterBar, …)
-├── lib/                 cn(), parse-tool-result, tone-utils (TONE_*/ToneVariant)
-├── theme/               createTheme + ThemeProvider + themePresets
+├── lib/                 cn(), parse-tool-result, tone-utils (TONE_*/ToneVariant), focus-ring
+├── theme/               createTheme + ThemeProvider + themePresets + CD_TOKENS + fontFaces
+│                        + cd-tokens.generated.css (vendored Miragon tokens)
+├── theme.css            role tokens (light + dark) over the --cd-* tokens
+├── globals.css          tailwindcss + theme.css + @source
+├── fonts.css            opt-in Geist / Geist Mono
 ├── hooks/               use-tool-query, use-mobile, use-debounced-value
 │                        + use-view-tool-query, use-view-data (subpath export)
 ├── providers/           AppQueryProvider + useCallTool

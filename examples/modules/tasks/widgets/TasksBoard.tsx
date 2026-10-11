@@ -11,6 +11,7 @@ import {
   LivePill,
   SectionHeading,
   Skeleton,
+  TONE_BORDER,
   TONE_SOFT,
   WidgetHeader,
   cn,
@@ -90,8 +91,9 @@ function StatusPill({ status }: { status: TaskStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold",
+        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold",
         TONE_SOFT[STATUS_TONE[status]],
+        TONE_BORDER[STATUS_TONE[status]],
       )}
     >
       {STATUS_LABEL[status]}
@@ -180,7 +182,7 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
     if (query.error) {
       return (
         <Card className="m-4">
-          <CardContent className="text-destructive text-sm">{query.error.message}</CardContent>
+          <CardContent className="text-danger-ink text-sm">{query.error.message}</CardContent>
         </Card>
       )
     }
@@ -291,7 +293,7 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
                 <button
                   type="button"
                   onClick={() => setStatusFilter(null)}
-                  className="text-primary text-xs font-medium hover:underline"
+                  className="text-link text-xs font-medium hover:underline"
                 >
                   Clear “{STATUS_LABEL[statusFilter]}” filter
                 </button>

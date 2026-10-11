@@ -71,9 +71,13 @@ export type { UseToolQueryOptions } from "./hooks/use-tool-query.js"
 export { useDebouncedValue } from "./hooks/use-debounced-value.js"
 
 // Tone token system — the semantic status tones (ToneVariant + TONE_* maps)
-// behind the tone-aware components below. Pure data + class strings.
-export { TONE_SOFT, TONE_DOT, TONE_TEXT } from "./lib/tone-utils.js"
+// behind the tone-aware components below. Pure data + class strings. Three
+// roles per tone: colour (TONE_DOT/TONE_BORDER/TONE_ICON), tint (TONE_SOFT,
+// foreground text on it), text on a plain surface (TONE_TEXT, the -ink role).
+export { TONE_SOFT, TONE_DOT, TONE_TEXT, TONE_BORDER, TONE_ICON } from "./lib/tone-utils.js"
 export type { ToneVariant } from "./lib/tone-utils.js"
+// The kit's opaque focus ring as class strings, for custom controls.
+export { FOCUS_RING, FOCUS_RING_INSET } from "./lib/focus-ring.js"
 
 // Composed components — focused widget building blocks assembled from the
 // primitives. Pure (React + primitives + cn), so they live in the root barrel.
@@ -103,7 +107,23 @@ export { AppQueryProvider, useCallTool, queryClient } from "./providers/query-pr
 // `mcp-use/react`), so it belongs in this root barrel: a consumer can re-skin
 // the toolkit's primitives from a single switch without pulling in the host
 // runtime. See packages/ui/src/theme/ and docs/guides/white-labeling.md.
-export { createTheme, ThemeProvider, useTheme, themePresets } from "./theme/index.js"
+// The defaults are the Miragon theme (theme.css over the vendored --cd-*
+// corporate-design tokens); a brand overrides the ROLE_TOKENS only.
+export {
+  createTheme,
+  resolveThemeVars,
+  ROLE_TOKENS,
+  ThemeProvider,
+  useTheme,
+  usePortalContainer,
+  themePresets,
+  CD_TOKENS,
+  CD_TOKENS_VERSION,
+  fontFaces,
+  GEIST_FONT_FILES,
+  adoptHostFontVariables,
+  HOST_FONT_VARIABLES,
+} from "./theme/index.js"
 export type {
   ThemeTokens,
   ThemeDefinition,
@@ -113,6 +133,9 @@ export type {
   ThemeContextValue,
   ThemeProviderProps,
   ThemePresetId,
+  CdTokenName,
+  FontFacesOptions,
+  InlineStyleTarget,
 } from "./theme/index.js"
 
 // i18n / localization. Browser-safe (React only, no `mcp-use/react`), so it
