@@ -4,6 +4,7 @@ import {
   builderSnapshot,
   builderViews,
   displayLabel,
+  draftHasCells,
   draftStatus,
   initDraft,
   keyResolverFrom,
@@ -284,6 +285,29 @@ describe("keyboard rename", () => {
     expect(renameFieldKeyAction("Enter")).toBe("commit")
     expect(renameFieldKeyAction("Escape")).toBe("cancel")
     for (const key of ["a", "Tab", "F2", " "]) expect(renameFieldKeyAction(key)).toBeNull()
+  })
+})
+
+describe("draftHasCells", () => {
+  it("is false for an empty draft and true once a row holds an element", () => {
+    expect(draftHasCells(initDraft(undefined))).toBe(false)
+    expect(draftHasCells(initDraft({ rows: [{ row: [] }, { row: [{ widget: "demo:a" }] }] }))).toBe(
+      true,
+    )
+  })
+
+  it("looks at every tab, not only the active one", () => {
+    const tabs: DraftLayout = {
+      kind: "tabs",
+      tabs: [
+        { label: "Overview", rows: [{ row: [{ widget: "demo:a" }] }] },
+        { label: "New", rows: [{ row: [] }] },
+      ],
+    }
+    expect(draftHasCells(tabs)).toBe(true)
+    expect(draftHasCells({ kind: "tabs", tabs: [{ label: "Empty", rows: [{ row: [] }] }] })).toBe(
+      false,
+    )
   })
 })
 

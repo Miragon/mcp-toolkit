@@ -14,6 +14,7 @@ import {
 } from "../use-build-mode-focus.js"
 import type { DraftLayout } from "./builder-model.js"
 import { LayoutSurface } from "./LayoutSurface.js"
+import { PipelineStrip } from "./PipelineStrip.js"
 import { REVEAL_ON_INTENT } from "./reveal.js"
 import { Toolbar, type ToolbarProps } from "./Toolbar.js"
 import { Workspace, type WorkspaceProps } from "./Workspace.js"
@@ -288,6 +289,60 @@ describe("no hover-only controls (CI §12)", () => {
     expect(controls.length).toBeGreaterThan(20)
     for (const tag of controls)
       expect(attribute(tag, "class"), tag).toContain("focus-visible:ring-focus")
+  })
+})
+
+describe("data sources (advanced): pickers name the choice, not the whole option", () => {
+  const html = inGerman(
+    <PipelineStrip
+      L={de}
+      keyEntries={[{ name: "demo:customerId", rawValue: "c-1" }]}
+      stepEntries={[{ id: "customer", step: "demo:resolve-customer" }]}
+      keyCatalog={[
+        {
+          key: "demo:customerId",
+          producedBySteps: [],
+          consumedBySteps: ["demo:resolve-customer"],
+          consumedByWidgets: [],
+          inContext: true,
+        },
+      ]}
+      availableSteps={[
+        {
+          id: "demo:resolve-customer",
+          app: "demo",
+          dataType: "demo:customer",
+          requires: ["demo:customerId"],
+          produces: ["demo:customer"],
+          title: { en: "Customer", de: "Kunde" },
+        },
+      ]}
+      stepsByApp={[]}
+      liveKeys={{}}
+      onAddKey={noop}
+      onUpdateKey={noop}
+      onRemoveKey={noop}
+      onAddStep={noop}
+      onUpdateStep={noop}
+      onRemoveStep={noop}
+      status="idle"
+    />,
+  )
+  const triggerText = (name: string) => {
+    const trigger = (
+      html.match(/<button\b[^>]*role="combobox"[^>]*>[\s\S]*?<\/button>/g) ?? []
+    ).find((b) => attribute(openingTags(b, "button")[0] ?? "", "aria-label") === name)
+    return decodeEntities((trigger ?? "").replace(/<[^>]*>/g, "")).trim()
+  }
+
+  it("shows the chosen key without its consumers", () => {
+    expect(triggerText(de.keyName)).toBe("demo:customerId")
+  })
+
+  it("shows the chosen step by its title, with its contract in words beneath", () => {
+    expect(triggerText(de.stepPickerLabel)).toBe("Kunde")
+    expect(html).toContain(`${de.catalogueNeedsKeys} <span class="font-mono">demo:customerId`)
+    expect(html).toContain(`${de.stepProvides} <span class="font-mono">demo:customer<`)
   })
 })
 

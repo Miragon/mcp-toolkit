@@ -79,7 +79,8 @@ function KeyRows({
               onValueChange={(value) => onUpdateKey(idx, { name: value })}
             >
               <SelectTrigger aria-label={L.keyName} className="h-7 min-w-0 font-mono text-xs">
-                <SelectValue placeholder={L.keyName} />
+                {/* The trigger names the chosen key only; who uses it shows in the list. */}
+                <SelectValue placeholder={L.keyName}>{entry.name || null}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {pickable.length === 0 ? (

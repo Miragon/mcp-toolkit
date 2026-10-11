@@ -3,6 +3,7 @@ import { Eye, Layers, SlidersHorizontal } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef, RowDef, WidgetProps } from "@miragon/mcp-toolkit-core"
 import {
   builderSnapshot,
+  draftHasCells,
   initDraft,
   sizeToSpan,
   toExitCommit,
@@ -290,7 +291,7 @@ function LayoutBuilderImpl({
     () => ({ keys: liveContext.keys, context: liveContext }),
     [liveContext],
   )
-  const hasAnyCell = activeRows.some((r) => r.row.length > 0)
+  const hasAnyCell = draftHasCells(draft)
 
   return (
     <div className="flex min-h-[60vh] flex-col gap-4 p-1">

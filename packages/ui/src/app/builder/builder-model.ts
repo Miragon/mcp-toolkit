@@ -335,6 +335,16 @@ export function propFieldText(
 // -------------------------------------------------------------------------- //
 
 /**
+ * Whether the draft holds at least one element on ANY tab, not only the
+ * active one: a new, still empty tab must not disable "Save as dashboard" or
+ * the preview while another tab has content.
+ */
+export function draftHasCells(draft: DraftLayout): boolean {
+  const rows = draft.kind === "tabs" ? draft.tabs.flatMap((t) => t.rows) : draft.rows
+  return rows.some((r) => r.row.length > 0)
+}
+
+/**
  * A comparable fingerprint of what Apply and Save hand on: the layout, the
  * keys (blank names dropped, values parsed) and the steps that name a step.
  * An empty key or step row the user has not filled in changes nothing.
