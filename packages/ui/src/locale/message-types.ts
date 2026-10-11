@@ -69,6 +69,14 @@ export interface ViewMessages {
   fullscreenFailed: string
   /** Toast line under {@link ViewMessages.fullscreenFailed}: what you can do. */
   fullscreenFailedHint: string
+  /**
+   * Toolbar stamp of a view that loaded its data again on its own (the host
+   * did not pass the original result along): the time the data is from,
+   * pre-formatted (`formatClockTime`).
+   */
+  dataAsOf: (time: string) => string
+  /** What the {@link ViewMessages.dataAsOf} stamp means (its tooltip and screen-reader text). */
+  dataAsOfHint: string
 }
 
 /** Strings of `ListFooter`. */

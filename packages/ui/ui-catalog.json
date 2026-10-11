@@ -1108,9 +1108,9 @@
       "props": [
         {
           "name": "queryKey",
-          "type": "unknown[]",
+          "type": "readonly unknown[]",
           "required": true,
-          "description": "Cache key. args is appended automatically so callers with different args get separate cache entries."
+          "description": "Cache key prefix. The effective key is [...queryKey, args] (toolQueryKey): different args get separate entries. Two tools must not share a key and args — the hook warns when they do."
         },
         {
           "name": "toolName",
@@ -1126,12 +1126,12 @@
         },
         {
           "name": "opts",
-          "type": "{ enabled?: boolean; select?: (data) => selected }",
+          "type": "UseToolQueryOptions<TData, TSelected>",
           "required": false,
-          "description": "Gate the query / transform data on read."
+          "description": "TanStack query options (retry, retryDelay, staleTime, placeholderData / keepPreviousData, initialData + initialDataUpdatedAt, enabled, select, gcTime, …) — everything but queryKey/queryFn. retry defaults to the client's; retry: shouldRetryToolCall stops retrying a tool's own isError answer."
         }
       ],
-      "whenToUse": "Self-fetch arbitrary data from a tool inside a cockpit-embedded widget. Result is decoded with parseToolResult (structured-first). Returns a TanStack UseQueryResult."
+      "whenToUse": "Self-fetch arbitrary data from a tool inside a cockpit-embedded widget. Result is decoded with parseToolResult (structured-first). Returns a TanStack UseQueryResult (data, error, refetch, failureCount, failureReason, isFetching, isPlaceholderData, …). The tool goes through AppQueryProvider's callTool, else the nearest HostBridgeProvider; with neither the query fails with a 'no tool transport' error instead of idling. Keep a list on screen while a new search loads: { placeholderData: keepPreviousData }."
     },
     {
       "name": "useToolMutation",
@@ -1148,12 +1148,71 @@
         },
         {
           "name": "opts",
-          "type": "{ invalidateKeys?: unknown[][] }",
+          "type": "UseToolMutationOptions<TData>",
           "required": false,
-          "description": "Query keys to refetch on success."
+          "description": "TanStack mutation options (onSuccess, onError, onSettled, retry, meta, mutationKey, …) plus invalidateKeys: query-key prefixes to invalidate after each successful call (active queries refetch, inactive ones turn stale)."
         }
       ],
-      "whenToUse": "Run a write/action tool (e.g. retry-incident) and refetch dependent queries. Returns a TanStack UseMutationResult; call .mutate(args)."
+      "whenToUse": "Run a write/action tool (e.g. retry-incident) and invalidate dependent queries. Returns a TanStack UseMutationResult; call .mutate(args, { onSuccess, onError, onSettled }). Unlike TanStack's own mutate, the per-call callbacks fire for EVERY call while the widget is mounted, so two quick calls each get their confirmation."
+    },
+    {
+      "name": "toolQueryKey",
+      "export": "toolQueryKey",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "data-hooks",
+      "props": [
+        {
+          "name": "queryKey",
+          "type": "readonly unknown[]",
+          "required": true,
+          "description": "The caller's key prefix."
+        },
+        {
+          "name": "toolName",
+          "type": "string",
+          "required": true,
+          "description": "The tool the query calls."
+        },
+        {
+          "name": "args",
+          "type": "object",
+          "required": true,
+          "description": "The tool arguments."
+        }
+      ],
+      "whenToUse": "Build the exact cache key useToolQuery / useViewToolQuery / useViewData use ([...queryKey, args] in 2.x) for getQueryData, setQueryData or cancelQueries with exact: true — never by hand: the next major appends the tool name and the helper follows. Prefix invalidation needs only your queryKey."
+    },
+    {
+      "name": "shouldRetryToolCall",
+      "export": "shouldRetryToolCall",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "data-hooks",
+      "props": [
+        {
+          "name": "failureCount",
+          "type": "number",
+          "required": true,
+          "description": "Failed attempts so far."
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": true,
+          "description": "The last failure."
+        }
+      ],
+      "whenToUse": "An opt-in retry policy for tool queries: no retry for a tool's own isError answer (isToolError) or a missing transport, up to 3 retries for a failed transport, so a deterministic tool error shows at once instead of after ~7 s. Pass retry: shouldRetryToolCall to a hook, or set it as the client's default. The hooks keep the client's retry by default."
+    },
+    {
+      "name": "keepPreviousData",
+      "export": "keepPreviousData",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "data-hooks",
+      "props": [],
+      "whenToUse": "TanStack's placeholder helper, re-exported so no direct @tanstack/react-query import is needed: { placeholderData: keepPreviousData } keeps the previous args' answer on screen (isPlaceholderData: true) while a changed search or filter loads — a list never unmounts mid-typing."
     },
     {
       "name": "useViewToolQuery",
@@ -1166,7 +1225,7 @@
           "name": "queryKey",
           "type": "unknown[]",
           "required": true,
-          "description": "Cache key; args appended automatically (sibling widgets dedupe)."
+          "description": "Cache key prefix; the effective key is [...queryKey, args] (sibling widgets with equal args dedupe)."
         },
         {
           "name": "toolName",
@@ -1182,9 +1241,9 @@
         },
         {
           "name": "opts",
-          "type": "{ enabled?: boolean }",
+          "type": "UseViewToolQueryOptions<T>",
           "required": false,
-          "description": "Gate the query."
+          "description": "TanStack query options (retry, retryDelay, staleTime, placeholderData / keepPreviousData, initialData + initialDataUpdatedAt, enabled, select, gcTime, …) — everything but queryKey/queryFn, as useToolQuery."
         }
       ],
       "whenToUse": "Self-fetch from a *_show_* widget tool. Unwraps the McpAppView view envelope via parseViewToolResult (single-step → flat data, multi-step → keyed by step id) — the envelope-aware sibling of useToolQuery."
@@ -1200,7 +1259,7 @@
           "name": "initialData",
           "type": "T | null | undefined",
           "required": true,
-          "description": "Host-pushed data (e.g. from adaptDataWidget). Returned verbatim when present."
+          "description": "Host-pushed data (e.g. from adaptDataWidget). Returned verbatim by default; with initialDataMode 'seed' it becomes the feed query's cached answer."
         },
         {
           "name": "key",
@@ -1224,10 +1283,16 @@
           "name": "ready",
           "type": "boolean",
           "required": true,
-          "description": "Whether the required id/key is present; fetch is disabled until ready and only when no initialData."
+          "description": "Whether the required id/key is present; the feed stays off until ready (and, by default, while initialData is present)."
+        },
+        {
+          "name": "options",
+          "type": "UseViewDataOptions<T>",
+          "required": false,
+          "description": "TanStack query options (retry, retryDelay, staleTime, placeholderData / keepPreviousData, initialDataUpdatedAt, enabled, gcTime, …) — everything but queryKey/queryFn; enabled is an extra gate next to ready. initialDataMode: 'static' (default) or 'seed' — seed keeps the feed live over host data, so a write's invalidation, a refetch or a retry re-reads it."
         }
       ],
-      "whenToUse": "The dual-mode seam: write ONE widget that renders host-pushed data when handed it (standalone *_show_* widget) AND self-fetches when embedded in a cockpit. Returns { data, loading, error, refetch }; pass refetch as the error state's retry (<ErrorState onRetry={refetch} />)."
+      "whenToUse": "The dual-mode seam: write ONE widget that renders host-pushed data when handed it (standalone *_show_* widget) AND self-fetches when embedded in a cockpit. Returns { data, loading, error, refetch, failureCount, failureReason, isFetching, isPlaceholderData }; pass refetch as the error state's retry (<ErrorState onRetry={refetch} />). Pass { initialDataMode: 'seed' } when a standalone view must stay live after writes, { placeholderData: keepPreviousData } to keep rows on screen while new args load."
     },
     {
       "name": "useIsMobile",
@@ -1392,11 +1457,27 @@
         {
           "name": "children",
           "type": "ReactNode",
-          "required": true,
-          "description": "The widget subtree the description belongs to."
+          "required": false,
+          "description": "The widget subtree the description belongs to (nested below it). Omit it to report one line where it renders."
         }
       ],
       "whenToUse": "Report model context from a widget that self-fetches (cockpit views) — the host-portable replacement for mcp-use/react's ModelContext. Inside an mcp-use view it renders the native aggregating ModelContext; in every other mount (widget playground, ChatGPT, standalone) it routes through the HostBridge's setModelContext. NEVER import ModelContext from mcp-use/react in a widget: it throws outside a bootstrapView mount."
+    },
+    {
+      "name": "useHostModelContext",
+      "export": "useHostModelContext",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "hook",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "content",
+          "type": "string | null | undefined",
+          "required": true,
+          "description": "One line for the model; blank or null reports nothing."
+        }
+      ],
+      "whenToUse": "Report one line of model context from a component with nothing to wrap (a selection, a filter, an error the user sees) for as long as it is mounted. Inside an mcp-use view the line joins the view's one model-context tree with every HostModelContext and leaves it on unmount; elsewhere it goes through the HostBridge's setModelContext."
     },
     {
       "name": "DescribeForModel",
@@ -1435,6 +1516,44 @@
         }
       ],
       "whenToUse": "Decode a raw callTool result to its data payload. Structured-first: isError → throw, then structuredContent, then JSON-decoded text, then raw. useToolQuery decodes through this for you."
+    },
+    {
+      "name": "ToolResultError",
+      "export": "ToolResultError",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "message",
+          "type": "string",
+          "required": true,
+          "description": "The tool's first text block."
+        },
+        {
+          "name": "result",
+          "type": "unknown",
+          "required": true,
+          "description": "The isError result as the tool returned it."
+        }
+      ],
+      "whenToUse": "The Error class parseToolResult throws for an isError result — a deterministic answer of the tool (validation error, engine 404), not a transport failure. The query hooks never retry it by default. Check with isToolError (also matches mcp-use's ToolError)."
+    },
+    {
+      "name": "isToolError",
+      "export": "isToolError",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "widget-authoring",
+      "props": [
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": true,
+          "description": "Anything a tool call rejected with."
+        }
+      ],
+      "whenToUse": "Tell a tool's own isError answer (ToolResultError, or mcp-use's ToolError inside a view) from a transport failure — e.g. in a custom retry policy or to word an error state."
     },
     {
       "name": "parseViewToolResult",
@@ -1827,6 +1946,15 @@
         }
       ],
       "whenToUse": "The bundle entry point since mcp-use 2.x: mounts McpToolkitApp via bootstrapView (ext-apps handshake, error boundary, auto-resize). Call it once in main.tsx instead of createRoot().render()."
+    },
+    {
+      "name": "installToolResultObserver",
+      "export": "installToolResultObserver",
+      "importPath": "@miragon/mcp-toolkit-ui/app",
+      "kind": "function",
+      "group": "app-shell",
+      "props": [],
+      "whenToUse": "Only for a custom shell under its own bootstrapView: call it before bootstrapView so McpAppView can tell a stripped tool result (claude.ai) from a slow tool and never re-runs a call the host is still answering. mountMcpToolkitApp and the bundle's first evaluation install it already; idempotent, null outside a framed browser document."
     },
     {
       "name": "WidgetFixtureHost",

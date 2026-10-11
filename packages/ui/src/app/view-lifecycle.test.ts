@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   decodeViewResult,
   DEFAULT_SLOW_HINT_MS,
+  describeViewForModel,
   errorMessage,
   resolveViewLifecycle,
   RETRY_IDLE,
@@ -223,5 +224,87 @@ describe("errorMessage", () => {
     expect(errorMessage("")).toBeUndefined()
     expect(errorMessage({ message: "not an error" })).toBeUndefined()
     expect(errorMessage(undefined)).toBeUndefined()
+  })
+})
+
+describe("describeViewForModel (the view's model context, toolkit#176 K20)", () => {
+  const error = (reason: string | undefined, canRetry = true) =>
+    ({ phase: "error", reason, canRetry }) as const
+
+  it("an error says what failed and that the user sees an error instead of the view", () => {
+    expect(
+      describeViewForModel({ lifecycle: error("[503] engine down"), toolName: "render-view" }),
+    ).toBe(
+      "The view of render-view could not be shown (reason: [503] engine down). " +
+        "The user sees an error message with a retry button instead of the view.",
+    )
+    expect(describeViewForModel({ lifecycle: error(undefined, false), toolName: undefined })).toBe(
+      "The view could not be shown. The user sees an error message instead of the view.",
+    )
+  })
+
+  it("a cancellation says so", () => {
+    expect(describeViewForModel({ lifecycle: { phase: "cancelled" }, toolName: "show_x" })).toBe(
+      "The view of show_x was cancelled before it rendered. The user sees a note that the call was cancelled.",
+    )
+  })
+
+  it("nothing while waiting, nor for a plain host-delivered view", () => {
+    expect(
+      describeViewForModel({ lifecycle: { phase: "waiting", slow: true }, toolName: "t" }),
+    ).toBeNull()
+    expect(describeViewForModel({ lifecycle: { phase: "result" }, toolName: "t" })).toBeNull()
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "t",
+        stepErrors: [],
+        recoveredAt: null,
+      }),
+    ).toBeNull()
+  })
+
+  it("failed data steps of a shown view, with or without the alert's retry", () => {
+    const stepErrors = [
+      { stepId: "kpi", reason: "timeout" },
+      { stepId: "list", reason: "[404] gone" },
+    ]
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "render-view",
+        stepErrors,
+        stepsRetryable: true,
+      }),
+    ).toBe(
+      "The view of render-view is shown, but some of its data could not be loaded " +
+        "(kpi: timeout; list: [404] gone). The user sees an alert with a retry button.",
+    )
+    expect(
+      describeViewForModel({ lifecycle: { phase: "result" }, toolName: undefined, stepErrors }),
+    ).toBe(
+      "The view is shown, but some of its data could not be loaded " +
+        "(kpi: timeout; list: [404] gone). The user sees an alert.",
+    )
+  })
+
+  it("a payload the view re-loaded itself is live as of then (N23)", () => {
+    const at = Date.UTC(2026, 9, 11, 14, 32, 5)
+    expect(
+      describeViewForModel({ lifecycle: { phase: "result" }, toolName: "t", recoveredAt: at }),
+    ).toBe(
+      "The view of t re-ran the tool at 2026-10-11T14:32:05.000Z because the host did not pass " +
+        "the original result to the view; its figures are live as of then and can differ from the original result.",
+    )
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "t",
+        recoveredAt: at,
+        stepErrors: [{ stepId: "kpi", reason: "timeout" }],
+      }),
+    ).toMatch(
+      /original result\. Some of its data could not be loaded \(kpi: timeout\)\. The user sees an alert\.$/,
+    )
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  formatClockTime,
   formatCount,
   resolveToolkitLocale,
   resolveToolkitMessages,
@@ -274,5 +275,25 @@ describe("formatCount", () => {
 
   it("falls back to English for an invalid locale tag instead of throwing", () => {
     expect(formatCount(1234, "not a locale!")).toBe("1,234")
+  })
+})
+
+describe("formatClockTime (the view's data-as-of stamp)", () => {
+  const at = Date.UTC(2026, 9, 11, 14, 32)
+
+  it("formats hours and minutes per locale in the host's time zone", () => {
+    expect(formatClockTime(at, "de-DE", "UTC")).toBe("14:32")
+    expect(formatClockTime(at, "de-DE", "Europe/Berlin")).toBe("16:32")
+    expect(formatClockTime(at, "en-US", "UTC")).toBe("02:32 PM")
+  })
+
+  it("falls back to English for an invalid tag or zone instead of throwing", () => {
+    expect(() => formatClockTime(at, "not a locale!", "UTC")).not.toThrow()
+    expect(formatClockTime(at, "de", "Not/AZone")).toMatch(/^\d\d:\d\d( [AP]M)?$/)
+  })
+
+  it("the catalogs stamp it in their words", () => {
+    expect(TOOLKIT_MESSAGES.en.view.dataAsOf("14:32")).toBe("As of 14:32")
+    expect(TOOLKIT_MESSAGES.de.view.dataAsOf("14:32")).toBe("Stand 14:32 Uhr")
   })
 })

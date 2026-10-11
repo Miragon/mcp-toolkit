@@ -1,16 +1,20 @@
-import { useState, useCallback, useMemo, type ReactNode } from "react"
+import { useState, useCallback, useEffect, useMemo, type ReactNode } from "react"
 import { LucideProvider } from "lucide-react"
 import { ToolCancelledError, useDisplayMode, useHostContext, useToolContext } from "mcp-use/react"
 import { ToastProvider, useToast } from "../components/Toast.js"
 import { ToolkitLocaleFallback, useToolkitMessages } from "../locale/locale-provider.js"
-import type { ViewMessages } from "../locale/toolkit-messages.js"
+import { formatClockTime, type ViewMessages } from "../locale/toolkit-messages.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import {
+  DEFAULT_ASSUME_STRIPPED_AFTER_MS,
   resolveRecoveryToolName,
   useToolResultRecovery,
+  type RecoveryPolicy,
 } from "../hooks/use-tool-result-recovery.js"
 import { ICON_STROKE } from "../lib/icon-stroke.js"
 import { useHostBridge } from "./host-bridge.js"
+import { useViewResultSink } from "./mcp-use-host-bridge.js"
+import { HostModelContext } from "./model-context.js"
 import {
   applyBuilderCommit,
   fullscreenAvailable,
@@ -29,12 +33,18 @@ import { ViewPlaceholder, type DescribeViewError } from "./mcp-app-view-states.j
 import type { LayoutBuilderLabels } from "./layout-builder.js"
 import { useBuildModeFocus } from "./use-build-mode-focus.js"
 import { useRetryFocus, useViewLifecycle } from "./use-view-lifecycle.js"
-import { DEFAULT_SLOW_HINT_MS, decodeViewResult } from "./view-lifecycle.js"
+import {
+  DEFAULT_SLOW_HINT_MS,
+  decodeViewResult,
+  describeViewForModel,
+  type ViewLifecycle,
+} from "./view-lifecycle.js"
 import type { WidgetComponent } from "./widget-renderer.js"
 
 export type { McpAppViewLabels, ViewTitleLevel, ViewTitleMode } from "./mcp-app-view-chrome.js"
 export type { DescribeStep } from "./mcp-app-view-chrome.js"
 export type { DescribeViewError } from "./mcp-app-view-states.js"
+export type { RecoveryPolicy } from "../hooks/use-tool-result-recovery.js"
 
 export interface McpAppViewProps {
   /**
@@ -89,6 +99,24 @@ export interface McpAppViewProps {
   describeError?: DescribeViewError
   /** Human title of a pipeline step in the failed-steps alert (default: the step id). */
   describeStep?: DescribeStep
+  /**
+   * Which originating tools the view may re-execute on its own when the host
+   * strips the result's `structuredContent` (claude.ai, Claude Desktop).
+   * `"auto"` (default): any tool the host does not report as writing
+   * (`readOnlyHint: false` or `destructiveHint: true`); `"read-only"`: only
+   * tools reported with `readOnlyHint: true`; `"never"`: none. A recovery
+   * the policy forbids shows the error state, whose retry is the user's call.
+   */
+  recoverStrippedResult?: RecoveryPolicy
+  /**
+   * Grace period (ms) after which a silent call counts as a stripped result.
+   * Only used where the view could not watch the host's notifications from
+   * the start (e.g. a custom shell mounted under its own `bootstrapView`
+   * without `installToolResultObserver`); a view mounted by
+   * `mountMcpToolkitApp` sees the stripped result itself and never guesses,
+   * so a slow tool is never re-run. Default 2500 ms.
+   */
+  strippedResultGraceMs?: number
 }
 
 /**
@@ -114,16 +142,32 @@ export function McpAppView(props: McpAppViewProps) {
 }
 
 /**
- * Host-delivered payload → local `viewData`, recovered payloads included.
- * Render-phase setState (not an effect) so the React Compiler doesn't flag a
- * cascading render.
+ * Where the shown payload came from: the host's tool result, the view's own
+ * re-execution when the host stripped it, the user's retry, or a refresh.
+ */
+type ViewSource = "host" | "recovered" | "retry" | "refresh"
+
+interface ShownView {
+  data: ViewData | null
+  source: ViewSource | null
+  /** For a `"recovered"` payload: when it arrived (epoch ms). */
+  recoveredAt: number | null
+}
+
+const NO_VIEW: ShownView = { data: null, source: null, recoveredAt: null }
+
+/**
+ * Host-delivered payload → the shown view, recovered payloads included, each
+ * tagged with its source. Render-phase setState (not an effect) so the React
+ * Compiler doesn't flag a cascading render.
  */
 function useHostViewData(
   initialViewData: ViewData | undefined,
   isPending: boolean,
   recovered: ViewData | null,
+  recoveredAt: number | null,
 ) {
-  const [viewData, setViewData] = useState<ViewData | null>(null)
+  const [view, setView] = useState<ShownView>(NO_VIEW)
   // `prev` MUST start as `null`, not `initialViewData`: hosts that expose the
   // complete tool output before the app's first render (e.g. window.openai
   // globals injected ahead of script execution) would otherwise never trip the
@@ -133,15 +177,24 @@ function useHostViewData(
   const [prevInitial, setPrevInitial] = useState<ViewData | undefined | null>(null)
   if (initialViewData !== prevInitial) {
     setPrevInitial(initialViewData)
-    if (!isPending && isCompleteViewData(initialViewData)) setViewData(initialViewData)
+    if (!isPending && isCompleteViewData(initialViewData)) {
+      setView({ data: initialViewData, source: "host", recoveredAt: null })
+    }
   }
   const [prevRecovered, setPrevRecovered] = useState<ViewData | null>(null)
   if (recovered !== prevRecovered) {
     setPrevRecovered(recovered)
-    // The host-delivered payload always wins; recovery only fills the gap.
-    if (recovered && !viewData) setViewData(recovered)
+    // The host-delivered payload always wins; a recovery fills the gap, and a
+    // recovery for newer arguments replaces an older recovered payload (N21).
+    if (recovered) {
+      setView((prev) =>
+        prev.data === null || prev.source === "recovered"
+          ? { data: recovered, source: "recovered", recoveredAt }
+          : prev,
+      )
+    }
   }
-  return [viewData, setViewData] as const
+  return [view, setView] as const
 }
 
 /**
@@ -222,6 +275,117 @@ function useFullscreenToggle(
   }
 }
 
+/**
+ * Hands a payload the view got by re-running the originating tool (its own
+ * recovery or the user's retry) to the host bridge, so
+ * `HostBridge.getWidgetData()` returns what the view shows (toolkit#176 K15).
+ */
+function useReportRerunPayload(view: ShownView) {
+  const report = useViewResultSink()
+  const rerun = view.source === "recovered" || view.source === "retry"
+  const payload = rerun ? view.data : null
+  useEffect(() => {
+    if (payload) report?.(payload)
+  }, [payload, report])
+}
+
+/** The rendering call as mcp-use 2.x latches it, plus the tool the host names. */
+function useRenderCall() {
+  const tool = useToolContext()
+  const { hostContext } = useHostContext()
+  // Since mcp-use 2.7.1 a host cancellation latches as `status: "error"`.
+  const isCancelled = tool.status === "error" && tool.error instanceof ToolCancelledError
+  const isCallError = tool.status === "error" && !isCancelled
+  return {
+    tool,
+    hostContext,
+    isPending: tool.status === "pending",
+    isCancelled,
+    isCallError,
+    callError: isCallError ? tool.error : undefined,
+    initialViewData: tool.status === "ready" ? (tool.toolOutput as ViewData) : undefined,
+    toolName: resolveRecoveryToolName(hostContext),
+  }
+}
+
+/**
+ * The payload the view shows: the host's, else the stripped-result recovery's.
+ * Hosts that strip `structuredContent` (claude.ai) never latch a result under
+ * mcp-use 2.x; the recovery re-executes the call once when the stripped
+ * result arrives. It never fires on a cancelled or failed call, nor while a
+ * slow tool is still running (#176): those render their state.
+ */
+function useShownView(
+  call: ReturnType<typeof useRenderCall>,
+  callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>,
+  policy: RecoveryPolicy = "auto",
+  graceMs: number = DEFAULT_ASSUME_STRIPPED_AFTER_MS,
+) {
+  const recovery = useToolResultRecovery<ViewData>({
+    resultReady: !call.isPending,
+    cancelled: call.isCancelled,
+    errored: call.isCallError,
+    props: call.initialViewData,
+    isValid: isCompleteViewData,
+    toolInput: call.tool.toolInput,
+    hostContext: call.hostContext,
+    callTool,
+    policy,
+    assumeStrippedAfterMs: graceMs,
+  })
+  const [view, setView] = useHostViewData(
+    call.initialViewData,
+    call.isPending,
+    recovery.data,
+    recovery.recoveredAt,
+  )
+  useReportRerunPayload(view)
+  const showRetried = useCallback(
+    (data: ViewData) => setView({ data, source: "retry", recoveredAt: null }),
+    [setView],
+  )
+  const showRefreshed = useCallback(
+    (data: ViewData) => setView({ data, source: "refresh", recoveredAt: null }),
+    [setView],
+  )
+  return {
+    view,
+    setView,
+    showRetried,
+    showRefreshed,
+    recoveryFailed: recovery.failed || recovery.blocked !== null,
+  }
+}
+
+/** When a payload the view re-loaded itself arrived (its figures are live as of then). */
+function recoveredAtOf(view: ShownView): number | null {
+  return view.source === "recovered" ? view.recoveredAt : null
+}
+
+/**
+ * The view's own line of model context (toolkit#176 K20, N23): an error the
+ * user sees instead of the view, failed data steps, or data the view
+ * re-loaded itself. Renders nothing while there is nothing to report.
+ */
+function ViewModelContext({
+  lifecycle,
+  toolName,
+  view,
+}: {
+  lifecycle: ViewLifecycle
+  toolName: string | undefined
+  view: ShownView
+}) {
+  const content = describeViewForModel({
+    lifecycle,
+    toolName,
+    stepErrors: view.data?.context.errors,
+    stepsRetryable: Boolean(view.data?._refreshParams),
+    recoveredAt: recoveredAtOf(view),
+  })
+  return content ? <HostModelContext content={content} /> : null
+}
+
 function McpAppViewShell({
   widgets,
   refreshToolName = "refresh-view",
@@ -234,13 +398,15 @@ function McpAppViewShell({
   slowHintAfterMs = DEFAULT_SLOW_HINT_MS,
   describeError,
   describeStep,
+  recoverStrippedResult,
+  strippedResultGraceMs,
 }: McpAppViewProps) {
   const messages = useToolkitMessages()
   const L = useMemo(() => ({ ...messages.view, ...labels }), [messages.view, labels])
   // The mcp-use 2.x view channels (all need the `bootstrapView` mount
   // `mountMcpToolkitApp` provides); tools go through the HostBridge.
-  const tool = useToolContext()
-  const { safeArea, hostContext } = useHostContext()
+  const call = useRenderCall()
+  const { safeArea, locale, timeZone } = useHostContext()
   const bridge = useHostBridge()
   const callTool = useCallback(
     (name: string, args: Record<string, unknown>) => bridge.callTool(name, args),
@@ -252,43 +418,26 @@ function McpAppViewShell({
     (name: string, args: object) => bridge.callTool(name, args as Record<string, unknown>),
     [bridge],
   )
-  const isPending = tool.status === "pending"
-  // Since mcp-use 2.7.1 a host cancellation latches as `status: "error"`.
-  const isCancelled = tool.status === "error" && tool.error instanceof ToolCancelledError
-  const isCallError = tool.status === "error" && !isCancelled
-  const initialViewData = tool.status === "ready" ? (tool.toolOutput as ViewData) : undefined
-
-  // Hosts that strip `structuredContent` (claude.ai) never latch a result under
-  // mcp-use 2.x; the recovery re-executes the call once to fill the gap. It
-  // never fires on a cancelled or failed call (#176): those render their state.
-  const recovery = useToolResultRecovery<ViewData>({
-    resultReady: !isPending,
-    cancelled: isCancelled,
-    errored: isCallError,
-    props: initialViewData,
-    isValid: isCompleteViewData,
-    toolInput: tool.toolInput,
-    hostContext,
-    callTool,
-  })
-  const [viewData, setViewData] = useHostViewData(initialViewData, isPending, recovery.data)
+  const shown = useShownView(call, callTool, recoverStrippedResult, strippedResultGraceMs)
+  const { view, setView } = shown
+  const viewData = view.data
   const { lifecycle, retry: retryCall } = useViewLifecycle({
     hasViewData: viewData !== null,
-    callStatus: tool.status,
-    cancelled: isCancelled,
-    callError: isCallError ? tool.error : undefined,
-    recoveryFailed: recovery.failed,
-    toolName: resolveRecoveryToolName(hostContext),
-    toolInput: tool.toolInput,
+    callStatus: call.tool.status,
+    cancelled: call.isCancelled,
+    callError: call.callError,
+    recoveryFailed: shown.recoveryFailed,
+    toolName: call.toolName,
+    toolInput: call.tool.toolInput,
     callTool,
     isValid: isCompleteViewData,
-    onResult: setViewData,
+    onResult: shown.showRetried,
     slowHintAfterMs,
   })
   const { frameRef, retry } = useRetryFocus(lifecycle.phase, retryCall)
   const { isRefreshing, refreshView } = useViewRefresh({
     viewData,
-    setViewData,
+    setViewData: shown.showRefreshed,
     callTool,
     refreshToolName,
     labels: L,
@@ -299,10 +448,13 @@ function McpAppViewShell({
   useBuildModeFocus(buildMode, frameRef)
   const exitBuildMode = useCallback(
     (commit?: BuilderCommit) => {
-      if (commit) setViewData((prev) => (prev ? applyBuilderCommit(prev, commit) : prev))
+      if (commit) setView((prev) => withBuilderCommit(prev, commit))
       setBuildMode(false)
     },
-    [setViewData],
+    [setView],
+  )
+  const viewContext = (
+    <ViewModelContext lifecycle={lifecycle} toolName={call.toolName} view={view} />
   )
 
   // `isPending` must not gate the render: on stripping hosts the latch stays
@@ -311,6 +463,7 @@ function McpAppViewShell({
   if (!viewData) {
     return (
       <div ref={frameRef} tabIndex={-1} data-slot="mcp-app-view" className="outline-hidden">
+        {viewContext}
         <ViewPlaceholder
           lifecycle={lifecycle}
           labels={L}
@@ -323,6 +476,7 @@ function McpAppViewShell({
 
   return (
     <div ref={frameRef} tabIndex={-1} data-slot="mcp-app-view" className="outline-hidden">
+      {viewContext}
       <main
         style={{
           // Fullscreen: the view owns the viewport and scrolls itself. Inline:
@@ -349,6 +503,7 @@ function McpAppViewShell({
           onRefresh={refreshView}
           onEnterBuildMode={() => setBuildMode(true)}
           onToggleFullscreen={fullscreen.toggle}
+          dataAsOf={formatDataAsOf(recoveredAtOf(view), locale, timeZone)}
         />
 
         <StepErrors
@@ -373,4 +528,18 @@ function McpAppViewShell({
       </main>
     </div>
   )
+}
+
+/** The shown view with a builder commit applied (nothing to apply without data). */
+function withBuilderCommit(view: ShownView, commit: BuilderCommit): ShownView {
+  return view.data ? { ...view, data: applyBuilderCommit(view.data, commit) } : view
+}
+
+/** The toolbar's "as of" time of a recovered payload, `undefined` for any other. */
+function formatDataAsOf(
+  recoveredAt: number | null,
+  locale: string | undefined,
+  timeZone: string | undefined,
+): string | undefined {
+  return recoveredAt === null ? undefined : formatClockTime(recoveredAt, locale, timeZone)
 }

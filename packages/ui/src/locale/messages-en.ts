@@ -35,6 +35,9 @@ export const en: ToolkitMessages = {
     refreshFailedHint: "You're seeing the last loaded data. Try again in a moment.",
     fullscreenFailed: "Couldn't switch the display mode.",
     fullscreenFailedHint: "The view stays as it is. Try again in a moment.",
+    dataAsOf: (time) => `As of ${time}`,
+    dataAsOfHint:
+      "The view loaded its data again when it opened. Figures can differ from the answer in the chat.",
   },
   listFooter: {
     showing: ({ shown, total, noun }) => `Showing ${shown} of ${total} ${noun}`.trimEnd(),

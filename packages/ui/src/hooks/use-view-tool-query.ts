@@ -1,10 +1,15 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query"
 import { useCallTool } from "../providers/query-provider.js"
 import { parseViewToolResult } from "../lib/parse-tool-result.js"
+import { toolQueryOptions, type UseToolQueryOptions } from "../lib/tool-query.js"
+import { useToolKeyGuard } from "./use-tool-query.js"
 
-export interface UseViewToolQueryOptions {
-  enabled?: boolean
-}
+/**
+ * Options of {@link useViewToolQuery}: TanStack's query options, passed
+ * through like `useToolQuery`'s (`enabled`, `retry`, `staleTime`,
+ * `placeholderData`, `initialData`, …).
+ */
+export type UseViewToolQueryOptions<T = unknown> = UseToolQueryOptions<T>
 
 /**
  * Self-fetch hook for `*_show_*` widget tools — the envelope-unwrapping sibling
@@ -14,25 +19,19 @@ export interface UseViewToolQueryOptions {
  * envelope; this hook decodes via {@link parseViewToolResult} (single-step →
  * flat data, multi-step → keyed by step id) instead.
  *
- * `args` is appended to the effective query key — same queryKey-vs-args
- * contract as {@link useToolQuery}, so sibling widgets sharing a query key
+ * Same key and options contract as {@link useToolQuery}: the effective key is
+ * `[...queryKey, args]`, so sibling widgets sharing a query key and args
  * collapse to a single deduped tool call.
  */
 export function useViewToolQuery<T = unknown>(
-  queryKey: unknown[],
+  queryKey: readonly unknown[],
   toolName: string,
   args: object,
-  opts?: UseViewToolQueryOptions,
+  opts?: UseViewToolQueryOptions<T>,
 ): UseQueryResult<T, Error> {
   const callTool = useCallTool()
-
-  return useQuery<T, Error>({
-    queryKey: [...queryKey, args],
-    queryFn: async () => {
-      if (!callTool) throw new Error("callTool not available")
-      const result = await callTool(toolName, args)
-      return parseViewToolResult<T>(result)
-    },
-    enabled: !!callTool && (opts?.enabled ?? true),
-  })
+  useToolKeyGuard(queryKey, toolName, args)
+  return useQuery<T, Error>(
+    toolQueryOptions<T>(queryKey, toolName, args, callTool, opts, parseViewToolResult),
+  )
 }

@@ -241,6 +241,33 @@ describe("ViewToolbar", () => {
     expect(html).toContain(`aria-label="${de.refresh}"`)
     expect(html).toContain(`aria-label="${de.enterFullscreen}"`)
   })
+
+  it("stamps the time of data the view re-loaded itself, with its meaning (toolkit#176 N23)", () => {
+    expect(toolbar()).not.toContain('data-slot="view-data-as-of"')
+    const html = toolbar({ dataAsOf: "14:32" })
+    const stamp = openingTags(html, "p").find(
+      (t) => attribute(t, "data-slot") === "view-data-as-of",
+    )
+    expect(stamp).toBeDefined()
+    expect(attribute(stamp ?? "", "title")).toBe(en.dataAsOfHint)
+    expect(attribute(stamp ?? "", "class")).toContain("text-muted-foreground")
+    expect(decodeEntities(html)).toContain(
+      `${en.dataAsOf("14:32")}<span class="sr-only"> ${en.dataAsOfHint}</span>`,
+    )
+    expect(decodeEntities(toolbar({ dataAsOf: "14:32", labels: de }))).toContain(
+      `${de.dataAsOf("14:32")}<span class="sr-only"> ${de.dataAsOfHint}</span>`,
+    )
+  })
+
+  it("keeps the bar for the stamp alone", () => {
+    const bare = {
+      canFullscreen: false,
+      titleMode: "hide" as const,
+      viewData: { ...view, _refreshParams: undefined },
+    }
+    expect(toolbar(bare)).toBe("")
+    expect(toolbar({ ...bare, dataAsOf: "14:32" })).toContain('data-slot="view-data-as-of"')
+  })
 })
 
 describe("toolbarControls / fullscreenAvailable", () => {

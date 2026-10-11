@@ -36,6 +36,9 @@ export const de: ToolkitMessages = {
     refreshFailedHint: "Du siehst den zuletzt geladenen Stand. Versuch es gleich noch mal.",
     fullscreenFailed: "Die Darstellung ließ sich nicht umschalten.",
     fullscreenFailedHint: "Die Ansicht bleibt, wie sie ist. Versuch es gleich noch mal.",
+    dataAsOf: (time) => `Stand ${time} Uhr`,
+    dataAsOfHint:
+      "Die Ansicht hat ihre Daten beim Öffnen neu geladen. Die Zahlen können von der Antwort im Chat abweichen.",
   },
   listFooter: {
     showing: ({ shown, total, noun }) => `Zeigt ${shown} von ${total} ${noun}`.trimEnd(),

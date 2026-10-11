@@ -53,7 +53,10 @@ export interface ViewLifecycleInput {
   cancelled: boolean
   /** Message of the original call's error, when it failed. */
   callErrorReason: string | undefined
-  /** The automatic stripped-result recovery ran and failed. */
+  /**
+   * The automatic stripped-result recovery ran and failed, or was needed but
+   * must not run (the policy forbids re-running the tool, or no tool is named).
+   */
   recoveryFailed: boolean
   /** The user-triggered retry. */
   retryState: RetryState
@@ -164,6 +167,59 @@ export function decodeViewResult<T>(
   return isValid(decoded)
     ? { ok: true, data: decoded }
     : { ok: false, isError: false, reason: undefined }
+}
+
+/** What {@link describeViewForModel} reports on. */
+export interface ViewModelContextInput {
+  lifecycle: ViewLifecycle
+  /** The originating tool, when the host names it. */
+  toolName: string | undefined
+  /** The shown payload's failed data steps (result phase). */
+  stepErrors?: readonly { stepId: string; reason: string }[]
+  /** The step-error alert offers a retry (the view can refresh). */
+  stepsRetryable?: boolean
+  /**
+   * When the view re-ran the tool on its own because the host stripped the
+   * result (epoch ms); `null` for a payload the host delivered.
+   */
+  recoveredAt?: number | null
+}
+
+/**
+ * The view's own line of model context (toolkit#176 K20): what failed and
+ * that the user sees an error instead of the view; failed data steps; a
+ * payload the view re-loaded itself, whose figures can differ from the tool
+ * result the model answered from (N23). `null` while there is nothing to
+ * report (waiting, or a plain host-delivered view). English: it is read by
+ * the model, never shown.
+ */
+export function describeViewForModel(input: ViewModelContextInput): string | null {
+  const subject = input.toolName ? `The view of ${input.toolName}` : "The view"
+  const { lifecycle } = input
+  if (lifecycle.phase === "error") {
+    const reason = lifecycle.reason ? ` (reason: ${lifecycle.reason})` : ""
+    const offer = lifecycle.canRetry ? "an error message with a retry button" : "an error message"
+    return `${subject} could not be shown${reason}. The user sees ${offer} instead of the view.`
+  }
+  if (lifecycle.phase === "cancelled") {
+    return `${subject} was cancelled before it rendered. The user sees a note that the call was cancelled.`
+  }
+  if (lifecycle.phase === "waiting") return null
+  const lines: string[] = []
+  if (input.recoveredAt != null) {
+    const at = new Date(input.recoveredAt).toISOString()
+    lines.push(
+      `${subject} re-ran the tool at ${at} because the host did not pass the original result to the view; its figures are live as of then and can differ from the original result.`,
+    )
+  }
+  const failed = input.stepErrors ?? []
+  if (failed.length > 0) {
+    const steps = failed.map((e) => `${e.stepId}: ${e.reason}`).join("; ")
+    const lead = lines.length > 0 ? "Some" : `${subject} is shown, but some`
+    const offer = input.stepsRetryable ? "an alert with a retry button" : "an alert"
+    lines.push(`${lead} of its data could not be loaded (${steps}). The user sees ${offer}.`)
+  }
+  return lines.length > 0 ? lines.join(" ") : null
 }
 
 /** A displayable message for anything thrown. */

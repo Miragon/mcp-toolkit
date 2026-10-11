@@ -17,9 +17,46 @@ export interface ParseToolResultOptions {
 }
 
 /**
+ * A tool answered with an `isError` result: a deterministic failure of the
+ * call itself (a validation error, an engine 404), not of the transport.
+ * Thrown by {@link parseToolResult}; the query hooks never retry it by
+ * default, since repeating the call repeats the answer. Still an `Error`
+ * with the tool's first text block as its message.
+ */
+export class ToolResultError extends Error {
+  /** The `isError` result as the tool returned it. */
+  readonly result: unknown
+
+  constructor(message: string, result: unknown) {
+    super(message)
+    this.name = "ToolResultError"
+    this.result = result
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+/**
+ * Whether `error` is a tool's own `isError` answer: a {@link ToolResultError},
+ * or mcp-use's `ToolError` (how `useDynamicTool` rejects an `isError` result
+ * inside a view), recognised by its name and result so the root barrel never
+ * imports `mcp-use/react`. Transport failures (a lost connection, a JSON-RPC
+ * error such as an unknown tool) are not tool errors.
+ */
+export function isToolError(error: unknown): boolean {
+  if (error instanceof ToolResultError) return true
+  if (!(error instanceof Error) || error.name !== "ToolError") return false
+  const result: unknown = (error as Error & { result?: unknown }).result
+  return isRecord(result) && result.isError === true
+}
+
+/**
  * Decodes an MCP tool result down to its data payload.
  *
- * Default (`prefer: "structured"`): `isError` → throw the first text block,
+ * Default (`prefer: "structured"`): `isError` → throw a
+ * {@link ToolResultError} with the first text block,
  * then `structuredContent` (if non-null), then JSON-decode the first text
  * block (verbatim string if it isn't JSON), then the raw result.
  *
@@ -37,7 +74,7 @@ export function parseToolResult<T = unknown>(result: unknown, opts?: ParseToolRe
         isError?: boolean
       }
     | undefined
-  if (r?.isError) throw new Error(r.content?.[0]?.text ?? "Tool call failed")
+  if (r?.isError) throw new ToolResultError(r.content?.[0]?.text ?? "Tool call failed", result)
 
   const fromStructured = (): T | undefined =>
     r?.structuredContent != null ? (r.structuredContent as T) : undefined

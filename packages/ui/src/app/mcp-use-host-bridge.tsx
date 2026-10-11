@@ -14,24 +14,17 @@ import {
   useOpenExternal,
   useSendFollowUp,
   useToolContext,
-  useViewState,
   useViewTheme,
 } from "mcp-use/react"
 import { HostBridgeProvider, toHostBridge, type HostBridge } from "./host-bridge.js"
-
-/**
- * `true` inside an mcp-use 2.x view — i.e. under a
- * {@link McpUseHostBridgeProvider}, which itself only renders under a
- * `bootstrapView`-mounted tree. Components that want to use `mcp-use/react`
- * primitives (which throw outside a view) branch on this instead of probing
- * mcp-use internals; see `adaptDataWidget`'s ModelContext handling.
- */
-const McpUseViewContext = createContext(false)
-
-/** Whether the subtree runs inside an mcp-use view (see {@link McpUseViewContext}). */
-export function useIsInsideMcpUseView(): boolean {
-  return useContext(McpUseViewContext)
-}
+import {
+  McpUseViewContext,
+  ModelContextChannelContext,
+  ModelContextLines,
+  modelContextLine,
+  withModelContextLine,
+  type ModelContextChannel,
+} from "./model-context.js"
 
 type DynamicCallTool = (name: string, args: Record<string, unknown>) => Promise<unknown>
 type BoundCall = (args: Record<string, unknown>) => Promise<unknown>
@@ -99,6 +92,25 @@ function useDynamicToolPool(): { callTool: DynamicCallTool; binders: ReactNode }
   return { callTool, binders }
 }
 
+/** The line of the bridge's own `setModelContext` (last writer wins). */
+const BRIDGE_LINE = "host-bridge"
+
+/**
+ * Where the view reports a payload it obtained by re-running the originating
+ * tool (a stripped-result recovery or the user's retry), so
+ * `HostBridge.getWidgetData()` returns it too (toolkit#176 K15): the bridge,
+ * not one component's local state, holds the view's data.
+ */
+const ViewResultSinkContext = createContext<((payload: unknown) => void) | null>(null)
+
+/**
+ * The sink for a re-executed view payload, or `null` outside a
+ * {@link McpUseHostBridgeProvider}. `McpAppView` reports through it.
+ */
+export function useViewResultSink(): ((payload: unknown) => void) | null {
+  return useContext(ViewResultSinkContext)
+}
+
 /**
  * Install the `mcp-use` {@link HostBridge} (plus the view-scope flag) for a
  * subtree inside an mcp-use 2.x view.
@@ -112,10 +124,15 @@ function useDynamicToolPool(): { callTool: DynamicCallTool; binders: ReactNode }
  * - `sendFollowup` / `openExternal` — `useSendFollowUp` / `useOpenExternal`;
  *   while the bridge is not connected (local `file://` preview), `openExternal`
  *   throws into `toHostBridge`'s documented `window.open` fallback.
- * - `setModelContext` — writes `{ __model_context }` into the view state,
- *   which hosts receive via `ui/update-model-context` (ext-apps) or
- *   `widgetState` (ChatGPT). The key is a toolkit-owned convention since 2.x.
- * - `getWidgetData` — the rendering tool's `structuredContent` once ready.
+ * - `setModelContext` — one line of the view's model-context tree (an mcp-use
+ *   `ModelContext` node beside the ones `HostModelContext` and
+ *   `useHostModelContext` register), which hosts receive via
+ *   `ui/update-model-context` (ext-apps) or `widgetState` (ChatGPT). The
+ *   provider does not seed mcp-use's view state, so a widget's own
+ *   `useViewState(default)` keeps its default (N29).
+ * - `getWidgetData` — the rendering tool's `structuredContent` once ready, or
+ *   the payload the view got by re-running the tool when the host stripped
+ *   it ({@link useViewResultSink}).
  *
  * Must render inside a `bootstrapView`-mounted tree (the mcp-use hooks throw
  * otherwise) — `McpToolkitApp` does this for the standard bundle; use it
@@ -128,9 +145,15 @@ export function McpUseHostBridgeProvider({ children }: { children: ReactNode }):
   const tool = useToolContext()
   const theme = useViewTheme()
   const { isAvailable } = useHostContext()
-  const [, setViewState] = useViewState<Record<string, unknown>>({})
+  const [lines, setLines] = useState<ReadonlyMap<string, string>>(() => new Map())
+  const channel = useMemo<ModelContextChannel>(
+    () => ({ set: (id, content) => setLines((prev) => withModelContextLine(prev, id, content)) }),
+    [],
+  )
+  // A payload the view re-executed; the host's own payload, once ready, wins.
+  const [recovered, setRecovered] = useState<unknown>(undefined)
 
-  const output = tool.status === "ready" ? tool.toolOutput : undefined
+  const output = tool.status === "ready" ? tool.toolOutput : recovered
 
   const bridge = useMemo<HostBridge>(
     () =>
@@ -147,18 +170,26 @@ export function McpUseHostBridgeProvider({ children }: { children: ReactNode }):
         },
         output,
         theme,
+        // toHostBridge writes model context as `{ __model_context }`: it
+        // becomes the bridge's line of the one channel, never view state.
         setState: (state) => {
-          setViewState((prev) => ({ ...prev, ...state }))
+          const text = state.__model_context
+          if (typeof text === "string") channel.set(BRIDGE_LINE, modelContextLine(text))
           return Promise.resolve()
         },
       }),
-    [callTool, sendFollowUp, openExternal, output, theme, isAvailable, setViewState],
+    [callTool, sendFollowUp, openExternal, output, theme, isAvailable, channel],
   )
 
   return (
     <McpUseViewContext.Provider value={true}>
       {binders}
-      <HostBridgeProvider bridge={bridge}>{children}</HostBridgeProvider>
+      <ModelContextLines lines={lines} />
+      <ModelContextChannelContext.Provider value={channel}>
+        <ViewResultSinkContext.Provider value={setRecovered}>
+          <HostBridgeProvider bridge={bridge}>{children}</HostBridgeProvider>
+        </ViewResultSinkContext.Provider>
+      </ModelContextChannelContext.Provider>
     </McpUseViewContext.Provider>
   )
 }

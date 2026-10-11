@@ -135,6 +135,12 @@ export interface ViewToolbarProps {
   onRefresh: () => Promise<void>
   onEnterBuildMode: () => void
   onToggleFullscreen: () => Promise<void>
+  /**
+   * The pre-formatted time of a view that loaded its data again on its own
+   * (toolkit#176 N23): the toolbar stamps it, so the figures read as live
+   * data of that time, not the result the chat answered from.
+   */
+  dataAsOf?: string
 }
 
 /** The toolbar title per {@link ViewTitleMode}: a heading, the consumer's slot, or nothing. */
@@ -266,9 +272,10 @@ export function ViewToolbar({
   onRefresh,
   onEnterBuildMode,
   onToggleFullscreen,
+  dataAsOf,
 }: ViewToolbarProps) {
   const show = toolbarControls({ viewData, builderAvailable, canFullscreen, titleMode })
-  if (hidden || !show.any) return null
+  if (hidden || (!show.any && !dataAsOf)) return null
   return (
     <LucideProvider strokeWidth={DENSE_ICON_STROKE}>
       <div data-slot="view-toolbar" className="flex min-h-12 items-center gap-2 px-4 py-2">
@@ -278,7 +285,17 @@ export function ViewToolbar({
           level={titleLevel}
           renderTitle={renderTitle}
         />
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="ml-auto flex min-w-0 items-center gap-1">
+          {dataAsOf && (
+            <p
+              data-slot="view-data-as-of"
+              className="text-muted-foreground mr-1 truncate text-sm"
+              title={labels.dataAsOfHint}
+            >
+              {labels.dataAsOf(dataAsOf)}
+              <span className="sr-only"> {labels.dataAsOfHint}</span>
+            </p>
+          )}
           {show.edit && (
             <Button
               type="button"

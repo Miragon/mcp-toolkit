@@ -67,7 +67,14 @@ export {
 // from the `./hooks` subpath only — see `packages/ui/src/hooks/index.ts`.
 export { useIsMobile } from "./hooks/use-mobile.js"
 export { useToolQuery, useToolMutation } from "./hooks/use-tool-query.js"
-export type { UseToolQueryOptions } from "./hooks/use-tool-query.js"
+export type { UseToolQueryOptions, UseToolMutationOptions } from "./hooks/use-tool-query.js"
+// The query layer's contract: the effective cache key, the opt-in retry
+// policy (no retry of a tool's own isError answer), and TanStack's
+// keepPreviousData for `placeholderData`, so a consumer needs no direct
+// @tanstack/react-query import for the common options.
+export { toolQueryKey, shouldRetryToolCall } from "./lib/tool-query.js"
+export { ToolResultError, isToolError } from "./lib/parse-tool-result.js"
+export { keepPreviousData } from "@tanstack/react-query"
 export { useDebouncedValue } from "./hooks/use-debounced-value.js"
 
 // Tone token system — the semantic status tones (ToneVariant + TONE_* maps)

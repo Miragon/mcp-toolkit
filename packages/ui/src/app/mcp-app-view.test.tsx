@@ -8,6 +8,7 @@ import { attribute, decodeEntities, openingTags, userFacingTexts } from "../rend
 import { createStandaloneHostBridge, HostBridgeProvider } from "./host-bridge.js"
 import { McpAppView } from "./mcp-app-view.js"
 import type { ViewData } from "./mcp-app-view-chrome.js"
+import { McpUseViewContext } from "./model-context.js"
 
 /**
  * McpAppView's wiring, rendered through its real hooks (SSR, the house path):
@@ -36,8 +37,14 @@ vi.mock(import("mcp-use/react"), async (importOriginal) => {
     safeArea: { top: 0, right: 0, bottom: 0, left: 0 },
     hostContext: host.hostContext,
   })
+  // The view's model-context node, made visible: a <meta> whose `content`
+  // the scans below never read as user-facing text.
+  const { createElement } = await import("react")
+  const ModelContext = ({ content }: { content: string }) =>
+    createElement("meta", { "data-model-context": content })
   return {
     ...actual,
+    ModelContext: ModelContext as unknown as typeof actual.ModelContext,
     useToolContext: useToolContext as unknown as typeof actual.useToolContext,
     useHostContext: useHostContext as unknown as typeof actual.useHostContext,
     useDisplayMode: () => ({
@@ -176,6 +183,43 @@ describe("McpAppView lifecycle wiring (toolkit#176)", () => {
     expect(view).toContain("widget-locale:")
     // The frame stays the same element across placeholder and view.
     expect(attribute(openingTags(view, "div")[0] ?? "", "data-slot")).toBe("mcp-app-view")
+  })
+})
+
+describe("McpAppView model context (toolkit#176 K20)", () => {
+  /** Inside an mcp-use view, where the view's line joins the native tree. */
+  const inView = (node: ReactNode) => (
+    <McpUseViewContext.Provider value={true}>{node}</McpUseViewContext.Provider>
+  )
+  const contexts = (html: string) =>
+    openingTags(html, "meta").map((tag) =>
+      decodeEntities(attribute(tag, "data-model-context") ?? ""),
+    )
+
+  it("an error the user sees instead of the view reaches the model: what failed, and that it is an error", () => {
+    host.tool = { status: "error", error: toolError(REASON), toolInput: {} }
+    const { view } = render(inView)
+    expect(contexts(view)).toEqual([
+      `The view of render-view could not be shown (reason: ${REASON}). ` +
+        "The user sees an error message with a retry button instead of the view.",
+    ])
+  })
+
+  it("a cancelled call says so", () => {
+    host.tool = { status: "error", error: new ToolCancelledError("user"), toolInput: {} }
+    expect(contexts(render(inView).view)).toEqual([
+      "The view of render-view was cancelled before it rendered. The user sees a note that the call was cancelled.",
+    ])
+  })
+
+  it("failed data steps of a shown view are reported; a waiting view reports nothing", () => {
+    host.tool = { status: "ready", toolOutput: VIEW, toolInput: {} }
+    expect(contexts(render(inView).view)).toEqual([
+      "The view of render-view is shown, but some of its data could not be loaded (kpi: timeout). " +
+        "The user sees an alert with a retry button.",
+    ])
+    host.tool = { status: "pending", toolInput: undefined, toolOutput: undefined }
+    expect(contexts(render(inView).view)).toEqual([])
   })
 })
 
