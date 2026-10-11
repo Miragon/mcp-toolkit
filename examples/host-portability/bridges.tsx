@@ -8,7 +8,7 @@ import {
   type McpUseWidgetSurface,
   type OpenAiAppsSdk,
 } from "@miragon/mcp-toolkit-ui/app"
-import { AppQueryProvider } from "@miragon/mcp-toolkit-ui"
+import { AppQueryProvider, LocaleProvider, ThemeProvider } from "@miragon/mcp-toolkit-ui"
 import { callFakeTool, seedOrder } from "./fake-server.js"
 import { OrderStatusCard } from "./OrderStatusCard.js"
 
@@ -46,11 +46,19 @@ export const BRIDGE_OPTIONS: BridgeOption[] = [
   {
     id: "standalone",
     label: "Standalone web app",
-    blurb: "createStandaloneHostBridge() with an injected callTool — no toolkit host.",
+    blurb: "createStandaloneHostBridge() with an injected callTool, no toolkit host.",
   },
 ]
 
-const theme = "light" as const
+/** The host's colour scheme, as a host reports it to the widget (`bridge.theme`). */
+export type HostTheme = "light" | "dark"
+
+/** What the page's switches tell every simulated host about itself. */
+export interface HostSettings {
+  theme: HostTheme
+  /** The host's locale (BCP 47), e.g. `"de-DE"`. */
+  locale: string
+}
 
 /**
  * Build the OpenAI Apps SDK stub (`window.openai` shape) the ChatGPT bridge
@@ -58,12 +66,16 @@ const theme = "light" as const
  * `log`. This is a *stub* of the real host object — exactly the surface
  * {@link createChatGptHostBridge} probes.
  */
-function buildOpenAiStub(log: LogFn, orderId: string): OpenAiAppsSdk & Record<string, unknown> {
+function buildOpenAiStub(
+  log: LogFn,
+  orderId: string,
+  { theme, locale }: HostSettings,
+): OpenAiAppsSdk & Record<string, unknown> {
   return {
     theme,
+    locale,
     // Host-context globals a real Apps-SDK host exposes; harmless defaults.
     displayMode: "inline",
-    locale: "en-US",
     maxHeight: 4096,
     userAgent: { device: { type: "desktop" }, capabilities: { hover: true, touch: false } },
     safeArea: { insets: { top: 0, right: 0, bottom: 0, left: 0 } },
@@ -101,7 +113,7 @@ function buildOpenAiStub(log: LogFn, orderId: string): OpenAiAppsSdk & Record<st
  * page stubs the surface and runs it through the *real* mapping —
  * {@link toHostBridge} — which is the adapter code widgets actually depend on.
  */
-function buildMcpUseSurfaceBridge(log: LogFn, orderId: string): HostBridge {
+function buildMcpUseSurfaceBridge(log: LogFn, orderId: string, theme: HostTheme): HostBridge {
   const surface: McpUseWidgetSurface = {
     callTool: (name, args) => {
       log({ kind: "callTool", name, args })
@@ -127,25 +139,31 @@ function buildMcpUseSurfaceBridge(log: LogFn, orderId: string): HostBridge {
 
 /**
  * Render the demo widget under the selected host bridge. Each branch wraps the
- * *same* {@link OrderStatusCard} — the whole point of the example — in a
- * different adapter, and every bridge routes its actions to `log`.
+ * *same* {@link OrderStatusCard} (the whole point of the example) in a
+ * different adapter, and every bridge routes its actions to `log`. The host's
+ * theme and locale apply the way a real host applies them: the colour scheme
+ * to the widget's scope (and `bridge.theme`), the locale through a
+ * `LocaleProvider`, so the card looks and reads the same under every bridge.
  */
 export function BridgeStage({
   bridgeId,
   orderId,
   log,
+  host,
 }: {
   bridgeId: BridgeId
   orderId: string
   log: LogFn
+  host: HostSettings
 }): ReactNode {
+  const { theme, locale } = host
   const explicitBridge = useMemo<HostBridge | null>(() => {
     if (bridgeId === "mcp-use") {
-      return buildMcpUseSurfaceBridge(log, orderId)
+      return buildMcpUseSurfaceBridge(log, orderId, theme)
     }
     if (bridgeId === "chatgpt") {
       // Pass the stub explicitly so the adapter doesn't depend on a global.
-      return createChatGptHostBridge(buildOpenAiStub(log, orderId))
+      return createChatGptHostBridge(buildOpenAiStub(log, orderId, { theme, locale }))
     }
     if (bridgeId === "standalone") {
       return createStandaloneHostBridge({
@@ -165,14 +183,18 @@ export function BridgeStage({
       })
     }
     return null
-  }, [bridgeId, orderId, log])
+  }, [bridgeId, orderId, log, theme, locale])
 
   if (!explicitBridge) return null
   return (
-    <AppQueryProvider>
-      <HostBridgeProvider bridge={explicitBridge}>
-        <OrderStatusCard orderId={orderId} />
-      </HostBridgeProvider>
-    </AppQueryProvider>
+    <ThemeProvider mode={theme} className="bg-background flex justify-center p-3 sm:p-5">
+      <LocaleProvider locale={locale}>
+        <AppQueryProvider>
+          <HostBridgeProvider bridge={explicitBridge}>
+            <OrderStatusCard orderId={orderId} />
+          </HostBridgeProvider>
+        </AppQueryProvider>
+      </LocaleProvider>
+    </ThemeProvider>
   )
 }
