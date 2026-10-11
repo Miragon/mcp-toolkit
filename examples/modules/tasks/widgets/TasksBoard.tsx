@@ -182,12 +182,9 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
     value: count(counts[status]),
     tone: STATUS_TONE[status],
     onClick: () => filter.toggleStatus(status),
-    // The accessible name starts with what the cell shows (WCAG 2.5.3) and
-    // says what a click does now: filter, or show all again.
-    ariaLabel: (statusFilter === status ? text.statusCellActiveLabel : text.statusCellLabel)(
-      text.status[status],
-      count(counts[status]),
-    ),
+    // The visible label and figure name the cell (WCAG 2.5.3); the hint says
+    // what a click does now: filter, or show all again.
+    actionHint: statusFilter === status ? text.statusCellActiveHint : text.statusCellHint,
   })
   // A completed row stays where it is until an explicit refresh confirms it.
   const refreshBoard = async () => {

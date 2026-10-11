@@ -39,8 +39,6 @@ const SAMPLES: Record<string, unknown[]> = {
   orderCount: [1, "1"],
   updatedAt: ["10:57"],
   addPrompt: ["show_tasks_board"],
-  statusCellLabel: ["To do", "2"],
-  statusCellActiveLabel: ["To do", "2"],
   statusFilterBadge: ["To do"],
   clearStatus: ["To do"],
   shown: ["4"],
@@ -147,21 +145,19 @@ describe("accessible names start with the visible label (WCAG 2.5.3)", () => {
   // Speech input matches a control by the words it shows, so its accessible
   // name has to begin with them ("Erledigen: „…“", not "„…“ erledigen").
   for (const locale of ["en", "de"] as const) {
-    it(`${locale}: Complete and the status cells`, () => {
+    it(`${locale}: Complete`, () => {
       const text = TASKS_TEXT[locale]
       expect(text.completeTask("Draft the onboarding guide")).toMatch(
         new RegExp(`^${text.complete}\\b`),
       )
-      for (const status of Object.values(text.status)) {
-        expect(text.statusCellLabel(status, "2").startsWith(`${status} 2`)).toBe(true)
-        expect(text.statusCellActiveLabel(status, "2").startsWith(`${status} 2`)).toBe(true)
-      }
     })
   }
 
-  it("the active cell says that a click shows all again, not that it filters", () => {
+  it("the active status cell's hint says that a click shows all again, not that it filters", () => {
+    // The cells keep their visible label and figure as their name; what a
+    // click does is their description (KpiCell.actionHint).
     for (const text of Object.values(TASKS_TEXT)) {
-      expect(text.statusCellActiveLabel("x", "1")).not.toBe(text.statusCellLabel("x", "1"))
+      expect(text.statusCellActiveHint).not.toBe(text.statusCellHint)
     }
   })
 })

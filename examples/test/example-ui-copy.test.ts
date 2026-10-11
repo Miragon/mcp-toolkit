@@ -34,7 +34,7 @@ import { REPO_ROOT } from "./helpers/fitness-probe.js"
  * (`messages.ts`), never from the component: no JSX text with a letter, and
  * no letter-bearing literal as a rendered child, as a text attribute or
  * component prop (`title`, `aria-label`, `placeholder`, …) or as a text field
- * of an object (`label`, `title`, `description`, `ariaLabel`, …: KPI cells,
+ * of an object (`label`, `title`, `description`, `actionHint`, …: KPI cells,
  * chips, toasts).
  */
 
@@ -127,6 +127,7 @@ const TEXT_FIELDS = new Set([
   "title",
   "description",
   "ariaLabel",
+  "actionHint",
   "hint",
   "badge",
   "placeholder",

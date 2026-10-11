@@ -39,10 +39,13 @@ export interface TasksText {
   emptyTitle: string
   emptyHint: string
   statusHeader: string
-  /** Accessible name of a status cell: what it shows, then what a click does. */
-  statusCellLabel: (status: string, count: string) => string
+  /**
+   * What a click on a status cell does, read as the cell's description: its
+   * visible label and figure stay its name (WCAG 2.5.3).
+   */
+  statusCellHint: string
   /** The same while the list shows only that status: a click shows all again. */
-  statusCellActiveLabel: (status: string, count: string) => string
+  statusCellActiveHint: string
   /** The KPI header's badge while a status filter is on (the cells have no pressed state). */
   statusFilterBadge: (status: string) => string
   total: string
@@ -89,8 +92,8 @@ const en: TasksText = {
   emptyTitle: "No tasks yet",
   emptyHint: "Ask the agent to add your first task. It shows up here.",
   statusHeader: "Status",
-  statusCellLabel: (status, count) => `${status} ${count}: show only these tasks`,
-  statusCellActiveLabel: (status, count) => `${status} ${count}: show all tasks again`,
+  statusCellHint: "Shows only these tasks",
+  statusCellActiveHint: "Shows all tasks again",
   statusFilterBadge: (status) => `Only “${status}”`,
   total: "Total",
   listTitle: "Tasks",
@@ -133,8 +136,8 @@ const de: TasksText = {
   emptyTitle: "Noch keine Aufgaben",
   emptyHint: "Bitte den Agenten im Chat um deine erste Aufgabe. Danach steht sie hier.",
   statusHeader: "Status",
-  statusCellLabel: (status, count) => `${status} ${count}: nur diese Aufgaben zeigen`,
-  statusCellActiveLabel: (status, count) => `${status} ${count}: wieder alle Aufgaben zeigen`,
+  statusCellHint: "Zeigt nur diese Aufgaben",
+  statusCellActiveHint: "Zeigt wieder alle Aufgaben",
   statusFilterBadge: (status) => `Nur „${status}“`,
   total: "Gesamt",
   listTitle: "Aufgaben",
