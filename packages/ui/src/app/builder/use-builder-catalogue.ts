@@ -111,6 +111,11 @@ export function useBuilderCatalogue({
   useEffect(() => {
     refreshRef.current = refreshBuilder
   }, [refreshBuilder])
+  // Retry of the catalogue error state: fetch again right away, with the
+  // current keys and steps.
+  const retryCatalogue = useCallback(() => {
+    void refreshRef.current()
+  }, [])
   const isFirstRun = useRef(true)
   useEffect(() => {
     if (isFirstRun.current) {
@@ -178,6 +183,7 @@ export function useBuilderCatalogue({
     validationIssues,
     status,
     refreshError,
+    retryCatalogue,
     widgetById,
     propsSchemaByWidgetId,
     paletteByApp,

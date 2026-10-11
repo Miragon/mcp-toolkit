@@ -16,6 +16,8 @@ import {
   SheetTitle,
 } from "../primitives/sheet.js"
 import { Switch } from "../primitives/switch.js"
+import { useToolkitMessages } from "../locale/locale-provider.js"
+import type { PropsSheetMessages } from "../locale/toolkit-messages.js"
 
 /**
  * Tiny JSON-Schema-driven editor for a layout cell's `props`. The
@@ -48,25 +50,8 @@ interface JsonSchemaObject {
   required?: string[]
 }
 
-export interface WidgetPropsSheetLabels {
-  title?: string
-  description?: string
-  apply?: string
-  cancel?: string
-  reset?: string
-  noProps?: string
-  unsetOption?: string
-}
-
-const DEFAULT_LABELS: Required<WidgetPropsSheetLabels> = {
-  title: "Configure widget",
-  description: "Set per-instance props for this widget.",
-  apply: "Apply",
-  cancel: "Cancel",
-  reset: "Reset",
-  noProps: "This widget takes no per-instance props.",
-  unsetOption: "(unset)",
-}
+/** Override strings of the sheet; each defaults to the locale's `propsSheet` catalog. */
+export type WidgetPropsSheetLabels = Partial<PropsSheetMessages>
 
 const UNSET_SENTINEL = "__unset__"
 
@@ -89,7 +74,8 @@ export function WidgetPropsSheet({
   onApply,
   labels,
 }: WidgetPropsSheetProps) {
-  const L = { ...DEFAULT_LABELS, ...labels }
+  const messages = useToolkitMessages()
+  const L = { ...messages.propsSheet, ...labels }
   const obj = (schema ?? {}) as JsonSchemaObject
   const [draft, setDraft] = useState<Record<string, unknown>>(value ?? {})
 
@@ -121,9 +107,9 @@ export function WidgetPropsSheet({
       <SheetContent className="w-[400px] sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{L.title}</SheetTitle>
-          <SheetDescription>
-            <span className="bg-muted rounded px-1 font-mono text-xs">{widgetId}</span> —{" "}
-            {L.description}
+          <SheetDescription className="flex flex-col items-start gap-1">
+            <span>{L.description}</span>
+            <span className="bg-muted rounded px-1 font-mono text-xs">{widgetId}</span>
           </SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-4 px-4 py-4">
@@ -137,6 +123,7 @@ export function WidgetPropsSheet({
                 prop={prop}
                 value={draft[key]}
                 unsetLabel={L.unsetOption}
+                unsupportedLabel={L.unsupportedType}
                 onChange={(v) =>
                   setDraft((prev) => {
                     if (v === undefined) {
@@ -172,12 +159,14 @@ function PropertyField({
   prop,
   value,
   unsetLabel,
+  unsupportedLabel,
   onChange,
 }: {
   name: string
   prop: JsonSchemaProperty
   value: unknown
   unsetLabel: string
+  unsupportedLabel: (type: string) => string
   onChange: (v: unknown) => void
 }) {
   const id = `prop-${name}`
@@ -255,9 +244,7 @@ function PropertyField({
 
   return (
     <FieldShell id={id} name={name} description={prop.description}>
-      <p className="text-muted-foreground text-xs italic">
-        Unsupported type "{prop.type ?? "(none)"}" — edit raw JSON to set this field.
-      </p>
+      <p className="text-muted-foreground text-xs italic">{unsupportedLabel(prop.type ?? "?")}</p>
     </FieldShell>
   )
 }

@@ -106,6 +106,7 @@ front of a widget:
 host-pushed `data` when handed it and self-fetches otherwise, via `useViewData`:
 
 ```tsx
+import { ErrorState, Skeleton, useTranslate } from "@miragon/mcp-toolkit-ui"
 import { useViewData } from "@miragon/mcp-toolkit-ui/hooks"
 
 function IncidentPanel({
@@ -115,7 +116,8 @@ function IncidentPanel({
   data: Incident | null
   processKey?: string
 }) {
-  const { data, loading, error } = useViewData(
+  const t = useTranslate() // the widget's own catalog (LocaleProvider), en + de
+  const { data, loading, error, refetch } = useViewData(
     pushed, // host-pushed data (verbatim if present)
     ["incident", processKey], // cache key (siblings dedupe)
     "camunda7_incident_data", // tool to fetch when no pushed data
@@ -123,6 +125,10 @@ function IncidentPanel({
     Boolean(processKey), // ready: only fetch when the key is present
   )
   if (loading) return <Skeleton className="h-24 w-full" />
+  if (error) {
+    // What happened in catalog words, the raw reason under "Details", a retry.
+    return <ErrorState title={t("incident.loadFailed")} details={error.message} onRetry={refetch} />
+  }
   // … render from data
 }
 ```
@@ -151,7 +157,9 @@ Quality rules:
   white): use the tone's ink (`TONE_TEXT`) next to a dot or icon; text on a
   tint (`TONE_SOFT`) is the foreground with the tone on the rim
   (`TONE_BORDER`); figures (counts, KPI values, trends) stay in the
-  foreground next to a `TONE_DOT`. `FOCUS_RING` on custom controls. Merge conditional classes with `cn(...)`. See
+  foreground next to a `TONE_DOT`. `FOCUS_RING` on custom controls. Icons are
+  Lucide in `currentColor` (a status icon takes `TONE_ICON`); `McpAppView` sets
+  the stroke once (2.5, 2 in dense bars), so never pass `strokeWidth` per icon. Merge conditional classes with `cn(...)`. See
   the [white-labeling guide](../../../docs/guides/white-labeling.md) and the
   playground's brand switcher.
 - **Metrics → `KpiGrid`** (a row of headline cells; set a cell `tone`/`onClick`).
@@ -321,6 +329,7 @@ House rules that apply to widget code (see `CONTRIBUTING.md` / `CLAUDE.md`):
 - [ ] Picked the widget shape (`{ data }` vs `{ keys }`) and the data path (Step 0/1).
 - [ ] Composed from the catalog's primitives/composed components — no `<div>` wüste, tokens not raw colors.
 - [ ] Host access only via `useHostBridge` / the data hooks — no direct `mcp-use/react` or `window.openai`.
-- [ ] Loading (`Skeleton`), empty, and error states handled.
+- [ ] Loading (`Skeleton`), empty (`EmptyState`) and error (`ErrorState` with `onRetry`) states handled; write outcomes reported with `useToast()`, never only `console`.
+- [ ] No hard-coded copy: user-facing text comes from props or the locale (`useTranslate` / `useToolkitMessages`).
 - [ ] A `Story` added to the playground and the widget seen rendering.
 - [ ] `typecheck` green; repo gates green before commit.

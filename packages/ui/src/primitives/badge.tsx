@@ -7,7 +7,8 @@ import { TONE_BORDER, TONE_SOFT } from "../lib/tone-utils.js"
 import { cn } from "../lib/utils.js"
 
 // Badges and chips take radius sm (CI §6). The status variants follow the tone
-// model: tint, the tone's ink as text, a border in the tone colour.
+// model: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER;
+// CI §3.3 "-soft: Text darauf --cd-schwarz"). The ink is never text on a tint.
 const badgeVariants = cva(
   `group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all ${FOCUS_RING} has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-danger [&>svg]:pointer-events-none [&>svg]:size-3!`,
   {

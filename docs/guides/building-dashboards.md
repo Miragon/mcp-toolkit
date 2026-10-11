@@ -48,7 +48,7 @@ catalogue is **not** included; the LLM doesn't need it.
 
 ## 3. Switch into Build (user)
 
-In the iframe toolbar there's a **Build** button (pencil icon). Click
+In the iframe toolbar there's an **Edit view** button (pencil icon). Click
 it and the renderer flips into the LayoutBuilder. The builder fetches
 its own catalogue via the app-only `get-builder-catalogue` tool — the
 LLM never sees this round-trip.
@@ -57,7 +57,7 @@ In Build mode you have three tabs:
 
 - **Layout** — palette + canvas. Click or drag widgets, set span per
   cell, add/remove/reorder rows, manage tabs.
-- **Pipeline** — keys + steps editor. Auto-applies on edit (debounced).
+- **Data sources** — keys + steps editor. Auto-applies on edit (debounced).
 - **Preview** — pure rendered output, no chrome.
 
 A right-side **Catalogue** sheet (toolbar button) shows all keys with
@@ -69,7 +69,7 @@ yet, with one-click "Add producing step" actions.
 - **Done** — exits Build mode, swaps back to the rendered view with the
   layout you just built.
 - **Save dashboard** — prompts for a name + optional description, then
-  calls `save-dashboard`. Returns `{ id, name, createdAt, updatedAt }`
+  calls `save-dashboard` and confirms the save with a toast. Returns `{ id, name, createdAt, updatedAt }`
   (plus `unknownWidgets` as a non-fatal warning when the layout
   references widget ids the server doesn't know).
 
@@ -116,7 +116,7 @@ curl -sX POST http://localhost:3010/mcp \
 ```
 
 Open the resulting MCP UI in an MCP-capable host. You'll see the
-rendered widget; click **Build** in the toolbar to enter Build mode
+rendered widget; click **Edit view** in the toolbar to enter Build mode
 and edit the layout interactively.
 
 ## See also

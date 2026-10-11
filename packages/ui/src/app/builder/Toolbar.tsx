@@ -1,5 +1,6 @@
 import { memo } from "react"
-import { Check, Eye, Layers, Library, Save } from "lucide-react"
+import { Check, Eye, Layers, Library, LucideProvider, Save } from "lucide-react"
+import { DENSE_ICON_STROKE } from "../../lib/icon-stroke.js"
 import { Badge } from "../../primitives/badge.js"
 import { Button } from "../../primitives/button.js"
 import { TONE_DOT, TONE_SOFT } from "../../lib/tone-utils.js"
@@ -58,18 +59,19 @@ function ToolbarImpl({
         <span className="inline-flex items-center gap-1.5">
           <span aria-hidden="true" className={`size-1.5 rounded-full ${TONE_DOT.success}`} />
           <span>
-            <span className="text-foreground font-medium">{liveKeys}</span> live
+            <span className="text-foreground font-medium">{liveKeys}</span> {L.statsLive}
           </span>
         </span>
         <span className="bg-border h-3 w-px" aria-hidden="true" />
         <span>
-          <span className="text-foreground font-medium">{reachableCount}</span> reachable
+          <span className="text-foreground font-medium">{reachableCount}</span> {L.statsReachable}
         </span>
         {unreachableCount > 0 && (
           <>
             <span className="bg-border h-3 w-px" aria-hidden="true" />
             <span>
-              <span className="text-foreground font-medium">{unreachableCount}</span> unreachable
+              <span className="text-foreground font-medium">{unreachableCount}</span>{" "}
+              {L.statsUnreachable}
             </span>
           </>
         )}
@@ -93,4 +95,13 @@ function ToolbarImpl({
   )
 }
 
-export const Toolbar = memo(ToolbarImpl)
+/** A dense chrome bar: its Lucide icons draw at stroke 2 (CI §11), not the view's 2.5. */
+function DenseToolbar(props: Parameters<typeof ToolbarImpl>[0]) {
+  return (
+    <LucideProvider strokeWidth={DENSE_ICON_STROKE}>
+      <ToolbarImpl {...props} />
+    </LucideProvider>
+  )
+}
+
+export const Toolbar = memo(DenseToolbar)

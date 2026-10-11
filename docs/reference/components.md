@@ -309,8 +309,9 @@ visually quieter than primary/agentic actions.
 ### ListFooter
 
 Props: `shown: number`, `total: number`, `hasMore: boolean`, `onLoadMore: () => void`
-(all required), `loadingMore?`, `noun?` (default `"rows"`). Renders nothing when
-`total` is 0.
+(all required), `loadingMore?`, `noun?` (default: the locale's word for rows).
+Renders nothing when `total` is 0. Text and number format follow the active
+locale ("Zeigt 8 von 42 …" under `de`).
 
 ```tsx
 import { ListFooter } from "@miragon/mcp-toolkit-ui"
@@ -325,6 +326,68 @@ import { ListFooter } from "@miragon/mcp-toolkit-ui"
 
 **When to use:** footer for a paginated list — an honest "Showing X of Y" total
 plus an explicit "Load more" (not infinite scroll).
+
+## Feedback and states
+
+One pattern each, so every widget reports outcomes the same way. All import
+from `@miragon/mcp-toolkit-ui`; their text defaults come from the active locale.
+
+### ToastProvider / useToast
+
+```tsx
+import { useToast } from "@miragon/mcp-toolkit-ui"
+const toast = useToast()
+toast.show({ tone: "success", title: "Job retried." })
+toast.show({ tone: "danger", title: "Retry failed.", description: "Try again in a moment." })
+```
+
+**When to use:** confirm a write or report a failure instead of a silent
+`console` line. The stack sits bottom centre: status colour as left edge and
+icon next to plain text, one persistent `role="status"` `aria-live="polite"`
+region, 2.8 s (errors 5 s), held while hovered or focused. `McpAppView` mounts
+the provider; outside one, `useToast()` is a no-op. The title says what
+happened, the description what to do next, both from your catalog: keep the
+raw error (`error.message`) out of the toast and log it, or show it under an
+`ErrorState`'s Details. Toast icons follow the `LucideProvider` around the
+outermost `ToastProvider` (stroke 2.5 inside `McpAppView`).
+
+### EmptyState
+
+Props: `title` (required), `description?` (one help line), `icon?` (Lucide icon or
+a brand mark, decorative; an SVG renders at 24 px unless it carries its own
+`size-*` class, so a mark can be larger), `tone?: "neutral" | "success"`, `action?`,
+`secondaryAction?`, `titleAs?` (default `"h3"`).
+
+```tsx
+import { EmptyState } from "@miragon/mcp-toolkit-ui"
+import { CircleCheck } from "lucide-react"
+;<EmptyState icon={<CircleCheck />} tone="success" title="No open incidents" />
+```
+
+**When to use:** a list, table or view with nothing to show. At most two actions.
+
+### ErrorState
+
+Props: `title` (required), `description?`, `details?` (raw reason, collapsed under
+"Details"), `onRetry?`, `actions?`, `tone?: "danger" | "warning" | "info"`,
+`variant?: "block" | "inline"`, `role?: "alert" | "status" | "none"`, `icon?`,
+`titleAs?`.
+
+```tsx
+import { ErrorState } from "@miragon/mcp-toolkit-ui"
+;<ErrorState
+  title="Incidents couldn't be loaded"
+  description="Check that the engine runs, then try again."
+  details={error.message}
+  onRetry={refetch}
+/>
+```
+
+**When to use:** a failed fetch or render. Say what happened and what you can
+do; keep the raw exception under Details. `inline` is the alert above content
+that still renders. The tone shows as rim, tint and icon (`TONE_BORDER`,
+`TONE_SOFT`, `TONE_ICON`); every word, Details included, stays in the
+foreground.
 
 ### GridLayout / GridItem
 
@@ -455,9 +518,11 @@ multi-step → keyed by step id) — the envelope-aware sibling of `useToolQuery
 ### useViewData
 
 `useViewData(initialData, key, tool, args, ready)` — **`/hooks` import**.
-Returns `{ data, loading, error }`.
+Returns `{ data, loading, error, refetch }`; `refetch` is the retry of the
+error state.
 
 ```tsx
+import { ErrorState, useTranslate } from "@miragon/mcp-toolkit-ui"
 import { useViewData } from "@miragon/mcp-toolkit-ui/hooks"
 
 function IncidentPanel({
@@ -467,13 +532,17 @@ function IncidentPanel({
   data: Incident | null
   processKey?: string
 }) {
-  const { data, loading } = useViewData(
+  const t = useTranslate()
+  const { data, loading, error, refetch } = useViewData(
     pushed,
     ["incident", processKey],
     "camunda7_incident_data",
     { processKey },
     Boolean(processKey),
   )
+  if (error) {
+    return <ErrorState title={t("incident.loadFailed")} details={error.message} onRetry={refetch} />
+  }
   // …
 }
 ```
@@ -758,6 +827,27 @@ adoptHostFontVariables(document.documentElement.style, hostContext.styles?.varia
 
 **When to use:** only in an app with its own host-document layer, right after
 it applied the host's style variables. `McpToolkitApp` already does it.
+
+## Localization
+
+### LocaleProvider / useToolkitMessages
+
+`LocaleProvider` props: `locale` (required), `translator?` (from
+`createTranslator`), `toolkitMessages?` (per-section overrides of the toolkit's
+own strings), `children`. `useToolkitMessages()` returns the toolkit strings for
+the active locale: the shipped `en`/`de` catalog (`TOOLKIT_MESSAGES`), English for
+any other locale.
+
+```tsx
+import { LocaleProvider } from "@miragon/mcp-toolkit-ui"
+;<LocaleProvider locale={host.locale} toolkitMessages={{ listFooter: { loadMore: "Show more" } }}>
+  <YourWidget />
+</LocaleProvider>
+```
+
+**When to use:** pass the app's locale once; every toolkit component below
+(list footer, dialogs, toasts, the view chrome and the builder) follows it.
+`formatCount(value, locale)` formats counts with the same locale.
 
 ## App shell
 

@@ -60,7 +60,7 @@ export function CatalogueSheet({
             <section className="flex flex-col gap-2">
               <CatalogueSectionHeader title={L.catalogueKeys} count={keyCatalog.length} />
               {keyCatalog.length === 0 ? (
-                <p className="text-muted-foreground text-xs italic">No keys registered.</p>
+                <p className="text-muted-foreground text-xs italic">{L.noKeysRegistered}</p>
               ) : (
                 <ul className="flex flex-col gap-1">
                   {keyCatalog.map((entry) => (
@@ -100,13 +100,13 @@ export function CatalogueSheet({
                           )}
                           {entry.consumedBySteps.length > 0 && (
                             <span>
-                              step {L.catalogueConsumedBy}{" "}
+                              {L.catalogueStepPrefix} {L.catalogueConsumedBy}{" "}
                               <span className="font-mono">{entry.consumedBySteps.join(", ")}</span>
                             </span>
                           )}
                           {entry.consumedByWidgets.length > 0 && (
                             <span>
-                              widget {L.catalogueConsumedBy}{" "}
+                              {L.catalogueElementPrefix} {L.catalogueConsumedBy}{" "}
                               <span className="font-mono">
                                 {entry.consumedByWidgets.join(", ")}
                               </span>
@@ -139,7 +139,7 @@ export function CatalogueSheet({
             <section className="flex flex-col gap-2">
               <CatalogueSectionHeader title={L.catalogueSteps} count={availableSteps.length} />
               {availableSteps.length === 0 ? (
-                <p className="text-muted-foreground text-xs italic">No steps registered.</p>
+                <p className="text-muted-foreground text-xs italic">{L.noStepsRegistered}</p>
               ) : (
                 <ul className="flex flex-col gap-1">
                   {availableSteps.map((s) => (
@@ -150,10 +150,10 @@ export function CatalogueSheet({
                       <span className="truncate font-mono">{s.id}</span>
                       <div className="text-muted-foreground flex flex-wrap gap-x-3 text-[10px]">
                         <span className="font-mono">
-                          ← {s.requires.length ? s.requires.join(", ") : "(no inputs)"}
+                          ← {s.requires.length ? s.requires.join(", ") : L.noInputs}
                         </span>
                         <span className="font-mono">
-                          → {s.produces.length ? s.produces.join(", ") : "(none)"}
+                          → {s.produces.length ? s.produces.join(", ") : L.noOutputs}
                         </span>
                       </div>
                     </li>

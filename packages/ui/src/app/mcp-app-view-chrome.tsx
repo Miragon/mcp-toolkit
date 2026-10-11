@@ -1,37 +1,44 @@
 /**
- * Presentational chrome for `McpAppView` — the pre-payload placeholder, the
- * toolbar, the pipeline error list, and the build/render body — plus the
- * view-envelope types they share.
- * Split out of `mcp-app-view.tsx` so the shell component keeps only the
- * host-sync and state logic while this file stays hook-free.
+ * Presentational chrome for `McpAppView` — the toolbar, the failed-steps
+ * alert, and the build/render body — plus the view-envelope types they share.
+ * The pre-payload states (waiting / error / cancelled) live in
+ * `mcp-app-view-states.tsx`. Split out of `mcp-app-view.tsx` so the shell
+ * component keeps only the host-sync and state logic while these files stay
+ * hook-light.
  */
-import { Maximize2, Minimize2, Pencil, RefreshCw } from "lucide-react"
+import { createElement, type ReactNode } from "react"
+import { LucideProvider, Maximize2, Minimize2, Pencil, RefreshCw } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef } from "@miragon/mcp-toolkit-core"
-import { FOCUS_RING } from "../lib/focus-ring.js"
-import { Skeleton } from "../primitives/skeleton.js"
-import { LayoutBuilder, type LayoutBuilderProps } from "./layout-builder.js"
+import { ErrorState } from "../components/ErrorState.js"
+import { DENSE_ICON_STROKE } from "../lib/icon-stroke.js"
+import { TOOLKIT_MESSAGES, type ViewMessages } from "../locale/toolkit-messages.js"
+import { Button } from "../primitives/button.js"
+import {
+  LayoutBuilder,
+  type LayoutBuilderLabels,
+  type LayoutBuilderProps,
+} from "./layout-builder.js"
 import { WidgetRenderer, type WidgetComponent } from "./widget-renderer.js"
 
-export interface McpAppViewLabels {
-  loading?: string
-  /** Shown instead of the loading skeleton when the host cancelled the rendering tool call. */
-  cancelled?: string
-  refresh?: string
-  refreshing?: string
-  enterFullscreen?: string
-  exitFullscreen?: string
-  build?: string
-}
+/**
+ * Override strings of the view chrome (placeholder, error state, toolbar,
+ * step errors). Every field defaults to the active locale's toolkit catalog
+ * (`en`/`de`, see `useToolkitMessages`).
+ */
+export type McpAppViewLabels = Partial<ViewMessages>
 
-export const DEFAULT_LABELS: Required<McpAppViewLabels> = {
-  loading: "Waiting for pipeline result...",
-  cancelled: "Tool call was cancelled.",
-  refresh: "Refresh",
-  refreshing: "Loading...",
-  enterFullscreen: "Fullscreen",
-  exitFullscreen: "Collapse",
-  build: "Build",
-}
+/**
+ * English chrome strings.
+ * @deprecated Read the active locale's strings with `useToolkitMessages().view`
+ * (or `TOOLKIT_MESSAGES.en.view`); this alias stays for existing imports.
+ */
+export const DEFAULT_LABELS: Required<McpAppViewLabels> = TOOLKIT_MESSAGES.en.view
+
+/** How the toolbar shows the view title — so a view has exactly ONE title. */
+export type ViewTitleMode = "show" | "hide" | "slot"
+
+/** Heading level of the toolbar title. */
+export type ViewTitleLevel = 1 | 2 | 3 | 4 | 5 | 6
 
 export interface RefreshParams {
   keys?: Record<string, unknown>
@@ -72,32 +79,40 @@ export function isCompleteViewData(value: unknown): value is ViewData {
   return Boolean(v?.context && v?.layout)
 }
 
-// -------------------------------------------------------------------------- //
-// Placeholder: shown until a view payload exists
-// -------------------------------------------------------------------------- //
+/** What the LayoutBuilder hands back on Done. */
+export interface BuilderCommit {
+  layout: LayoutConfig
+  keys?: Record<string, unknown>
+  steps?: PipelineStepRef[]
+  title?: string
+  context?: ViewData["context"]
+}
 
-export function ViewPlaceholder({
-  cancelled,
-  labels,
-}: {
-  /** The host cancelled the rendering call — no payload will arrive. */
-  cancelled: boolean
-  labels: Required<McpAppViewLabels>
-}) {
-  if (cancelled) {
-    return (
-      <div className="p-4">
-        <p className="text-muted-foreground text-sm">{labels.cancelled}</p>
-      </div>
-    )
+/**
+ * Commit the builder's draft into the view payload so the renderer shows the
+ * just-built layout and Refresh re-issues it. Exported for tests.
+ */
+export function applyBuilderCommit(prev: ViewData, commit: BuilderCommit): ViewData {
+  const title = commit.title ?? prev.title
+  return {
+    ...prev,
+    layout: commit.layout,
+    title,
+    context: commit.context ?? prev.context,
+    _refreshParams: { keys: commit.keys, steps: commit.steps, layout: commit.layout, title },
   }
-  return (
-    <div className="flex flex-col gap-4 p-4">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-32 w-full" />
-      <p className="text-muted-foreground text-sm">{labels.loading}</p>
-    </div>
-  )
+}
+
+/**
+ * Whether the Fullscreen toggle may render: the host offers fullscreen
+ * (mcp-use's negotiated `availableDisplayModes`, toolkit#178 K22), or the view
+ * is already there (its exit toggle must stay).
+ */
+export function fullscreenAvailable(
+  displayMode: string,
+  availableDisplayModes: readonly string[],
+): boolean {
+  return displayMode === "fullscreen" || availableDisplayModes.includes("fullscreen")
 }
 
 // -------------------------------------------------------------------------- //
@@ -110,94 +125,244 @@ export interface ViewToolbarProps {
   viewData: ViewData
   builderAvailable: boolean
   isFullscreen: boolean
+  /** The host offers fullscreen (see {@link fullscreenAvailable}). */
+  canFullscreen: boolean
   isRefreshing: boolean
   labels: Required<McpAppViewLabels>
+  titleMode: ViewTitleMode
+  titleLevel: ViewTitleLevel
+  renderTitle?: (title: string | undefined) => ReactNode
   onRefresh: () => Promise<void>
   onEnterBuildMode: () => void
   onToggleFullscreen: () => Promise<void>
 }
 
-/** The toolbar's text buttons: outline, opaque focus ring, blue on hover (CI §8). */
-const TOOLBAR_BUTTON = `hover:border-focus hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${FOCUS_RING}`
+/** The toolbar title per {@link ViewTitleMode}: a heading, the consumer's slot, or nothing. */
+function ToolbarTitle({
+  title,
+  mode,
+  level,
+  renderTitle,
+}: {
+  title: string | undefined
+  mode: ViewTitleMode
+  level: ViewTitleLevel
+  renderTitle?: (title: string | undefined) => ReactNode
+}) {
+  if (mode === "slot") return <div className="min-w-0 flex-1">{renderTitle?.(title)}</div>
+  if (mode === "hide" || !title) return null
+  return createElement(
+    `h${level}`,
+    { className: "min-w-0 flex-1 truncate text-lg font-semibold tracking-tight" },
+    title,
+  )
+}
 
+/** Which toolbar controls render — pure, so the gates are unit-testable. */
+export function toolbarControls(input: {
+  viewData: Pick<ViewData, "_refreshParams" | "layout" | "title">
+  builderAvailable: boolean
+  canFullscreen: boolean
+  titleMode: ViewTitleMode
+}): { title: boolean; refresh: boolean; edit: boolean; fullscreen: boolean; any: boolean } {
+  const refreshable = Boolean(input.viewData._refreshParams && input.viewData.layout)
+  const edit = input.builderAvailable && Boolean(input.viewData._refreshParams)
+  const title =
+    input.titleMode === "slot" || (input.titleMode === "show" && Boolean(input.viewData.title))
+  return {
+    title,
+    refresh: refreshable,
+    edit,
+    fullscreen: input.canFullscreen,
+    any: title || refreshable || edit || input.canFullscreen,
+  }
+}
+
+/**
+ * The CI §8 chrome button (Icon-Button, Chrome): surface, `--cd-linie` border,
+ * shadow-1, blue on hover. The `outline` variant brings the surface, the
+ * border and the blue hover (it is also CI §8's secondary button, which has no
+ * shadow), so the chrome adds `shadow-1` on top instead of changing it.
+ */
+const CHROME_BUTTON = { variant: "outline", className: "shadow-1" } as const
+
+function RefreshButton({
+  isRefreshing,
+  labels,
+  onRefresh,
+}: {
+  isRefreshing: boolean
+  labels: Required<McpAppViewLabels>
+  onRefresh: () => Promise<void>
+}) {
+  const label = isRefreshing ? labels.refreshing : labels.refresh
+  return (
+    <Button
+      type="button"
+      {...CHROME_BUTTON}
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      disabled={isRefreshing}
+      onClick={() => {
+        void onRefresh()
+      }}
+    >
+      <RefreshCw
+        aria-hidden="true"
+        className={isRefreshing ? "motion-safe:animate-spin" : undefined}
+      />
+    </Button>
+  )
+}
+
+function FullscreenButton({
+  isFullscreen,
+  labels,
+  onToggle,
+}: {
+  isFullscreen: boolean
+  labels: Required<McpAppViewLabels>
+  onToggle: () => Promise<void>
+}) {
+  const label = isFullscreen ? labels.exitFullscreen : labels.enterFullscreen
+  const Icon = isFullscreen ? Minimize2 : Maximize2
+  return (
+    <Button
+      type="button"
+      {...CHROME_BUTTON}
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      onClick={() => {
+        void onToggle()
+      }}
+    >
+      <Icon aria-hidden="true" />
+    </Button>
+  )
+}
+
+/**
+ * The view toolbar: the title (per {@link ViewTitleMode}, so a widget that
+ * renders its own heading is not titled twice), then Edit, Refresh and
+ * Fullscreen. Refresh and Fullscreen are 32 px icon buttons named by
+ * `aria-label`; Fullscreen renders only when the host offers it. All three are
+ * chrome buttons in the CI pattern (CI §8: surface, border, shadow-1, blue
+ * hover; {@link CHROME_BUTTON}). A 16 px inset keeps the bar off the frame
+ * edge, also in fullscreen.
+ */
 export function ViewToolbar({
   hidden,
   viewData,
   builderAvailable,
   isFullscreen,
+  canFullscreen,
   isRefreshing,
   labels,
+  titleMode,
+  titleLevel,
+  renderTitle,
   onRefresh,
   onEnterBuildMode,
   onToggleFullscreen,
 }: ViewToolbarProps) {
-  if (hidden) return null
+  const show = toolbarControls({ viewData, builderAvailable, canFullscreen, titleMode })
+  if (hidden || !show.any) return null
   return (
-    <div className="mb-4 flex items-center justify-between">
-      {viewData.title && <h2 className="text-xl font-bold">{viewData.title}</h2>}
-      <div className="ml-auto flex items-center gap-2">
-        {viewData._refreshParams && viewData.layout && (
-          <button
-            onClick={() => {
-              void onRefresh()
-            }}
-            disabled={isRefreshing}
-            className={TOOLBAR_BUTTON}
-          >
-            <RefreshCw
-              aria-hidden="true"
-              className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            {isRefreshing ? labels.refreshing : labels.refresh}
-          </button>
-        )}
-        {builderAvailable && viewData._refreshParams && (
-          <button onClick={onEnterBuildMode} className={TOOLBAR_BUTTON}>
-            <Pencil aria-hidden="true" className="h-4 w-4" />
-            {labels.build}
-          </button>
-        )}
-        <button
-          onClick={() => {
-            void onToggleFullscreen()
-          }}
-          className={TOOLBAR_BUTTON}
-        >
-          {isFullscreen ? (
-            <Minimize2 aria-hidden="true" className="h-4 w-4" />
-          ) : (
-            <Maximize2 aria-hidden="true" className="h-4 w-4" />
+    <LucideProvider strokeWidth={DENSE_ICON_STROKE}>
+      <div data-slot="view-toolbar" className="flex min-h-12 items-center gap-2 px-4 py-2">
+        <ToolbarTitle
+          title={viewData.title}
+          mode={titleMode}
+          level={titleLevel}
+          renderTitle={renderTitle}
+        />
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {show.edit && (
+            <Button type="button" {...CHROME_BUTTON} size="sm" onClick={onEnterBuildMode}>
+              <Pencil aria-hidden="true" />
+              {labels.build}
+            </Button>
           )}
-          {isFullscreen ? labels.exitFullscreen : labels.enterFullscreen}
-        </button>
+          {show.refresh && (
+            <RefreshButton isRefreshing={isRefreshing} labels={labels} onRefresh={onRefresh} />
+          )}
+          {show.fullscreen && (
+            <FullscreenButton
+              isFullscreen={isFullscreen}
+              labels={labels}
+              onToggle={onToggleFullscreen}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </LucideProvider>
   )
 }
 
 // -------------------------------------------------------------------------- //
-// Pipeline error list
+// Failed data steps
 // -------------------------------------------------------------------------- //
 
+/** Resolves a human title for a pipeline step (`{ id, step }` from the view's steps). */
+export type DescribeStep = (step: { id: string; step?: string }) => string | undefined
+
+/**
+ * The failed data steps as ONE inline alert: what happened (the title), which
+ * data is affected (each step by its human title, else its step id), what you
+ * can do (retry, or ask in the chat when the view cannot refresh). The raw
+ * step reasons stay under "Details", out of the user copy.
+ */
 export function StepErrors({
   hidden,
   errors,
+  steps,
+  labels,
+  describeStep,
+  onRetry,
 }: {
-  /** Build mode surfaces its own diagnostics; the shell list hides. */
+  /** Build mode surfaces its own diagnostics; the shell alert hides. */
   hidden: boolean
   errors: ViewData["context"]["errors"]
+  /** The view's step refs (`_refreshParams.steps`), to name a failed step by its definition. */
+  steps?: PipelineStepRef[]
+  labels: Required<McpAppViewLabels>
+  describeStep?: DescribeStep
+  /** Re-runs the view (a refresh); omitted when the view cannot be refreshed. */
+  onRetry?: () => void
 }) {
   if (hidden || errors.length === 0) return null
+  const failed = errors.map((err) => {
+    const ref = { id: err.stepId, step: steps?.find((s) => s.id === err.stepId)?.step }
+    return { ref, human: describeStep?.(ref), reason: err.reason }
+  })
   return (
-    <div className="mb-4 flex flex-col gap-2">
-      {errors.map((err) => (
-        <div
-          key={err.stepId}
-          className="border-danger bg-danger-soft text-foreground rounded-md border p-3 text-sm"
-        >
-          <strong>{err.stepId}:</strong> {err.reason}
-        </div>
-      ))}
+    <div className="px-4 pb-4">
+      <ErrorState
+        variant="inline"
+        title={labels.stepErrorsTitle}
+        retryLabel={labels.retry}
+        onRetry={onRetry}
+        detailsLabel={labels.errorDetails}
+        details={failed.map(({ ref, reason }) => `${ref.step ?? ref.id}: ${reason}`).join("\n")}
+        description={
+          <>
+            <ul className="flex flex-col gap-1">
+              {failed.map(({ ref, human }) => (
+                <li key={ref.id} className="break-words">
+                  {human ? (
+                    <span className="font-medium">{human}</span>
+                  ) : (
+                    <span className="font-mono text-xs">{ref.step ?? ref.id}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1">{onRetry ? labels.stepErrorsHint : labels.errorHintNoRetry}</p>
+          </>
+        }
+      />
     </div>
   )
 }
@@ -212,9 +377,17 @@ export interface ViewBodyProps {
   widgets: Record<string, WidgetComponent>
   callTool: (name: string, args: object) => Promise<unknown>
   onExit: LayoutBuilderProps["onExit"]
+  builderLabels?: LayoutBuilderLabels
 }
 
-export function ViewBody({ buildMode, viewData, widgets, callTool, onExit }: ViewBodyProps) {
+export function ViewBody({
+  buildMode,
+  viewData,
+  widgets,
+  callTool,
+  onExit,
+  builderLabels,
+}: ViewBodyProps) {
   if (buildMode) {
     return (
       <LayoutBuilder
@@ -224,6 +397,7 @@ export function ViewBody({ buildMode, viewData, widgets, callTool, onExit }: Vie
         initialSteps={viewData._refreshParams?.steps}
         widgets={widgets}
         callTool={callTool}
+        labels={builderLabels}
         onExit={onExit}
       />
     )

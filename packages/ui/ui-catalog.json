@@ -48,7 +48,7 @@
           "name": "variant",
           "type": "\"default\" | \"secondary\" | \"destructive\" | \"success\" | \"warning\" | \"info\" | \"outline\" | \"ghost\" | \"link\"",
           "required": false,
-          "description": "Visual style. Default 'default'. destructive/success/warning/info follow the tone model (tint, ink text, border in the tone)."
+          "description": "Visual style. Default 'default'. destructive/success/warning/info follow the tone model: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER)."
         },
         {
           "name": "className",
@@ -424,7 +424,7 @@
           "name": "tone",
           "type": "ToneVariant",
           "required": false,
-          "description": "Status tone driving the dot, tint and border ('neutral'|'info'|'success'|'warning'|'danger'); the label takes the tone's ink. Default 'info'."
+          "description": "Status tone driving the dot, tint and border ('neutral'|'info'|'success'|'warning'|'danger'): tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER). Default 'info'."
         },
         {
           "name": "children",
@@ -446,7 +446,7 @@
           "name": "tone",
           "type": "ToneVariant",
           "required": false,
-          "description": "Status tone driving the tint and border; the number takes the tone's ink. Default 'neutral'."
+          "description": "Status tone driving the tint and border: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER); the number never takes a tone colour. Default 'neutral'."
         },
         {
           "name": "children",
@@ -680,10 +680,10 @@
           "name": "noun",
           "type": "string",
           "required": false,
-          "description": "Plural noun for the count, e.g. 'instances'. Default 'rows'."
+          "description": "Plural noun for the count, e.g. 'instances'. Default: the locale's word for rows."
         }
       ],
-      "whenToUse": "Footer for a paginated list: an honest 'Showing X of Y' total + an explicit 'Load more' (not infinite scroll)."
+      "whenToUse": "Footer for a paginated list: an honest 'Showing X of Y' total + an explicit 'Load more' (not infinite scroll). Text and number format follow the active locale."
     },
     {
       "name": "Tone tokens",
@@ -693,7 +693,154 @@
       "group": "composed",
       "parts": ["TONE_SOFT", "TONE_DOT", "TONE_TEXT", "TONE_BORDER", "TONE_ICON"],
       "props": [],
-      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings, three roles per tone (Miragon CI): the colour for fills, dots, borders and icons (TONE_DOT, TONE_BORDER, TONE_ICON), the tint (TONE_SOFT = tint + the tone's readable ink) and the TEXT colour (TONE_TEXT = the tone's -ink role). Status is never text in its own colour: success and warning ink is the foreground, so show the tone as a dot, icon or border next to the text. TONE_ICON is for SVG icons only. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, Badge, WidgetHeader) consume these internally."
+      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings, three roles per tone (Miragon CI): the colour for fills, dots, borders and icons (TONE_DOT, TONE_BORDER, TONE_ICON), the tint (TONE_SOFT = tint + foreground text, rim in the tone via TONE_BORDER; never put TONE_TEXT/-ink on a tint) and the TEXT colour for a tone's words on a plain surface (TONE_TEXT = the tone's -ink role). Status is never text in its own colour: success and warning ink is the foreground, so show the tone as a dot, icon or border next to the text; figures (counts, KPI values) stay in the foreground. TONE_ICON is for SVG icons only. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, Badge, WidgetHeader) consume these internally."
+    },
+    {
+      "name": "ToastProvider",
+      "export": "ToastProvider",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "feedback",
+      "props": [
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true,
+          "description": "Subtree that raises toasts via useToast."
+        }
+      ],
+      "whenToUse": "Provide toasts to a subtree and render their stack: bottom centre, status colour as left edge + icon next to plain text, ONE persistent live region (role=status, aria-live=polite), auto-dismiss after 2.8 s (errors 5 s), held while hovered or focused. Idempotent when nested. McpAppView mounts one, so widgets inside a view only call useToast. Toast icons follow the LucideProvider around the outermost ToastProvider (stroke 2.5 inside McpAppView)."
+    },
+    {
+      "name": "useToast",
+      "export": "useToast",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "feedback",
+      "props": [],
+      "whenToUse": "Raise feedback after a user action instead of logging to the console: useToast().show({ tone: 'success' | 'warning' | 'danger' | 'info', title, description?, duration? }) returns an id; dismiss(id) removes it early. Name the object in the title ('Job retried.'); the description says what to do next. Both come from your catalog: never put a raw error (e.message) in a toast, log it or show it under an ErrorState's Details. Outside a ToastProvider it is a safe no-op."
+    },
+    {
+      "name": "EmptyState",
+      "export": "EmptyState",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "feedback",
+      "props": [
+        {
+          "name": "title",
+          "type": "ReactNode",
+          "required": true,
+          "description": "What is empty, in plain words."
+        },
+        {
+          "name": "description",
+          "type": "ReactNode",
+          "required": false,
+          "description": "One help line: why it is empty or what to do next."
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Decorative icon or brand mark (aria-hidden): a Lucide icon for the situation (24 px), or a logo; an SVG with its own size-* class keeps that size."
+        },
+        {
+          "name": "tone",
+          "type": "'neutral' | 'success'",
+          "required": false,
+          "description": "Icon colour; 'success' for an 'all done' state. Default 'neutral'."
+        },
+        {
+          "name": "action",
+          "type": "ReactNode",
+          "required": false,
+          "description": "The primary next step (a Button)."
+        },
+        {
+          "name": "secondaryAction",
+          "type": "ReactNode",
+          "required": false,
+          "description": "An optional second, quieter step (at most two actions)."
+        },
+        {
+          "name": "titleAs",
+          "type": "'h2' | 'h3' | 'h4' | 'p'",
+          "required": false,
+          "description": "Title element. Default 'h3'."
+        }
+      ],
+      "whenToUse": "The one empty-state pattern for a list, table or view with nothing to show: icon or mark, a 600-weight title, one help line, up to two actions. Static (no live region). Use instead of a grey one-liner; for 'all done' pass <CircleCheck /> with tone 'success'."
+    },
+    {
+      "name": "ErrorState",
+      "export": "ErrorState",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "feedback",
+      "props": [
+        {
+          "name": "title",
+          "type": "ReactNode",
+          "required": true,
+          "description": "What happened, in plain words."
+        },
+        {
+          "name": "description",
+          "type": "ReactNode",
+          "required": false,
+          "description": "What you can do next (or the human reason)."
+        },
+        {
+          "name": "details",
+          "type": "ReactNode",
+          "required": false,
+          "description": "The raw technical reason, shown collapsed under a 'Details' disclosure."
+        },
+        {
+          "name": "onRetry",
+          "type": "() => void",
+          "required": false,
+          "description": "Renders a retry button (label from the locale) when set."
+        },
+        {
+          "name": "actions",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Further actions after the retry button."
+        },
+        {
+          "name": "tone",
+          "type": "'danger' | 'warning' | 'info'",
+          "required": false,
+          "description": "Default 'danger'."
+        },
+        {
+          "name": "variant",
+          "type": "'block' | 'inline'",
+          "required": false,
+          "description": "'block' replaces a view or widget body; 'inline' is an alert above content that still renders. Default 'block'."
+        },
+        {
+          "name": "role",
+          "type": "'alert' | 'status' | 'none'",
+          "required": false,
+          "description": "Live-region role. Default 'alert'."
+        },
+        {
+          "name": "icon",
+          "type": "LucideIcon",
+          "required": false,
+          "description": "Replace the tone's default Lucide icon."
+        },
+        {
+          "name": "titleAs",
+          "type": "'h2' | 'h3' | 'h4' | 'p'",
+          "required": false,
+          "description": "Title element. Default 'h2' (block) / 'p' (inline)."
+        }
+      ],
+      "whenToUse": "The one error pattern: icon, a title that says what happened, a line that says what you can do, the raw error under 'Details', and a retry. Never print a raw exception as the only text, never leave a failed fetch on an endless skeleton."
     },
     {
       "name": "useDebouncedValue",
@@ -845,7 +992,7 @@
           "description": "Whether the required id/key is present; fetch is disabled until ready and only when no initialData."
         }
       ],
-      "whenToUse": "The dual-mode seam: write ONE widget that renders host-pushed data when handed it (standalone *_show_* widget) AND self-fetches when embedded in a cockpit. Returns { data, loading, error }."
+      "whenToUse": "The dual-mode seam: write ONE widget that renders host-pushed data when handed it (standalone *_show_* widget) AND self-fetches when embedded in a cockpit. Returns { data, loading, error, refetch }; pass refetch as the error state's retry (<ErrorState onRetry={refetch} />)."
     },
     {
       "name": "useIsMobile",
@@ -1298,13 +1445,19 @@
           "description": "A translator from createTranslator(catalogs) (@miragon/mcp-toolkit-core). Omit to provide the locale only (useTranslate echoes keys)."
         },
         {
+          "name": "toolkitMessages",
+          "type": "ToolkitMessagesOverride",
+          "required": false,
+          "description": "Override individual toolkit strings per catalog section (e.g. { listFooter: { loadMore: 'Show more' } }). Omitted entries keep the shipped en/de catalog of locale."
+        },
+        {
           "name": "children",
           "type": "ReactNode",
           "required": true,
           "description": "Subtree whose widgets read the locale via useLocale/useTranslate."
         }
       ],
-      "whenToUse": "Wrap a widget (or a whole app) to provide the active locale + an optional translator. Widgets read it with useLocale/useTranslate. Pure React (no host required), mirroring ThemeProvider — pairs with createTranslator from @miragon/mcp-toolkit-core."
+      "whenToUse": "Wrap a widget (or a whole app) to provide the active locale + an optional translator. Widgets read it with useLocale/useTranslate. Pure React (no host required), mirroring ThemeProvider — pairs with createTranslator from @miragon/mcp-toolkit-core. The toolkit's own components read their strings from it too (en/de, English otherwise), so passing the locale localizes the whole toolkit chrome."
     },
     {
       "name": "useLocale",
@@ -1323,6 +1476,68 @@
       "group": "i18n",
       "props": [],
       "whenToUse": "Get a locale-bound translate (key, params?) => string from the nearest LocaleProvider. Outside a provider it echoes the key, so a missing wrapper degrades gracefully instead of crashing."
+    },
+    {
+      "name": "useToolkitMessages",
+      "export": "useToolkitMessages",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "i18n",
+      "props": [],
+      "whenToUse": "Read the toolkit's own UI strings (common, view, listFooter, filterBar, pills, renderer, builder, propsSheet) for the nearest LocaleProvider's locale: the shipped en/de catalog, English for any other locale, with the provider's toolkitMessages override applied. Reuse them in a widget for consistent chrome copy (e.g. common.retry)."
+    },
+    {
+      "name": "TOOLKIT_MESSAGES",
+      "export": "TOOLKIT_MESSAGES",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "object",
+      "group": "i18n",
+      "props": [],
+      "whenToUse": "The shipped toolkit catalogs keyed by locale ({ en, de }), typed as ToolkitMessages. Use it to build a LocaleProvider toolkitMessages override or to assert in a consumer test that no toolkit default leaks into a localized bundle."
+    },
+    {
+      "name": "resolveToolkitMessages",
+      "export": "resolveToolkitMessages",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "i18n",
+      "props": [
+        {
+          "name": "locale",
+          "type": "string | undefined",
+          "required": true,
+          "description": "Any BCP 47 tag; its primary language picks the catalog (en fallback)."
+        },
+        {
+          "name": "override",
+          "type": "ToolkitMessagesOverride",
+          "required": false,
+          "description": "Per-section partial override merged over the catalog."
+        }
+      ],
+      "whenToUse": "Resolve the toolkit catalog outside React (the pure function behind LocaleProvider/useToolkitMessages)."
+    },
+    {
+      "name": "formatCount",
+      "export": "formatCount",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "i18n",
+      "props": [
+        {
+          "name": "value",
+          "type": "number",
+          "required": true,
+          "description": "The count."
+        },
+        {
+          "name": "locale",
+          "type": "string | undefined",
+          "required": true,
+          "description": "The app locale (from useLocale), not the browser's."
+        }
+      ],
+      "whenToUse": "Format a count with the app locale's grouping (1,234 / 1.234); an invalid tag falls back to English instead of throwing in render."
     },
     {
       "name": "McpToolkitApp",

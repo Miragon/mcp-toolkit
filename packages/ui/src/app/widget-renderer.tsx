@@ -1,15 +1,45 @@
-import { Component, type ComponentType, type ReactNode, type ErrorInfo } from "react"
+import {
+  Component,
+  createRef,
+  useMemo,
+  type ComponentType,
+  type ReactNode,
+  type ErrorInfo,
+} from "react"
 import type { LayoutConfig, PipelineContext, RowDef, WidgetProps } from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
+import { ErrorState } from "../components/ErrorState.js"
 import { GridLayout, GridItem } from "../components/GridLayout.js"
-import { Card, CardContent } from "../primitives/card.js"
+import { useToolkitMessages } from "../locale/locale-provider.js"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../primitives/tabs.js"
 
 export type WidgetComponent = ComponentType<WidgetProps>
 
 /**
+ * True when two reset-key lists differ (length or any entry by identity).
+ * Exported for tests: it decides when a crashed widget gets a fresh render.
+ */
+export function resetKeysChanged(
+  prev: readonly unknown[] | undefined,
+  next: readonly unknown[] | undefined,
+): boolean {
+  if (prev === next) return false
+  if (!prev || !next || prev.length !== next.length) return true
+  return prev.some((value, idx) => !Object.is(value, next[idx]))
+}
+
+/**
  * Catches render-time crashes from a single widget so one broken widget
  * can't take down the entire iframe view (or the builder canvas/preview).
+ *
+ * The fallback is localized, names what happened, keeps the raw error under
+ * "Details" and offers a retry. The boundary resets itself when its
+ * `resetKeys` change, so new data (a refresh, a new tool result, a builder
+ * edit) gets a fresh render instead of a latched failure (toolkit#176 N24).
+ * When a retry crashes again, keyboard focus moves to the new retry button
+ * instead of falling back to the document (the pressed one unmounted). After
+ * a retry that renders, the widget's own markup is unknown here, so focus
+ * returns to the document.
  *
  * Exported so the visual builder's canvas + preview render sites reuse the
  * same isolation the rendered `WidgetRenderer` already had — every place a
@@ -17,28 +47,88 @@ export type WidgetComponent = ComponentType<WidgetProps>
  * wraps the component in this boundary.
  */
 export class WidgetErrorBoundary extends Component<
-  { widgetId: string; children: ReactNode },
+  { widgetId: string; children: ReactNode; resetKeys?: readonly unknown[] },
   { error: Error | null }
 > {
   override state: { error: Error | null } = { error: null }
+  /** Set by the user's retry; consumed by the next update. */
+  private retryFocusOwed = false
+  private readonly fallbackRef = createRef<HTMLDivElement>()
   static getDerivedStateFromError(error: Error) {
     return { error }
   }
   override componentDidCatch(error: Error, info: ErrorInfo) {
     console.error(`Widget ${this.props.widgetId} crashed:`, error, info)
   }
+  override componentDidUpdate(prevProps: { resetKeys?: readonly unknown[] }) {
+    if (this.retryFocusOwed) {
+      this.retryFocusOwed = false
+      if (this.state.error) this.fallbackRef.current?.querySelector<HTMLElement>("button")?.focus()
+    }
+    if (this.state.error && resetKeysChanged(prevProps.resetKeys, this.props.resetKeys)) {
+      this.reset()
+    }
+  }
+  reset = () => {
+    this.setState({ error: null })
+  }
+  /** The fallback's retry: a reset that keeps keyboard focus if the widget crashes again. */
+  retry = () => {
+    this.retryFocusOwed = true
+    this.reset()
+  }
   override render() {
     if (this.state.error) {
       return (
-        <Card>
-          <CardContent className="text-muted-foreground py-3 text-sm">
-            Widget "{this.props.widgetId}" failed to render.
-          </CardContent>
-        </Card>
+        <div ref={this.fallbackRef} data-slot="widget-crash">
+          <WidgetCrashFallback
+            widgetId={this.props.widgetId}
+            error={this.state.error}
+            onRetry={this.retry}
+          />
+        </div>
       )
     }
     return this.props.children
   }
+}
+
+/** The localized crash fallback of {@link WidgetErrorBoundary}. */
+export function WidgetCrashFallback({
+  widgetId,
+  error,
+  onRetry,
+}: {
+  widgetId: string
+  error: Error
+  onRetry: () => void
+}) {
+  const messages = useToolkitMessages()
+  return (
+    <ErrorState
+      variant="inline"
+      title={messages.renderer.widgetCrashed}
+      details={`${widgetId}: ${error.message}`}
+      onRetry={onRetry}
+    />
+  )
+}
+
+/** A layout cell names a widget the bundle does not contain: say so, quietly. */
+export function UnavailableWidget({
+  widgetId,
+  className = "text-muted-foreground rounded-md border border-dashed p-4 text-sm",
+}: {
+  widgetId: string
+  className?: string
+}) {
+  const messages = useToolkitMessages()
+  return (
+    <div data-slot="widget-unavailable" data-widget-id={widgetId} className={className}>
+      <p>{messages.renderer.widgetUnavailable}</p>
+      <p className="mt-1 font-mono text-xs break-all">{widgetId}</p>
+    </div>
+  )
 }
 
 /**
@@ -59,7 +149,7 @@ export function contextHasNoData(context: PipelineContext): boolean {
  * The single render site for a layout cell's widget, shared across the
  * rendered view (`RowsRenderer`), the builder canvas, and the builder
  * preview so all three isolate crashes identically:
- *   - missing component → "not bundled" fallback,
+ *   - missing component → a localized "not available in this version" note,
  *   - render crash → caught by {@link WidgetErrorBoundary} (Finding [1]),
  *   - (builder only, opt-in) empty pipeline context → a dezent
  *     "no data yet" hint (Finding [4]).
@@ -79,7 +169,7 @@ export function RenderedWidget({
   props,
   cellProps,
   showEmptyHint = false,
-  notBundledClassName = "text-muted-foreground rounded border border-dashed p-4 text-center text-xs",
+  notBundledClassName,
 }: {
   widget: WidgetComponent | undefined
   widgetId: string
@@ -88,21 +178,24 @@ export function RenderedWidget({
   showEmptyHint?: boolean
   notBundledClassName?: string
 }) {
-  if (!Widget) {
-    return <div className={notBundledClassName}>Widget "{widgetId}" not bundled.</div>
-  }
+  if (!Widget) return <UnavailableWidget widgetId={widgetId} className={notBundledClassName} />
   if (showEmptyHint && contextHasNoData(props.context)) {
-    return (
-      <div className={notBundledClassName}>
-        No data for this widget yet — it appears after a refresh.
-      </div>
-    )
+    return <NoDataYet className={notBundledClassName} />
   }
   return (
-    <WidgetErrorBoundary widgetId={widgetId}>
+    <WidgetErrorBoundary widgetId={widgetId} resetKeys={[props.context, props.keys, cellProps]}>
       <Widget {...props} widgetProps={cellProps} />
     </WidgetErrorBoundary>
   )
+}
+
+function NoDataYet({
+  className = "text-muted-foreground rounded-md border border-dashed p-4 text-sm",
+}: {
+  className?: string
+}) {
+  const messages = useToolkitMessages()
+  return <div className={className}>{messages.renderer.noDataYet}</div>
 }
 
 export interface WidgetRendererProps {
@@ -137,14 +230,11 @@ function RowsRenderer({
         <GridLayout key={rowIdx}>
           {row.row.map((cell, cellIdx) => {
             const WidgetComponent = widgets[cell.widget]
-            // Keep the rendered view's original behaviour of skipping cells
-            // whose component isn't bundled (no placeholder in the shipped
-            // view), while still routing the resolvable ones through the
-            // shared `RenderedWidget` for error-boundary + empty-state.
-            if (!WidgetComponent) return null
-            // Use a composite key so the same widget can appear in multiple
-            // cells of one row (e.g. side-by-side scoped dashboards) without
-            // colliding on React's reconciliation key.
+            // An unknown widget id renders the localized "not available"
+            // note in its cell instead of vanishing (an empty page reads as
+            // broken). The composite key lets the same widget appear in
+            // several cells of one row (e.g. side-by-side scoped dashboards)
+            // without colliding on React's reconciliation key.
             return (
               <GridItem key={`${cell.widget}-${cellIdx}`} span={cell.span ?? 12}>
                 <RenderedWidget
@@ -162,19 +252,27 @@ function RowsRenderer({
   )
 }
 
-export function WidgetRenderer({ layout, keys, stepData, errors, widgets }: WidgetRendererProps) {
+/**
+ * The pipeline context widgets read. `WidgetRenderer` rebuilds it only when
+ * the view data changes — its identity is the error boundaries' reset key.
+ */
+export function buildPipelineContext(
+  keys: Record<string, unknown>,
+  stepData: WidgetRendererProps["stepData"],
+  errors: WidgetRendererProps["errors"],
+): PipelineContext {
   const steps: Record<string, PipelineContext["steps"][string]> = {}
-  if (stepData) {
-    for (const [id, result] of Object.entries(stepData)) {
-      steps[id] = { ...result, _step: id }
-    }
+  for (const [id, result] of Object.entries(stepData ?? {})) {
+    steps[id] = { ...result, _step: id }
   }
-  const pipelineContext: PipelineContext = {
-    steps,
-    keys,
-    errors,
-  }
-  const widgetProps: WidgetProps = { keys, context: pipelineContext }
+  return { steps, keys, errors }
+}
+
+export function WidgetRenderer({ layout, keys, stepData, errors, widgets }: WidgetRendererProps) {
+  const widgetProps = useMemo<WidgetProps>(
+    () => ({ keys, context: buildPipelineContext(keys, stepData, errors) }),
+    [keys, stepData, errors],
+  )
   const normalized = normalizeLayout(layout)
 
   if ("tabs" in normalized) {

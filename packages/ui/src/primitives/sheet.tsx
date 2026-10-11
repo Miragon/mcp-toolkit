@@ -5,6 +5,7 @@ import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { FOCUS_RING } from "../lib/focus-ring.js"
+import { useToolkitMessages } from "../locale/locale-provider.js"
 import { cn } from "../lib/utils.js"
 import { usePortalContainer } from "../theme/portal-container.js"
 
@@ -53,11 +54,15 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  closeLabel,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
+  /** Accessible name of the close button. Default: the locale's "Close". */
+  closeLabel?: string
 }) {
+  const messages = useToolkitMessages()
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -86,7 +91,7 @@ function SheetContent({
             )}
           >
             <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{closeLabel ?? messages.common.close}</span>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Content>

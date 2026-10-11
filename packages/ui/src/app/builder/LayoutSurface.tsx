@@ -65,7 +65,7 @@ export function LayoutSurface({
                 value={tab.label}
                 className="pr-7"
                 onDoubleClick={() => setEditingTabIdx(idx)}
-                title="Double-click to rename"
+                title={L.renameTitle}
               >
                 {editingTabIdx === idx ? (
                   <input
@@ -122,7 +122,7 @@ export function LayoutSurface({
           <Plus />
         </Button>
         <span className="text-muted-foreground ml-2 hidden text-[10px] sm:inline">
-          double-click a tab to rename
+          {L.renameHint}
         </span>
       </div>
       {renameRejected && editingTabIdx !== null && (

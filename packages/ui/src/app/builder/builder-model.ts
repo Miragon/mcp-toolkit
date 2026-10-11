@@ -136,14 +136,15 @@ export function entriesToKeys(entries: KeyEntry[]): Record<string, unknown> {
  * Compact preview of a value as it currently lives in the pipeline.
  * Used as the placeholder when the editor's `rawValue` is empty so the
  * user can see what the server is actually working with right now
- * without the editor overwriting their (empty) input.
+ * without the editor overwriting their (empty) input. `prefix` is the
+ * localized word for "live" (the builder passes its catalog's).
  */
-export function formatLiveKeyValue(value: unknown): string | undefined {
+export function formatLiveKeyValue(value: unknown, prefix = "live"): string | undefined {
   if (value === undefined) return undefined
   if (value === "") return undefined
-  if (typeof value === "string") return `live: ${value}`
+  if (typeof value === "string") return `${prefix}: ${value}`
   try {
-    return `live: ${JSON.stringify(value)}`
+    return `${prefix}: ${JSON.stringify(value)}`
   } catch {
     return undefined
   }

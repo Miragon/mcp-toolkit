@@ -28,6 +28,15 @@ recorded in Miragon/miragon-ai's CLAUDE.md; don't undo them here):
   takes the transferable rules (sentence case, active voice, no em-dash connectors).
 - **Fonts:** the tokens name Geist / Geist Mono first; loading them is opt-in
   (`@miragon/mcp-toolkit-ui/fonts.css` or `fontFaces({ baseUrl })`).
+- **Icons:** Lucide in `currentColor` (a status icon takes `TONE_ICON`). The stroke is
+  set ONCE, by `LucideProvider` with the constants of `lib/icon-stroke.ts`: 2.5 in
+  `McpAppView` (the toast stack included), 2 in dense bars (view toolbar, builder
+  toolbar, pipeline strip). No CSS `stroke-width` rule and no per-icon `strokeWidth`
+  in kit code (`lib/icon-stroke.test.ts`).
+- **Feedback and states** (`Toast`, `ErrorState`, `EmptyState`, the view's error and
+  step-error alerts) use the same tone model as everything else: status as edge, rim,
+  tint and icon, every word in the foreground; texts come from the en/de catalog
+  (`locale/messages-{en,de}.ts`), never from a component.
 
 **The role-token contract.** Every component, in this repo and in apps built on it,
 styles through these CSS variables (Tailwind utilities of the same name), never through
@@ -71,7 +80,11 @@ non-text ≥ 3:1, both modes, default theme and every preset).
 no raw or named colours outside the theme files, no status/primary/destructive as text,
 no ink on a tint, no translucent text, no `outline-none`, a lifted surface switches its
 text), `packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast),
-`components/tone-figures.test.tsx` (no coloured digits).
+`components/tone-figures.test.tsx` (no coloured digits), `components/feedback-states.test.tsx`
+(the tone model of Toast, ErrorState, EmptyState), `lib/icon-stroke.test.ts` (one stroke
+mechanism), `no-hardcoded-copy.test.ts` + `i18n-coverage.test.tsx` (no copy outside the catalog;
+no raw error in a toast, an ErrorState/EmptyState title or description, or an inline alert: the
+raw reason goes under the ErrorState's Details).
 `.miragon/brand.json` switches the brand-lint hook on for this repo.
 
 ## Module boundaries

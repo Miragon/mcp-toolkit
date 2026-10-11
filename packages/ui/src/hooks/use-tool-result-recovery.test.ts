@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { decodeRecoveredResult, resolveRecoveryToolName } from "./use-tool-result-recovery.js"
+import {
+  decodeRecoveredResult,
+  isRecoveryReady,
+  resolveRecoveryToolName,
+} from "./use-tool-result-recovery.js"
 
 // The hook's effect wiring (single-flight, StrictMode re-run, host-payload
 // precedence) is exercised end-to-end by the consumer's Playwright host
@@ -61,5 +65,25 @@ describe("decodeRecoveredResult", () => {
   it("returns null for empty results", () => {
     expect(decodeRecoveredResult(undefined, isView)).toBeNull()
     expect(decodeRecoveredResult({ content: [] }, isView)).toBeNull()
+  })
+})
+
+describe("isRecoveryReady (toolkit#176)", () => {
+  const base = { resultReady: false, assumedReady: false, cancelled: false, errored: false }
+
+  it("fires once a result latched or the stripped-result grace period passed", () => {
+    expect(isRecoveryReady(base)).toBe(false)
+    expect(isRecoveryReady({ ...base, resultReady: true })).toBe(true)
+    expect(isRecoveryReady({ ...base, assumedReady: true })).toBe(true)
+  })
+
+  it("never re-executes a call that failed (K14: isError renders the error instead)", () => {
+    expect(isRecoveryReady({ ...base, resultReady: true, errored: true })).toBe(false)
+    expect(isRecoveryReady({ ...base, assumedReady: true, errored: true })).toBe(false)
+  })
+
+  it("never re-executes a call the host cancelled", () => {
+    expect(isRecoveryReady({ ...base, resultReady: true, cancelled: true })).toBe(false)
+    expect(isRecoveryReady({ ...base, assumedReady: true, cancelled: true })).toBe(false)
   })
 })

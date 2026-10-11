@@ -12,7 +12,10 @@
     "src/theme/host-fonts.ts",
     "src/theme/cd-tokens.ts",
     "src/app/builder/builder-model.ts",
-    "src/app/builder/builder-reducer.ts"
+    "src/app/builder/builder-reducer.ts",
+    "src/app/view-lifecycle.ts",
+    "src/lib/toast-model.ts",
+    "src/locale/toolkit-messages.ts"
   ],
   "incremental": false,
   "tempDirName": ".stryker-tmp",

@@ -1,10 +1,11 @@
 import type { ReactNode } from "react"
+import { useToolkitMessages } from "../locale/locale-provider.js"
 import { TONE_BORDER, TONE_DOT, TONE_SOFT, type ToneVariant } from "../lib/tone-utils.js"
 
 export interface LivePillProps {
   /** Status tone driving the dot, tint and border. Default `"info"`. */
   tone?: ToneVariant
-  /** Pill label. Defaults to `"Live"`. */
+  /** Pill label. Defaults to the locale's "Live". */
   children?: ReactNode
 }
 
@@ -15,6 +16,7 @@ export interface LivePillProps {
  * under `prefers-reduced-motion`.
  */
 export function LivePill({ tone = "info", children }: LivePillProps) {
+  const messages = useToolkitMessages()
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-xs font-semibold ${TONE_SOFT[tone]} ${TONE_BORDER[tone]}`}
@@ -23,7 +25,7 @@ export function LivePill({ tone = "info", children }: LivePillProps) {
         aria-hidden="true"
         className={`size-1.5 animate-pulse rounded-full ${TONE_DOT[tone]}`}
       />
-      {children ?? "Live"}
+      {children ?? messages.pills.live}
     </span>
   )
 }

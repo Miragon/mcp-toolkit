@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react"
-import { ArrowDownToLine, ArrowRightToLine, Plus, X } from "lucide-react"
+import { ArrowDownToLine, ArrowRightToLine, LucideProvider, Plus, X } from "lucide-react"
 import type { AvailableStep, KeyCatalogEntry, PipelineStepRef } from "@miragon/mcp-toolkit-core"
+import { DENSE_ICON_STROKE } from "../../lib/icon-stroke.js"
 import { Badge } from "../../primitives/badge.js"
 import { Button } from "../../primitives/button.js"
 import { Input } from "../../primitives/input.js"
@@ -62,7 +63,7 @@ function PipelineStripImpl({
         <span className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
           {L.pipelineHeader}
         </span>
-        <span className="text-muted-foreground text-[10px]">· auto-applies on edit</span>
+        <span className="text-muted-foreground text-[10px]">· {L.autoApplies}</span>
         <div className="ml-auto text-[11px]">
           <StatusChip status={status} L={L} />
         </div>
@@ -84,7 +85,7 @@ function PipelineStripImpl({
           ) : (
             <ul className="flex flex-col gap-1">
               {keyEntries.map((entry, idx) => {
-                const livePreview = formatLiveKeyValue(liveKeys[entry.name])
+                const livePreview = formatLiveKeyValue(liveKeys[entry.name], L.catalogueLive)
                 const usedNames = new Set(
                   keyEntries.map((e, i) => (i === idx ? "" : e.name)).filter(Boolean),
                 )
@@ -103,7 +104,7 @@ function PipelineStripImpl({
                       <SelectContent>
                         {pickable.length === 0 ? (
                           <div className="text-muted-foreground px-2 py-1.5 text-xs italic">
-                            No more keys available.
+                            {L.noMoreKeys}
                           </div>
                         ) : (
                           pickable.map((c) => (
@@ -131,16 +132,16 @@ function PipelineStripImpl({
                         />
                         <span
                           className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums"
-                          title="parsed type"
+                          title={L.parsedType}
                         >
-                          {valueTypeLabel(entry.rawValue)}
+                          {L.valueType(valueTypeLabel(entry.rawValue))}
                         </span>
                       </div>
                       <Button
                         variant="ghost"
                         size="icon-xs"
                         onClick={() => onRemoveKey(idx)}
-                        aria-label="Remove key"
+                        aria-label={L.removeKey}
                       >
                         <X />
                       </Button>
@@ -204,11 +205,10 @@ function PipelineStripImpl({
                                     <span className="font-mono text-xs">{s.id}</span>
                                     <div className="text-muted-foreground flex flex-wrap gap-x-2 text-[10px]">
                                       <span className="font-mono">
-                                        ←{" "}
-                                        {s.requires.length ? s.requires.join(", ") : "(no inputs)"}
+                                        ← {s.requires.length ? s.requires.join(", ") : L.noInputs}
                                       </span>
                                       <span className="font-mono">
-                                        → {s.produces.length ? s.produces.join(", ") : "(none)"}
+                                        → {s.produces.length ? s.produces.join(", ") : L.noOutputs}
                                       </span>
                                     </div>
                                   </div>
@@ -222,7 +222,7 @@ function PipelineStripImpl({
                         variant="ghost"
                         size="icon-xs"
                         onClick={() => onRemoveStep(idx)}
-                        aria-label="Remove step"
+                        aria-label={L.removeStep}
                       >
                         <X />
                       </Button>
@@ -230,10 +230,10 @@ function PipelineStripImpl({
                     {meta && (
                       <div className="text-muted-foreground ml-1 flex flex-wrap gap-x-2 pl-24 text-[10px]">
                         <span className="font-mono">
-                          ← {meta.requires.length ? meta.requires.join(", ") : "(no inputs)"}
+                          ← {meta.requires.length ? meta.requires.join(", ") : L.noInputs}
                         </span>
                         <span className="font-mono">
-                          → {meta.produces.length ? meta.produces.join(", ") : "(none)"}
+                          → {meta.produces.length ? meta.produces.join(", ") : L.noOutputs}
                         </span>
                       </div>
                     )}
@@ -257,4 +257,13 @@ function PipelineStripImpl({
   )
 }
 
-export const PipelineStrip = memo(PipelineStripImpl)
+/** A dense chrome bar: its Lucide icons draw at stroke 2 (CI §11), not the view's 2.5. */
+function DensePipelineStrip(props: Parameters<typeof PipelineStripImpl>[0]) {
+  return (
+    <LucideProvider strokeWidth={DENSE_ICON_STROKE}>
+      <PipelineStripImpl {...props} />
+    </LucideProvider>
+  )
+}
+
+export const PipelineStrip = memo(DensePipelineStrip)

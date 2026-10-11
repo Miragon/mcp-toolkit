@@ -23,7 +23,10 @@ import { parseToolResult } from "../lib/parse-tool-result.js"
  * A call the host cancelled is never recovered: since mcp-use 2.7.1 the
  * cancellation latches as `status: "error"` (a `ToolCancelledError`), which
  * would otherwise count as a ready-but-invalid result — re-executing it would
- * override the user's decision to stop the call.
+ * override the user's decision to stop the call. Neither is a call that
+ * failed (`isError` or a transport error, {@link ToolResultRecoveryOptions.errored}):
+ * re-running it only repeats the failure, so the shell renders the error and
+ * offers an explicit retry instead (toolkit#176).
  *
  * Assumes the originating tool is a read-only render pipeline (true for all
  * toolkit `render-view`/`show_*` tools) — the re-execution must be safe to
@@ -53,6 +56,14 @@ export interface ToolResultRecoveryOptions {
    * attempt already in flight is dropped. Defaults to `false`.
    */
   cancelled?: boolean
+  /**
+   * The originating call latched a tool error (`useToolContext().status ===
+   * "error"` without a cancellation): an `isError` result or a failed call.
+   * Suppresses the recovery exactly like {@link cancelled} — the shell shows
+   * the error instead of silently re-running a call that just failed
+   * (toolkit#176). Defaults to `false`.
+   */
+  errored?: boolean
   /** The payload the host delivered (`useToolContext().toolOutput`). */
   props: unknown
   /**
@@ -124,12 +135,28 @@ export function decodeRecoveredResult<T>(
   return decoded !== null && isValid(decoded) ? (decoded as T) : null
 }
 
+/**
+ * Whether the recovery may fire: the result latched (or is assumed stripped)
+ * and the call was neither cancelled nor failed. Exported for tests — this is
+ * the #176 rule "never recover on an error status".
+ */
+export function isRecoveryReady(state: {
+  resultReady: boolean
+  assumedReady: boolean
+  cancelled: boolean
+  errored: boolean
+}): boolean {
+  if (state.cancelled || state.errored) return false
+  return state.resultReady || state.assumedReady
+}
+
 export function useToolResultRecovery<T>(
   options: ToolResultRecoveryOptions,
 ): ToolResultRecoveryState<T> {
   const {
     resultReady,
     cancelled = false,
+    errored = false,
     props,
     isValid,
     toolInput,
@@ -160,15 +187,16 @@ export function useToolResultRecovery<T>(
     setPrevTimerInput(toolInput)
     if (assumedReady) setAssumedReady(false)
   }
+  const suppressed = cancelled || errored
   useEffect(() => {
-    if (resultReady || cancelled || toolName === undefined) return
+    if (resultReady || suppressed || toolName === undefined) return
     const timer = setTimeout(() => setAssumedReady(true), assumeStrippedAfterMs)
     return () => clearTimeout(timer)
-  }, [resultReady, cancelled, toolName, toolInput, assumeStrippedAfterMs])
+  }, [resultReady, suppressed, toolName, toolInput, assumeStrippedAfterMs])
 
-  // A cancelled call never counts as ready, so the effect below invalidates
-  // any in-flight attempt the same way it does for a superseded run.
-  const ready = !cancelled && (resultReady || assumedReady)
+  // A cancelled or failed call never counts as ready, so the effect below
+  // invalidates any in-flight attempt the same way it does for a superseded run.
+  const ready = isRecoveryReady({ resultReady, assumedReady, cancelled, errored })
 
   useEffect(() => {
     // A new tool run (result no longer ready, or fresh tool-input identity)

@@ -1,4 +1,5 @@
 import { FOCUS_RING } from "../lib/focus-ring.js"
+import { useToolkitMessages } from "../locale/locale-provider.js"
 import { Input } from "../primitives/input.js"
 
 export interface FilterChip {
@@ -15,7 +16,7 @@ export interface FilterChip {
 export interface FilterBarProps {
   /** Current search text (controlled). */
   search: string
-  /** Placeholder for the search input. Default `"Filter…"`. */
+  /** Placeholder for the search input. Default: the locale's "Filter…". */
   searchPlaceholder?: string
   /** Called with the new search text on every keystroke. */
   onSearchChange: (next: string) => void
@@ -31,18 +32,19 @@ export interface FilterBarProps {
  */
 export function FilterBar({
   search,
-  searchPlaceholder = "Filter…",
+  searchPlaceholder,
   onSearchChange,
   chips,
   onChipToggle,
 }: FilterBarProps) {
+  const messages = useToolkitMessages()
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Input
         type="search"
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
-        placeholder={searchPlaceholder}
+        placeholder={searchPlaceholder ?? messages.filterBar.searchPlaceholder}
         className="h-9 min-w-[220px] flex-1 text-sm"
       />
       <div className="flex flex-wrap gap-1.5">
