@@ -5,7 +5,8 @@
  * woff2 files itself and declares them with {@link fontFaces}. The second path
  * keeps MCP App views small — the files are fetched once and cached instead of
  * inlined as base64 into every view; allow their origin in the view's CSP
- * `resourceDomains`. Where the fonts never load, the system stack renders.
+ * `resourceDomains`. Where the fonts never load, the host's font renders (if
+ * the host sends one, see `adoptHostFontVariables`), else the system stack.
  */
 
 /** The latin variable woff2 files, as `@fontsource-variable/geist(-mono)` ship them. */

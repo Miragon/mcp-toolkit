@@ -72,8 +72,8 @@ export { useDebouncedValue } from "./hooks/use-debounced-value.js"
 
 // Tone token system — the semantic status tones (ToneVariant + TONE_* maps)
 // behind the tone-aware components below. Pure data + class strings. Three
-// roles per tone: colour (TONE_DOT/TONE_BORDER/TONE_ICON), tint (TONE_SOFT),
-// text (TONE_TEXT, the -ink role).
+// roles per tone: colour (TONE_DOT/TONE_BORDER/TONE_ICON), tint (TONE_SOFT,
+// foreground text on it), text on a plain surface (TONE_TEXT, the -ink role).
 export { TONE_SOFT, TONE_DOT, TONE_TEXT, TONE_BORDER, TONE_ICON } from "./lib/tone-utils.js"
 export type { ToneVariant } from "./lib/tone-utils.js"
 // The kit's opaque focus ring as class strings, for custom controls.
@@ -121,6 +121,8 @@ export {
   CD_TOKENS_VERSION,
   fontFaces,
   GEIST_FONT_FILES,
+  adoptHostFontVariables,
+  HOST_FONT_VARIABLES,
 } from "./theme/index.js"
 export type {
   ThemeTokens,
@@ -133,6 +135,7 @@ export type {
   ThemePresetId,
   CdTokenName,
   FontFacesOptions,
+  InlineStyleTarget,
 } from "./theme/index.js"
 
 // i18n / localization. Browser-safe (React only, no `mcp-use/react`), so it

@@ -160,10 +160,12 @@ function PaletteItemImpl({ w, onClick }: { w: ReachableWidget; onClick: () => vo
     >
       <span className="flex w-full items-center justify-between gap-2">
         <span className="truncate font-mono">{w.id}</span>
-        <GripVertical className="text-muted-foreground group-hover:text-muted-foreground size-3" />
+        <GripVertical className="text-muted-foreground group-hover:text-accent-foreground size-3" />
       </span>
       {w.requires.length > 0 && (
-        <span className="text-muted-foreground truncate font-mono text-[10px]">
+        // On the hovered --accent surface quiet text takes the surface's
+        // foreground: --muted-foreground drops to 3.66:1 there in dark.
+        <span className="text-muted-foreground group-hover:text-accent-foreground truncate font-mono text-[10px]">
           ← {w.requires.join(", ")}
         </span>
       )}

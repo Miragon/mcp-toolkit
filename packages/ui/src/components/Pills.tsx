@@ -11,7 +11,7 @@ export interface LivePillProps {
 /**
  * Small tinted pill with a pulsing dot. Use in a widget header to signal that
  * the data is live/real-time. Tone-based (tint, border and dot in the tone,
- * text in the tone's ink), so it inherits the active theme. The pulse stops
+ * text in the foreground), so it inherits the active theme. The pulse stops
  * under `prefers-reduced-motion`.
  */
 export function LivePill({ tone = "info", children }: LivePillProps) {
@@ -38,8 +38,8 @@ export interface CountPillProps {
 /**
  * Compact count badge — tabular numbers on a tinted background with a border
  * in the tone. Use as the right-aligned indicator on a list/group row (e.g. a
- * per-group item count). The number stays in the tone's ink, never in the raw
- * status colour.
+ * per-group item count). The number stays in the foreground in every tone
+ * (no coloured digits): the tint and the border carry the tone.
  */
 export function CountPill({ tone = "neutral", children }: CountPillProps) {
   return (

@@ -195,7 +195,7 @@ export function StepErrors({
           key={err.stepId}
           className="border-danger bg-danger-soft text-foreground rounded-md border p-3 text-sm"
         >
-          <strong className="text-danger-ink">{err.stepId}:</strong> {err.reason}
+          <strong>{err.stepId}:</strong> {err.reason}
         </div>
       ))}
     </div>

@@ -87,7 +87,7 @@ export function LayoutSurface({
                       commitRename(idx, e.currentTarget.value)
                     }}
                     className={cn(
-                      "focus-visible:ring-focus w-24 rounded-sm border-none bg-transparent p-0 text-inherit outline-none focus-visible:ring-2",
+                      "focus-visible:ring-focus w-24 rounded-sm border-none bg-transparent p-0 text-inherit outline-hidden focus-visible:ring-2",
                       renameRejected && "text-danger-ink",
                     )}
                     size={Math.max(tab.label.length + 1, 6)}

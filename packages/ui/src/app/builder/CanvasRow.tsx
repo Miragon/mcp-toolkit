@@ -304,7 +304,7 @@ function ResizeHandle({
       onClick={(e) => e.stopPropagation()}
       onKeyDown={onKeyDown}
       tabIndex={0}
-      className="hover:bg-primary/40 focus-visible:bg-primary/40 focus-visible:ring-focus absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none focus-visible:ring-2 focus-visible:outline-none"
+      className="hover:bg-primary/40 focus-visible:bg-primary/40 focus-visible:ring-focus absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none focus-visible:ring-2 focus-visible:outline-hidden"
       aria-label="Resize widget"
       role="separator"
       aria-orientation="vertical"

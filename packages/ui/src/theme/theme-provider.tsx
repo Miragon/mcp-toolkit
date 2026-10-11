@@ -75,8 +75,11 @@ function useResolvedMode(mode: ThemeMode): "light" | "dark" {
 /** Props for {@link ThemeProvider}. */
 export interface ThemeProviderProps {
   /**
-   * The white-label theme to apply (from {@link createTheme}). Omit to manage
-   * only the light/dark `mode` against the toolkit defaults (the Miragon theme).
+   * The white-label theme to apply (from {@link createTheme}). Omit to keep the
+   * theme of the nearest enclosing `ThemeProvider` (re-applied in this
+   * provider's mode, so a light island inside a dark branded scope stays on
+   * the brand), or, at the top, to manage only the light/dark `mode` against
+   * the toolkit defaults (the Miragon theme).
    */
   theme?: ThemeDefinition
   /**
@@ -107,13 +110,19 @@ export interface ThemeProviderProps {
  * dark mode the wrapper gets the toolkit's dark roles plus the theme's dark
  * tokens and its mode-invariant light tokens ({@link resolveThemeVars}) — a
  * light surface colour never leaks into a dark scope (mcp-toolkit#178 N35). A
- * light scope inside a dark document stays light: `data-theme-mode="light"`
- * re-declares the light roles. This keeps theming local — two differently
- * themed subtrees (e.g. a brand preview gallery) coexist on one page.
+ * light scope inside a dark scope stays light: there, `data-theme-mode="light"`
+ * re-declares the toolkit's light roles. A light scope in a light document
+ * re-declares nothing and keeps what the document set (a consumer's `:root`
+ * brand). A nested provider without `theme` re-applies the enclosing one's
+ * theme in its own mode. This keeps theming local — two differently themed
+ * subtrees (e.g. a brand preview gallery) coexist on one page.
  *
  * Overlays opened inside the scope (Dialog, Sheet, Select) portal into a node
  * within it, so they wear the same theme and mode (#178 N36,
- * {@link usePortalContainer}).
+ * {@link usePortalContainer}). That node is the wrapper's FIRST child, an empty
+ * `display: contents` element: it draws no box, and `space-*`, `divide-*`,
+ * `gap` and `last:` on the wrapper see only your children. Only selectors on
+ * the wrapper's first/nth child (`first:`, `odd:`) count it.
  *
  * Uses only React + the DOM (no `mcp-use/react`), so it ships from the root
  * barrel and works in a host-free standalone app, a host, or SSR alike.
@@ -133,15 +142,18 @@ export function ThemeProvider({
   const resolvedMode = useResolvedMode(mode)
   const isDark = resolvedMode === "dark"
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
+  // Without its own theme a nested provider keeps the enclosing one's brand.
+  const enclosing = useContext(ThemeContext)
+  const activeTheme = theme ?? enclosing?.theme ?? null
 
   const style = useMemo<CSSProperties>(
-    () => resolveThemeVars(theme, resolvedMode),
-    [theme, resolvedMode],
+    () => resolveThemeVars(activeTheme, resolvedMode),
+    [activeTheme, resolvedMode],
   )
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme: theme ?? null, mode, resolvedMode }),
-    [theme, mode, resolvedMode],
+    () => ({ theme: activeTheme, mode, resolvedMode }),
+    [activeTheme, mode, resolvedMode],
   )
 
   const classes = [
@@ -152,21 +164,23 @@ export function ThemeProvider({
     .filter(Boolean)
     .join(" ")
 
-  // The portal node closes the scope as a `display: contents` element: it adds
-  // no box (no gap, no layout shift), yet overlays portaled into it inherit the
-  // scope's variables and its `.dark` / `data-theme-mode`.
+  // The portal node OPENS the scope as an empty `display: contents` element:
+  // it draws no box, yet overlays portaled into it inherit the scope's
+  // variables and its `.dark` / `data-theme-mode`. First, not last: Tailwind's
+  // `space-*`/`divide-*` and `last:` target the last child, so a trailing node
+  // would hand the real last child a margin or divider it never had.
   const PortalRoot = As === "span" ? "span" : "div"
 
   return (
     <ThemeContext.Provider value={value}>
       <PortalContainerContext.Provider value={portalContainer}>
         <As className={classes} style={style} data-theme-mode={resolvedMode}>
-          {children}
           <PortalRoot
             ref={setPortalContainer}
             data-slot="theme-portal"
             style={{ display: "contents" }}
           />
+          {children}
         </As>
       </PortalContainerContext.Provider>
     </ThemeContext.Provider>

@@ -199,7 +199,7 @@ export function OrderStatusCard({ orderId = "ORD-4471" }: { orderId?: string }) 
 
       <CardContent className="flex flex-col gap-4">
         {error ? (
-          <div className="border-danger bg-danger-soft text-danger-ink rounded-md border p-3 text-sm">
+          <div className="border-danger bg-danger-soft text-foreground rounded-md border p-3 text-sm">
             {error}
           </div>
         ) : loading && !order ? (

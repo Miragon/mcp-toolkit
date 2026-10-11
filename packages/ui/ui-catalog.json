@@ -1243,7 +1243,30 @@
           "description": "Default 'swap'."
         }
       ],
-      "whenToUse": "Opt-in Geist delivery by URL: returns the @font-face rules for Geist and Geist Mono (latin, variable weight) served from baseUrl. Inject into the view document, e.g. <style>{fontFaces({ baseUrl })}</style>, and allow that origin in the view CSP. Alternative: import @miragon/mcp-toolkit-ui/fonts.css (bundled). The font tokens name Geist first, so either path works; without either the system stack renders."
+      "whenToUse": "Opt-in Geist delivery by URL: returns the @font-face rules for Geist and Geist Mono (latin, variable weight) served from baseUrl. Inject into the view document, e.g. <style>{fontFaces({ baseUrl })}</style>, and allow that origin in the view CSP. Alternative: import @miragon/mcp-toolkit-ui/fonts.css (bundled). The font tokens name Geist first, so either path works; without either the host's font (see adoptHostFontVariables) or the system stack renders."
+    },
+    {
+      "name": "adoptHostFontVariables",
+      "export": "adoptHostFontVariables",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "theming",
+      "parts": ["adoptHostFontVariables", "HOST_FONT_VARIABLES"],
+      "props": [
+        {
+          "name": "style",
+          "type": "InlineStyleTarget",
+          "required": true,
+          "description": "The inline style the host variables were applied to, normally document.documentElement.style."
+        },
+        {
+          "name": "hostVariables",
+          "type": "Record<string, string | undefined> | null | undefined",
+          "required": true,
+          "description": "The host's SEP-1865 style variables (hostContext.styles.variables)."
+        }
+      ],
+      "whenToUse": "Keeps Geist first when a host sends its font. SEP-1865 hosts send --font-sans/--font-mono, the same names as the toolkit's font roles, and would replace the Geist-first stacks whole; this moves them to --host-font-sans/--host-font-mono, the fallback slot right after Geist. McpToolkitApp already calls it; call it yourself only in an app with its own host-document layer, right after applying the host's style variables."
     },
     {
       "name": "FOCUS_RING",

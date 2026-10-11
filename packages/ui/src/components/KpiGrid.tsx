@@ -1,10 +1,10 @@
 import type { ReactNode } from "react"
 import { FOCUS_RING_INSET } from "../lib/focus-ring.js"
-import { TONE_DOT, TONE_TEXT, type ToneVariant } from "../lib/tone-utils.js"
+import { TONE_DOT, type ToneVariant } from "../lib/tone-utils.js"
 
 /**
- * Trend direction → tone. The tone shows as a dot before the trend line; the
- * text itself takes the tone's ink (status is never text in its own colour).
+ * Trend direction → tone. The tone shows ONLY as a dot before the trend line;
+ * the figures stay in the foreground (no coloured digits, CI §3.3).
  */
 const TREND_TONE: Record<"up" | "down" | "flat", ToneVariant> = {
   up: "danger",
@@ -21,7 +21,10 @@ export interface KpiCell {
   fraction?: ReactNode
   /** Optional trend line under the value (e.g. `"+12% vs last week"`). */
   trend?: ReactNode
-  /** Tones the trend line. `up` reads as bad (danger), `down` as good (success). */
+  /**
+   * Tones the trend line's dot. `up` reads as bad (danger), `down` as good
+   * (success); the trend text itself stays in the foreground.
+   */
   trendDirection?: "up" | "down" | "flat"
   /**
    * Status of the metric (e.g. `"danger"` for a breached one), shown as a dot
@@ -64,7 +67,10 @@ function ToneDot({ tone, size }: { tone: ToneVariant; size: "size-1.5" | "size-2
   return <span aria-hidden="true" className={`${size} shrink-0 rounded-full ${TONE_DOT[tone]}`} />
 }
 
-/** The trend line under a value: a tone dot plus the trend text in the tone's ink. */
+/**
+ * The trend line under a value: a tone dot plus the trend text in the
+ * foreground — never in a tone colour. Without a tone it stays quiet text.
+ */
 function KpiTrend({
   trend,
   direction,
@@ -73,7 +79,7 @@ function KpiTrend({
   direction?: KpiCell["trendDirection"]
 }) {
   const tone = direction ? TREND_TONE[direction] : "neutral"
-  const textClass = tone === "neutral" ? "text-muted-foreground" : TONE_TEXT[tone]
+  const textClass = tone === "neutral" ? "text-muted-foreground" : "text-foreground"
   return (
     <div className={`mt-1.5 inline-flex items-center gap-1.5 text-xs ${textClass}`}>
       {tone !== "neutral" && <ToneDot tone={tone} size="size-1.5" />}

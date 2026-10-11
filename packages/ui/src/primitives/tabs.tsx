@@ -2,7 +2,7 @@ import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Tabs as TabsPrimitive } from "radix-ui"
 
-import { FOCUS_RING } from "../lib/focus-ring.js"
+import { FOCUS_RING, FOCUS_RING_INSET } from "../lib/focus-ring.js"
 import { cn } from "../lib/utils.js"
 
 function Tabs({
@@ -69,10 +69,11 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
 }
 
 function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Content>) {
+  // Radix makes the panel a tab stop (tabIndex 0), so it needs a visible focus.
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("flex-1 outline-none", className)}
+      className={cn("flex-1", FOCUS_RING_INSET, className)}
       {...props}
     />
   )

@@ -55,7 +55,7 @@ of building a bordered `<div>` by hand.
 
 ### Badge
 
-Props: `variant?: "default" | "secondary" | "destructive" | "success" | "warning" | "info" | "outline" | "ghost" | "link"`, `className?`. The status variants follow the tone model: tint, ink text, a border in the tone.
+Props: `variant?: "default" | "secondary" | "destructive" | "success" | "warning" | "info" | "outline" | "ghost" | "link"`, `className?`. The status variants follow the tone model: tint, foreground text, a border in the tone.
 
 ```tsx
 import { Badge } from "@miragon/mcp-toolkit-ui"
@@ -360,12 +360,15 @@ roles (Miragon CI), each with light and dark values:
 | Role                    | Token           | Maps                                   |
 | ----------------------- | --------------- | -------------------------------------- |
 | fill, dot, border, icon | `--<tone>`      | `TONE_DOT`, `TONE_BORDER`, `TONE_ICON` |
-| tint                    | `--<tone>-soft` | `TONE_SOFT` (tint + ink)               |
-| text                    | `--<tone>-ink`  | `TONE_TEXT`                            |
+| tint                    | `--<tone>-soft` | `TONE_SOFT` (tint + foreground text)   |
+| text on a plain surface | `--<tone>-ink`  | `TONE_TEXT`                            |
 
 Status is never text in its own colour: success and warning reach only
-1.67:1 / 1.83:1 on white, so their ink is the foreground. In dark mode the
-colours are the `-hell` values and the tints are transparent.
+1.67:1 / 1.83:1 on white, so their ink is the foreground. Text on a tint is
+always the foreground (pair `TONE_SOFT` with `TONE_BORDER`), and figures (KPI
+values, trends, counts) never take a tone colour: the tone shows as a dot next
+to them. In dark mode the colours are the `-hell` values and the tints are
+transparent.
 
 ```tsx
 import { TONE_DOT, TONE_TEXT, type ToneVariant } from "@miragon/mcp-toolkit-ui"
@@ -663,7 +666,10 @@ const acme = createTheme(
 ```
 
 **When to use:** define a client's brand once. Apply it with `ThemeProvider`
-(or spread `resolveThemeVars(theme, mode)` onto a wrapper).
+(or spread `resolveThemeVars(theme, mode)` / `theme.toStyle()` onto a wrapper).
+A theme written against the old knobs keeps one brand: `primary` also gives
+the hover fill (90 %) and links, `ring` the focus ring, and `radius` the
+sm/md/lg steps, unless the theme sets those roles itself (in either mode).
 
 ### ThemeProvider
 
@@ -681,8 +687,11 @@ import { ThemeProvider } from "@miragon/mcp-toolkit-ui"
 theme's CSS variables inline and sets the `.dark` class and `data-theme-mode` on
 that scope per `mode`, so it tracks `HostBridge.theme` or the OS preference. In
 dark mode the scope gets the toolkit's dark roles plus the theme's dark and
-mode-invariant tokens, never its light surfaces. Dialogs, sheets and select
-menus opened inside portal into the scope (`usePortalContainer`). Two
+mode-invariant tokens, never its light surfaces. A nested provider without
+`theme` re-applies the enclosing one's theme in its own mode. Dialogs, sheets
+and select menus opened inside portal into the scope (`usePortalContainer`):
+the portal node is the wrapper's first child, an empty `display: contents`
+element, so `space-*`, `divide-*` and `last:` see only your children. Two
 differently themed subtrees can coexist on one page.
 
 ### useTheme
@@ -699,9 +708,10 @@ and mode; the toolkit's `Dialog`, `Sheet` and `Select` already do.
 
 ### themePresets
 
-`themePresets.emerald`: a ready-made `ThemeDefinition` (distinct
-`primary`/`radius` + dark overrides). A demonstration of `createTheme` and a
-fork-able starting point; pass it to `ThemeProvider`'s `theme` prop.
+`themePresets.emerald`: a ready-made `ThemeDefinition` (its own `primary`,
+hover, link, focus and `radius`, light and dark, contrast-tested like the
+default). A demonstration of `createTheme` and a fork-able starting point;
+pass it to `ThemeProvider`'s `theme` prop.
 `themePresets.miragon` and `.violet` are **deprecated**: the Miragon theme is
 the toolkit's default (render without a theme), and violet is the look the
 Miragon design system rules out. Both go in the next major.
@@ -730,8 +740,24 @@ import { fontFaces } from "@miragon/mcp-toolkit-ui"
 
 **When to use:** load Geist without inlining it into every view (allow the
 origin in the view CSP). The bundled alternative is
-`@import "@miragon/mcp-toolkit-ui/fonts.css"`. Without either, the system
-stack renders.
+`@import "@miragon/mcp-toolkit-ui/fonts.css"`. Without either, the host's
+font or the system stack renders.
+
+### adoptHostFontVariables
+
+`adoptHostFontVariables(style, hostVariables)`: SEP-1865 hosts send their font
+as `--font-sans`/`--font-mono`, the same names as the font roles, and would
+replace the Geist-first stacks whole. This moves them to
+`--host-font-sans`/`--host-font-mono` (`HOST_FONT_VARIABLES`), the fallback
+slot right after Geist.
+
+```tsx
+import { adoptHostFontVariables } from "@miragon/mcp-toolkit-ui"
+adoptHostFontVariables(document.documentElement.style, hostContext.styles?.variables)
+```
+
+**When to use:** only in an app with its own host-document layer, right after
+it applied the host's style variables. `McpToolkitApp` already does it.
 
 ## App shell
 

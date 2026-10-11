@@ -11,6 +11,7 @@ import {
   LivePill,
   SectionHeading,
   Skeleton,
+  TONE_BORDER,
   TONE_SOFT,
   WidgetHeader,
   cn,
@@ -90,8 +91,9 @@ function StatusPill({ status }: { status: TaskStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold",
+        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold",
         TONE_SOFT[STATUS_TONE[status]],
+        TONE_BORDER[STATUS_TONE[status]],
       )}
     >
       {STATUS_LABEL[status]}

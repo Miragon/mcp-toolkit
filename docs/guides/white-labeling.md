@@ -31,7 +31,7 @@ The role-token contract (`ROLE_TOKENS`):
 | `--primary` `--primary-foreground` `--primary-hover`                         | Primary button fill, its text, its hover fill                         |
 | `--link` `--ring` `--focus`                                                  | Links and interactive text; focus ring (opaque, 3:1)                  |
 | `--<tone>` `--<tone>-soft` `--<tone>-ink` for success, warning, danger, info | A status: its colour (fill, dot, border, icon), tint, and TEXT colour |
-| `--destructive`                                                              | Destructive action fill (white text on it)                            |
+| `--destructive` (+ `--destructive-foreground`)                               | Destructive action fill and its text (white)                          |
 | `--radius-sm` `--radius-md` `--radius-lg` `--radius-pill`                    | Badges and chips; buttons, inputs, cards, dialogs; panels; pills      |
 | `--shadow-1` `--shadow-2` `--shadow-3` `--scrim`                             | Elevation; dialog and sheet backdrop                                  |
 | `--motion-fast` `--motion-base` `--motion-slow` `--ease`                     | Transitions (reduced motion is always respected)                      |
@@ -39,9 +39,11 @@ The role-token contract (`ROLE_TOKENS`):
 
 Three rules keep a brand accessible:
 
-- **Status is never text in its own colour.** A tone's text is its `-ink`
-  role; light yellows and greens cannot carry text on white. Show the tone as a
-  dot, icon or border next to the text (`TONE_*` maps).
+- **Status is never text in its own colour.** A tone's words on a plain
+  surface take its `-ink` role; light yellows and greens cannot carry text on
+  white. Text on a tint is the foreground, with the tone on the rim, and
+  figures (counts, KPI values, trends) always stay in the foreground: show the
+  tone as a dot, icon or border next to the text (`TONE_*` maps).
 - **Dark mode has no tinted fills.** In dark, `--<tone>-soft` is `transparent`
   and colour comes from the border, dot and ink.
 - **A host may set only the neutral roles** (background, card, foreground,
@@ -77,12 +79,20 @@ the roles. Override only roles, never `--cd-*`, never a component class.
 }
 ```
 
-Use the same selectors as `theme.css` and declare every colour role you change
-in BOTH blocks, the same value twice where it does not change with the mode
+Use the selectors of `theme.css` and declare every colour role you change in
+BOTH blocks, the same value twice where it does not change with the mode
 (`--primary`). Radii, shadows, motion and fonts are mode-independent: the light
-block is enough. Then a light island inside a dark document and a dark
-`ThemeProvider` scope pick up your values too, and no light colour leaks into
-dark.
+block is enough. A light scope in a light document re-declares nothing, so a
+plain `:root` brand reaches it; a light island inside a dark scope (diagram
+paper, a light `ThemeProvider` in a dark host) re-declares the toolkit's light
+roles, and only the `[data-theme-mode="light"]` selector carries your brand
+into it. With both blocks, a dark `ThemeProvider` scope picks up your values
+too, and no light colour leaks into dark.
+
+Set the corner steps directly in CSS (`--radius-sm`, `--radius-md`,
+`--radius-lg`): `rounded-sm/md/lg` read them, and a bare `--radius` reshapes
+them only through a theme (`ThemeProvider`, `resolveThemeVars`,
+`theme.toStyle()`).
 
 ## Path B: `createTheme` + `ThemeProvider`
 
@@ -131,11 +141,20 @@ How the modes combine (`resolveThemeVars`):
 - **Dark**: the toolkit's dark roles, plus the theme's `dark` tokens, plus its
   **mode-invariant** light tokens (button colour, radii, fonts, motion). A light
   surface or text colour never leaks into a dark scope.
-- A light scope inside a dark document stays light.
+- **Legacy knobs fill the new roles** a theme leaves unset, in both modes:
+  `primary` gives the hover fill (90 %) and the links, `ring` the focus ring,
+  `radius` the sm/md/lg steps. A role the theme sets itself, in either mode, is
+  never derived. Set `primaryHover`, `link` and `focus` (light and dark) for
+  contrast you control; the presets do.
+- A light scope inside a dark document stays light. A nested `ThemeProvider`
+  without `theme` re-applies the enclosing theme in its own mode, so a light
+  island keeps the brand.
 
 Dialogs, sheets and select menus opened inside the scope portal into it, so
 they wear the same theme and mode. Your own portals can do the same with
-`usePortalContainer()`.
+`usePortalContainer()`. The portal node is the wrapper's first child, an
+empty `display: contents` element: `space-*`, `divide-*` and `last:` on the
+wrapper see only your children.
 
 Because the scope is the wrapper (not `<html>`), two differently themed
 subtrees coexist on one page, handy for a brand gallery.
@@ -168,12 +187,26 @@ Read the active theme/mode anywhere below with `useTheme()`. It returns
 
 ## Fonts
 
-The font roles name Geist and Geist Mono first; the toolkit loads no font.
-Either import `@miragon/mcp-toolkit-ui/fonts.css` (your bundler self-hosts the
-files) or serve the woff2 files yourself and inject
-`fontFaces({ baseUrl })`. The second keeps MCP App views small: the files are
-fetched once and cached instead of inlined into every view. Allow the origin in
-the view's CSP `resourceDomains`. A brand font is just another `--font-sans`.
+The font roles name Geist and Geist Mono first, then the host's font, then
+the system stack; the toolkit loads no font. Either import
+`@miragon/mcp-toolkit-ui/fonts.css` (your bundler self-hosts the files) or
+serve the woff2 files yourself and inject `fontFaces({ baseUrl })`. The second
+keeps MCP App views small: the files are fetched once and cached instead of
+inlined into every view. Allow the origin in the view's CSP
+`resourceDomains`. A brand font is just another `--font-sans`.
+
+A SEP-1865 host sends its font as `--font-sans`/`--font-mono`, the same names
+as the font roles, written inline on `<html>`; left alone, it would replace the
+whole stack and Geist would never render. `McpToolkitApp` moves it to
+`--host-font-sans`/`--host-font-mono`, the fallback slot after Geist. An app
+with its own host-document layer does the same right after applying the host's
+style variables:
+
+```ts
+import { adoptHostFontVariables } from "@miragon/mcp-toolkit-ui"
+
+adoptHostFontVariables(document.documentElement.style, hostContext.styles?.variables)
+```
 
 ## See it live
 

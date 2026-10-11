@@ -8,27 +8,36 @@
  * | Role                         | Token           | Map            |
  * | ---------------------------- | --------------- | -------------- |
  * | fill, dot, border, icon      | `--<tone>`      | `TONE_DOT`, `TONE_BORDER`, `TONE_ICON` |
- * | tint (badge/banner surface)  | `--<tone>-soft` | `TONE_SOFT`    |
- * | text                         | `--<tone>-ink`  | `TONE_TEXT`, `TONE_SOFT` |
+ * | tint (badge/banner surface)  | `--<tone>-soft` | `TONE_SOFT` (text on it: the foreground) |
+ * | text on a plain surface      | `--<tone>-ink`  | `TONE_TEXT`    |
  *
  * Status is never text in its own colour: success and warning reach only
  * 1.67:1 / 1.83:1 on white, so their ink is the foreground and the tone shows
- * as a dot, icon or border NEXT to the text. In dark mode the colours are the
- * `-hell` values and the tints are transparent (no tinted fills on dark).
- * The `neutral` tone reuses the muted ramp.
+ * as a dot, icon or border NEXT to the text. On a tint the text is always the
+ * foreground (CI §3.3: "-soft: Text darauf --cd-schwarz, Rand in der
+ * Statusfarbe"), so pair `TONE_SOFT` with `TONE_BORDER`. `TONE_TEXT` is for
+ * a tone's words on a plain surface (a field error); figures — counts, KPI
+ * values, trends — never take it: they stay in the foreground next to a
+ * `TONE_DOT`. In dark mode the colours are the `-hell` values and the tints
+ * are transparent (no tinted fills on dark). The `neutral` tone reuses the
+ * muted ramp.
  *
  * Change a tone here, in one place, instead of hand-rolling
  * `tone === "x" ? "…" : "…"` ternaries at every call site.
  */
 export type ToneVariant = "neutral" | "info" | "success" | "warning" | "danger"
 
-/** Tinted surface + the tone's readable text colour — badges, pills, banners. */
+/**
+ * Tinted surface + its text (the foreground: CI §3.3) — badges, pills,
+ * banners. Pair it with {@link TONE_BORDER}: the rim carries the tone, and in
+ * dark mode (no tints) it is all that does.
+ */
 export const TONE_SOFT: Record<ToneVariant, string> = {
   neutral: "bg-muted text-muted-foreground",
-  info: "bg-info-soft text-info-ink",
-  success: "bg-success-soft text-success-ink",
-  warning: "bg-warning-soft text-warning-ink",
-  danger: "bg-danger-soft text-danger-ink",
+  info: "bg-info-soft text-foreground",
+  success: "bg-success-soft text-foreground",
+  warning: "bg-warning-soft text-foreground",
+  danger: "bg-danger-soft text-foreground",
 }
 
 /** Solid dot colour — a status dot next to a label. */
@@ -41,9 +50,11 @@ export const TONE_DOT: Record<ToneVariant, string> = {
 }
 
 /**
- * The tone's TEXT colour (its `-ink` role) — inline emphasis. Success and
- * warning resolve to the foreground on light: pair the text with a
- * {@link TONE_DOT} or {@link TONE_ICON} to show the tone.
+ * The tone's TEXT colour (its `-ink` role) for words on a plain surface — a
+ * field error, a "missing" label. Success and warning resolve to the
+ * foreground on light: pair the text with a {@link TONE_DOT} or
+ * {@link TONE_ICON} to show the tone. Never on a tint (use {@link TONE_SOFT})
+ * and never for figures (they stay in the foreground next to a dot).
  */
 export const TONE_TEXT: Record<ToneVariant, string> = {
   neutral: "text-foreground",

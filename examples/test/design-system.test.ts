@@ -8,12 +8,20 @@ import { REPO_ROOT } from "./helpers/fitness-probe.js"
  * through the ROLE tokens only. brand-lint sees neither Tailwind classes nor
  * oklch() nor TS strings, so this suite is the machine check:
  *
- * - no Tailwind palette utilities (`bg-emerald-500`, `text-amber-700`, …);
+ * - no Tailwind palette utilities (`bg-emerald-500`, `text-amber-700`, …),
+ *   no absolute black/white utilities (`bg-black/50`, `text-white`) and no
+ *   named CSS colours in styles (`color: "red"`);
  * - no raw colours (hex, rgb(), hsl(), oklch(), …) outside the theme files;
  * - status is never text in its own colour: text takes the tone's `-ink`
  *   (`text-danger-ink`), links take `text-link` (not `text-primary`, which
- *   falls to 3.08:1 on the dark ground);
- * - text is never translucent (`text-muted-foreground/70` drops below 4.5:1).
+ *   falls to 3.08:1 on the dark ground); text on a tint is the foreground,
+ *   never the ink (`bg-danger-soft text-danger-ink`, CI §3.3);
+ * - text is never translucent (`text-muted-foreground/70` drops below 4.5:1);
+ * - a class string that switches to the accent/secondary surface switches the
+ *   text to that surface's foreground (quiet text drops below 4.5:1 there in
+ *   dark);
+ * - never `outline-none` (forced-colors mode then shows no focus at all; use
+ *   `outline-hidden`, as FOCUS_RING does).
  *
  * Scope: every source file of the published packages, the examples and the
  * starter template (tests excluded — they assert on colour literals as data).
@@ -61,9 +69,48 @@ const RAW_COLOUR_FN = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/
 // A status colour on an icon (`[&>svg]:text-danger`, SVG currentColor) is the
 // colour role, not text — only bare text utilities are flagged.
 const STATUS_TEXT = /(?<!svg\]:)\btext-(?:success|warning|danger|info)(?![-\w])/
-const DESTRUCTIVE_TEXT = /\btext-destructive\b/
+const DESTRUCTIVE_TEXT = /\btext-destructive(?![-\w])/
 const PRIMARY_TEXT = /\btext-primary(?![-\w])/
 const TRANSLUCENT_TEXT = /\btext-(?!(?:xs|sm|base|lg|[0-9]?xl)\/)[a-z][a-z-]*\/\d{1,3}\b/
+// Tailwind's absolute colours bypass the roles exactly like a palette class
+// (the shadcn originals: `bg-black/50` overlay, `text-white` destructive).
+const BLACK_WHITE =
+  /\b(?:bg|text|border|ring|ring-offset|fill|stroke|from|via|to|outline|divide|shadow|decoration|caret|accent|placeholder)-(?:black|white)(?![-\w])/
+// A named CSS colour as a style value (`color: "red"`, `background: white`).
+const NAMED_COLOUR =
+  /\b(?:color|background|background-color|backgroundColor|border-color|borderColor|fill|stroke|outline-color|outlineColor)\s*:\s*["']?(?:black|white|red|green|blue|yellow|orange|purple|pink|gray|grey|navy|teal|maroon|silver|lime|aqua|fuchsia|olive)\b/
+// CI §3.3: on a tint the text is the foreground; the ink is for plain surfaces.
+const INK_ON_TINT =
+  /\bbg-(success|warning|danger|info)-soft\b.*\btext-\1-ink\b|\btext-(success|warning|danger|info)-ink\b.*\bbg-\2-soft\b/
+const OUTLINE_NONE = /\boutline-none\b/
+/** A surface utility (with its variant prefix) whose text must switch with it. */
+const LIFTED_SURFACE = /((?:[\w&>*[\]=.()/@-]+:)*)bg-(accent|secondary)(?:\/\d{1,3})?(?![-\w])/g
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")
+
+/** The string literals on one source line (class strings live in them). */
+function stringLiterals(line: string): string[] {
+  return [...line.matchAll(/"([^"\n]*)"|'([^'\n]*)'|`([^`\n]*)`/g)].map(
+    (m) => m[1] ?? m[2] ?? m[3] ?? "",
+  )
+}
+
+/**
+ * The first class string that puts a lifted surface (`bg-accent`,
+ * `hover:bg-secondary`, …) without the surface's own text colour under the
+ * same variant (or unprefixed): quiet text on those dark lifts is 3.66:1.
+ */
+function surfaceWithoutItsText(line: string): string | undefined {
+  for (const literal of stringLiterals(line)) {
+    for (const m of literal.matchAll(LIFTED_SURFACE)) {
+      const [whole, prefix = "", surface] = m
+      const text = `text-${surface}-foreground`
+      const own = new RegExp(`(?:^|\\s)${escapeRegExp(prefix)}${text}(?![-\\w])`)
+      const base = new RegExp(`(?:^|\\s)${text}(?![-\\w])`)
+      if (!own.test(literal) && !base.test(literal)) return whole
+    }
+  }
+  return undefined
+}
 
 interface Finding {
   file: string
@@ -92,12 +139,20 @@ function scanSource(file: string, source: string): Finding[] {
       if (hit) findings.push({ file, line: idx + 1, rule, match: hit[0] })
     }
     check("palette-utility", PALETTE, !themeFile)
+    check("black-white-utility", BLACK_WHITE, !themeFile)
+    check("named-colour", NAMED_COLOUR, !themeFile)
     check("raw-hex", RAW_HEX, !themeFile)
     check("raw-colour-function", RAW_COLOUR_FN, !themeFile)
     check("status-as-text", STATUS_TEXT, !toneModule)
+    check("ink-on-tint", INK_ON_TINT, true)
     check("destructive-as-text", DESTRUCTIVE_TEXT, true)
     check("primary-as-text", PRIMARY_TEXT, true)
     check("translucent-text", TRANSLUCENT_TEXT, true)
+    check("outline-none", OUTLINE_NONE, true)
+    const surface = surfaceWithoutItsText(text)
+    if (surface) {
+      findings.push({ file, line: idx + 1, rule: "surface-without-its-text", match: surface })
+    }
   })
   return findings
 }
@@ -178,13 +233,56 @@ describe("design-system gate fires (self-test — a gate never red is decoration
     expect(rulesOf('"text-destructive"')).toContain("destructive-as-text")
     expect(rulesOf('"text-primary underline"')).toContain("primary-as-text")
     expect(
-      rulesOf('"text-danger-ink text-primary-foreground bg-success border-warning text-link"'),
+      rulesOf(
+        '"text-danger-ink text-primary-foreground text-destructive-foreground bg-success border-warning text-link"',
+      ),
     ).toEqual([])
   })
 
   it("allows a raw status colour only on icons or in the tone module (TONE_ICON)", () => {
     expect(rulesOf('"text-success"', TONE_MODULE)).toEqual([])
     expect(rulesOf('"[&>svg]:text-danger [&_svg]:text-warning"')).toEqual([])
+  })
+
+  it("flags Tailwind's absolute black/white and named CSS colours, not role utilities", () => {
+    expect(rulesOf('"bg-black/50 fixed inset-0"')).toContain("black-white-utility")
+    expect(rulesOf('"bg-destructive text-white hover:bg-destructive/90"')).toContain(
+      "black-white-utility",
+    )
+    expect(rulesOf('"ring-offset-white dark:bg-white"')).toContain("black-white-utility")
+    expect(rulesOf('style={{ color: "red" }}')).toContain("named-colour")
+    expect(rulesOf("  background: white;")).toContain("named-colour")
+    expect(
+      rulesOf('"bg-scrim text-destructive-foreground bg-background whitespace-nowrap"'),
+    ).toEqual([])
+    expect(rulesOf('style={{ color: "inherit", fill: "currentColor" }}')).toEqual([])
+  })
+
+  it("flags the ink on a tint (text on -soft is the foreground, CI §3.3)", () => {
+    expect(rulesOf('"bg-danger-soft text-danger-ink border-danger"')).toContain("ink-on-tint")
+    expect(rulesOf('"text-info-ink rounded bg-info-soft"')).toContain("ink-on-tint")
+    expect(rulesOf('"bg-danger-soft text-foreground"')).toEqual([])
+    expect(rulesOf('<p className="text-danger-ink">')).toEqual([])
+  })
+
+  it("flags outline-none (no focus at all in forced-colors mode), not outline-hidden", () => {
+    expect(rulesOf('"outline-none focus-visible:ring-2"')).toContain("outline-none")
+    expect(rulesOf('"focus-visible:outline-none"')).toContain("outline-none")
+    expect(rulesOf('"outline-hidden focus-visible:ring-2 focus-visible:ring-focus"')).toEqual([])
+  })
+
+  it("flags a lifted surface whose class string keeps quiet text (accent/secondary)", () => {
+    expect(rulesOf('"hover:bg-accent text-muted-foreground"')).toContain("surface-without-its-text")
+    expect(rulesOf('"bg-accent font-medium"')).toContain("surface-without-its-text")
+    expect(rulesOf('"data-[state=on]:bg-secondary/80"')).toContain("surface-without-its-text")
+    expect(rulesOf('"hover:bg-accent hover:text-accent-foreground"')).toEqual([])
+    expect(rulesOf('"bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80"')).toEqual(
+      [],
+    )
+    expect(
+      rulesOf('(active ? "bg-accent text-accent-foreground" : "text-muted-foreground")'),
+    ).toEqual([])
+    expect(rulesOf('"hover:bg-muted text-muted-foreground"')).toEqual([])
   })
 
   it("flags translucent text but not font-size/line-height shorthands", () => {

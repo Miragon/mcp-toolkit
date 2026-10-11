@@ -34,6 +34,7 @@ describe("tokensToVars (token → CSS-var mapping)", () => {
       ring: "oklch(0.7 0 0)",
       focus: "#2222ff",
       destructive: "#cc0000",
+      destructiveForeground: "#fffff0",
       success: "#00aa00",
       successSoft: "#eeffee",
       successInk: "#003300",
@@ -83,6 +84,7 @@ describe("tokensToVars (token → CSS-var mapping)", () => {
       "--ring": "oklch(0.7 0 0)",
       "--focus": "#2222ff",
       "--destructive": "#cc0000",
+      "--destructive-foreground": "#fffff0",
       "--success": "#00aa00",
       "--success-soft": "#eeffee",
       "--success-ink": "#003300",
@@ -161,13 +163,30 @@ describe("createTheme", () => {
   it("returns a serializable definition with vars and a toStyle helper", () => {
     const theme = createTheme({ primary: "#6d28d9", radius: "0.5rem" })
     expect(theme.vars).toEqual({ "--primary": "#6d28d9", "--radius": "0.5rem" })
-    expect(theme.toStyle()).toEqual({ "--primary": "#6d28d9", "--radius": "0.5rem" })
+    expect(theme.toStyle()).toEqual({
+      "--primary": "#6d28d9",
+      "--primary-hover": "color-mix(in srgb, #6d28d9 90%, transparent)",
+      "--link": "#6d28d9",
+      "--radius": "0.5rem",
+      "--radius-sm": "calc(0.5rem * 0.5)",
+      "--radius-md": "0.5rem",
+      "--radius-lg": "calc(0.5rem * 4 / 3)",
+    })
     expect(theme.darkVars).toBeUndefined()
   })
 
-  it("toStyle mirrors vars (CSS custom properties as a style object)", () => {
-    const theme = createTheme({ background: "#fff", foreground: "#000" })
-    expect(theme.toStyle()).toEqual(theme.vars)
+  it("toStyle applies what ThemeProvider applies in light mode (resolveThemeVars)", () => {
+    const plain = createTheme({ background: "#fff", foreground: "#000" })
+    expect(plain.toStyle()).toEqual(plain.vars)
+    const legacy = createTheme({ primary: "#0f766e", ring: "#0f766e", radius: "0px" })
+    expect(legacy.toStyle()).toEqual(resolveThemeVars(legacy, "light"))
+  })
+
+  it("toStyle reshapes rounded-sm/md/lg from a legacy base radius (square corners)", () => {
+    const style = createTheme({ radius: "0px" }).toStyle() as Record<string, string>
+    expect(style["--radius-md"]).toBe("0px")
+    expect(style["--radius-sm"]).toBe("calc(0px * 0.5)")
+    expect(style["--radius-lg"]).toBe("calc(0px * 4 / 3)")
   })
 
   it("maps dark token overrides to darkVars", () => {
@@ -207,9 +226,11 @@ describe("resolveThemeVars (what a theme scope applies per mode — #178 N35)", 
     expect(resolveThemeVars(null, "dark")).toEqual({})
   })
 
-  it("applies the light vars in light mode", () => {
+  it("applies the light vars in light mode (plus what the legacy primary derives)", () => {
     expect(resolveThemeVars(brand(), "light")).toEqual({
       "--primary": "#0f766e",
+      "--primary-hover": "color-mix(in srgb, #0f766e 90%, transparent)",
+      "--link": "#0f766e",
       "--accent": "#ccfbf1",
       "--background": "#fafafa",
       "--font-sans": "Inter",
@@ -228,19 +249,33 @@ describe("resolveThemeVars (what a theme scope applies per mode — #178 N35)", 
   it("carries mode-invariant light values (brand button colour, fonts) into dark mode", () => {
     expect(resolveThemeVars(brand(), "dark")).toEqual({
       "--primary": "#0f766e",
+      "--primary-hover": "color-mix(in srgb, #0f766e 90%, transparent)",
+      "--link": "#0f766e",
       "--font-sans": "Inter",
       "--accent": "#134e4a",
     })
   })
 
-  it("lets a dark token override a carried mode-invariant one", () => {
+  it("lets a dark token override a carried mode-invariant one (and derives from it)", () => {
     const theme = createTheme({ primary: "#111111" }, { dark: { primary: "#eeeeee" } })
-    expect(resolveThemeVars(theme, "dark")).toEqual({ "--primary": "#eeeeee" })
+    expect(resolveThemeVars(theme, "dark")).toEqual({
+      "--primary": "#eeeeee",
+      "--primary-hover": "color-mix(in srgb, #eeeeee 90%, transparent)",
+      "--link": "#eeeeee",
+    })
   })
 
   it("applies only mode-invariant vars in dark mode when a theme has no dark tokens", () => {
-    const theme = createTheme({ primary: "#111111", card: "#ffffff", link: "#0000ee" })
-    expect(resolveThemeVars(theme, "dark")).toEqual({ "--primary": "#111111" })
+    const theme = createTheme({
+      primary: "#111111",
+      primaryHover: "#222222",
+      card: "#ffffff",
+      link: "#0000ee",
+    })
+    expect(resolveThemeVars(theme, "dark")).toEqual({
+      "--primary": "#111111",
+      "--primary-hover": "#222222",
+    })
   })
 
   it("derives the sm/md/lg radii from a legacy base radius in both modes", () => {
@@ -264,6 +299,41 @@ describe("resolveThemeVars (what a theme scope applies per mode — #178 N35)", 
   it("derives nothing without a base radius", () => {
     const theme = createTheme({ radiusSm: "2px" })
     expect(resolveThemeVars(theme, "light")).toEqual({ "--radius-sm": "2px" })
+  })
+
+  it("derives hover and link from a legacy primary, and focus from a legacy ring", () => {
+    const theme = createTheme({ primary: "#0f766e", ring: "#115e59" })
+    expect(resolveThemeVars(theme, "light")).toEqual({
+      "--primary": "#0f766e",
+      "--primary-hover": "color-mix(in srgb, #0f766e 90%, transparent)",
+      "--link": "#0f766e",
+      "--ring": "#115e59",
+      "--focus": "#115e59",
+    })
+  })
+
+  it("never derives a role the theme sets itself, in either mode", () => {
+    const theme = createTheme(
+      { primary: "#0f766e", ring: "#115e59" },
+      { dark: { primaryHover: "#99f6e4", link: "#5eead4", focus: "#5eead4" } },
+    )
+    // Set only in dark: light keeps the toolkit default for those roles.
+    expect(resolveThemeVars(theme, "light")).toEqual({
+      "--primary": "#0f766e",
+      "--ring": "#115e59",
+    })
+    expect(resolveThemeVars(theme, "dark")).toEqual({
+      "--primary": "#0f766e",
+      "--primary-hover": "#99f6e4",
+      "--link": "#5eead4",
+      "--focus": "#5eead4",
+    })
+  })
+
+  it("derives nothing for the interactive roles without primary or ring", () => {
+    const theme = createTheme({ background: "#fafafa" }, { dark: { background: "#111111" } })
+    expect(resolveThemeVars(theme, "light")).toEqual({ "--background": "#fafafa" })
+    expect(resolveThemeVars(theme, "dark")).toEqual({ "--background": "#111111" })
   })
 
   it("classifies every mode-invariant var as a real theming variable", () => {

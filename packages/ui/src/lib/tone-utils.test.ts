@@ -29,7 +29,7 @@ describe("tone-utils", () => {
 
   it("routes each status tone to its three roles (colour, tint, ink)", () => {
     for (const tone of STATUS_TONES) {
-      expect(TONE_SOFT[tone]).toBe(`bg-${tone}-soft text-${tone}-ink`)
+      expect(TONE_SOFT[tone]).toBe(`bg-${tone}-soft text-foreground`)
       expect(TONE_TEXT[tone]).toBe(`text-${tone}-ink`)
       expect(TONE_DOT[tone]).toBe(`bg-${tone}`)
       expect(TONE_BORDER[tone]).toBe(`border-${tone}`)
@@ -46,6 +46,15 @@ describe("tone-utils", () => {
       for (const tone of ALL_TONES) {
         expect(map[tone], `${name}:${tone}`).not.toMatch(rawStatusText)
       }
+    }
+  })
+
+  it("puts the foreground on every status tint, never the ink or the status colour (CI §3.3)", () => {
+    // "-soft: Text darauf --cd-schwarz, Rand in der Statusfarbe" — the rim
+    // (TONE_BORDER) carries the tone, danger/info ink is for plain surfaces.
+    for (const tone of STATUS_TONES) {
+      expect(TONE_SOFT[tone]).not.toMatch(/\btext-(?:success|warning|danger|info)/)
+      expect(TONE_SOFT[tone]).toMatch(/\btext-foreground\b/)
     }
   })
 

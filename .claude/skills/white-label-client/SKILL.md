@@ -32,17 +32,17 @@ the vendored Miragon `--cd-*` tokens (never touch), the **roles** (light AND dar
 each pointing at a `--cd-*` token) and Tailwind's utility mapping. **Override
 roles only.** The contract (`ROLE_TOKENS`):
 
-| Roles                                                                      | Skins                            |
-| -------------------------------------------------------------------------- | -------------------------------- |
-| `--background` `--card` `--popover` `--muted` `--secondary`                | Surfaces                         |
-| `--foreground` `--muted-foreground`                                        | Text                             |
-| `--border` `--input`                                                       | Lines; input borders (3:1)       |
-| `--primary` `--primary-foreground` `--primary-hover`                       | Primary button                   |
-| `--link` `--ring` `--focus`                                                | Links; focus ring (opaque, 3:1)  |
-| `--<tone>` `--<tone>-soft` `--<tone>-ink` (success, warning, danger, info) | Status colour, tint, TEXT colour |
-| `--destructive`                                                            | Destructive action fill          |
-| `--radius-sm/md/lg/pill`, `--shadow-1/2/3`, `--scrim`                      | Shape, elevation, backdrop       |
-| `--motion-fast/base/slow`, `--ease`, `--font-sans`, `--font-mono`          | Motion, typography               |
+| Roles                                                                      | Skins                             |
+| -------------------------------------------------------------------------- | --------------------------------- |
+| `--background` `--card` `--popover` `--muted` `--secondary`                | Surfaces                          |
+| `--foreground` `--muted-foreground`                                        | Text                              |
+| `--border` `--input`                                                       | Lines; input borders (3:1)        |
+| `--primary` `--primary-foreground` `--primary-hover`                       | Primary button                    |
+| `--link` `--ring` `--focus`                                                | Links; focus ring (opaque, 3:1)   |
+| `--<tone>` `--<tone>-soft` `--<tone>-ink` (success, warning, danger, info) | Status colour, tint, TEXT colour  |
+| `--destructive` (+ `--destructive-foreground`)                             | Destructive action fill, its text |
+| `--radius-sm/md/lg/pill`, `--shadow-1/2/3`, `--scrim`                      | Shape, elevation, backdrop        |
+| `--motion-fast/base/slow`, `--ease`, `--font-sans`, `--font-mono`          | Motion, typography                |
 
 `createTheme` has one optional field per role (`primary`, `primaryHover`, `link`,
 `focus`, `muted`, `mutedForeground`, `input`, `dangerInk`, `radiusMd`, `fontMono`,
@@ -84,7 +84,8 @@ function ClientApp() {
 
 For a whole app, overriding the roles in CSS after the toolkit import works as
 well; declare each colour role in the light AND the dark selector block (see the
-guide).
+guide). In CSS set `--radius-sm/md/lg` themselves: a bare `--radius` reshapes
+them only through a theme (`ThemeProvider`, `resolveThemeVars`, `toStyle()`).
 
 ## Step 3: Light / dark
 
@@ -118,7 +119,7 @@ status-as-text and translucent text.
 <div className="bg-card text-card-foreground rounded-md border">…</div>
 <Button>Primary</Button> // already uses --primary
 <a className="text-link">details</a>
-<span className={TONE_SOFT.danger}>3 failed</span>
+<span className={`border ${TONE_SOFT.danger} ${TONE_BORDER.danger}`}>3 failed</span>
 
 // BAD: hard-coded or unreadable
 <div style={{ background: "#fff", color: "#111" }}>…</div>
@@ -129,7 +130,8 @@ status-as-text and translucent text.
 
 Use the [tone system](../../../docs/reference/components.md#tone-tokens)
 (`ToneVariant` + `LivePill` / `CountPill` / `TONE_*`) for status: colour as a dot,
-icon or border, text in the tone's ink. This is what makes
+icon or border; text on a tint in the foreground, a tone's words on a plain
+surface in its ink, figures always in the foreground. This is what makes
 [`TasksBoard`](../../../examples/modules/tasks/widgets/TasksBoard.tsx) re-skin
 cleanly across brands.
 

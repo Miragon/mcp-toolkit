@@ -23,9 +23,16 @@ export interface ThemeTokens {
   primary?: string
   /** Text/icon colour on a `primary` surface. Maps to `--primary-foreground`. */
   primaryForeground?: string
-  /** Primary button fill on hover. Maps to `--primary-hover`. */
+  /**
+   * Primary button fill on hover. Maps to `--primary-hover`. A theme that sets
+   * `primary` but never `primaryHover` gets `primary` at 90 % (the pre-role
+   * hover) from {@link resolveThemeVars}.
+   */
   primaryHover?: string
-  /** Link and interactive text. Maps to `--link`. */
+  /**
+   * Link and interactive text. Maps to `--link`. A theme that sets `primary`
+   * but never `link` gets links in `primary` (the pre-role link colour).
+   */
   link?: string
   /** Hover/selection highlight surface. Maps to `--accent`. */
   accent?: string
@@ -53,10 +60,18 @@ export interface ThemeTokens {
   input?: string
   /** Legacy focus-ring colour (shadcn). Maps to `--ring`. */
   ring?: string
-  /** Focus ring and focused-input border, opaque, 3:1. Maps to `--focus`. */
+  /**
+   * Focus ring and focused-input border, opaque, 3:1. Maps to `--focus`. A
+   * theme that sets `ring` but never `focus` gets its focus ring in `ring`.
+   */
   focus?: string
-  /** Destructive action fill (white text on it). Maps to `--destructive`. */
+  /** Destructive action fill. Maps to `--destructive`. */
   destructive?: string
+  /**
+   * Text/icon colour on a `destructive` fill (white by default; keep 4.5:1).
+   * Maps to `--destructive-foreground`.
+   */
+  destructiveForeground?: string
   /** Success colour — fill, dot, border, icon (never text on light). Maps to `--success`. */
   success?: string
   /** Success tint surface. Maps to `--success-soft`. */
@@ -83,8 +98,10 @@ export interface ThemeTokens {
   infoInk?: string
   /**
    * Base corner radius (the legacy shadcn knob). Drives `rounded-xl` and up;
-   * under {@link ThemeProvider} (or {@link resolveThemeVars}) it also derives
-   * `radiusSm`/`radiusMd`/`radiusLg` when those are not set. Maps to `--radius`.
+   * applied through a theme ({@link ThemeProvider}, {@link resolveThemeVars}
+   * or `toStyle()`) it also derives `radiusSm`/`radiusMd`/`radiusLg` when those
+   * are not set. In plain CSS `--radius` no longer reshapes `rounded-sm/md/lg`:
+   * set `--radius-sm`/`--radius-md`/`--radius-lg` there. Maps to `--radius`.
    */
   radius?: string
   /** Badges and chips. Maps to `--radius-sm` (`rounded-sm`). */
@@ -148,6 +165,7 @@ export const TOKEN_TO_CSS_VAR = {
   ring: "--ring",
   focus: "--focus",
   destructive: "--destructive",
+  destructiveForeground: "--destructive-foreground",
   success: "--success",
   successSoft: "--success-soft",
   successInk: "--success-ink",
@@ -244,6 +262,7 @@ export const MODE_INVARIANT_VARS: ReadonlySet<CssVarName> = new Set<CssVarName>(
   "--primary-foreground",
   "--primary-hover",
   "--destructive",
+  "--destructive-foreground",
   "--input",
   "--radius",
   "--radius-sm",
@@ -253,7 +272,6 @@ export const MODE_INVARIANT_VARS: ReadonlySet<CssVarName> = new Set<CssVarName>(
   "--shadow-1",
   "--shadow-2",
   "--shadow-3",
-  "--scrim",
   "--motion-fast",
   "--motion-base",
   "--motion-slow",
@@ -281,9 +299,12 @@ export interface ThemeDefinition {
   /** Dark-mode CSS variables, applied at the theme scope in dark mode. */
   darkVars?: ThemeVars
   /**
-   * The light {@link vars} as a React `style` object (CSS custom properties are
-   * valid `CSSProperties` keys). Handy for inlining onto a wrapper element
-   * without the {@link ThemeProvider}; for dark mode use
+   * The theme's light-mode variables as a React `style` object (CSS custom
+   * properties are valid `CSSProperties` keys): exactly what
+   * {@link ThemeProvider} applies in light mode, i.e.
+   * {@link resolveThemeVars}`(theme, "light")` — {@link vars} plus the values
+   * derived from the legacy knobs (sm/md/lg from `radius`, …). Handy for
+   * inlining onto a wrapper element without the provider; for dark mode use
    * {@link resolveThemeVars}`(theme, "dark")`.
    */
   toStyle(): CSSProperties
@@ -343,34 +364,56 @@ export function createTheme(tokens: ThemeTokens, opts?: CreateThemeOptions): The
   const darkTokens = opts?.dark
   const darkVars = darkTokens ? tokensToVars(darkTokens) : undefined
 
-  return {
+  const theme: ThemeDefinition = {
     vars,
     ...(darkVars && Object.keys(darkVars).length > 0 ? { darkVars } : {}),
-    toStyle: () => vars,
+    toStyle: () => resolveThemeVars(theme, "light"),
   }
+  return theme
+}
+
+/** Whether the theme sets `name` itself, in light or in dark. */
+function declares(theme: ThemeDefinition, name: CssVarName): boolean {
+  return name in theme.vars || (theme.darkVars !== undefined && name in theme.darkVars)
 }
 
 /**
- * The legacy base `--radius` keeps reshaping corners: when a theme sets it,
- * the sm/md/lg steps derive from it unless the theme sets them explicitly
- * (CI ratio sm 6 : md 12 : lg 16).
+ * Fill the roles a theme written against the pre-role API leaves unset, from
+ * the knobs it does set, so it keeps ONE brand instead of half Miragon:
+ *
+ * - the base `--radius` reshapes the sm/md/lg steps (CI ratio 6 : 12 : 16);
+ * - `--primary` gives `--primary-hover` (90 %, the old `bg-primary/90`) and
+ *   `--link` (the old link button was `text-primary`);
+ * - `--ring` gives `--focus` (the old focus ring).
+ *
+ * A role the theme sets itself — in either mode — is never derived, and an
+ * explicit value always wins.
  */
-function withDerivedRadii(vars: ThemeVars): ThemeVars {
-  const base = vars["--radius"]
-  if (!base) return vars
-  return {
-    "--radius-sm": `calc(${base} * 0.5)`,
-    "--radius-md": base,
-    "--radius-lg": `calc(${base} * 4 / 3)`,
-    ...vars,
+function withDerivedVars(vars: ThemeVars, theme: ThemeDefinition): ThemeVars {
+  const derived: ThemeVars = {}
+  const radius = vars["--radius"]
+  if (radius) {
+    derived["--radius-sm"] = `calc(${radius} * 0.5)`
+    derived["--radius-md"] = radius
+    derived["--radius-lg"] = `calc(${radius} * 4 / 3)`
   }
+  const primary = vars["--primary"]
+  if (primary && !declares(theme, "--primary-hover")) {
+    derived["--primary-hover"] = `color-mix(in srgb, ${primary} 90%, transparent)`
+  }
+  if (primary && !declares(theme, "--link")) derived["--link"] = primary
+  const ring = vars["--ring"]
+  if (ring && !declares(theme, "--focus")) derived["--focus"] = ring
+  return { ...derived, ...vars }
 }
 
 /**
  * The CSS variables a theme applies at its scope in `mode`. Light mode: the
  * theme's `vars`. Dark mode: its mode-invariant light vars plus its `darkVars`
  * — never the other light vars, which would beat the toolkit's dark defaults
- * (mcp-toolkit#178 N35). A `--radius` also derives the sm/md/lg steps.
+ * (mcp-toolkit#178 N35). Both modes add what the legacy knobs derive (a base
+ * `--radius` → sm/md/lg; `--primary` → hover and link; `--ring` → focus)
+ * where the theme does not set those roles itself.
  * `null`/`undefined` yields `{}` (the toolkit defaults apply).
  */
 export function resolveThemeVars(
@@ -378,10 +421,10 @@ export function resolveThemeVars(
   mode: "light" | "dark",
 ): ThemeVars {
   if (!theme) return {}
-  if (mode === "light") return withDerivedRadii(theme.vars)
+  if (mode === "light") return withDerivedVars(theme.vars, theme)
   const carried: ThemeVars = {}
   for (const [name, value] of Object.entries(theme.vars) as [CssVarName, string][]) {
     if (MODE_INVARIANT_VARS.has(name)) carried[name] = value
   }
-  return withDerivedRadii({ ...carried, ...theme.darkVars })
+  return withDerivedVars({ ...carried, ...theme.darkVars }, theme)
 }

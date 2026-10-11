@@ -45,18 +45,33 @@ roles per tone: the colour (`--<tone>`: fill, dot, border, icon), the tint
 (`--<tone>-soft`) and the TEXT colour (`--<tone>-ink`). Status is never text in its own
 colour: success and warning reach only 1.67:1 / 1.83:1 on white; use the `TONE_*` maps
 in `lib/tone-utils.ts`, `text-link` for links (never `text-primary`) and `FOCUS_RING`
-for focus.
+for focus (`outline-hidden`, never `outline-none`: forced-colors mode keeps it).
+Text on a tint is the foreground (`TONE_SOFT` + `TONE_BORDER`; the ink is for a
+tone's words on a plain surface), and figures never take a tone colour: a count,
+KPI value or trend stays in the foreground next to a dot. Quiet text on the dark
+hover/secondary lifts drops below 4.5:1, so a surface switch to `bg-accent` or
+`bg-secondary` switches the text to that surface's foreground.
 
 **How a consumer brands it.** Override ONLY role variables (in CSS after the toolkit
 import, or with `createTheme` + `ThemeProvider`), never `--cd-*` and never a component
-class. A brand needs no toolkit release. A host may set only the neutral roles
-(background, card, foreground, muted, border); primary, link, focus, the status tones and
-the input border stay brand decisions. Every new pair a component renders goes into the
-contrast test (`theme-css.test.ts`, text ≥ 4.5:1, non-text ≥ 3:1, both modes).
+class. A brand needs no toolkit release. In CSS, use the selectors of `theme.css`: the
+light block on `:root, [data-theme-mode="light"]` (a light island inside a dark scope
+re-declares the toolkit's light roles, so a bare `:root` brand stops at it; a light scope
+in a light document re-declares nothing) and the dark block on
+`.dark, [data-theme="dark"], [data-theme-mode="dark"]`; set `--radius-sm/md/lg`
+themselves (a bare `--radius` reshapes them only through a theme). A host may set only
+the neutral roles (background, card, foreground, muted, border); primary, link, focus,
+the status tones and the input border stay brand decisions. A host's SEP-1865
+`--font-sans`/`--font-mono` collide with the font roles: `McpToolkitApp` moves them to
+`--host-font-*` (`adoptHostFontVariables`), the fallback slot behind Geist. Every new
+pair a component renders goes into the contrast test (`theme-css.test.ts`, text ≥ 4.5:1,
+non-text ≥ 3:1, both modes, default theme and every preset).
 
-**Gates:** `examples/test/design-system.test.ts` (no palette utilities, no raw colours
-outside the theme files, no status/primary/destructive as text, no translucent text),
-`packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast).
+**Gates:** `examples/test/design-system.test.ts` (no palette or black/white utilities,
+no raw or named colours outside the theme files, no status/primary/destructive as text,
+no ink on a tint, no translucent text, no `outline-none`, a lifted surface switches its
+text), `packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast),
+`components/tone-figures.test.tsx` (no coloured digits).
 `.miragon/brand.json` switches the brand-lint hook on for this repo.
 
 ## Module boundaries

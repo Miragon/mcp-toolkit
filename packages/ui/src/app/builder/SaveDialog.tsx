@@ -75,7 +75,7 @@ export function SaveDialog({
                 aria-hidden="true"
               />
               <span className="min-w-0 break-words">
-                <span className="text-danger-ink font-medium">{L.saveError}:</span> {error}
+                <span className="font-medium">{L.saveError}:</span> {error}
               </span>
             </div>
           )}

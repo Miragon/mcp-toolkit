@@ -13,7 +13,8 @@
  *   2. Roles     `--primary`, `--link`, `--focus`, `--<tone>`, `--<tone>-soft`,
  *                `--<tone>-ink`, radii, shadows, motion, fonts — light AND dark,
  *                each pointing at `--cd-*` only (never at another role, so a
- *                role overridden on a scope cannot leave a stale alias behind).
+ *                role overridden on a scope cannot leave a stale alias behind;
+ *                the font roles also name the host's font, `--host-font-*`).
  *   3. Utilities Tailwind's `@theme` maps utilities onto the roles.
  * A brand (a customer's, or a host's neutral palette) overrides layer 2 only —
  * see docs/guides/white-labeling.md. Components use role names exclusively.
@@ -28,8 +29,13 @@
  * hosts and mcp-use's ThemeProvider write on <html>). `data-theme-mode="light"`
  * marks a forced-light island — a light ThemeProvider, or an always-light
  * surface such as a diagram's paper and its zoom chrome.
+ *
+ * `dark:` follows the NEAREST mode scope: an element is dark when it sits in a
+ * dark scope with no light island in between. The second branch is a dark
+ * scope nested in a light island (a dark preview inside a light app); one
+ * such re-nesting is supported, which also covers a light island inside it.
  */
-@custom-variant dark (&:is(.dark *, [data-theme="dark"] *):not(:is([data-theme-mode="light"], [data-theme-mode="light"] *)));
+@custom-variant dark (&:is(:is(.dark, [data-theme="dark"], [data-theme-mode="dark"]) *:not([data-theme-mode="light"] *), [data-theme-mode="light"] :is(.dark, [data-theme="dark"], [data-theme-mode="dark"]) *:not([data-theme-mode="light"] :is(.dark, [data-theme="dark"], [data-theme-mode="dark"]) [data-theme-mode="light"] *)));
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -51,6 +57,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -70,9 +77,10 @@
   --color-scrim: var(--scrim);
   /* Status tones — three roles each (CI §3.3): the colour itself for fills,
      dots, borders and icons (`bg-danger`, `border-danger`); a tint for
-     surfaces (`bg-danger-soft`); and the TEXT colour (`text-danger-ink`).
-     Status is never text in its own colour: success and warning reach only
-     1.67:1 / 1.83:1 on white, so their ink is the foreground. */
+     surfaces (`bg-danger-soft`, the text on it is the foreground); and the
+     TEXT colour of a tone on a plain surface (`text-danger-ink`, e.g. a
+     field error). Success and warning reach only 1.67:1 / 1.83:1 on white,
+     so their ink is the foreground. Figures never take a tone colour. */
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-danger-ink: var(--danger-ink);
@@ -120,24 +128,32 @@
   --shadow-1: var(--cd-shadow-1);
   --shadow-2: var(--cd-shadow-2);
   --shadow-3: var(--cd-shadow-3);
-  --scrim: color-mix(in srgb, var(--cd-schwarz) 42%, transparent);
   --motion-fast: var(--cd-motion-fast);
   --motion-base: var(--cd-motion-base);
   --motion-slow: var(--cd-motion-slow);
   --ease: var(--cd-ease);
-  /* Geist first; the fonts themselves are opt-in (fonts.css or fontFaces()).
-     Without them — or where a host sets its own --font-sans — the next family
-     in the stack renders. */
-  --font-sans: "Geist", "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Geist first, then the host's font, then the system stack. Loading Geist
+     is opt-in (fonts.css or fontFaces()); where it is not loaded the next
+     family renders. A SEP-1865 host sends its font as --font-sans and
+     --font-mono, the same names as these roles: McpToolkitApp moves it to
+     --host-font-sans / --host-font-mono (adoptHostFontVariables), so it
+     fills the fallback slot instead of replacing the whole stack. A brand
+     sets --font-sans itself. */
+  --font-sans:
+    "Geist", "Geist Variable", var(--host-font-sans, ui-sans-serif), system-ui, sans-serif;
   --font-mono:
-    "Geist Mono", "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    "Geist Mono", "Geist Mono Variable", var(--host-font-mono, ui-monospace), SFMono-Regular, Menlo,
+    Consolas, monospace;
 }
 
 /* ── Light roles ──────────────────────────────────────────────────────────── */
-/* Also re-declared on a forced-light island, so it stays light inside a dark
-   document. */
+/* Re-declared on a forced-light island only where it sits inside a dark
+   scope, so it stays light there. A light scope in a light document
+   re-declares nothing and inherits what the document set, a consumer's
+   `:root` brand included. `:where()` keeps the island selector at (0,1,0):
+   a brand rule on `[data-theme-mode="light"]` after this file still wins. */
 :root,
-[data-theme-mode="light"] {
+:where(.dark, [data-theme="dark"], [data-theme-mode="dark"]) [data-theme-mode="light"] {
   --background: var(--cd-weiss);
   --foreground: var(--cd-schwarz);
   --card: var(--cd-weiss);
@@ -155,6 +171,7 @@
   --accent-foreground: var(--cd-blau-link);
   --link: var(--cd-blau-link);
   --destructive: var(--cd-danger);
+  --destructive-foreground: var(--cd-weiss);
   --border: var(--cd-linie);
   --input: var(--cd-kontur);
   --ring: var(--cd-blau-link);
@@ -184,15 +201,22 @@
   --sidebar-accent-foreground: var(--cd-blau-link);
   --sidebar-border: var(--cd-linie);
   --sidebar-ring: var(--cd-blau-link);
+  --scrim: color-mix(in srgb, var(--cd-schwarz) 42%, transparent);
 }
 
 /* ── Dark roles (CI dark-ground rules) ────────────────────────────────────── */
 /* --cd-schwarz is the ground; quiet surfaces lift it with white. Text white,
    links and accent text green, buttons stay blue with white text, focus
    blau-hell, status in the -hell values WITHOUT tinted fills, quiet text
-   --cd-kontur. The lifts stay small enough that --cd-kontur keeps 4.5:1 on
-   them (contrast.test.ts). A destructive action keeps the --cd-danger fill:
-   white on --cd-danger-hell is 2.79:1. */
+   --cd-kontur. --cd-kontur keeps 4.5:1 only up to a 3 % lift, so the quiet
+   surfaces quiet text sits on (--muted, --sidebar) lift 3 %. The
+   hover/selected (--accent) and secondary surfaces lift 10 % to stay
+   visible; quiet text on them switches to their foreground (both pinned in
+   theme-css.test.ts). --popover stays on the ground: --cd-blau (a checked
+   Switch in a sheet) reaches 3:1 only there (3.08:1; 2.92:1 at a 2 % lift).
+   Overlays stand off the page by their border and a scrim that pushes the
+   page back harder than on light. A destructive action keeps the
+   --cd-danger fill: white on --cd-danger-hell is 2.79:1. */
 .dark,
 [data-theme="dark"],
 [data-theme-mode="dark"] {
@@ -213,6 +237,7 @@
   --accent-foreground: var(--cd-weiss);
   --link: var(--cd-gruen);
   --destructive: var(--cd-danger);
+  --destructive-foreground: var(--cd-weiss);
   --border: color-mix(in srgb, var(--cd-weiss) 14%, transparent);
   --input: var(--cd-kontur);
   --ring: var(--cd-blau-hell);
@@ -242,6 +267,7 @@
   --sidebar-accent-foreground: var(--cd-weiss);
   --sidebar-border: color-mix(in srgb, var(--cd-weiss) 14%, transparent);
   --sidebar-ring: var(--cd-blau-hell);
+  --scrim: color-mix(in srgb, var(--cd-schwarz) 72%, transparent);
 }
 
 @layer base {
@@ -260,6 +286,19 @@
   :focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
+  }
+  /* Native controls and scrollbars follow the mode. Declared on <body> and
+     the mode scopes, never on <html>: a root color-scheme that differs from
+     the host's iframe element makes the browser paint an opaque canvas
+     behind the view, which mcp-use keeps transparent on purpose. */
+  body,
+  :where(body) [data-theme-mode="light"] {
+    color-scheme: light;
+  }
+  :is(.dark, [data-theme="dark"]) body,
+  body:is(.dark, [data-theme="dark"], [data-theme-mode="dark"]),
+  :where(body) :is(.dark, [data-theme="dark"], [data-theme-mode="dark"]) {
+    color-scheme: dark;
   }
 }
 

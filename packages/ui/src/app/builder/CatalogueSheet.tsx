@@ -66,7 +66,7 @@ export function CatalogueSheet({
                   {keyCatalog.map((entry) => (
                     <li
                       key={entry.key}
-                      className="hover:bg-accent/40 flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
+                      className="hover:bg-muted flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="truncate font-mono">{entry.key}</span>

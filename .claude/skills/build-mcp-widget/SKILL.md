@@ -148,8 +148,10 @@ Quality rules:
   light/dark automatically. A hard-coded `#hex`, `bg-blue-600`, or
   `rounded-[10px]` breaks white-labeling: it ignores the brand a `ThemeProvider`
   sets. Status is never text in its own colour (`text-success` is 1.67:1 on
-  white): use the tone's ink (`TONE_TEXT`) next to a dot or icon, and
-  `FOCUS_RING` on custom controls. Merge conditional classes with `cn(...)`. See
+  white): use the tone's ink (`TONE_TEXT`) next to a dot or icon; text on a
+  tint (`TONE_SOFT`) is the foreground with the tone on the rim
+  (`TONE_BORDER`); figures (counts, KPI values, trends) stay in the
+  foreground next to a `TONE_DOT`. `FOCUS_RING` on custom controls. Merge conditional classes with `cn(...)`. See
   the [white-labeling guide](../../../docs/guides/white-labeling.md) and the
   playground's brand switcher.
 - **Metrics → `KpiGrid`** (a row of headline cells; set a cell `tone`/`onClick`).

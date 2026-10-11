@@ -9,10 +9,10 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: "bg-card text-card-foreground",
-        // Tone model: tint, a border and icon in the danger colour, the title in
-        // the danger ink, the description in the foreground (CI §3.3).
+        // Tone model: tint, a border and icon in the danger colour; title and
+        // description in the foreground (CI §3.3: text on a tint is black).
         destructive:
-          "border-danger bg-danger-soft text-foreground *:data-[slot=alert-title]:text-danger-ink *:data-[slot=alert-description]:text-foreground [&>svg]:text-danger",
+          "border-danger bg-danger-soft text-foreground *:data-[slot=alert-title]:text-foreground *:data-[slot=alert-description]:text-foreground [&>svg]:text-danger",
       },
     },
     defaultVariants: {

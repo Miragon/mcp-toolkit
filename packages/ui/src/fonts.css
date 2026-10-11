@@ -9,7 +9,11 @@
  * embeds the woff2 files as base64 in every view. When a server can serve the
  * files, prefer `fontFaces({ baseUrl })`, which references them by URL (and
  * allow that origin in the view's CSP resourceDomains). The token stacks
- * (--font-sans, --font-mono) name both families, so either path works.
+ * (--font-sans, --font-mono) name both families first, so either path works.
+ * A host's own font stays the fallback behind them: McpToolkitApp moves it
+ * to --host-font-sans/--host-font-mono (adoptHostFontVariables); an app with
+ * its own host-document layer calls that helper after applying the host's
+ * style variables, or the host's --font-sans replaces the whole stack.
  */
 @import "@fontsource-variable/geist/wght.css";
 @import "@fontsource-variable/geist-mono/wght.css";

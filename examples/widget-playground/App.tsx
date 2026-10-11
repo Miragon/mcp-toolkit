@@ -131,12 +131,19 @@ function StoryList({
             onClick={() => onSelect(story)}
             aria-current={active ? "true" : undefined}
             className={
-              "hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none " +
+              "group hover:bg-accent hover:text-accent-foreground focus-visible:ring-focus rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-hidden " +
               (active ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground")
             }
           >
             <div className="font-medium">{story.label}</div>
-            <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
+            {/* Quiet text on the --accent surface takes its foreground: dark
+                --muted-foreground reaches only 3.66:1 on the 10 % lift. */}
+            <div
+              className={
+                "group-hover:text-accent-foreground mt-0.5 line-clamp-2 text-xs " +
+                (active ? "text-accent-foreground" : "text-muted-foreground")
+              }
+            >
               {story.description}
             </div>
           </button>
@@ -237,7 +244,7 @@ export function App() {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   spellCheck={false}
-                  className="border-input bg-muted/40 focus-visible:ring-ring min-h-[280px] flex-1 resize-y rounded-md border p-3 font-mono text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-none"
+                  className="border-input bg-muted/40 focus-visible:ring-ring min-h-[280px] flex-1 resize-y rounded-md border p-3 font-mono text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-hidden"
                 />
                 {parsed.error ? (
                   <Alert variant="destructive">

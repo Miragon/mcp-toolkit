@@ -38,7 +38,7 @@ export function BuilderBanners({
             aria-hidden="true"
           />
           <div className="min-w-0">
-            <p className="text-danger-ink font-medium">{L.catalogueError}</p>
+            <p className="font-medium">{L.catalogueError}</p>
             <p className="text-foreground mt-0.5 break-words">
               <span className="font-mono">{catalogueToolName}</span>: {refreshError}
             </p>
@@ -46,7 +46,7 @@ export function BuilderBanners({
         </div>
       )}
       {validationIssues.length > 0 && (
-        <div className="border-warning bg-warning-soft text-warning-ink flex items-start gap-2 rounded-md border px-3 py-2 text-xs">
+        <div className="border-warning bg-warning-soft text-foreground flex items-start gap-2 rounded-md border px-3 py-2 text-xs">
           <AlertTriangle
             className={`mt-0.5 size-3.5 shrink-0 ${TONE_ICON.warning}`}
             aria-hidden="true"
