@@ -5,7 +5,7 @@ against the example host in `examples/host`.
 
 ## 1. Enable the builder and wire the dashboard store
 
-The visual builder + dashboard persistence are **opt-in** — pass
+The visual builder + dashboard persistence are **opt-in**: pass
 `app: { builder: true }`. Without it, only the always-on core
 (`render-view` / widgets) is registered. With `builder` on,
 `createFrameworkApp` installs an in-memory store by default; for real
@@ -43,38 +43,51 @@ The LLM calls plain `render-view`:
 }
 ```
 
-The response is small — just the rendered context plus the layout. The
+The response is small: just the rendered context plus the layout. The
 catalogue is **not** included; the LLM doesn't need it.
 
 ## 3. Switch into Build (user)
 
 In the iframe toolbar there's an **Edit view** button (pencil icon). Click
-it and the renderer flips into the LayoutBuilder. The builder fetches
-its own catalogue via the app-only `get-builder-catalogue` tool — the
-LLM never sees this round-trip.
+it and the renderer flips into the LayoutBuilder, with the focus on the
+builder's title. The builder fetches its own catalogue via the app-only
+`get-builder-catalogue` tool, so the LLM never sees this round-trip. Until
+it answers, the palette shows a loading state.
 
-In Build mode you have three tabs:
+The builder names everything by its title (see
+[Naming a widget for people](../concepts/widgets.md#naming-a-widget-for-people)),
+else by its id. It has two views. In Layout, the palette and the canvas,
+you click or drag widgets, set the span and the props per cell,
+add/remove/reorder rows, and add and rename tabs (F2, a double-click or the
+pencil button). Preview shows the pure rendered output, no chrome.
 
-- **Layout** — palette + canvas. Click or drag widgets, set span per
-  cell, add/remove/reorder rows, manage tabs.
-- **Data sources** — keys + steps editor. Auto-applies on edit (debounced).
-- **Preview** — pure rendered output, no chrome.
-
-A right-side **Catalogue** sheet (toolbar button) shows all keys with
-producer/consumer attribution and lists widgets that aren't reachable
-yet, with one-click "Add producing step" actions.
+The **Advanced** toggle in the toolbar adds the technical parts: a third
+view, Data sources, with the keys + steps editor (it auto-applies on edit,
+debounced); a Catalogue button that opens a right-side sheet with all keys,
+their producer/consumer attribution and the widgets that aren't reachable
+yet, with one-click "Add producing step" actions; and the live-key stats and
+the technical ids.
 
 ## 4. Finish
 
-- **Done** — exits Build mode, swaps back to the rendered view with the
-  layout you just built.
-- **Save dashboard** — prompts for a name + optional description, then
-  calls `save-dashboard` and confirms the save with a toast. Returns `{ id, name, createdAt, updatedAt }`
-  (plus `unknownWidgets` as a non-fatal warning when the layout
-  references widget ids the server doesn't know).
+- **Apply** shows the draft in the view and leaves Build mode. It saves
+  nothing. The focus returns to **Edit view**.
+- **Discard** leaves Build mode and keeps the view as it was before
+  editing. When the draft changed the view, it asks first (with the focus
+  on "Keep editing") and says whether a saved dashboard keeps the changes.
+- **Save as dashboard** prompts for a name + optional description, then
+  calls `save-dashboard` and confirms the save with a toast. It returns
+  `{ id, name, createdAt, updatedAt }` (plus `unknownWidgets` as a
+  non-fatal warning when the layout references widget ids the server
+  doesn't know). The builder stays open, and the view changes only with
+  Apply.
 
-The user's draft layout is local until they click Done or Save —
-nothing leaks back to the LLM mid-edit.
+A marker next to the builder's title says when the draft has changes that
+would be lost: neither the view before editing nor a saved dashboard holds
+them.
+
+The user's draft layout is local until they click Apply or Save as
+dashboard. Nothing leaks back to the LLM mid-edit.
 
 ## 5. Recall
 

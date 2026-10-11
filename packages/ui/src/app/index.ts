@@ -17,6 +17,7 @@ export {
 export type { WidgetRendererProps, WidgetComponent } from "./widget-renderer.js"
 export { LayoutBuilder } from "./layout-builder.js"
 export type { LayoutBuilderProps, LayoutBuilderLabels } from "./layout-builder.js"
+export type { BuilderExitCommit } from "./builder/builder-model.js"
 
 // App-level value modules that import `mcp-use/react` (ModelContext, the 2.x
 // view hooks) — exported from this subpath only, never the root barrel.

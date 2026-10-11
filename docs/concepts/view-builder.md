@@ -32,12 +32,14 @@ structuredContent { context, layout, … }
                                      <LayoutBuilder>
                                      · calls get-builder-catalogue
                                        (app-only, not visible to LLM)
-                                     · drag widgets, edit keys/steps,
-                                       toggle Layout/Pipeline/Preview
-                                     · click "Done" ↑
+                                     · drag widgets, set spans and props;
+                                       Layout/Preview, plus the data
+                                       sources (keys/steps) behind "Advanced"
+                                     · click "Apply" ↑
                                      <WidgetRenderer>      ← back to render with new layout
+                                     · or "Discard" ↑      ← the view as it was before editing
 
-                                     · click "Save dashboard"
+                                     · click "Save as dashboard"
                                        → save-dashboard { name, … }
 ```
 
@@ -120,6 +122,45 @@ returned payload also includes the **unreachable** widgets (with the
 keys they're missing) and the **key catalogue** (every key the system
 references, with producer/consumer attribution and an `inContext`
 flag).
+
+## The builder for people
+
+The builder is written for the people who use the view, not for the
+developers who registered its widgets.
+
+The palette, the canvas cells, the props sheet and the data sources show
+each widget, step and props field by its title (see
+[Naming a widget for people](./widgets.md#naming-a-widget-for-people)),
+else by its id. The id stays a quiet secondary line. The palette groups the
+widgets by app, under the app's title; an app without a title gets no
+group heading, because its name is a technical namespace.
+
+Three actions leave or keep the draft. Apply shows the draft in the view and
+saves nothing. Discard leaves the builder and keeps the view as it was before
+editing; when the draft changed the view it asks first, and says so when a
+saved dashboard keeps the changes. Save as dashboard stores the draft (keys,
+steps, layout, title) under a name. A marker next to the title says when the
+draft has changes that would be lost: neither the view before editing nor a
+saved dashboard holds them. An embedded builder without `onExit` has no Apply;
+its Discard resets the draft in place, and neither its tooltip nor the save
+dialog points to Apply.
+
+Until the catalogue answers, the palette shows a loading state instead of
+"no elements". An empty palette offers the data sources.
+
+The data sources (keys and steps), the catalogue, the live-key stats and the
+technical ids sit behind the "Advanced" toggle.
+
+Every control works by keyboard and touch. Row, tab and cell actions show on
+hover, on focus inside their group and on touch screens. A tab is renamed
+with F2 (or Enter on the active tab), a double-click or its pencil button;
+Enter and Escape in the name field return the focus to the tab, also under its
+new name. Focus moves to the builder's title when it opens and back to the edit
+button when it closes. An embedded builder without `onExit` puts the focus on
+its title after Discard resets it. The save and discard dialogs, the catalogue
+and a cell's props sheet hand the focus back to the button that opened them
+(every `DialogContent` and `SheetContent` of the kit does, also without a
+`Trigger`).
 
 ## Layout model (v1)
 

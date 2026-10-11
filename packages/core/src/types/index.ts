@@ -1,6 +1,8 @@
 export type { StepOutput, StepResult, PipelineContext } from "./context.js"
 export type { PipelineStepDefinition, OptionalKeyDeclaration } from "./step.js"
 export type { WidgetProps, WidgetSize, WidgetDefinition } from "./widget.js"
+export type { DisplayText } from "./display.js"
+export { PROPS_SCHEMA_DISPLAY_KEYWORD } from "./display.js"
 export type { AppDefinition, AppPlugin } from "./app.js"
 export type { PipelineConfig, PipelineStepRef } from "./pipeline.js"
 export type { AppConfig, AppConfigEntry, ValidationResult } from "./config.js"

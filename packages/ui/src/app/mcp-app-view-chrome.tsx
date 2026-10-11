@@ -79,7 +79,7 @@ export function isCompleteViewData(value: unknown): value is ViewData {
   return Boolean(v?.context && v?.layout)
 }
 
-/** What the LayoutBuilder hands back on Done. */
+/** What the LayoutBuilder hands back on Apply. */
 export interface BuilderCommit {
   layout: LayoutConfig
   keys?: Record<string, unknown>
@@ -280,7 +280,13 @@ export function ViewToolbar({
         />
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {show.edit && (
-            <Button type="button" {...CHROME_BUTTON} size="sm" onClick={onEnterBuildMode}>
+            <Button
+              type="button"
+              {...CHROME_BUTTON}
+              size="sm"
+              data-slot="view-edit"
+              onClick={onEnterBuildMode}
+            >
               <Pencil aria-hidden="true" />
               {labels.build}
             </Button>

@@ -102,7 +102,7 @@ no ink on a tint, no translucent text, no `outline-none`, a lifted surface switc
 text, no text below 13 px (`text-xs`, an arbitrary `text-[…]`, a CSS `font-size` or a
 React `fontSize` under 13 px), no typed icon glyph (arrows, chevrons, ✓ ×, ⚠ ⚙, shapes,
 emoji) in `.tsx`/`.css`/`.html` or the toolkit catalogs; its `RULE_EXEMPTIONS` list the
-builder files that await their UX pass, shrink-only, a stale entry fails),
+builder files that still await the 13 px floor, shrink-only, a stale entry fails),
 `packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast, the
 type scale),
 `components/tone-figures.test.tsx` (no coloured digits), `components/feedback-states.test.tsx`

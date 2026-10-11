@@ -17,6 +17,7 @@
     "src/app/builder/builder-reducer.ts",
     "src/app/view-lifecycle.ts",
     "src/lib/toast-model.ts",
+    "src/lib/focus-return.ts",
     "src/locale/toolkit-messages.ts"
   ],
   "incremental": false,

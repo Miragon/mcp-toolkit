@@ -7,6 +7,7 @@ export type {
   WidgetProps,
   WidgetSize,
   WidgetDefinition,
+  DisplayText,
   AppDefinition,
   AppPlugin,
   PipelineConfig,
@@ -18,7 +19,12 @@ export type {
   StepDataEntry,
   RefreshParams,
 } from "./types/index.js"
-export { appsSdkMeta, viewResourceUri, VIEW_RESOURCE_URI_PREFIX } from "./types/index.js"
+export {
+  appsSdkMeta,
+  viewResourceUri,
+  VIEW_RESOURCE_URI_PREFIX,
+  PROPS_SCHEMA_DISPLAY_KEYWORD,
+} from "./types/index.js"
 export type { AppsSdkMetaOptions, AppResourceCsp } from "./types/index.js"
 
 // Localization engine — a dependency-free translator shared by the server (tool
@@ -26,8 +32,9 @@ export type { AppsSdkMetaOptions, AppResourceCsp } from "./types/index.js"
 // root barrel; ships no catalogs (the consuming app provides its own). The UI
 // `LocaleProvider`/`useLocale` (in `@miragon/mcp-toolkit-ui`) consume a
 // `Translate` from here.
-export { createTranslator } from "./i18n/index.js"
+export { createTranslator, resolveLocalizedText } from "./i18n/index.js"
 export type {
+  LocalizedText,
   Message,
   MessageCatalog,
   Catalogs,
@@ -63,6 +70,7 @@ export type {
 } from "./framework/view-builders.js"
 export { getBuilderCatalogue } from "./framework/catalogue.js"
 export type {
+  CatalogueApp,
   CatalogueInput,
   CatalogueOptions,
   CataloguePayload,

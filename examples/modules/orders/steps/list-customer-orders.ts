@@ -31,6 +31,11 @@ import type { OrdersAppConfig } from "./resolve-customer.js"
  */
 export const listCustomerOrdersStep: PipelineStepDefinition<OrdersAppConfig> = {
   id: "orders:list-customer-orders",
+  title: { en: "Customer orders", de: "Bestellungen des Kunden" },
+  summary: {
+    en: "Loads the orders of the customer found before.",
+    de: "Lädt die Bestellungen des zuvor gefundenen Kunden.",
+  },
   description: "List a resolved customer's orders and build the dashboard view-model.",
   dataType: "orders:dashboard",
   requires: ["orders:customer"],

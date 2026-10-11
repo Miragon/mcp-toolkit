@@ -2,6 +2,7 @@ import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 import type { OptionalKeyDeclaration } from "../types/step.js"
 import type { AppConfig } from "../types/config.js"
+import { PROPS_SCHEMA_DISPLAY_KEYWORD } from "../types/display.js"
 
 export interface FrameworkManifest {
   activeApps: string[]
@@ -37,6 +38,8 @@ export interface FrameworkManifest {
      * per-instance props. Same JSON-Schema contract the LLM already
      * understands from MCP tool input schemas, so it can construct scoped
      * views (e.g. one tab per `processDefinitionKey`) without guessing.
+     * The properties' `x-display` texts (the builder's labels for people)
+     * are left out, see {@link propsSchemaForModel}.
      */
     propsSchema?: Record<string, unknown>
   }[]
@@ -86,7 +89,7 @@ export function getFrameworkManifest(
       requires: widget.requires,
       ...(widget.consumes && widget.consumes.length > 0 ? { consumes: widget.consumes } : {}),
       size: widget.size,
-      ...(widget.propsSchema ? { propsSchema: widget.propsSchema } : {}),
+      ...(widget.propsSchema ? { propsSchema: propsSchemaForModel(widget.propsSchema) } : {}),
     })),
 
     pipelines: Object.entries(config.pipelines).map(([id, pipeline]) => ({
@@ -96,6 +99,36 @@ export function getFrameworkManifest(
 
     keyContracts: stepRegistry.getKeyContracts(),
   }
+}
+
+/**
+ * A widget's `propsSchema` as the LLM reads it: each property without its
+ * {@link PROPS_SCHEMA_DISPLAY_KEYWORD} (`x-display`) text. Those titles and
+ * summaries label the builder's props sheet for people, in every locale; the
+ * LLM reads the properties' `description`s. Every other keyword stays as the
+ * widget declared it, and a schema without display text comes back unchanged
+ * (the same object). Exported for its tests.
+ */
+export function propsSchemaForModel(schema: Record<string, unknown>): Record<string, unknown> {
+  const properties = schema.properties
+  if (!isRecord(properties)) return schema
+  let stripped = false
+  const forModel: Record<string, unknown> = {}
+  for (const [name, property] of Object.entries(properties)) {
+    if (isRecord(property) && PROPS_SCHEMA_DISPLAY_KEYWORD in property) {
+      forModel[name] = Object.fromEntries(
+        Object.entries(property).filter(([keyword]) => keyword !== PROPS_SCHEMA_DISPLAY_KEYWORD),
+      )
+      stripped = true
+    } else {
+      forModel[name] = property
+    }
+  }
+  return stripped ? { ...schema, properties: forModel } : schema
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 /**

@@ -78,6 +78,21 @@ describe("registerCatalogueTool", () => {
     expect(tools[0]!.definition.visibility).toBe("app")
   })
 
+  it("heads the palette groups with the titles of the apps it is given", async () => {
+    const { server, tools } = createStubServer()
+    registerCatalogueTool(server, {
+      stepRegistry: new StepRegistry(),
+      widgetRegistry: new WidgetRegistry(),
+      appConfigs: {},
+      apps: [{ name: "demo", title: { en: "Demo", de: "Vorführung" } }, { name: "plain" }],
+    })
+    const payload = (await tools[0]!.cb({})).structuredContent as CataloguePayload
+    expect(payload.apps).toEqual([{ name: "demo", title: { en: "Demo", de: "Vorführung" } }])
+    // Without apps the payload has none.
+    const plain = (await setup().tools[0]!.cb({})).structuredContent as CataloguePayload
+    expect(plain.apps).toBeUndefined()
+  })
+
   it("honours the toolName override", () => {
     const { tools } = setup({ toolName: "custom-catalogue" })
     expect(tools[0]!.definition.name).toBe("custom-catalogue")

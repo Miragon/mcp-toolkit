@@ -15,6 +15,7 @@ import {
   type ViewToolbarProps,
 } from "./mcp-app-view-chrome.js"
 import { ViewPlaceholder } from "./mcp-app-view-states.js"
+import { VIEW_FOCUS_TARGET } from "./use-build-mode-focus.js"
 import { resolveViewLifecycle, RETRY_IDLE, type ViewLifecycleInput } from "./view-lifecycle.js"
 
 const en = TOOLKIT_MESSAGES.en.view
@@ -208,6 +209,8 @@ describe("ViewToolbar", () => {
     expect(html).toContain("lucide-pencil")
     const edit = openingTags(html, "button")[0] ?? ""
     expectChromeButton(edit)
+    // The focus target the builder hands the focus back to when it closes.
+    expect(VIEW_FOCUS_TARGET).toBe(`[data-slot="${attribute(edit, "data-slot")}"]`)
   })
 
   it("titles the view once: show (configurable level), hide, or slot", () => {

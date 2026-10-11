@@ -1,7 +1,7 @@
 import { type MCPServer } from "mcp-use"
 import { z } from "zod"
 import { resolvePipelineContext } from "../engine/pipeline-executor.js"
-import { getBuilderCatalogue } from "../framework/catalogue.js"
+import { getBuilderCatalogue, type CatalogueOptions } from "../framework/catalogue.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
 
@@ -9,6 +9,8 @@ export interface RegisterCatalogueToolOptions {
   stepRegistry: StepRegistry
   widgetRegistry: WidgetRegistry
   appConfigs: Record<string, Record<string, unknown>>
+  /** The loaded app definitions: the builder heads its palette groups with their titles. */
+  apps?: CatalogueOptions["apps"]
   /** Override the tool name (default: `get-builder-catalogue`). */
   toolName?: string
 }
@@ -47,7 +49,13 @@ export function registerCatalogueTool(
   server: MCPServer,
   options: RegisterCatalogueToolOptions,
 ): void {
-  const { stepRegistry, widgetRegistry, appConfigs, toolName = "get-builder-catalogue" } = options
+  const {
+    stepRegistry,
+    widgetRegistry,
+    appConfigs,
+    apps,
+    toolName = "get-builder-catalogue",
+  } = options
 
   server.tool(
     {
@@ -64,6 +72,7 @@ export function registerCatalogueTool(
         stepRegistry,
         widgetRegistry,
         appConfigs,
+        apps,
         ctx: resolvePipelineContext(ctx),
       })
     },

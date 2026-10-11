@@ -15,6 +15,11 @@ interface WidgetDefinition {
   consumes?: string[] // step `dataType`s this widget renders (LLM hint)
   size: WidgetSize // "quarter" | "third" | "half" | "full" | "header"
   propsSchema?: Record<string, unknown> // JSON Schema for per-instance `props`
+  // How the view builder names it for people (all optional, see below):
+  title?: LocalizedText // "Orders", or { en: "Orders", de: "Bestellungen" }
+  titleKey?: string // i18n key, resolved by the bundle's LocaleProvider
+  summary?: LocalizedText // one line under the title in the builder palette
+  summaryKey?: string
 }
 
 interface WidgetProps {
@@ -26,6 +31,51 @@ interface WidgetProps {
 
 A widget runs only if all `requires` keys exist in `context.keys` — the
 `WidgetRenderer` in `@miragon/mcp-toolkit-ui` filters missing ones out.
+
+## Naming a widget for people
+
+`description` is the LLM's text. The people using the in-iframe view builder
+read `title` and `summary` instead: the palette lists each widget by its title
+with the summary under it and the id as a quiet mono line, the canvas cells
+and the props sheet use the title too. Without a title the builder falls back
+to the id. Give the text inline, one string or one per locale, or as an i18n
+key that the widget bundle's `LocaleProvider` translator resolves (a known key
+wins over the inline text):
+
+```ts
+{
+  id: "orders:table",
+  title: { en: "Orders", de: "Bestellungen" },
+  summary: { en: "Every order of one customer.", de: "Alle Bestellungen eines Kunden." },
+  description: "Table of a customer's orders with status and amounts.", // for the LLM
+  requires: ["orders:customer"],
+  size: "half",
+}
+```
+
+Pipeline steps take the same fields; the builder's data sources show them.
+An app definition takes `title` or `titleKey` too: it heads the app's group of
+widgets in the palette (`{ name: "orders", title: { en: "Orders", de: "Bestellungen" }, … }`).
+Without one the group has no heading; the app's name shows only in advanced mode.
+A `propsSchema` property is labelled in the props sheet by its `x-display`
+title (`PROPS_SCHEMA_DISPLAY_KEYWORD`, same shape), else by its JSON Schema
+`title`, else by its name; the help line is the `x-display` summary, else the
+`description`:
+
+```jsonc
+// propsSchema.properties
+{
+  "dataKey": {
+    "type": "string",
+    "description": "Context key holding the KPI cells.",
+    "x-display": { "title": { "en": "Data", "de": "Daten" } },
+  },
+}
+```
+
+None of these texts reach the LLM: `get-framework-manifest` sends the
+`description`s and leaves `title`, `summary` and every `x-display` out of the
+`propsSchema` it lists.
 
 ## `requires` vs `consumes` — two distinct contracts
 

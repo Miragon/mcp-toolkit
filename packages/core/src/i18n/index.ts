@@ -3,6 +3,8 @@
 // server (tool summaries) and the UI (widget strings). Ships no catalogs — the
 // consuming app provides its own and decides where the active locale comes from.
 export { createTranslator } from "./translator.js"
+export { resolveLocalizedText } from "./localized-text.js"
+export type { LocalizedText } from "./localized-text.js"
 export type {
   Message,
   MessageCatalog,
