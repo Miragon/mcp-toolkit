@@ -4,10 +4,17 @@ export type {
   McpAppViewLabels,
   DescribeStep,
   DescribeViewError,
+  ViewErrorKind,
+  RecoveryPolicy,
   ViewTitleLevel,
   ViewTitleMode,
 } from "./mcp-app-view.js"
 export { McpToolkitApp, mountMcpToolkitApp } from "./mcp-toolkit-app.js"
+// The passive host-lifecycle observer behind the stripped-result recovery
+// (toolkit#176): installed as the bundle evaluates; a custom shell may call it
+// explicitly before its own `bootstrapView`.
+export { installToolResultObserver } from "../lib/tool-result-observer.js"
+export type { ToolObservation, ToolResultObserver } from "../lib/tool-result-observer.js"
 export {
   WidgetRenderer,
   WidgetErrorBoundary,
@@ -21,7 +28,8 @@ export type { BuilderExitCommit } from "./builder/builder-model.js"
 
 // App-level value modules that import `mcp-use/react` (ModelContext, the 2.x
 // view hooks) — exported from this subpath only, never the root barrel.
-export { adaptDataWidget, HostModelContext } from "./adapt-data-widget.js"
+export { adaptDataWidget } from "./adapt-data-widget.js"
+export { HostModelContext, useHostModelContext } from "./model-context.js"
 export type { DescribeForModel } from "./adapt-data-widget.js"
 export { useHostActions, buildShowWidgetIntent } from "./use-host-actions.js"
 export type { HostActions } from "./use-host-actions.js"
@@ -44,7 +52,8 @@ export type {
   OpenAiAppsSdk,
   StandaloneHostBridgeOptions,
 } from "./host-bridge.js"
-export { McpUseHostBridgeProvider, useIsInsideMcpUseView } from "./mcp-use-host-bridge.js"
+export { McpUseHostBridgeProvider } from "./mcp-use-host-bridge.js"
+export { useIsInsideMcpUseView } from "./model-context.js"
 
 // Storybook-style harness for developing widgets in isolation with fixture
 // data and a simulated HostBridge. Lives under ./app to keep every host-facing

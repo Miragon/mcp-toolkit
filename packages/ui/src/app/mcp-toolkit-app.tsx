@@ -1,5 +1,6 @@
 import { useLayoutEffect, type ReactNode } from "react"
 import { ThemeProvider, bootstrapView, useHostContext } from "mcp-use/react"
+import { installToolResultObserver } from "../lib/tool-result-observer.js"
 import { adoptHostFontVariables } from "../theme/host-fonts.js"
 import { McpAppView, type McpAppViewProps } from "./mcp-app-view.js"
 import { McpUseHostBridgeProvider } from "./mcp-use-host-bridge.js"
@@ -54,7 +55,12 @@ export function McpToolkitApp(props: McpAppViewProps) {
  *
  * `bootstrapView` owns the mount: it connects the ext-apps postMessage bridge
  * to the host, installs an error boundary, and auto-reports size changes
- * (replacing 1.x's `createRoot` + `McpUseProvider` pair).
+ * (replacing 1.x's `createRoot` + `McpUseProvider` pair). The tool-result
+ * observer goes in first, so it sees the whole host lifecycle from the
+ * handshake on: the view then tells a stripped result from a slow tool and
+ * never re-runs a call the host is still answering (toolkit#176). A custom
+ * shell under its own `bootstrapView` calls `installToolResultObserver()`
+ * before it for the same effect.
  *
  * ```tsx
  * // main.tsx of the widget bundle
@@ -62,5 +68,6 @@ export function McpToolkitApp(props: McpAppViewProps) {
  * ```
  */
 export function mountMcpToolkitApp(props: McpAppViewProps): void {
+  installToolResultObserver()
   bootstrapView({ default: () => <McpToolkitApp {...props} /> })
 }

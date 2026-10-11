@@ -1,44 +1,55 @@
-import { useEffect, useRef, useState } from "react"
-import { parseToolResult } from "../lib/parse-tool-result.js"
+import { useEffect, useState, useSyncExternalStore } from "react"
+import { installToolResultObserver, type ToolResultObserver } from "../lib/tool-result-observer.js"
+import {
+  createRecoveryController,
+  type RecoveryPolicy,
+  type ToolResultRecoveryState,
+} from "./tool-result-recovery-model.js"
+
+export { decodeRecoveredResult } from "./tool-result-recovery-model.js"
+export type {
+  RecoveryBlockReason,
+  RecoveryPolicy,
+  ToolResultRecoveryState,
+  ToolSafety,
+} from "./tool-result-recovery-model.js"
 
 /**
  * Recovery for hosts that deliver the `ui/notifications/tool-result`
  * notification without `structuredContent` (observed on claude.ai and Claude
- * Desktop, which forward only the model-facing `content` blocks). Since
- * mcp-use 2.x such a result is not even observable: the `useToolContext`
- * latch ignores content-only successes, so the tool status stays `"pending"`
- * forever and the shell would idle on its loading skeleton.
+ * Desktop, which forward only the model-facing `content` blocks). mcp-use
+ * 2.x's `useToolContext` latch ignores such a content-only result, so its
+ * status stays `"pending"` forever and the shell would idle on its skeleton.
  *
- * Because the stripped notification is invisible, readiness is inferred two
- * ways: the hard `resultReady` signal (the latch fired but the payload is
- * invalid), or a grace timer — once the originating tool is known and no
- * result has latched within
- * {@link ToolResultRecoveryOptions.assumeStrippedAfterMs}, the result is
- * assumed delivered-but-stripped. Either way the hook re-executes the
- * originating tool once via the host bridge's official `callTool` — tool-call
- * RESPONSES carry `structuredContent` intact on those hosts — and exposes the
- * decoded payload. Spec-conforming hosts (e.g. the mcp-use inspector) deliver
- * a valid payload up front, so the recovery never fires there.
+ * The hook re-executes the originating tool once via the host bridge's
+ * `callTool` — tool-call RESPONSES carry `structuredContent` intact on those
+ * hosts — and exposes the decoded payload. When it does so (toolkit#176):
  *
- * A call the host cancelled is never recovered: since mcp-use 2.7.1 the
- * cancellation latches as `status: "error"` (a `ToolCancelledError`), which
- * would otherwise count as a ready-but-invalid result — re-executing it would
- * override the user's decision to stop the call. Neither is a call that
- * failed (`isError` or a transport error, {@link ToolResultRecoveryOptions.errored}):
- * re-running it only repeats the failure, so the shell renders the error and
- * offers an explicit retry instead (toolkit#176).
+ * - **Only when the host stripped the result.** A passive observer of the
+ *   host's lifecycle notifications (`installToolResultObserver`) sees the
+ *   content-only result itself, so the recovery fires as it arrives, and a
+ *   slow tool on a compliant host is never re-run (K13): no result has
+ *   arrived because none was sent. Where the observer cannot vouch for that
+ *   (no browser frame, or installed after the handshake), the 2.x grace timer
+ *   ({@link ToolResultRecoveryOptions.assumeStrippedAfterMs}) still infers a
+ *   stripped result, once the call's arguments arrived.
+ * - **With the call's complete arguments** (N21): the observer's complete
+ *   `tool-input`, never a partial stream; an equal re-delivery is the same run.
+ * - **Never for a cancelled or failed call:** re-running repeats the failure
+ *   or overrides the user's stop; the shell renders that state and offers an
+ *   explicit retry.
+ * - **Only for a tool the policy allows** ({@link ToolResultRecoveryOptions.policy}):
+ *   by default never one the host reports as writing (`readOnlyHint: false`
+ *   or `destructiveHint: true` in `hostContext.toolInfo.tool.annotations`).
+ *   A blocked recovery is reported (`blocked`) so the view can show its error.
  *
- * Assumes the originating tool is a read-only render pipeline (true for all
- * toolkit `render-view`/`show_*` tools) — the re-execution must be safe to
- * repeat, and may rarely run concurrently with the original invocation when
- * the grace timer beats a slow but conforming host.
+ * The decision and its timer live in `createRecoveryController`; this hook
+ * only binds it to React.
  */
 
 /**
- * Default grace period before a silent latch counts as a stripped result.
- * Long enough for a conforming host to latch a typical render tool first,
- * short enough that users on stripping hosts are not left staring at the
- * skeleton noticeably.
+ * Default grace period before a silent latch counts as a stripped result —
+ * used only where the transport observer cannot vouch that nothing arrived.
  */
 export const DEFAULT_ASSUME_STRIPPED_AFTER_MS = 2500
 
@@ -46,8 +57,7 @@ export interface ToolResultRecoveryOptions {
   /**
    * The latch fired (`useToolContext().status !== "pending"`) — a structured
    * result, a tool error, or a host cancellation arrived. On hosts that strip
-   * `structuredContent` this never turns true; the grace timer below covers
-   * that case.
+   * `structuredContent` this never turns true.
    */
   resultReady: boolean
   /**
@@ -66,10 +76,7 @@ export interface ToolResultRecoveryOptions {
   errored?: boolean
   /** The payload the host delivered (`useToolContext().toolOutput`). */
   props: unknown
-  /**
-   * Validates a candidate payload. MUST be referentially stable (module-level
-   * function or memoised) — it is an effect dependency.
-   */
+  /** Validates a candidate payload. */
   isValid: (value: unknown) => boolean
   /** The tool arguments from `ui/notifications/tool-input` (`useToolContext().toolInput`). */
   toolInput: Record<string, unknown> | null | undefined
@@ -79,22 +86,20 @@ export interface ToolResultRecoveryOptions {
   callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>
   /**
    * Grace period in ms after which a silent latch counts as a stripped
-   * result. Armed once the originating tool is known while `resultReady` is
-   * still false; re-armed on every `toolInput` update, because streaming
-   * arguments mean the invocation may not have finished yet. Defaults to
+   * result. Applies only where the transport observer cannot vouch that no
+   * result arrived (see above); restarts for new arguments. Defaults to
    * {@link DEFAULT_ASSUME_STRIPPED_AFTER_MS}.
    */
   assumeStrippedAfterMs?: number
+  /** Which tools may be re-executed on their own. Default `"auto"`. */
+  policy?: RecoveryPolicy
+  /**
+   * The transport observer. Defaults to the document's
+   * (`installToolResultObserver()`); `null` disables it, leaving the grace
+   * timer to decide alone (the 2.x behaviour).
+   */
+  observer?: ToolResultObserver | null
 }
-
-export interface ToolResultRecoveryState<T> {
-  /** The recovered payload, `null` until the re-execution resolved (or when it failed). */
-  data: T | null
-  /** `true` when the single recovery attempt failed — the shell keeps its skeleton, no retry loop. */
-  failed: boolean
-}
-
-const IDLE: ToolResultRecoveryState<never> = { data: null, failed: false }
 
 /**
  * Resolves the originating tool name from the host context's `toolInfo`.
@@ -119,26 +124,10 @@ export function resolveRecoveryToolName(hostContext: unknown): string | undefine
 }
 
 /**
- * Decodes a re-executed tool result and validates it. Exposed for tests;
- * the hook uses it on the `callTool` response.
- */
-export function decodeRecoveredResult<T>(
-  result: unknown,
-  isValid: (value: unknown) => boolean,
-): T | null {
-  let decoded: unknown
-  try {
-    decoded = parseToolResult<unknown>(result)
-  } catch {
-    return null
-  }
-  return decoded !== null && isValid(decoded) ? (decoded as T) : null
-}
-
-/**
- * Whether the recovery may fire: the result latched (or is assumed stripped)
- * and the call was neither cancelled nor failed. Exported for tests — this is
- * the #176 rule "never recover on an error status".
+ * Whether a latched or assumed-stripped result may be recovered at all: the
+ * call was neither cancelled nor failed. Kept for existing imports; the full
+ * rule (observer, policy, arguments) is `decideRecovery`.
+ * @deprecated Use `decideRecovery` from the recovery model.
  */
 export function isRecoveryReady(state: {
   resultReady: boolean
@@ -163,81 +152,34 @@ export function useToolResultRecovery<T>(
     hostContext,
     callTool,
     assumeStrippedAfterMs = DEFAULT_ASSUME_STRIPPED_AFTER_MS,
+    policy = "auto",
+    observer,
   } = options
-  const [state, setState] = useState<ToolResultRecoveryState<T>>(IDLE)
-  // Single-flight: the promise ref survives StrictMode's dev-mode
-  // effect re-run (cleanup + setup on the same instance), so the re-run
-  // re-subscribes to the SAME in-flight call instead of firing a second one.
-  const flightRef = useRef<Promise<ToolResultRecoveryState<T>> | null>(null)
-  const flightInputRef = useRef<unknown>(null)
-
-  const toolName = resolveRecoveryToolName(hostContext)
-
-  // A stripped result is unobservable (the 2.x latch ignores content-only
-  // results), so infer it: once a recovery could fire but the latch has been
-  // silent for the grace period, treat the result as delivered-but-stripped.
-  // Re-armed on every toolInput identity change — streaming arguments mean
-  // the invocation may still be running, so the grace period starts over.
-  // The re-arm is a render-phase reset (not an effect) so the cascading-
-  // render lint stays satisfied; the timer effect below restarts anyway
-  // because toolInput is one of its dependencies.
-  const [assumedReady, setAssumedReady] = useState(false)
-  const [prevTimerInput, setPrevTimerInput] = useState<unknown>(toolInput)
-  if (prevTimerInput !== toolInput) {
-    setPrevTimerInput(toolInput)
-    if (assumedReady) setAssumedReady(false)
-  }
-  const suppressed = cancelled || errored
+  // One controller per mount; it survives StrictMode's effect re-run, so an
+  // in-flight call is never fired twice.
+  const [controller] = useState(() =>
+    createRecoveryController<T>({
+      observer: observer === undefined ? installToolResultObserver() : observer,
+    }),
+  )
   useEffect(() => {
-    if (resultReady || suppressed || toolName === undefined) return
-    const timer = setTimeout(() => setAssumedReady(true), assumeStrippedAfterMs)
-    return () => clearTimeout(timer)
-  }, [resultReady, suppressed, toolName, toolInput, assumeStrippedAfterMs])
-
-  // A cancelled or failed call never counts as ready, so the effect below
-  // invalidates any in-flight attempt the same way it does for a superseded run.
-  const ready = isRecoveryReady({ resultReady, assumedReady, cancelled, errored })
-
+    controller.start()
+    return () => controller.stop()
+  }, [controller])
   useEffect(() => {
-    // A new tool run (result no longer ready, or fresh tool-input identity)
-    // invalidates any previous recovery attempt and re-arms the single-flight.
-    if (flightRef.current && (!ready || flightInputRef.current !== toolInput)) {
-      flightRef.current = null
-      setState((prev) => (prev.data === null && !prev.failed ? prev : IDLE))
-    }
-    // Never fire on conforming hosts (valid payload) or before the
-    // originating tool is known.
-    if (!ready || isValid(props) || toolName === undefined) return
-
-    if (!flightRef.current) {
-      flightInputRef.current = toolInput
-      flightRef.current = (async (): Promise<ToolResultRecoveryState<T>> => {
-        try {
-          const result = await callTool(toolName, toolInput ?? {})
-          const data = decodeRecoveredResult<T>(result, isValid)
-          if (data !== null) return { data, failed: false }
-          console.warn(
-            `[mcp-toolkit] tool-result recovery: re-executing "${toolName}" returned no usable payload`,
-          )
-          return { data: null, failed: true }
-        } catch (err) {
-          console.warn(`[mcp-toolkit] tool-result recovery for "${toolName}" failed:`, err)
-          return { data: null, failed: true }
-        }
-      })()
-    }
-
-    const flight = flightRef.current
-    let stale = false
-    void flight.then((outcome) => {
-      // Drop the outcome when this subscription was superseded or the flight
-      // was invalidated by a newer tool run.
-      if (!stale && flightRef.current === flight) setState(outcome)
+    controller.update({
+      resultReady,
+      cancelled,
+      errored,
+      props,
+      isValid,
+      toolInput,
+      hostContext,
+      callTool,
+      policy,
+      graceMs: assumeStrippedAfterMs,
+      resolveToolName: resolveRecoveryToolName,
     })
-    return () => {
-      stale = true
-    }
-  }, [ready, props, isValid, toolName, toolInput, callTool])
-
-  return state
+  })
+  return useSyncExternalStore(controller.subscribe, controller.getState, controller.getState)
 }

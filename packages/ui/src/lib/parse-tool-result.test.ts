@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { parseToolResult, parseViewToolResult } from "./parse-tool-result.js"
+import {
+  isToolError,
+  parseToolResult,
+  parseViewToolResult,
+  ToolResultError,
+} from "./parse-tool-result.js"
 
 describe("parseToolResult (structuredContent-first contract)", () => {
   it("prefers structuredContent over the text channel", () => {
@@ -135,5 +140,45 @@ describe("parseViewToolResult (show-tool envelope unwrap)", () => {
   it("propagates isError results as thrown errors", () => {
     const result = { isError: true, content: [{ type: "text", text: "boom" }] }
     expect(() => parseViewToolResult(result)).toThrowError("boom")
+  })
+})
+
+describe("ToolResultError / isToolError (the query layer's no-retry signal)", () => {
+  it("an isError result throws a ToolResultError that carries the result", () => {
+    const result = { isError: true, content: [{ type: "text", text: "[404] gone" }] }
+    let thrown: unknown
+    try {
+      parseToolResult(result)
+    } catch (err) {
+      thrown = err
+    }
+    expect(thrown).toBeInstanceOf(ToolResultError)
+    expect(thrown).toBeInstanceOf(Error)
+    expect(thrown).toMatchObject({ name: "ToolResultError", message: "[404] gone", result })
+    expect(isToolError(thrown)).toBe(true)
+  })
+
+  it("recognises mcp-use's ToolError by its name and its isError result", () => {
+    const toolError = Object.assign(new Error("busy"), {
+      name: "ToolError",
+      result: { isError: true, content: [] },
+    })
+    expect(isToolError(toolError)).toBe(true)
+  })
+
+  it("anything else is no tool error: a transport failure, a look-alike, a non-error", () => {
+    expect(isToolError(new Error("connection lost"))).toBe(false)
+    expect(isToolError(Object.assign(new Error("x"), { name: "ToolError" }))).toBe(false)
+    expect(
+      isToolError(Object.assign(new Error("x"), { name: "ToolError", result: { isError: false } })),
+    ).toBe(false)
+    expect(isToolError(Object.assign(new Error("x"), { name: "ToolError", result: null }))).toBe(
+      false,
+    )
+    expect(
+      isToolError(Object.assign(new Error("x"), { name: "Other", result: { isError: true } })),
+    ).toBe(false)
+    expect(isToolError({ name: "ToolError", result: { isError: true } })).toBe(false)
+    expect(isToolError(undefined)).toBe(false)
   })
 })

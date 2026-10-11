@@ -94,3 +94,50 @@ export function formatCount(value: number, locale: string | undefined): string {
     return new Intl.NumberFormat("en").format(value)
   }
 }
+
+/**
+ * The tag a toolkit sentence formats its numbers and times in: the language
+ * its words come from (`textLocale`, mapped onto a shipped catalog the way
+ * {@link resolveToolkitMessages} maps it), with the regional tag of that
+ * language from `textLocale` or else `hostLocale`, so `en-GB` keeps its
+ * 24-hour clock. A tag of another language never mixes in: German words
+ * never carry an English clock ("Neu geladen um 4:32 PM Uhr").
+ */
+export function resolveFormatLocale(textLocale: string | undefined, hostLocale?: string): string {
+  const language = resolveToolkitLocale(textLocale)
+  const regionOfLanguage = (tag: string | undefined): string | undefined => {
+    const normal = tag?.trim().replace(/_/g, "-")
+    if (!normal?.includes("-")) return undefined
+    return normal.toLowerCase().split("-")[0] === language ? normal : undefined
+  }
+  return regionOfLanguage(textLocale) ?? regionOfLanguage(hostLocale) ?? language
+}
+
+/**
+ * Format the clock time (hours and minutes) of `epochMs` in `locale`, in the
+ * host's `timeZone` when it reports one: `14:32` / `2:32 PM`. The hour is
+ * `numeric`, so each locale pads it its own way (a 12-hour clock never shows
+ * `02:32 PM`). A zone the runtime rejects (a Windows id, say) drops the zone,
+ * never the locale; an invalid tag falls back to English. It never throws
+ * inside a render.
+ */
+export function formatClockTime(
+  epochMs: number,
+  locale: string | undefined,
+  timeZone?: string,
+): string {
+  const clock: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" }
+  const attempts: readonly (readonly [string | undefined, string | undefined])[] = [
+    [locale, timeZone],
+    [locale, undefined],
+    ["en", timeZone],
+  ]
+  for (const [tag, zone] of attempts) {
+    try {
+      return new Intl.DateTimeFormat(tag, { ...clock, timeZone: zone }).format(epochMs)
+    } catch {
+      // The next attempt drops what the runtime rejected.
+    }
+  }
+  return new Intl.DateTimeFormat("en", clock).format(epochMs)
+}

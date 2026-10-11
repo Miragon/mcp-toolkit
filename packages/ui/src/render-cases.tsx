@@ -25,7 +25,7 @@ import {
   WidgetHeader,
 } from "./index.js"
 import { createStandaloneHostBridge, HostBridgeProvider, useHostBridge } from "./app/host-bridge.js"
-import { HostModelContext } from "./app/adapt-data-widget.js"
+import { HostModelContext } from "./app/model-context.js"
 import { WidgetFixtureHost, type FixtureWidget } from "./app/widget-fixture.js"
 import { PRIMITIVE_RENDER_CASES, type RenderCase } from "./render-cases-primitives.js"
 

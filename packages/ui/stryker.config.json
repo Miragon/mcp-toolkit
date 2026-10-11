@@ -18,7 +18,10 @@
     "src/app/view-lifecycle.ts",
     "src/lib/toast-model.ts",
     "src/lib/focus-return.ts",
-    "src/locale/toolkit-messages.ts"
+    "src/locale/toolkit-messages.ts",
+    "src/lib/tool-query.ts",
+    "src/lib/tool-result-observer.ts",
+    "src/hooks/tool-result-recovery-model.ts"
   ],
   "incremental": false,
   "tempDirName": ".stryker-tmp",

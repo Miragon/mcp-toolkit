@@ -137,6 +137,26 @@ const CHROME_CASES: { name: string; render: () => ReactElement }[] = [
     ),
   },
   {
+    name: "ViewPlaceholder blocked (a writing tool, no retry)",
+    render: () => (
+      <ViewPlaceholder
+        lifecycle={{ phase: "error", reason: undefined, canRetry: false, kind: "blocked" }}
+        labels={PSEUDO.view}
+        onRetry={noop}
+      />
+    ),
+  },
+  {
+    name: "ViewPlaceholder blocked (load the view)",
+    render: () => (
+      <ViewPlaceholder
+        lifecycle={{ phase: "error", reason: undefined, canRetry: true, kind: "blocked" }}
+        labels={PSEUDO.view}
+        onRetry={noop}
+      />
+    ),
+  },
+  {
     name: "StepErrors without a refresh",
     render: () => (
       <StepErrors
@@ -168,6 +188,7 @@ const CHROME_CASES: { name: string; render: () => ReactElement }[] = [
         onRefresh={asyncNoop}
         onEnterBuildMode={noop}
         onToggleFullscreen={asyncNoop}
+        dataAsOf="14:32"
       />
     ),
   },

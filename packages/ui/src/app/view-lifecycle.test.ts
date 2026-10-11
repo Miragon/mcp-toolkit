@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 import {
   decodeViewResult,
   DEFAULT_SLOW_HINT_MS,
+  describeViewForModel,
   errorMessage,
+  reloadedAtOf,
   resolveViewLifecycle,
   RETRY_IDLE,
   retryFocusTarget,
@@ -49,6 +51,53 @@ describe("resolveViewLifecycle (toolkit#176 state machine)", () => {
       reason: undefined,
       canRetry: true,
     })
+  })
+
+  it("a blocked recovery is its own error kind: the tool ran, the view must not re-run it", () => {
+    // A tool the host reports as writing: no retry, one click would write twice.
+    expect(at({ recoveryBlocked: true, toolWrites: true })).toEqual({
+      phase: "error",
+      reason: undefined,
+      canRetry: false,
+      kind: "blocked",
+    })
+    // Any other tool (a stricter policy blocked it): loading it is the user's call.
+    expect(at({ recoveryBlocked: true, toolWrites: false })).toEqual({
+      phase: "error",
+      reason: undefined,
+      canRetry: true,
+      kind: "blocked",
+    })
+    expect(at({ recoveryBlocked: true })).toMatchObject({ canRetry: true, kind: "blocked" })
+    expect(at({ recoveryBlocked: true, canRetry: false })).toMatchObject({ canRetry: false })
+    // toolWrites alone changes nothing: a failure keeps its retry.
+    expect(at({ recoveryFailed: true, toolWrites: true })).toEqual({
+      phase: "error",
+      reason: undefined,
+      canRetry: true,
+    })
+    expect(at({ callStatus: "error", callErrorReason: "x", toolWrites: true })).toMatchObject({
+      canRetry: true,
+    })
+  })
+
+  it("a block yields to a payload, a retry, a cancellation and a call error, and wins over a failure", () => {
+    const blocked = { recoveryBlocked: true, toolWrites: true }
+    expect(at({ ...blocked, hasViewData: true })).toEqual({ phase: "result" })
+    expect(at({ ...blocked, retryState: { status: "running", attempt: 1 } })).toEqual({
+      phase: "waiting",
+      slow: false,
+    })
+    expect(
+      at({ ...blocked, retryState: { status: "failed", attempt: 1, reason: "down" } }),
+    ).toEqual({ phase: "error", reason: "down", canRetry: true })
+    expect(at({ ...blocked, cancelled: true })).toEqual({ phase: "cancelled" })
+    expect(at({ ...blocked, callStatus: "error", callErrorReason: "x" })).toEqual({
+      phase: "error",
+      reason: "x",
+      canRetry: true,
+    })
+    expect(at({ ...blocked, recoveryFailed: true })).toMatchObject({ kind: "blocked" })
   })
 
   it("offers a retry only when the originating tool is known", () => {
@@ -223,5 +272,155 @@ describe("errorMessage", () => {
     expect(errorMessage("")).toBeUndefined()
     expect(errorMessage({ message: "not an error" })).toBeUndefined()
     expect(errorMessage(undefined)).toBeUndefined()
+  })
+})
+
+describe("describeViewForModel (the view's model context, toolkit#176 K20)", () => {
+  const error = (reason: string | undefined, canRetry = true) =>
+    ({ phase: "error", reason, canRetry }) as const
+
+  it("an error says what failed and that the user sees an error instead of the view", () => {
+    expect(
+      describeViewForModel({ lifecycle: error("[503] engine down"), toolName: "render-view" }),
+    ).toBe(
+      "The view of render-view could not be shown (reason: [503] engine down). " +
+        "The user sees an error message with a retry button instead of the view.",
+    )
+    expect(describeViewForModel({ lifecycle: error(undefined, false), toolName: undefined })).toBe(
+      "The view could not be shown. The user sees an error message instead of the view.",
+    )
+  })
+
+  it("a block says the tool ran, nothing failed, and the model must not re-run it to show the view", () => {
+    const blocked = (canRetry: boolean) =>
+      ({ phase: "error", reason: undefined, canRetry, kind: "blocked" }) as const
+    expect(describeViewForModel({ lifecycle: blocked(false), toolName: "start_and_show" })).toBe(
+      "The view of start_and_show is not shown: start_and_show ran, but the host did not pass its " +
+        "result to the view, and the view did not re-run it. The user sees a note to ask in the chat " +
+        "for the current state instead of the view. Do not re-run start_and_show just to show the view.",
+    )
+    expect(describeViewForModel({ lifecycle: blocked(true), toolName: undefined })).toBe(
+      "The view is not shown: the tool ran, but the host did not pass its result to the view, " +
+        "and the view did not re-run it. The user sees a note with a button that loads the view " +
+        "instead of the view. Do not re-run the tool just to show the view.",
+    )
+  })
+
+  it("a cancellation says so", () => {
+    expect(describeViewForModel({ lifecycle: { phase: "cancelled" }, toolName: "show_x" })).toBe(
+      "The view of show_x was cancelled before it rendered. The user sees a note that the call was cancelled.",
+    )
+  })
+
+  it("nothing while waiting, nor for a plain host-delivered view", () => {
+    expect(
+      describeViewForModel({ lifecycle: { phase: "waiting", slow: true }, toolName: "t" }),
+    ).toBeNull()
+    // A waiting view shows no data, so a stamp or step errors of an older payload say nothing.
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "waiting", slow: false },
+        toolName: "t",
+        reloadedAt: Date.UTC(2026, 9, 11),
+        stepErrors: [{ stepId: "kpi", reason: "timeout" }],
+      }),
+    ).toBeNull()
+    expect(describeViewForModel({ lifecycle: { phase: "result" }, toolName: "t" })).toBeNull()
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "t",
+        stepErrors: [],
+        reloadedAt: null,
+      }),
+    ).toBeNull()
+  })
+
+  it("failed data steps of a shown view, with or without the alert's retry", () => {
+    const stepErrors = [
+      { stepId: "kpi", reason: "timeout" },
+      { stepId: "list", reason: "[404] gone" },
+    ]
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "render-view",
+        stepErrors,
+        stepsRetryable: true,
+      }),
+    ).toBe(
+      "The view of render-view is shown, but some of its data could not be loaded " +
+        "(kpi: timeout; list: [404] gone). The user sees an alert with a retry button.",
+    )
+    expect(
+      describeViewForModel({ lifecycle: { phase: "result" }, toolName: undefined, stepErrors }),
+    ).toBe(
+      "The view is shown, but some of its data could not be loaded " +
+        "(kpi: timeout; list: [404] gone). The user sees an alert.",
+    )
+  })
+
+  it("a payload the view re-loaded itself is live as of then (N23)", () => {
+    const at = Date.UTC(2026, 9, 11, 14, 32, 5)
+    const recovered =
+      "The view of t re-ran the tool at 2026-10-11T14:32:05.000Z because the host did not pass " +
+      "the original result to the view; its figures are live as of then and can differ from the original result."
+    expect(
+      describeViewForModel({ lifecycle: { phase: "result" }, toolName: "t", reloadedAt: at }),
+    ).toBe(recovered)
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "t",
+        reloadedAt: at,
+        reloadedBy: "recovery",
+      }),
+    ).toBe(recovered)
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "t",
+        reloadedAt: at,
+        stepErrors: [{ stepId: "kpi", reason: "timeout" }],
+      }),
+    ).toMatch(
+      /original result\. Some of its data could not be loaded \(kpi: timeout\)\. The user sees an alert\.$/,
+    )
+  })
+
+  it("a refreshed payload says the user refreshed it, and when", () => {
+    expect(
+      describeViewForModel({
+        lifecycle: { phase: "result" },
+        toolName: "t",
+        reloadedAt: Date.UTC(2026, 9, 11, 15, 10),
+        reloadedBy: "refresh",
+      }),
+    ).toBe(
+      "The view of t was refreshed by the user at 2026-10-11T15:10:00.000Z; its figures are live " +
+        "as of then and can differ from the original result.",
+    )
+  })
+})
+
+describe("reloadedAtOf (which payload carries the data-as-of stamp, N23)", () => {
+  const now = 42_000
+
+  it("a recovery and a refresh always: the chat answered from the original call", () => {
+    expect(reloadedAtOf("recovered", now, false)).toBe(now)
+    expect(reloadedAtOf("refresh", now, false)).toBe(now)
+    expect(reloadedAtOf("refresh", now, true)).toBe(now)
+  })
+
+  it("a retry only when the original result reached the chat", () => {
+    // After a blocked or failed recovery: the host answered, the chat has figures.
+    expect(reloadedAtOf("retry", now, false)).toBe(now)
+    // After a failed or cancelled call: the model never had figures.
+    expect(reloadedAtOf("retry", now, true)).toBeNull()
+  })
+
+  it("never the host's own payload", () => {
+    expect(reloadedAtOf("host", now, false)).toBeNull()
+    expect(reloadedAtOf("host", now, true)).toBeNull()
   })
 })

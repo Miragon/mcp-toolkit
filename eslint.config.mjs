@@ -250,9 +250,10 @@ export default tseslint.config(
     },
   },
 
-  // …except the one adapter that BUILDS HostModelContext from the native one.
+  // …except the one module that BUILDS HostModelContext (and the view's
+  // model-context channel) from the native one.
   {
-    files: ["packages/ui/src/app/adapt-data-widget.tsx"],
+    files: ["packages/ui/src/app/model-context.tsx"],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",

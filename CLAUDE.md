@@ -237,7 +237,14 @@ in [`FITNESS.md`](FITNESS.md).
   `renderToStaticMarkup` is the house path; the render-coverage ratchet
   (phase 5c) is the compensating control, and the mutation score explicitly
   does NOT measure this surface. Revisit when the builder API is declared
-  stable.
+  stable. Narrow exception (toolkit#176 review): WIRING that only runs in
+  effects — the view's tool-result observer, timers and re-runs, the data
+  hooks' real cache keys, a late transport, per-call mutation callbacks, the
+  bridge's model-context lines — is tested with its effects running, in
+  files that opt into `// @vitest-environment happy-dom` and render through
+  `src/render-effects.tsx` (`react-dom/client` + `act`). A `click()` only
+  where the wiring starts at a button (retry, refresh); no @testing-library,
+  no component interaction suites.
 - **Browser E2E against ChatGPT/mcp-use hosts** — host UIs are external; the
   wire goldens + host-bridge unit tests are the boundary. Revisit if a host
   regression escapes them.

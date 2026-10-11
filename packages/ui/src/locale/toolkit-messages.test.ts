@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
+  formatClockTime,
   formatCount,
+  resolveFormatLocale,
   resolveToolkitLocale,
   resolveToolkitMessages,
   TOOLKIT_LOCALES,
@@ -274,5 +276,74 @@ describe("formatCount", () => {
 
   it("falls back to English for an invalid locale tag instead of throwing", () => {
     expect(formatCount(1234, "not a locale!")).toBe("1,234")
+  })
+})
+
+describe("formatClockTime (the view's data-as-of stamp)", () => {
+  const at = Date.UTC(2026, 9, 11, 14, 32)
+
+  it("formats hours and minutes per locale in the host's time zone", () => {
+    expect(formatClockTime(at, "de-DE", "UTC")).toBe("14:32")
+    expect(formatClockTime(at, "de-DE", "Europe/Berlin")).toBe("16:32")
+    expect(formatClockTime(at, "en-GB", "UTC")).toBe("14:32")
+  })
+
+  it("never pads the hour of a 12-hour clock: 2:32 PM, not 02:32 PM", () => {
+    expect(formatClockTime(at, "en-US", "UTC")).toBe("2:32 PM")
+    expect(formatClockTime(Date.UTC(2026, 9, 11, 9, 5), "en-US", "UTC")).toBe("9:05 AM")
+    // Minutes keep two digits.
+    expect(formatClockTime(Date.UTC(2026, 9, 11, 14, 5), "de-DE", "UTC")).toBe("14:05")
+  })
+
+  it("a zone the runtime rejects drops the zone, never the locale", () => {
+    // Windows ids reach a view from some hosts; German stays a 24-hour clock.
+    expect(formatClockTime(at, "de", "W. Europe Standard Time")).toMatch(/^\d{2}:\d{2}$/)
+    expect(formatClockTime(at, "de-DE", "Not/AZone")).toMatch(/^\d{2}:\d{2}$/)
+    expect(formatClockTime(at, "en-US", "Not/AZone")).toMatch(/^[1-9]\d?:\d\d [AP]M$/)
+  })
+
+  it("an invalid tag falls back to English, in the host's zone when it is valid", () => {
+    expect(() => formatClockTime(at, "not a locale!", "UTC")).not.toThrow()
+    expect(formatClockTime(at, "not a locale!", "UTC")).toBe("2:32 PM")
+    expect(formatClockTime(at, "not a locale!", "Not/AZone")).toMatch(/^[1-9]\d?:\d\d [AP]M$/)
+  })
+
+  it("the catalogs stamp it in words that carry its meaning", () => {
+    expect(TOOLKIT_MESSAGES.en.view.dataAsOf("2:32 PM")).toBe("Reloaded at 2:32 PM")
+    expect(TOOLKIT_MESSAGES.de.view.dataAsOf("14:32")).toBe("Neu geladen um 14:32 Uhr")
+  })
+})
+
+describe("resolveFormatLocale (a time in the language of its sentence)", () => {
+  it("formats in the language the words come from, never the host's other language", () => {
+    // A German profile on an en-US host: German words, a German clock.
+    expect(resolveFormatLocale("de", "en-US")).toBe("de")
+    expect(resolveFormatLocale("en", "de-DE")).toBe("en")
+    expect(
+      formatClockTime(Date.UTC(2026, 9, 11, 14, 32), resolveFormatLocale("de", "en-US"), "UTC"),
+    ).toBe("14:32")
+  })
+
+  it("keeps the regional tag of the same language: en-GB keeps its 24-hour clock", () => {
+    expect(resolveFormatLocale("en", "en-GB")).toBe("en-GB")
+    expect(resolveFormatLocale("en-GB", "en-GB")).toBe("en-GB")
+    expect(resolveFormatLocale("de", "DE_AT")).toBe("DE-AT")
+    expect(resolveFormatLocale("  de ", "de-CH ")).toBe("de-CH")
+  })
+
+  it("prefers the text locale's own region over the host's", () => {
+    expect(resolveFormatLocale("en-GB", "en-US")).toBe("en-GB")
+    expect(resolveFormatLocale("de-AT", "de-DE")).toBe("de-AT")
+  })
+
+  it("maps a language without a catalog onto the catalog's, like the words", () => {
+    // French words fall back to English, so does their clock.
+    expect(resolveFormatLocale("fr-FR", "fr-FR")).toBe("en")
+    expect(resolveFormatLocale(undefined, "de-DE")).toBe("en")
+    expect(resolveFormatLocale(undefined, "en-AU")).toBe("en-AU")
+    expect(resolveFormatLocale("de")).toBe("de")
+    // A bare tag or a lookalike prefix is no region of the language.
+    expect(resolveFormatLocale("en", "en")).toBe("en")
+    expect(resolveFormatLocale("de", "dex-DE")).toBe("de")
   })
 })
