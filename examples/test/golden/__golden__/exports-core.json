@@ -1,5 +1,6 @@
 {
   ".": [
+    "PROPS_SCHEMA_DISPLAY_KEYWORD",
     "StepRegistry",
     "VIEW_RESOURCE_URI_PREFIX",
     "WidgetRegistry",
@@ -24,6 +25,7 @@
     "resolveActiveModules",
     "resolveCaller",
     "resolveCallerId",
+    "resolveLocalizedText",
     "resolvePipelineContext",
     "rowSchema",
     "validatePipeline",

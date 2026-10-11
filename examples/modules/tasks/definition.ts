@@ -16,6 +16,11 @@ export const definition: AppDefinition = {
   widgets: [
     {
       id: "tasks:board",
+      title: { en: "Task board", de: "Aufgabenboard" },
+      summary: {
+        en: "Tasks by status, with filter, add and complete.",
+        de: "Aufgaben nach Status, mit Filter, Anlegen und Erledigen.",
+      },
       description:
         "A task board: KPI counts by status, filterable task list, agentic add/complete.",
       requires: [],

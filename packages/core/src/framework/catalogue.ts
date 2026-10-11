@@ -2,6 +2,7 @@ import { executePipeline, type PipelineExecutionContext } from "../engine/pipeli
 import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
+import type { DisplayText } from "../types/display.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
 
 export interface CatalogueInput {
@@ -11,9 +12,11 @@ export interface CatalogueInput {
 
 /**
  * A widget whose `requires` are satisfied by the keys the pipeline
- * exposes. The builder UI renders this as the palette.
+ * exposes. The builder UI renders this as the palette, named by the
+ * widget's {@link DisplayText} (each field present only when the definition
+ * sets it, so the wire shape of an untitled widget is unchanged).
  */
-export interface ReachableWidget {
+export interface ReachableWidget extends DisplayText {
   id: string
   app: string
   requires: string[]
@@ -32,7 +35,7 @@ export interface ReachableWidget {
  * the builder as "unreachable" with a hint about which keys are still
  * missing so users know what to seed or which step to add.
  */
-export interface UnreachableWidget {
+export interface UnreachableWidget extends DisplayText {
   id: string
   app: string
   requires: string[]
@@ -43,9 +46,9 @@ export interface UnreachableWidget {
 
 /**
  * Manifest entry for a registered pipeline step. The builder uses this
- * for its step-picker dropdown.
+ * for its step-picker dropdown, named by the step's {@link DisplayText}.
  */
-export interface AvailableStep {
+export interface AvailableStep extends DisplayText {
   id: string
   app: string
   dataType: string
@@ -149,6 +152,7 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
     requires: w.requires,
     size: w.size,
     ...(w.propsSchema ? { propsSchema: w.propsSchema } : {}),
+    ...displayTextOf(w),
   }))
 
   const unreachableWidgets: UnreachableWidget[] = allWidgets
@@ -160,6 +164,7 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
       size: w.size,
       missingKeys: w.requires.filter((k) => !availableKeys.has(k)),
       ...(w.propsSchema ? { propsSchema: w.propsSchema } : {}),
+      ...displayTextOf(w),
     }))
 
   const availableSteps: AvailableStep[] = stepRegistry.getAll().map((s) => ({
@@ -168,6 +173,7 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
     dataType: s.dataType,
     requires: s.requires,
     produces: s.produces,
+    ...displayTextOf(s),
   }))
 
   const stepContracts = stepRegistry.getKeyContracts()
@@ -233,6 +239,19 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
       validationIssues: validation.issues,
     },
   }
+}
+
+/**
+ * The {@link DisplayText} fields a definition sets, and only those: an
+ * untitled widget or step keeps its wire shape (no `title: undefined` keys).
+ */
+function displayTextOf(source: DisplayText): DisplayText {
+  const out: DisplayText = {}
+  if (source.title !== undefined) out.title = source.title
+  if (source.titleKey !== undefined) out.titleKey = source.titleKey
+  if (source.summary !== undefined) out.summary = source.summary
+  if (source.summaryKey !== undefined) out.summaryKey = source.summaryKey
+  return out
 }
 
 /**

@@ -16,6 +16,10 @@ import { listCustomerOrdersStep } from "./steps/list-customer-orders.js"
  * (The `requires` vs `consumes`/`_dataType` distinction — the "double contract" —
  * is documented in `docs/concepts/widgets.md`.)
  *
+ * `title` and `summary` name each widget for the people using the view builder
+ * (palette, canvas, props sheet), one text per locale; `description` stays the
+ * LLM's text in `get-framework-manifest`.
+ *
  * `steps` lists BOTH steps so the host registers them; `render-view` then drives
  * the A → B chain. The eager `show_orders_dashboard` tool (see `plugin.ts`) does
  * NOT use these steps — it composes the same two widgets with `buildComposedView`.
@@ -26,6 +30,11 @@ export const definition: AppDefinition = {
   widgets: [
     {
       id: "orders:kpi",
+      title: { en: "Order figures", de: "Bestellzahlen" },
+      summary: {
+        en: "Orders per status and revenue for one customer.",
+        de: "Bestellungen je Status und Umsatz eines Kunden.",
+      },
       description: "KPI strip: per-status order counts and revenue for one customer.",
       requires: ["orders:customer"],
       consumes: ["orders:dashboard"],
@@ -33,6 +42,11 @@ export const definition: AppDefinition = {
     },
     {
       id: "orders:table",
+      title: { en: "Orders", de: "Bestellungen" },
+      summary: {
+        en: "Every order of one customer with status and amount.",
+        de: "Alle Bestellungen eines Kunden mit Status und Betrag.",
+      },
       description: "Table of a customer's orders with status and amounts.",
       requires: ["orders:customer"],
       consumes: ["orders:dashboard"],

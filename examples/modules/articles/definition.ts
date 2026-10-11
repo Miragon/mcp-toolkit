@@ -7,6 +7,8 @@ export const definition: AppDefinition = {
   widgets: [
     {
       id: "articles:article-card",
+      title: { en: "Article", de: "Artikel" },
+      summary: { en: "One article with its key data.", de: "Ein Artikel mit seinen Eckdaten." },
       requires: ["articles:article"],
       size: "half",
     },

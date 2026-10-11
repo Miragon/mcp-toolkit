@@ -12,6 +12,8 @@ import type { ArticlesCallTool } from "../generated/tools.js"
  */
 export const resolveArticleStep: PipelineStepDefinition<{ callTool: ArticlesCallTool }> = {
   id: "articles:resolve-article",
+  title: { en: "Article", de: "Artikel" },
+  summary: { en: "Loads an article by its ID.", de: "Lädt einen Artikel über seine ID." },
   dataType: "articles:article",
   requires: ["articles:articleId"],
   produces: ["articles:article"],

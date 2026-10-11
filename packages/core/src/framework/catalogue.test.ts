@@ -173,4 +173,116 @@ describe("getBuilderCatalogue", () => {
     expect(payload.reachableWidgets[0]).toMatchObject({ id: "sales:reachable", propsSchema })
     expect(payload.unreachableWidgets[0]).toMatchObject({ id: "sales:unreachable", propsSchema })
   })
+
+  it("mirrors the display text of widgets and steps onto every catalogue entry", async () => {
+    const stepRegistry = new StepRegistry()
+    stepRegistry.register({
+      id: "sales:load-order",
+      dataType: "sales:order",
+      requires: [],
+      produces: ["sales:order"],
+      title: { en: "Load order", de: "Bestellung laden" },
+      titleKey: "sales.steps.loadOrder",
+      summary: "Reads one order.",
+      summaryKey: "sales.steps.loadOrder.summary",
+      // eslint-disable-next-line @typescript-eslint/require-await -- PipelineStepDefinition.execute is async by contract
+      async execute() {
+        return { _app: "sales", _step: "load-order", data: {}, keys: { "sales:order": {} } }
+      },
+    })
+    const widgetRegistry = new WidgetRegistry()
+    widgetRegistry.register({
+      id: "sales:order-card",
+      requires: [],
+      size: "half",
+      title: { en: "Order", de: "Bestellung" },
+      summary: { en: "One order at a glance." },
+    })
+    widgetRegistry.register({
+      id: "sales:invoice-card",
+      requires: ["sales:invoice"],
+      size: "half",
+      titleKey: "sales.widgets.invoice",
+      summaryKey: "sales.widgets.invoice.summary",
+    })
+
+    const { structuredContent } = await getBuilderCatalogue({
+      input: {},
+      stepRegistry,
+      widgetRegistry,
+    })
+
+    expect(structuredContent.reachableWidgets[0]).toEqual({
+      id: "sales:order-card",
+      app: "sales",
+      requires: [],
+      size: "half",
+      title: { en: "Order", de: "Bestellung" },
+      summary: { en: "One order at a glance." },
+    })
+    expect(structuredContent.unreachableWidgets[0]).toEqual({
+      id: "sales:invoice-card",
+      app: "sales",
+      requires: ["sales:invoice"],
+      size: "half",
+      missingKeys: ["sales:invoice"],
+      titleKey: "sales.widgets.invoice",
+      summaryKey: "sales.widgets.invoice.summary",
+    })
+    expect(structuredContent.availableSteps[0]).toEqual({
+      id: "sales:load-order",
+      app: "sales",
+      dataType: "sales:order",
+      requires: [],
+      produces: ["sales:order"],
+      title: { en: "Load order", de: "Bestellung laden" },
+      titleKey: "sales.steps.loadOrder",
+      summary: "Reads one order.",
+      summaryKey: "sales.steps.loadOrder.summary",
+    })
+  })
+
+  it("keeps the wire shape of an untitled widget and step (no undefined display keys)", async () => {
+    const stepRegistry = new StepRegistry()
+    stepRegistry.register({
+      id: "sales:load",
+      dataType: "sales:x",
+      requires: [],
+      produces: [],
+      // eslint-disable-next-line @typescript-eslint/require-await -- PipelineStepDefinition.execute is async by contract
+      async execute() {
+        return { _app: "sales", _step: "load", data: {}, keys: {} }
+      },
+    })
+    const widgetRegistry = new WidgetRegistry()
+    widgetRegistry.register({ id: "sales:card", requires: [], size: "full" })
+    widgetRegistry.register({ id: "sales:gone", requires: ["sales:nope"], size: "full" })
+
+    const { structuredContent } = await getBuilderCatalogue({
+      input: {},
+      stepRegistry,
+      widgetRegistry,
+    })
+
+    expect(Object.keys(structuredContent.reachableWidgets[0] ?? {}).sort()).toEqual([
+      "app",
+      "id",
+      "requires",
+      "size",
+    ])
+    expect(Object.keys(structuredContent.unreachableWidgets[0] ?? {}).sort()).toEqual([
+      "app",
+      "id",
+      "missingKeys",
+      "requires",
+      "size",
+    ])
+    expect(Object.keys(structuredContent.availableSteps[0] ?? {}).sort()).toEqual([
+      "app",
+      "dataType",
+      "id",
+      "produces",
+      "requires",
+    ])
+  })
 })

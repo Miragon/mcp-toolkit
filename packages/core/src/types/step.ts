@@ -1,4 +1,5 @@
 import type { PipelineContext, StepOutput } from "./context.js"
+import type { DisplayText } from "./display.js"
 
 /**
  * Soft input declaration — a key the step reads from `context.keys` if present
@@ -18,11 +19,16 @@ export interface OptionalKeyDeclaration {
   enum?: readonly (string | number)[]
 }
 
-export interface PipelineStepDefinition<TConfig = unknown> {
+/**
+ * A pipeline step an app contributes. The {@link DisplayText} fields (`title`,
+ * `summary`, or their i18n keys) name the step in the view builder's data
+ * sources; `description` stays the LLM's text.
+ */
+export interface PipelineStepDefinition<TConfig = unknown> extends DisplayText {
   id: string
 
   /**
-   * One-line human description of what the step does. Surfaced in
+   * One-line description of what the step does, for the LLM. Surfaced in
    * `getFrameworkManifest` so an LLM picks the right step for a widget without
    * having to guess from the id.
    */

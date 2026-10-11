@@ -39,6 +39,11 @@ export interface OrdersAppConfig {
  */
 export const resolveCustomerStep: PipelineStepDefinition<OrdersAppConfig> = {
   id: "orders:resolve-customer",
+  title: { en: "Customer", de: "Kunde" },
+  summary: {
+    en: "Finds the customer for a customer ID.",
+    de: "Findet den Kunden zu einer Kundennummer.",
+  },
   description: "Resolve a customer by id so downstream steps can scope to it.",
   dataType: "orders:customer",
   requires: ["orders:customerId"],
