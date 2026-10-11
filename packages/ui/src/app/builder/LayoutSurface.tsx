@@ -1,10 +1,15 @@
-import { useCallback, useId, useRef } from "react"
+import { useId, useRef, useState } from "react"
 import { Pencil, Plus, X } from "lucide-react"
 import { Button } from "../../primitives/button.js"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../primitives/tabs.js"
 import { FOCUS_RING } from "../../lib/focus-ring.js"
 import { cn } from "../../lib/utils.js"
-import { renameFieldKeyAction, tabTriggerKeyAction, type DraftLayout } from "./builder-model.js"
+import {
+  createTabRefocus,
+  renameFieldKeyAction,
+  tabTriggerKeyAction,
+  type DraftLayout,
+} from "./builder-model.js"
 import type { LayoutBuilderLabels } from "./labels.js"
 import { REVEAL_ON_INTENT } from "./reveal.js"
 import { Workspace, type WorkspaceProps } from "./Workspace.js"
@@ -20,7 +25,8 @@ import { Workspace, type WorkspaceProps } from "./Workspace.js"
  * Renders either a single `Workspace` (rows draft, with an "Add tab" next to
  * "Add row") or the tab strip plus one `Workspace` per tab (tabs draft). A tab
  * is renamed with F2, Enter on the active tab, a double-click or its pencil
- * button; Enter commits, Escape cancels, and either returns focus to the tab.
+ * button; Enter commits, Escape cancels, and either returns focus to the tab,
+ * also when the new name remounts it (see `TabRefocus`, held here by index).
  * All state stays in the LayoutBuilder container — rename feedback included —
  * so unmounting this surface (e.g. switching to the data sources) loses nothing.
  */
@@ -51,6 +57,9 @@ export function LayoutSurface({
   workspace: Omit<WorkspaceProps, "onAddTab">
 }) {
   const errorId = useId()
+  // One per surface, outside the tabs: a tab is keyed by its label, so a
+  // rename remounts it, and a focus request held by the tab would go with it.
+  const [refocus] = useState(createTabRefocus)
   if (draft.kind !== "tabs") {
     return <Workspace {...workspace} onAddTab={onAddTab} />
   }
@@ -83,6 +92,7 @@ export function LayoutSurface({
               onCommitRename={(label) => commitRename(idx, label)}
               onCancelRename={() => setEditingTabIdx(null)}
               onRemove={() => onRemoveTab(idx)}
+              {...refocus.forTab(idx)}
             />
           ))}
         </TabsList>
@@ -115,7 +125,13 @@ export function LayoutSurface({
 // One tab: trigger (or the rename field) plus its rename and remove buttons
 // -------------------------------------------------------------------------- //
 
-function TabItem({
+/**
+ * One tab. It holds no state of its own (it is keyed by its label, so a
+ * rename remounts it): the focus hand-back after a keyboard rename goes
+ * through `onRefocus` and `triggerRef` to the surface's `TabRefocus`.
+ * Exported for its tests only.
+ */
+export function TabItem({
   L,
   label,
   active,
@@ -126,6 +142,8 @@ function TabItem({
   onCommitRename,
   onCancelRename,
   onRemove,
+  triggerRef,
+  onRefocus,
 }: {
   L: Required<LayoutBuilderLabels>
   label: string
@@ -137,18 +155,11 @@ function TabItem({
   onCommitRename: (label: string) => boolean
   onCancelRename: () => void
   onRemove: () => void
+  /** The trigger's ref callback: it takes the focus back after a keyboard rename. */
+  triggerRef: (el: HTMLButtonElement | null) => void
+  /** Asks for the focus to come back to this tab's trigger when it mounts again. */
+  onRefocus: () => void
 }) {
-  // Set when the rename field closes by keyboard: the tab trigger that mounts
-  // in its place takes the focus back (a callback ref runs on commit, never
-  // during render).
-  const restoreFocus = useRef(false)
-  const triggerRef = useCallback((el: HTMLButtonElement | null) => {
-    if (el && restoreFocus.current) {
-      restoreFocus.current = false
-      el.focus()
-    }
-  }, [])
-
   return (
     <div className="group inline-flex items-center" data-slot="builder-tab">
       {editing ? (
@@ -159,11 +170,12 @@ function TabItem({
           errorId={errorId}
           onCommit={(value, byKeyboard) => {
             const accepted = onCommitRename(value)
-            if (accepted && byKeyboard) restoreFocus.current = true
+            // A pointer commit leaves the focus where the pointer went.
+            if (accepted && byKeyboard) onRefocus()
             return accepted
           }}
           onCancel={() => {
-            restoreFocus.current = true
+            onRefocus()
             onCancelRename()
           }}
         />

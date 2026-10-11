@@ -240,6 +240,31 @@ describe("resolveToolkitMessages", () => {
   })
 })
 
+describe("resolveToolkitMessages: the deprecated builder `done`", () => {
+  it("labels Apply with an override of `done`", () => {
+    const merged = resolveToolkitMessages("de", { builder: { done: "Los" } })
+    expect(merged.builder.apply).toBe("Los")
+    expect(merged.builder.done).toBe("Los")
+  })
+
+  it("keeps an `apply` override over `done`", () => {
+    const merged = resolveToolkitMessages("en", { builder: { done: "Finish", apply: "Show" } })
+    expect(merged.builder.apply).toBe("Show")
+  })
+
+  it("leaves Apply alone without a `done` override", () => {
+    expect(resolveToolkitMessages("en", { builder: { save: "Keep" } }).builder.apply).toBe(
+      TOOLKIT_MESSAGES.en.builder.apply,
+    )
+    expect(resolveToolkitMessages("de", { builder: { apply: "Zeigen" } }).builder.apply).toBe(
+      "Zeigen",
+    )
+    expect(resolveToolkitMessages("de", { view: { refresh: "Neu" } }).builder).toEqual(
+      TOOLKIT_MESSAGES.de.builder,
+    )
+  })
+})
+
 describe("formatCount", () => {
   it("groups digits per locale", () => {
     expect(formatCount(1234567, "en")).toBe("1,234,567")

@@ -108,6 +108,29 @@ describe("installToolkit — toolkit features on a user-owned server", () => {
     for (const t of [...CORE_TOOLS, ...BUILDER_TOOLS]) expect(names).toContain(t)
   })
 
+  it("hands the titles of its apps and modules to the builder catalogue", async () => {
+    const server = new MCPServer({ name: "titled-server", version: "0.0.0" })
+    const module: AppPlugin = {
+      definition: { name: "mod", title: { en: "Module", de: "Modul" }, steps: [], widgets: [] },
+    }
+    installToolkit(server, {
+      builder: true,
+      apps: [
+        { name: "flat", titleKey: "apps.flat", steps: [], widgets: [] },
+        { name: "plain", steps: [], widgets: [] },
+      ],
+      modules: [module],
+    })
+    primeRenderView(server)
+
+    const catalogue = await callTool(server, "get-builder-catalogue", {})
+    expect(catalogue.isError).toBeFalsy()
+    expect(catalogue.structuredContent?.apps).toEqual([
+      { name: "flat", titleKey: "apps.flat" },
+      { name: "mod", title: { en: "Module", de: "Modul" } },
+    ])
+  })
+
   it("loads apps and modules into the returned registries and runs module hooks", () => {
     const server = new MCPServer({ name: "module-server", version: "0.0.0" })
     const hookOrder: string[] = []

@@ -54,6 +54,9 @@ wins over the inline text):
 ```
 
 Pipeline steps take the same fields; the builder's data sources show them.
+An app definition takes `title` or `titleKey` too: it heads the app's group of
+widgets in the palette (`{ name: "orders", title: { en: "Orders", de: "Bestellungen" }, … }`).
+Without one the group has no heading; the app's name shows only in advanced mode.
 A `propsSchema` property is labelled in the props sheet by its `x-display`
 title (`PROPS_SCHEMA_DISPLAY_KEYWORD`, same shape), else by its JSON Schema
 `title`, else by its name; the help line is the `x-display` summary, else the
@@ -69,6 +72,10 @@ title (`PROPS_SCHEMA_DISPLAY_KEYWORD`, same shape), else by its JSON Schema
   },
 }
 ```
+
+None of these texts reach the LLM: `get-framework-manifest` sends the
+`description`s and leaves `title`, `summary` and every `x-display` out of the
+`propsSchema` it lists.
 
 ## `requires` vs `consumes` — two distinct contracts
 

@@ -16,6 +16,29 @@ export function buildModeFocusTarget(previous: boolean, current: boolean): strin
 }
 
 /**
+ * Where focus goes when a `LayoutBuilder` mounts, by its reset `generation`:
+ * after a reset (Discard without `onExit`, > 0) the builder's title, because
+ * the Discard button that had the focus went with the old builder; on the
+ * first mount nowhere (McpAppView's build-mode switch handles that one).
+ */
+export function builderMountFocusTarget(generation: number): string | null {
+  return generation > 0 ? BUILDER_FOCUS_TARGET : null
+}
+
+/**
+ * Focuses the element `target` selects inside the returned ref's element once
+ * it mounts; `null` focuses nothing. `LayoutBuilder` passes
+ * {@link builderMountFocusTarget} of its reset generation.
+ */
+export function useFocusOnMount<T extends HTMLElement>(target: string | null): RefObject<T | null> {
+  const ref = useRef<T>(null)
+  useEffect(() => {
+    if (target) ref.current?.querySelector<HTMLElement>(target)?.focus()
+  }, [target])
+  return ref
+}
+
+/**
  * Moves focus across the build-mode switch: the button that opened the
  * builder disappears with the toolbar, so focus lands on the builder's title;
  * Apply and Discard unmount the builder, so focus returns to the edit button.

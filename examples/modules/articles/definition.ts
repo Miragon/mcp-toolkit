@@ -3,6 +3,7 @@ import { resolveArticleStep } from "./steps/resolve-article.js"
 
 export const definition: AppDefinition = {
   name: "articles",
+  title: { en: "Articles", de: "Artikel" },
   steps: [resolveArticleStep],
   widgets: [
     {

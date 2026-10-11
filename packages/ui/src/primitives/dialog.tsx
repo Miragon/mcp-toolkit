@@ -5,6 +5,7 @@ import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { FOCUS_RING } from "../lib/focus-ring.js"
+import { useFocusReturn } from "../lib/focus-return.js"
 import { useToolkitMessages } from "../locale/locale-provider.js"
 import { cn } from "../lib/utils.js"
 import { usePortalContainer } from "../theme/portal-container.js"
@@ -58,6 +59,8 @@ function DialogContent({
   children,
   showCloseButton = true,
   closeLabel,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -65,6 +68,9 @@ function DialogContent({
   closeLabel?: string
 }) {
   const messages = useToolkitMessages()
+  // Without a DialogTrigger, Radix returns the focus nowhere: hand it back to
+  // the element that opened it (lib/focus-return.ts).
+  const focusReturn = useFocusReturn({ onOpenAutoFocus, onCloseAutoFocus })
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -75,6 +81,7 @@ function DialogContent({
           className,
         )}
         {...props}
+        {...focusReturn}
       >
         {children}
         {showCloseButton && (

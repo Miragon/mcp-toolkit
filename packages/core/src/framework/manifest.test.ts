@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { getFrameworkManifest } from "./manifest.js"
+import { getFrameworkManifest, propsSchemaForModel } from "./manifest.js"
+import { PROPS_SCHEMA_DISPLAY_KEYWORD } from "../types/display.js"
 import { StepRegistry } from "../registry/step-registry.js"
 import { WidgetRegistry } from "../registry/widget-registry.js"
 import type { AppConfig } from "../types/config.js"
@@ -52,6 +53,52 @@ describe("getFrameworkManifest", () => {
     widgetRegistry.register(widget({ id: "demo:scoped", propsSchema }))
     const manifest = getFrameworkManifest(new StepRegistry(), widgetRegistry, emptyConfig)
     expect(manifest.widgets[0]?.propsSchema).toEqual(propsSchema)
+  })
+
+  it("leaves the properties' x-display texts (labels for people) out of the LLM's propsSchema", () => {
+    const propsSchema = {
+      type: "object",
+      title: "Props",
+      properties: {
+        dataKey: {
+          type: "string",
+          description: "Context key holding the rows.",
+          [PROPS_SCHEMA_DISPLAY_KEYWORD]: {
+            title: { en: "Data", de: "Daten" },
+            summary: { en: "Which data to show.", de: "Welche Daten du siehst." },
+          },
+        },
+        limit: { type: "number", minimum: 1 },
+      },
+      required: ["dataKey"],
+    }
+    const widgetRegistry = new WidgetRegistry()
+    widgetRegistry.register(widget({ id: "demo:labelled", propsSchema }))
+    const manifest = getFrameworkManifest(new StepRegistry(), widgetRegistry, emptyConfig)
+    expect(manifest.widgets[0]?.propsSchema).toEqual({
+      type: "object",
+      title: "Props",
+      properties: {
+        dataKey: { type: "string", description: "Context key holding the rows." },
+        limit: { type: "number", minimum: 1 },
+      },
+      required: ["dataKey"],
+    })
+    expect(JSON.stringify(manifest)).not.toContain(PROPS_SCHEMA_DISPLAY_KEYWORD)
+    expect(JSON.stringify(manifest)).not.toContain("Daten")
+    // The widget's own schema is untouched: the builder still reads its labels.
+    expect(propsSchema.properties.dataKey[PROPS_SCHEMA_DISPLAY_KEYWORD].title.de).toBe("Daten")
+  })
+
+  it("hands a propsSchema without display text on as the same object", () => {
+    const plain = { type: "object", properties: { limit: { type: "number" } } }
+    expect(propsSchemaForModel(plain)).toBe(plain)
+    const noProperties = { type: "object" }
+    expect(propsSchemaForModel(noProperties)).toBe(noProperties)
+    const odd = { type: "object", properties: [{ [PROPS_SCHEMA_DISPLAY_KEYWORD]: {} }] }
+    expect(propsSchemaForModel(odd)).toBe(odd)
+    const nullProperty = { type: "object", properties: { x: null } }
+    expect(propsSchemaForModel(nullProperty)).toBe(nullProperty)
   })
 
   it("surfaces widget description and consumes when present, omits when absent", () => {

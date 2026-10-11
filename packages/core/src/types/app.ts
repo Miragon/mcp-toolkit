@@ -1,8 +1,18 @@
+import type { DisplayText } from "./display.js"
 import type { WidgetToolMetaDefaults } from "./meta.js"
 import type { PipelineStepDefinition } from "./step.js"
 import type { WidgetDefinition } from "./widget.js"
 
-export interface AppDefinition {
+/**
+ * An app (a module): its pipeline steps and widgets under one `name`, the
+ * namespace of their ids.
+ *
+ * The optional `title` (one string or one per locale) or `titleKey` names the
+ * app for the people using the view builder: it heads the app's group of
+ * widgets in the palette. Without one the group has no heading; the `name` is
+ * technical and shows only in the builder's advanced mode.
+ */
+export interface AppDefinition extends Pick<DisplayText, "title" | "titleKey"> {
   name: string
   // Each step is generic in its own appConfig shape and the array is
   // heterogeneous, so `any` is the pragmatic escape from TS's invariant

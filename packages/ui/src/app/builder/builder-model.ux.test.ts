@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { createTranslator, type PipelineContext } from "@miragon/mcp-toolkit-core"
 import {
+  builderLeave,
   builderSnapshot,
   builderViews,
+  createTabRefocus,
   displayLabel,
   draftHasCells,
   draftStatus,
@@ -13,6 +15,7 @@ import {
   tabTriggerKeyAction,
   toExitCommit,
   viewAfterAdvancedToggle,
+  type BuilderExitCommit,
   type DraftLayout,
 } from "./builder-model.js"
 
@@ -224,8 +227,134 @@ describe("builderSnapshot + draftStatus", () => {
     expect(draftStatus("edited-more", base, "edited")).toEqual({ changed: true, unsaved: true })
   })
 
-  it("going back to the pre-edit state after a save is unsaved (the dashboard differs)", () => {
-    expect(draftStatus(base, base, "edited")).toEqual({ changed: false, unsaved: true })
+  it("going back to the pre-edit state after a save loses nothing: neither changed nor unsaved", () => {
+    expect(draftStatus(base, base, "edited")).toEqual({ changed: false, unsaved: false })
+  })
+
+  it("is never unsaved without being changed (the view holds a draft equal to it)", () => {
+    for (const saved of [null, base, "edited"]) {
+      expect(draftStatus(base, base, saved).unsaved).toBe(false)
+    }
+  })
+})
+
+describe("builderLeave: Apply commits, Discard restores the view", () => {
+  const commit: BuilderExitCommit = { layout: { rows: [{ row: [{ widget: "demo:a" }] }] } }
+
+  function leave(changed: boolean, withExit = true) {
+    const onExit = vi.fn<(c?: BuilderExitCommit) => void>()
+    const onReset = vi.fn<() => void>()
+    const confirm = vi.fn<() => void>()
+    const actions = builderLeave({
+      changed,
+      onExit: withExit ? onExit : undefined,
+      onReset,
+      commit: () => commit,
+      confirm,
+    })
+    return { actions, onExit, onReset, confirm }
+  }
+
+  it("Apply hands the draft's commit to onExit, and nothing else happens", () => {
+    const { actions, onExit, onReset, confirm } = leave(true)
+    actions.apply?.()
+    expect(onExit).toHaveBeenCalledExactlyOnceWith(commit)
+    expect(onReset).not.toHaveBeenCalled()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it("Discard asks first when the draft changed the view, and leaves nothing yet", () => {
+    const { actions, onExit, onReset, confirm } = leave(true)
+    actions.discard()
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(onExit).not.toHaveBeenCalled()
+    expect(onReset).not.toHaveBeenCalled()
+  })
+
+  it("Discard leaves at once, WITHOUT a commit, when the view loses nothing", () => {
+    const { actions, onExit, onReset, confirm } = leave(false)
+    actions.discard()
+    expect(onExit).toHaveBeenCalledExactlyOnceWith()
+    expect(confirm).not.toHaveBeenCalled()
+    expect(onReset).not.toHaveBeenCalled()
+  })
+
+  it("the confirmation's Discard leaves without a commit", () => {
+    const { actions, onExit, confirm } = leave(true)
+    actions.discardNow()
+    expect(onExit).toHaveBeenCalledExactlyOnceWith()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it("never hands a click event on as the commit", () => {
+    const click = { type: "click" }
+    const clean = leave(false)
+    ;(clean.actions.discard as (event: unknown) => void)(click)
+    expect(clean.onExit).toHaveBeenCalledExactlyOnceWith()
+    const confirmed = leave(true)
+    ;(confirmed.actions.discardNow as (event: unknown) => void)(click)
+    expect(confirmed.onExit).toHaveBeenCalledExactlyOnceWith()
+  })
+
+  it("without onExit there is no Apply, and Discard resets in place (asking first when changed)", () => {
+    const clean = leave(false, false)
+    expect(clean.actions.apply).toBeUndefined()
+    clean.actions.discard()
+    expect(clean.onReset).toHaveBeenCalledOnce()
+    expect(clean.confirm).not.toHaveBeenCalled()
+
+    const changed = leave(true, false)
+    changed.actions.discard()
+    expect(changed.onReset).not.toHaveBeenCalled()
+    expect(changed.confirm).toHaveBeenCalledOnce()
+    changed.actions.discardNow()
+    expect(changed.onReset).toHaveBeenCalledOnce()
+    expect(changed.onExit).not.toHaveBeenCalled()
+  })
+})
+
+describe("createTabRefocus: the focus comes back to a renamed tab", () => {
+  const focusable = () => ({ focus: vi.fn<() => void>() })
+
+  it("focuses the requested tab's trigger once, also when a NEW element attaches for it", () => {
+    const refocus = createTabRefocus()
+    const before = focusable()
+    const other = focusable()
+    const renamed = focusable()
+    refocus.attach(1, before) // no request yet
+    refocus.request(1)
+    refocus.attach(0, other) // another tab
+    refocus.attach(1, null) // the old trigger detaching (a rename remounts the tab)
+    refocus.attach(1, renamed) // the new trigger
+    refocus.attach(1, renamed) // a later re-render
+    expect(before.focus).not.toHaveBeenCalled()
+    expect(other.focus).not.toHaveBeenCalled()
+    expect(renamed.focus).toHaveBeenCalledOnce()
+  })
+
+  it("keeps only the latest request", () => {
+    const refocus = createTabRefocus()
+    const first = focusable()
+    const second = focusable()
+    refocus.request(0)
+    refocus.request(2)
+    refocus.attach(0, first)
+    refocus.attach(2, second)
+    expect(first.focus).not.toHaveBeenCalled()
+    expect(second.focus).toHaveBeenCalledOnce()
+  })
+
+  it("forTab wires a tab's request and its trigger to the same index", () => {
+    const refocus = createTabRefocus()
+    const one = refocus.forTab(1)
+    const zero = refocus.forTab(0)
+    const el = focusable()
+    one.onRefocus()
+    zero.triggerRef(el)
+    expect(el.focus).not.toHaveBeenCalled()
+    // A fresh forTab(1), as a remounted tab gets it, still takes the open request.
+    refocus.forTab(1).triggerRef(el)
+    expect(el.focus).toHaveBeenCalledOnce()
   })
 })
 

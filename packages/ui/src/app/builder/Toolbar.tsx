@@ -24,11 +24,11 @@ export interface ToolbarProps {
   /** Advanced mode: shows the stats and the catalogue (the data sources tab lives below). */
   advanced: boolean
   onToggleAdvanced: () => void
-  /** The draft has changes Discard would lose (the marker next to the title). */
+  /** The draft has changes that would be lost (the marker next to the title). */
   unsaved: boolean
   onOpenCatalogue: () => void
   onOpenSave: () => void
-  /** Leaves the builder without the edits (or resets the draft in place). */
+  /** Leaves the builder without the edits (or, without `onApply`, resets the draft in place). */
   onDiscard: () => void
   /** Shows the draft in the view and leaves the builder; absent when there is no view to apply to. */
   onApply?: () => void
@@ -168,7 +168,13 @@ function ToolbarImpl({
         >
           <Save aria-hidden="true" /> {L.save}
         </Button>
-        <Button variant="ghost" size="sm" title={L.discardHint} onClick={onDiscard}>
+        <Button
+          variant="ghost"
+          size="sm"
+          // Without Apply there is no view to leave to: Discard resets in place.
+          title={onApply ? L.discardHint : L.discardHintStandalone}
+          onClick={onDiscard}
+        >
           <Undo2 aria-hidden="true" /> {L.discard}
         </Button>
         {onApply && (

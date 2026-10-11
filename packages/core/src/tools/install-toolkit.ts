@@ -123,10 +123,11 @@ function install(server: MCPServer, options: InstallToolkitOptions): InstalledTo
 
   const apps = options.apps ?? []
   const modules = options.modules ?? []
+  const definitions = [...apps, ...modules.map((m) => m.definition)]
 
   // Step/widget ids are author-controlled, so a collision is a real bug and
   // must fail loud (hard throw).
-  loadApps([...apps, ...modules.map((m) => m.definition)], stepRegistry, widgetRegistry)
+  loadApps(definitions, stepRegistry, widgetRegistry)
 
   for (const module of modules) {
     withToolOwner(server, moduleToolOwner(module.definition.name), () =>
@@ -172,6 +173,8 @@ function install(server: MCPServer, options: InstallToolkitOptions): InstalledTo
       stepRegistry,
       widgetRegistry,
       appConfigs,
+      // The palette heads each app's group with the app's title.
+      apps: definitions,
       toolName: options.catalogueToolName,
     })
 

@@ -64,14 +64,17 @@ export const de: ToolkitMessages = {
     save: "Als Dashboard speichern",
     done: "Fertig",
     apply: "Übernehmen",
-    applyHint: "Zeigt deine Änderungen in dieser Ansicht. Gespeichert wird dabei nichts.",
+    applyHint: "Zeigt deine Änderungen in dieser Ansicht und speichert nichts.",
     discard: "Verwerfen",
     discardHint: "Beendet die Bearbeitung. Die Ansicht bleibt, wie sie war.",
+    discardHintStandalone: "Setzt deine Änderungen zurück.",
     saveHint: "Speichert das Layout als Dashboard, das du später wieder öffnen kannst.",
     unsavedChanges: "Ungespeicherte Änderungen",
     discardDialogTitle: "Änderungen verwerfen?",
     discardDialogDescription:
       "Deine Änderungen an dieser Ansicht gehen verloren. Die Ansicht bleibt, wie sie vor dem Bearbeiten war.",
+    discardDialogDescriptionSaved:
+      "Die Ansicht springt auf den Stand vor dem Bearbeiten zurück. Dein gespeichertes Dashboard behält deine Änderungen.",
     keepEditing: "Weiter bearbeiten",
     discardConfirm: "Änderungen verwerfen",
     advanced: "Erweitert",
@@ -87,6 +90,8 @@ export const de: ToolkitMessages = {
     saveDialogTitle: "Als Dashboard speichern",
     saveDialogDescription:
       "Speichert das Layout mit seinen Datenquellen als Dashboard, das du später wieder öffnen kannst. Diese Ansicht änderst du mit „Übernehmen“.",
+    saveDialogDescriptionStandalone:
+      "Speichert das Layout mit seinen Datenquellen als Dashboard, das du später wieder öffnen kannst.",
     saveNameLabel: "Name",
     saveDescriptionLabel: "Beschreibung",
     saveConfirm: "Dashboard speichern",
@@ -106,7 +111,8 @@ export const de: ToolkitMessages = {
     statusPending: "Wird gleich aktualisiert…",
     statusRefreshing: "Wird aktualisiert…",
     paletteHeader: "Elemente",
-    paletteEmpty: "Noch keine Elemente verfügbar. Füg einen Schlüssel oder einen Schritt hinzu.",
+    paletteLoading: "Elemente werden geladen…",
+    paletteEmpty: "Noch keine Elemente verfügbar. Elemente erscheinen, sobald ihre Daten da sind.",
     canvasEmpty: "Zieh ein Element hierher oder klick eins in der Liste an.",
     canvasDropHint: "Zum Hinzufügen loslassen",
     addRow: "Zeile hinzufügen",

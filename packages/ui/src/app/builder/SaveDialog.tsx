@@ -16,10 +16,17 @@ import type { LayoutBuilderLabels } from "./labels.js"
 // Save dialog
 // -------------------------------------------------------------------------- //
 
+/**
+ * Names the draft and saves it as a dashboard. Its description mentions Apply
+ * only where there is one (`canApply`: the builder has an `onExit`). Opens
+ * with the focus on the name field and hands it back to "Save as dashboard"
+ * when it closes.
+ */
 export function SaveDialog({
   L,
   open,
   onOpenChange,
+  canApply,
   name,
   setName,
   description,
@@ -31,6 +38,8 @@ export function SaveDialog({
   L: Required<LayoutBuilderLabels>
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** The builder has a view to apply the draft to (an `onExit`). */
+  canApply: boolean
   name: string
   setName: (v: string) => void
   description: string
@@ -44,16 +53,19 @@ export function SaveDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{L.saveDialogTitle}</DialogTitle>
-          <DialogDescription>{L.saveDialogDescription}</DialogDescription>
+          <DialogDescription>
+            {canApply ? L.saveDialogDescription : L.saveDialogDescriptionStandalone}
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">{L.saveNameLabel}</span>
+            {/* No autoFocus: the dialog focuses this first field itself, and
+                only then notes where to hand the focus back on close. */}
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={L.saveNamePlaceholder}
-              autoFocus
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">

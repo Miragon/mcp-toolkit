@@ -1,23 +1,29 @@
-import type { ReactElement } from "react"
+import { isValidElement, type ReactElement, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import ts from "typescript"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { createTranslator, type ReachableWidget, type RowDef } from "@miragon/mcp-toolkit-core"
 import { LocaleProvider } from "../../locale/locale-provider.js"
 import { TOOLKIT_MESSAGES } from "../../locale/toolkit-messages.js"
 import { attribute, decodeEntities, openingTags } from "../../render-scan.js"
+import { DialogDescription } from "../../primitives/dialog.js"
+import { Button } from "../../primitives/button.js"
+import { TabsTrigger } from "../../primitives/tabs.js"
 import { LayoutBuilder } from "../layout-builder.js"
 import {
   BUILDER_FOCUS_TARGET,
+  builderMountFocusTarget,
   buildModeFocusTarget,
   VIEW_FOCUS_TARGET,
 } from "../use-build-mode-focus.js"
-import type { DraftLayout } from "./builder-model.js"
-import { LayoutSurface } from "./LayoutSurface.js"
+import { createTabRefocus, type DraftLayout } from "./builder-model.js"
+import { DiscardDialog } from "./DiscardDialog.js"
+import { SaveDialog } from "./SaveDialog.js"
+import { LayoutSurface, TabItem } from "./LayoutSurface.js"
 import { PipelineStrip } from "./PipelineStrip.js"
 import { REVEAL_ON_INTENT } from "./reveal.js"
 import { Toolbar, type ToolbarProps } from "./Toolbar.js"
-import { Workspace, type WorkspaceProps } from "./Workspace.js"
+import { PaletteEmpty, Workspace, type WorkspaceProps } from "./Workspace.js"
 
 /**
  * The builder for people, not developers (U18, toolkit#13/#14), on its SSR
@@ -71,7 +77,10 @@ function workspace(over: Partial<WorkspaceProps> = {}): WorkspaceProps {
   return {
     L: de,
     paletteByApp: [["demo", PALETTE]],
+    appDisplayByName: new Map(),
     paletteCount: PALETTE.length,
+    paletteLoading: false,
+    onOpenDataSources: noop,
     activeRows: [{ row: [{ widget: "demo:orders" }, { widget: "demo:raw" }] }, { row: [] }],
     focusedRowIndex: 0,
     setFocusedRowIndex: noop,
@@ -163,6 +172,33 @@ function buttonTag(html: string, name: string): string {
   return openingTags(button(html, name) ?? "", "button")[0] ?? ""
 }
 
+/** The slot a `[data-slot="…"]` focus target selects. */
+function slotOf(selector: string): string {
+  const slot = /^\[data-slot="([^"]+)"\]$/.exec(selector)?.[1]
+  if (!slot) throw new Error(`not a data-slot selector: ${selector}`)
+  return slot
+}
+
+/**
+ * Every element of a component's output, children first-class, WITHOUT
+ * rendering any component in it: the event wiring of a hook-free component
+ * (its handlers are props) is testable without a DOM.
+ */
+function elements(node: ReactNode): ReactElement<Record<string, unknown>>[] {
+  const out: ReactElement<Record<string, unknown>>[] = []
+  const visit = (n: ReactNode) => {
+    if (Array.isArray(n)) {
+      for (const child of n as ReactNode[]) visit(child)
+      return
+    }
+    if (!isValidElement<Record<string, unknown>>(n)) return
+    out.push(n)
+    visit(n.props.children as ReactNode)
+  }
+  visit(node)
+  return out
+}
+
 describe("titles: the palette and the canvas speak user words", () => {
   const html = inGerman(<Workspace {...workspace()} />)
   const items = html.match(/<button[^>]*data-slot="builder-palette-item"[\s\S]*?<\/button>/g) ?? []
@@ -217,6 +253,49 @@ describe("titles: the palette and the canvas speak user words", () => {
     expect(canvas).toContain(`${de.addTab}</button>`)
     // The palette scrolls in its own box instead of overflowing a fixed one.
     expect(aside).toMatch(/lg:overflow-y-auto/)
+  })
+})
+
+describe("palette groups: headed by the app's title, the namespace only in advanced mode", () => {
+  const titled = (over: Partial<WorkspaceProps> = {}) =>
+    inGerman(
+      <Workspace
+        {...workspace({
+          appDisplayByName: new Map([["demo", { title: { en: "Demo shop", de: "Vorführladen" } }]]),
+          ...over,
+        })}
+      />,
+    )
+  const headings = (html: string) =>
+    (html.match(/<div[^>]*data-slot="builder-palette-group"[^>]*>[\s\S]*?<\/div>/g) ?? []).map(
+      (h) =>
+        decodeEntities(h.replace(/<[^>]*>/g, " "))
+          .replace(/\s+/g, " ")
+          .trim(),
+    )
+
+  it("shows no heading for an untitled app (its name is a technical namespace)", () => {
+    expect(headings(inGerman(<Workspace {...workspace()} />))).toEqual([])
+  })
+
+  it("heads an untitled app's group with its name in advanced mode", () => {
+    expect(headings(inGerman(<Workspace {...workspace({ advanced: true })} />))).toEqual(["demo"])
+  })
+
+  it("heads a titled app's group with its title in the locale, the name joining only in advanced mode", () => {
+    expect(headings(titled())).toEqual(["Vorführladen"])
+    const advanced = titled({ advanced: true })
+    expect(headings(advanced)).toEqual(["Vorführladen demo"])
+    expect(advanced).toMatch(/font-mono font-normal">demo</)
+  })
+
+  it("resolves an app's titleKey through the LocaleProvider's translator", () => {
+    const keyed = inGerman(
+      <Workspace
+        {...workspace({ appDisplayByName: new Map([["demo", { titleKey: "demo.keyed.title" }]]) })}
+      />,
+    )
+    expect(headings(keyed)).toEqual(["Aus dem Katalog"])
   })
 })
 
@@ -358,10 +437,13 @@ describe("toolbar: Apply, Discard and Save as dashboard are three different thin
     expect(attribute(save, "title")).toBe(de.saveHint)
   })
 
-  it("has no Apply without a view to apply to, but keeps Discard", () => {
+  it("has no Apply without a view to apply to, but keeps Discard, which then resets", () => {
     const html = inGerman(toolbar({ onApply: undefined }))
     expect(button(html, de.apply)).toBeUndefined()
     expect(button(html, de.discard)).toBeDefined()
+    // Nothing is left there: the tooltip says what Discard does instead.
+    expect(attribute(buttonTag(html, de.discard), "title")).toBe(de.discardHintStandalone)
+    expect(de.discardHintStandalone).not.toBe(de.discardHint)
   })
 
   it("marks unsaved changes in a live region that is always mounted", () => {
@@ -383,10 +465,192 @@ describe("toolbar: Apply, Discard and Save as dashboard are three different thin
     expect(advanced).toContain(de.statsReachable)
   })
 
-  it("titles the builder with a focus target for the hand-off from the view", () => {
-    const title = slots(inGerman(toolbar()), "builder-title")[0] ?? ""
-    expect(title.startsWith("<h2")).toBe(true)
-    expect(attribute(title, "tabindex")).toBe("-1")
+  it("titles the builder with the focus target of the hand-off from the view", () => {
+    const title = slots(inGerman(toolbar()), slotOf(BUILDER_FOCUS_TARGET))
+    expect(title).toHaveLength(1)
+    expect(title[0]?.startsWith("<h2")).toBe(true)
+    expect(attribute(title[0] ?? "", "tabindex")).toBe("-1")
+  })
+})
+
+describe("save dialog: points to Apply only where there is one", () => {
+  const description = (canApply: boolean) =>
+    elements(
+      SaveDialog({
+        L: de,
+        open: true,
+        onOpenChange: noop,
+        canApply,
+        name: "",
+        setName: noop,
+        description: "",
+        setDescription: noop,
+        onSubmit: () => Promise.resolve(),
+        busy: false,
+        error: null,
+      }),
+    ).find((e) => e.type === DialogDescription)?.props.children
+
+  it("names Apply as the way to change the view when the builder has one", () => {
+    expect(description(true)).toBe(de.saveDialogDescription)
+    expect(de.saveDialogDescription).toContain(de.apply)
+  })
+
+  it("leaves Apply out in a builder without a view to apply to", () => {
+    expect(description(false)).toBe(de.saveDialogDescriptionStandalone)
+    expect(de.saveDialogDescriptionStandalone).not.toContain(de.apply)
+  })
+})
+
+describe("palette: a loading state first, then the elements or an empty state for people", () => {
+  it("shows a loading state, no count and no empty text while the catalogue is on its way", () => {
+    const html = inGerman(
+      <Workspace {...workspace({ paletteByApp: [], paletteCount: 0, paletteLoading: true })} />,
+    )
+    expect(slots(html, "builder-palette-loading")).toHaveLength(1)
+    expect(html).toMatch(new RegExp(`role="status"[^>]*>${de.paletteLoading}<`))
+    expect(html).not.toContain(de.paletteEmpty)
+    expect(html).not.toContain('data-slot="badge"')
+  })
+
+  it("says there are no elements yet without data-source words, and offers the data sources", () => {
+    const html = inGerman(<Workspace {...workspace({ paletteByApp: [], paletteCount: 0 })} />)
+    expect(slots(html, "builder-palette-empty")).toHaveLength(1)
+    expect(html).toContain(de.paletteEmpty)
+    for (const word of [de.keyName, de.stepsHeader, "Schritt"]) {
+      expect(de.paletteEmpty).not.toContain(word)
+    }
+    expect(button(html, de.openDataSources)).toBeDefined()
+    expect(html).not.toContain(de.paletteLoading)
+  })
+
+  it("opens the data sources from the empty palette", () => {
+    const onOpenDataSources = vi.fn<() => void>()
+    const actions = elements(PaletteEmpty({ L: de, onOpenDataSources })).filter(
+      (e) => e.type === Button,
+    )
+    expect(actions).toHaveLength(1)
+    expect(actions[0]?.props.onClick).toBe(onOpenDataSources)
+  })
+
+  it("lists the elements once they are there", () => {
+    const html = inGerman(<Workspace {...workspace()} />)
+    expect(slots(html, "builder-palette-loading")).toEqual([])
+    expect(slots(html, "builder-palette-empty")).toEqual([])
+    expect(slots(html, "builder-palette-item")).toHaveLength(PALETTE.length)
+  })
+})
+
+describe("discard confirmation: says what the view loses", () => {
+  const dialog = (changesSaved: boolean, onConfirm = noop) =>
+    elements(DiscardDialog({ L: de, open: true, onOpenChange: noop, changesSaved, onConfirm }))
+  const description = (changesSaved: boolean) =>
+    dialog(changesSaved).find((e) => e.type === DialogDescription)?.props.children
+
+  it("calls the changes lost when no saved dashboard holds them", () => {
+    expect(description(false)).toBe(de.discardDialogDescription)
+  })
+
+  it("says the saved dashboard keeps them when one does", () => {
+    expect(description(true)).toBe(de.discardDialogDescriptionSaved)
+    expect(de.discardDialogDescriptionSaved).toContain("Dashboard")
+  })
+
+  it("discards on its destructive button only", () => {
+    const onConfirm = vi.fn<() => void>()
+    const destructive = dialog(false, onConfirm).filter((e) => e.props.variant === "destructive")
+    expect(destructive).toHaveLength(1)
+    expect(destructive[0]?.props.onClick).toBe(onConfirm)
+  })
+})
+
+describe("tab rename by keyboard: the focus comes back, also under a new name", () => {
+  const base = {
+    L: de,
+    active: true,
+    renameRejected: false,
+    errorId: "rename-error",
+    onCancelRename: noop,
+    onRemove: noop,
+  }
+  const trigger = (item: ReactNode) => elements(item).find((e) => e.type === TabsTrigger)
+  const field = (item: ReactNode) =>
+    elements(item).find((e) => typeof e.props.onCommit === "function")
+
+  it("starts the rename with F2, and with Enter on the active tab only", () => {
+    const onStartRename = vi.fn<() => void>()
+    const props = { ...base, label: "Details", editing: false, onStartRename }
+    const keyDown = (active: boolean, key: string) => {
+      const item = TabItem({
+        ...props,
+        active,
+        onCommitRename: () => true,
+        triggerRef: noop,
+        onRefocus: noop,
+      })
+      const preventDefault = vi.fn<() => void>()
+      ;(trigger(item)?.props.onKeyDown as (e: object) => void)({ key, preventDefault })
+      return preventDefault
+    }
+    expect(keyDown(false, "F2")).toHaveBeenCalledOnce()
+    expect(keyDown(true, "Enter")).toHaveBeenCalledOnce()
+    expect(onStartRename).toHaveBeenCalledTimes(2)
+    expect(keyDown(false, "Enter")).not.toHaveBeenCalled()
+    expect(keyDown(true, "ArrowRight")).not.toHaveBeenCalled()
+    expect(onStartRename).toHaveBeenCalledTimes(2)
+  })
+
+  it("Enter with a NEW name focuses the renamed tab, which is a new tab (keyed by its label)", () => {
+    const refocus = createTabRefocus()
+    const onCommitRename = vi.fn<(label: string) => boolean>(() => true)
+    const editing = TabItem({
+      ...base,
+      label: "Details",
+      editing: true,
+      onStartRename: noop,
+      onCommitRename,
+      ...refocus.forTab(1),
+    })
+    expect(
+      (field(editing)?.props.onCommit as (v: string, k: boolean) => boolean)("Kosten", true),
+    ).toBe(true)
+    expect(onCommitRename).toHaveBeenCalledExactlyOnceWith("Kosten")
+    // React mounts the renamed tab afresh; its trigger attaches through the surface's hand-back.
+    const renamed = TabItem({
+      ...base,
+      label: "Kosten",
+      editing: false,
+      onStartRename: noop,
+      onCommitRename,
+      ...refocus.forTab(1),
+    })
+    const focus = vi.fn<() => void>()
+    ;(trigger(renamed)?.props.ref as (el: object) => void)({ focus })
+    expect(focus).toHaveBeenCalledOnce()
+  })
+
+  it("Escape asks for the focus back too; a pointer commit and a rejected name do not", () => {
+    const onRefocus = vi.fn<() => void>()
+    const onCancelRename = vi.fn<() => void>()
+    const item = (accepted: boolean) =>
+      TabItem({
+        ...base,
+        label: "Details",
+        editing: true,
+        onStartRename: noop,
+        onCommitRename: () => accepted,
+        onCancelRename,
+        triggerRef: noop,
+        onRefocus,
+      })
+    const commit = (accepted: boolean, byKeyboard: boolean) =>
+      (field(item(accepted))?.props.onCommit as (v: string, k: boolean) => boolean)("X", byKeyboard)
+    expect(commit(true, false)).toBe(true)
+    expect(commit(false, true)).toBe(false)
+    expect(onRefocus).not.toHaveBeenCalled()
+    ;(field(item(true))?.props.onCancel as () => void)()
+    expect(onRefocus).toHaveBeenCalledOnce()
+    expect(onCancelRename).toHaveBeenCalledOnce()
   })
 })
 
@@ -419,6 +683,23 @@ describe("LayoutBuilder: the data sources sit behind Advanced", () => {
     expect(button(both, "Fertig")).toBeUndefined()
   })
 
+  it("labels Apply with a LocaleProvider override of the deprecated `done` too", () => {
+    const html = renderToStaticMarkup(
+      <LocaleProvider locale="en" toolkitMessages={{ builder: { done: "Finish" } }}>
+        <LayoutBuilder widgets={{}} callTool={() => Promise.resolve({})} onExit={noop} />
+      </LocaleProvider>,
+    )
+    expect(button(html, "Finish")).toBeDefined()
+    expect(button(html, TOOLKIT_MESSAGES.en.builder.apply)).toBeUndefined()
+  })
+
+  it("shows the palette's loading state, not the empty state, before the catalogue answers", () => {
+    const html = inGerman(<LayoutBuilder widgets={{}} callTool={() => new Promise(noop)} />)
+    expect(slots(html, "builder-palette-loading")).toHaveLength(1)
+    expect(html).not.toContain(de.emptyHintTitle)
+    expect(html).not.toContain(de.paletteEmpty)
+  })
+
   it("offers Discard but no Apply when embedded without onExit", () => {
     const html = inGerman(<LayoutBuilder widgets={{}} callTool={() => Promise.resolve({})} />)
     expect(button(html, de.apply)).toBeUndefined()
@@ -438,11 +719,36 @@ describe("focus hand-off between the view and the builder", () => {
     expect(buildModeFocusTarget(false, false)).toBeNull()
     expect(buildModeFocusTarget(true, true)).toBeNull()
   })
+
+  it("puts an embedded builder's focus on its title after a Discard reset, not on first mount", () => {
+    expect(builderMountFocusTarget(0)).toBeNull()
+    expect(builderMountFocusTarget(1)).toBe(BUILDER_FOCUS_TARGET)
+    expect(builderMountFocusTarget(5)).toBe(BUILDER_FOCUS_TARGET)
+  })
 })
 
 // -------------------------------------------------------------------------- //
 // Static gates over the builder sources
 // -------------------------------------------------------------------------- //
+
+const VIEW_SOURCE =
+  import.meta.glob(["../mcp-app-view.tsx"], { query: "?raw", import: "default", eager: true })[
+    "../mcp-app-view.tsx"
+  ] ?? ""
+
+/** The argument texts of every call to `callee` in a source. */
+function callsTo(file: string, source: string, callee: string): string[][] {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const found: string[][] = []
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && node.expression.getText(sf) === callee) {
+      found.push(node.arguments.map((a) => a.getText(sf)))
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return found
+}
 
 const BUILDER_SOURCES = import.meta.glob(
   ["./*.tsx", "!./*.test.tsx", "../layout-builder.tsx", "../widget-props-sheet.tsx"],
@@ -478,6 +784,25 @@ describe("builder source gates", () => {
   it("hides a control only through REVEAL_ON_INTENT (never opacity-0 behind hover alone)", () => {
     const offenders = Object.entries(BUILDER_SOURCES).filter(([, src]) => /\bopacity-0\b/.test(src))
     expect(offenders.map(([file]) => file)).toEqual([])
+  })
+
+  it("wires the focus hand-off: McpAppView across build mode, LayoutBuilder after a reset", () => {
+    // McpAppView moves the focus between the edit button and the builder's title.
+    expect(callsTo("mcp-app-view.tsx", VIEW_SOURCE, "useBuildModeFocus")).toEqual([
+      ["buildMode", "frameRef"],
+    ])
+    expect(VIEW_SOURCE).toMatch(/<div ref=\{frameRef\}[^>]*data-slot="mcp-app-view"/)
+    // LayoutBuilder focuses its title after a Discard reset, through its root element.
+    const builder = BUILDER_SOURCES["../layout-builder.tsx"] ?? ""
+    expect(callsTo("layout-builder.tsx", builder, "builderMountFocusTarget")).toEqual([
+      ["generation"],
+    ])
+    expect(callsTo("layout-builder.tsx", builder, "useFocusOnMount")).toEqual([["mountFocus"]])
+    expect(builder).toMatch(/<div ref=\{rootRef\}/)
+    // The gate sees a call it looks for.
+    expect(callsTo("self.tsx", "useBuildModeFocus(a, b)", "useBuildModeFocus")).toEqual([
+      ["a", "b"],
+    ])
   })
 
   it("pairs every double-click with a keyboard path", () => {

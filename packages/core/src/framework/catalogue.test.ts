@@ -285,4 +285,45 @@ describe("getBuilderCatalogue", () => {
       "requires",
     ])
   })
+
+  it("names the titled apps for the palette's group headings, and only those", async () => {
+    const { structuredContent } = await getBuilderCatalogue({
+      input: {},
+      stepRegistry: new StepRegistry(),
+      widgetRegistry: new WidgetRegistry(),
+      apps: [
+        { name: "sales", title: { en: "Sales", de: "Vertrieb" } },
+        { name: "keyed", titleKey: "apps.keyed" },
+        { name: "both", title: "Both", titleKey: "apps.both" },
+        { name: "plain" },
+      ],
+    })
+
+    // Only the fields a definition sets cross the wire; an untitled app is left out.
+    expect(structuredContent.apps).toEqual([
+      { name: "sales", title: { en: "Sales", de: "Vertrieb" } },
+      { name: "keyed", titleKey: "apps.keyed" },
+      { name: "both", title: "Both", titleKey: "apps.both" },
+    ])
+  })
+
+  it("keeps the payload shape when no app has a title (no `apps` key)", async () => {
+    const options = {
+      input: {},
+      stepRegistry: new StepRegistry(),
+      widgetRegistry: new WidgetRegistry(),
+    }
+    const shape = [
+      "availableSteps",
+      "context",
+      "keyCatalog",
+      "reachableWidgets",
+      "unreachableWidgets",
+      "validationIssues",
+    ]
+    const without = await getBuilderCatalogue(options)
+    expect(Object.keys(without.structuredContent).sort()).toEqual(shape)
+    const untitled = await getBuilderCatalogue({ ...options, apps: [{ name: "plain" }] })
+    expect(Object.keys(untitled.structuredContent).sort()).toEqual(shape)
+  })
 })

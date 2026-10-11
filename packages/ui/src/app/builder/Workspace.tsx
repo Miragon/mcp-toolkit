@@ -1,10 +1,11 @@
 import { memo, useId } from "react"
-import { GripVertical, Plus } from "lucide-react"
+import { GripVertical, Plus, SlidersHorizontal } from "lucide-react"
 import type { DisplayText, ReachableWidget, RowDef, WidgetProps } from "@miragon/mcp-toolkit-core"
 import { FOCUS_RING } from "../../lib/focus-ring.js"
 import { cn } from "../../lib/utils.js"
 import { Badge } from "../../primitives/badge.js"
 import { Button } from "../../primitives/button.js"
+import { Skeleton } from "../../primitives/skeleton.js"
 import type { WidgetComponent } from "../widget-renderer.js"
 import { displayLabel } from "./builder-model.js"
 import type { LayoutBuilderLabels } from "./labels.js"
@@ -24,7 +25,13 @@ import { useDisplayResolver } from "./use-display-resolver.js"
 export interface WorkspaceProps {
   L: Required<LayoutBuilderLabels>
   paletteByApp: [string, ReachableWidget[]][]
+  /** Each app's title (or its key) by app name: the palette's group headings. */
+  appDisplayByName: Map<string, DisplayText>
   paletteCount: number
+  /** The first catalogue answer is still on its way: the palette shows a loading state. */
+  paletteLoading: boolean
+  /** The empty palette's next step: show the data sources (it turns on advanced mode). */
+  onOpenDataSources: () => void
   activeRows: RowDef[]
   focusedRowIndex: number
   setFocusedRowIndex: (idx: number) => void
@@ -51,7 +58,10 @@ export interface WorkspaceProps {
 function WorkspaceImpl({
   L,
   paletteByApp,
+  appDisplayByName,
   paletteCount,
+  paletteLoading,
+  onOpenDataSources,
   activeRows,
   focusedRowIndex,
   setFocusedRowIndex,
@@ -71,50 +81,18 @@ function WorkspaceImpl({
   widgetProps,
   onAddTab,
 }: WorkspaceProps) {
-  const paletteHeadingId = useId()
   return (
     <div className="grid grid-cols-12 gap-4">
-      <aside aria-labelledby={paletteHeadingId} className="col-span-12 lg:col-span-3 xl:col-span-2">
-        <div className="lg:sticky lg:top-16">
-          <h3
-            id={paletteHeadingId}
-            className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-semibold"
-          >
-            {L.paletteHeader}
-            <Badge variant="outline" className="px-1.5 text-xs">
-              {paletteCount}
-            </Badge>
-          </h3>
-          {paletteCount === 0 ? (
-            <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
-              {L.paletteEmpty}
-            </div>
-          ) : (
-            // A native scroll box: its height is its own, so nothing after the
-            // palette can be painted over by the list (the old ScrollArea let
-            // the list overflow its max height).
-            <div className="flex flex-col gap-3 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
-              {paletteByApp.map(([app, ws]) => (
-                <div key={app} className="flex flex-col gap-1">
-                  <div className="text-muted-foreground text-xs font-semibold">{app}</div>
-                  <ul className="flex flex-col gap-1">
-                    {ws.map((w) => (
-                      <li key={w.id}>
-                        <PaletteItem
-                          L={L}
-                          w={w}
-                          advanced={advanced}
-                          onClick={() => onAddWidget(w.id)}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </aside>
+      <Palette
+        L={L}
+        paletteByApp={paletteByApp}
+        appDisplayByName={appDisplayByName}
+        paletteCount={paletteCount}
+        loading={paletteLoading}
+        advanced={advanced}
+        onAddWidget={onAddWidget}
+        onOpenDataSources={onOpenDataSources}
+      />
 
       <section className="col-span-12 lg:col-span-9 xl:col-span-10">
         <div className="flex flex-col gap-3">
@@ -160,6 +138,146 @@ function WorkspaceImpl({
 }
 
 export const Workspace = memo(WorkspaceImpl)
+
+// -------------------------------------------------------------------------- //
+// Palette — the elements to add, grouped by app (sticky on lg+)
+// -------------------------------------------------------------------------- //
+
+function Palette({
+  L,
+  paletteByApp,
+  appDisplayByName,
+  paletteCount,
+  loading,
+  advanced,
+  onAddWidget,
+  onOpenDataSources,
+}: Pick<WorkspaceProps, "L" | "paletteByApp" | "appDisplayByName" | "paletteCount" | "advanced"> & {
+  loading: boolean
+  onAddWidget: (widgetId: string) => void
+  onOpenDataSources: () => void
+}) {
+  const headingId = useId()
+  return (
+    <aside aria-labelledby={headingId} className="col-span-12 lg:col-span-3 xl:col-span-2">
+      <div className="lg:sticky lg:top-16">
+        <h3
+          id={headingId}
+          className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-semibold"
+        >
+          {L.paletteHeader}
+          {/* No count while loading: "0" would say there are none. */}
+          {!loading && (
+            <Badge variant="outline" className="px-1.5 text-xs">
+              {paletteCount}
+            </Badge>
+          )}
+        </h3>
+        {loading ? (
+          <PaletteLoading L={L} />
+        ) : paletteCount === 0 ? (
+          <PaletteEmpty L={L} onOpenDataSources={onOpenDataSources} />
+        ) : (
+          // A native scroll box: its height is its own, so nothing after the
+          // palette can be painted over by the list (the old ScrollArea let
+          // the list overflow its max height).
+          <div className="flex flex-col gap-3 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
+            {paletteByApp.map(([app, ws]) => (
+              <div key={app} className="flex flex-col gap-1">
+                <PaletteGroupHeading
+                  app={app}
+                  display={appDisplayByName.get(app)}
+                  advanced={advanced}
+                />
+                <ul className="flex flex-col gap-1">
+                  {ws.map((w) => (
+                    <li key={w.id}>
+                      <PaletteItem
+                        L={L}
+                        w={w}
+                        advanced={advanced}
+                        onClick={() => onAddWidget(w.id)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </aside>
+  )
+}
+
+/** The palette while the first catalogue answer is on its way (CI §9: a skeleton, not "none"). */
+function PaletteLoading({ L }: { L: Required<LayoutBuilderLabels> }) {
+  return (
+    <div data-slot="builder-palette-loading" className="flex flex-col gap-1">
+      <Skeleton aria-hidden="true" className="h-9 w-full" />
+      <Skeleton aria-hidden="true" className="h-9 w-full" />
+      <Skeleton aria-hidden="true" className="h-9 w-3/4" />
+      <p role="status" className="text-muted-foreground mt-1 text-xs">
+        {L.paletteLoading}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * The palette without any element. It speaks no data-source words (they sit
+ * behind Advanced); its one next step opens the data sources, also when the
+ * layout already has cells and the builder's empty state is not shown.
+ * Exported for its tests only.
+ */
+export function PaletteEmpty({
+  L,
+  onOpenDataSources,
+}: {
+  L: Required<LayoutBuilderLabels>
+  onOpenDataSources: () => void
+}) {
+  return (
+    <div
+      data-slot="builder-palette-empty"
+      className="text-muted-foreground flex flex-col items-start gap-2 rounded-md border border-dashed p-3 text-xs"
+    >
+      <p>{L.paletteEmpty}</p>
+      <Button size="sm" variant="outline" onClick={onOpenDataSources}>
+        <SlidersHorizontal aria-hidden="true" /> {L.openDataSources}
+      </Button>
+    </div>
+  )
+}
+
+// -------------------------------------------------------------------------- //
+// Palette group heading
+// -------------------------------------------------------------------------- //
+
+/**
+ * The heading of one app's group in the palette: the app's title. Without a
+ * title the app's name is a technical namespace, so it heads the group only in
+ * advanced mode; there it also follows a title as a quiet mono hint.
+ */
+function PaletteGroupHeading({
+  app,
+  display,
+  advanced,
+}: {
+  app: string
+  display: DisplayText | undefined
+  advanced: boolean
+}) {
+  const { locale, resolveKey } = useDisplayResolver()
+  const { label, hint } = displayLabel(display ?? {}, app, locale, resolveKey)
+  if (hint === undefined && !advanced) return null
+  return (
+    <div data-slot="builder-palette-group" className="text-muted-foreground text-xs font-semibold">
+      {label}
+      {advanced && hint && <span className="ml-1.5 font-mono font-normal">{hint}</span>}
+    </div>
+  )
+}
 
 // -------------------------------------------------------------------------- //
 // Palette item

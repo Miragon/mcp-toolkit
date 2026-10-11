@@ -2,6 +2,7 @@ import { executePipeline, type PipelineExecutionContext } from "../engine/pipeli
 import { validatePipeline } from "../engine/context-builder.js"
 import type { StepRegistry } from "../registry/step-registry.js"
 import type { WidgetRegistry } from "../registry/widget-registry.js"
+import type { AppDefinition } from "../types/app.js"
 import type { DisplayText } from "../types/display.js"
 import type { PipelineStepRef } from "../types/pipeline.js"
 
@@ -69,6 +70,14 @@ export interface KeyCatalogEntry {
   inContext: boolean
 }
 
+/**
+ * How the builder heads one app's group in its palette: the app's `name` (the
+ * namespace of its ids) and the title fields its definition sets.
+ */
+export interface CatalogueApp extends Pick<DisplayText, "title" | "titleKey"> {
+  name: string
+}
+
 export interface CataloguePayload {
   context: {
     keys: Record<string, unknown>
@@ -92,6 +101,13 @@ export interface CataloguePayload {
    * builder warns the user the render path wouldn't run as configured.
    */
   validationIssues: string[]
+  /**
+   * The apps that name themselves for people (`title` or `titleKey` on the
+   * {@link AppDefinition}); the builder heads their palette groups with it.
+   * Absent when no app given in {@link CatalogueOptions.apps} has a title, so
+   * the payload of an untitled server keeps its shape.
+   */
+  apps?: CatalogueApp[]
 }
 
 export interface CatalogueOptions {
@@ -99,6 +115,11 @@ export interface CatalogueOptions {
   stepRegistry: StepRegistry
   widgetRegistry: WidgetRegistry
   appConfigs?: Record<string, unknown>
+  /**
+   * The loaded app definitions (or just their names and titles), for the
+   * palette's group headings. `installToolkit` passes its apps and modules.
+   */
+  apps?: readonly Pick<AppDefinition, "name" | "title" | "titleKey">[]
   /**
    * Per-request context — who is calling; build it with
    * `resolvePipelineContext(ctx)`. Mirrors {@link RenderViewOptions.ctx}.
@@ -125,6 +146,7 @@ export interface CatalogueOptions {
  */
 export async function getBuilderCatalogue(options: CatalogueOptions) {
   const { input, stepRegistry, widgetRegistry, appConfigs, ctx } = options
+  const apps = titledApps(options.apps ?? [])
   const initialKeys = input.keys ?? {}
   const pipelineConfig = { steps: input.steps }
 
@@ -237,8 +259,21 @@ export async function getBuilderCatalogue(options: CatalogueOptions) {
       availableSteps,
       keyCatalog,
       validationIssues: validation.issues,
+      ...(apps.length > 0 ? { apps } : {}),
     },
   }
+}
+
+/** The apps that set a title or a title key, each with only the fields it sets. */
+function titledApps(
+  apps: readonly Pick<AppDefinition, "name" | "title" | "titleKey">[],
+): CatalogueApp[] {
+  return apps.flatMap((app) => {
+    const out: CatalogueApp = { name: app.name }
+    if (app.title !== undefined) out.title = app.title
+    if (app.titleKey !== undefined) out.titleKey = app.titleKey
+    return out.title === undefined && out.titleKey === undefined ? [] : [out]
+  })
 }
 
 /**

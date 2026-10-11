@@ -8,7 +8,7 @@
  * Pure data + functions (no React, no `mcp-use/react`): browser-safe and
  * shared by the root barrel and the `./app` shell alike.
  */
-import type { ToolkitMessages } from "./message-types.js"
+import type { BuilderMessages, ToolkitMessages } from "./message-types.js"
 import { de } from "./messages-de.js"
 import { en } from "./messages-en.js"
 
@@ -64,9 +64,22 @@ export function resolveToolkitMessages(
     filterBar: { ...base.filterBar, ...override.filterBar },
     pills: { ...base.pills, ...override.pills },
     renderer: { ...base.renderer, ...override.renderer },
-    builder: { ...base.builder, ...override.builder },
+    builder: mergeBuilder(base.builder, override.builder),
     propsSheet: { ...base.propsSheet, ...override.propsSheet },
   }
+}
+
+/**
+ * The builder section with its override. An override of the deprecated
+ * `done` still labels the commit button, Apply, unless it sets `apply` too.
+ */
+function mergeBuilder(
+  base: BuilderMessages,
+  override: Partial<BuilderMessages> | undefined,
+): BuilderMessages {
+  const merged = { ...base, ...override }
+  if (override?.done !== undefined && override.apply === undefined) merged.apply = override.done
+  return merged
 }
 
 /**

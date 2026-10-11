@@ -33,6 +33,26 @@ export function useBuilderMode() {
 }
 
 /**
+ * Inline rename feedback. The reducer rejects duplicate tab labels and bumps
+ * `renameRejectedAt`; each bump shows "name already exists" until the inline
+ * editor closes (render-phase setState, the house pattern for derived state).
+ */
+export function useRenameFeedback(renameRejectedAt: number, editingTabIdx: number | null): boolean {
+  const [renameRejected, setRenameRejected] = useState(false)
+  const [prevRenameRejectedAt, setPrevRenameRejectedAt] = useState(renameRejectedAt)
+  if (renameRejectedAt !== prevRenameRejectedAt) {
+    setPrevRenameRejectedAt(renameRejectedAt)
+    setRenameRejected(true)
+  }
+  const [prevEditingTabIdx, setPrevEditingTabIdx] = useState(editingTabIdx)
+  if (editingTabIdx !== prevEditingTabIdx) {
+    setPrevEditingTabIdx(editingTabIdx)
+    if (editingTabIdx === null) setRenameRejected(false)
+  }
+  return renameRejected
+}
+
+/**
  * Tracks the draft against the view before editing and the last saved
  * dashboard (see `draftStatus`). `snapshot` is the current `builderSnapshot`;
  * the first one is the pre-edit baseline.

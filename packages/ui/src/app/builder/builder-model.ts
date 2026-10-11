@@ -402,19 +402,74 @@ export function toExitCommit(
 }
 
 export interface DraftStatus {
-  /** The draft differs from the view as it was before editing. */
+  /**
+   * The draft differs from the view as it was before editing: what Discard
+   * takes out of the view, so it decides whether Discard asks first.
+   */
   changed: boolean
   /**
-   * The draft has changes that Discard would lose: it differs from the last
-   * saved dashboard, or from the view before editing when nothing was saved.
-   * Drives the unsaved marker and the discard confirmation.
+   * The draft has changes that would be lost: it differs from the view before
+   * editing AND from the last saved dashboard (a draft equal to either one
+   * loses nothing). Drives the unsaved marker and tells the discard
+   * confirmation whether a dashboard keeps the changes.
    */
   unsaved: boolean
 }
 
 /** Compares the current {@link builderSnapshot} with the pre-edit one and the last saved one. */
 export function draftStatus(current: string, baseline: string, saved: string | null): DraftStatus {
-  return { changed: current !== baseline, unsaved: current !== (saved ?? baseline) }
+  const changed = current !== baseline
+  return { changed, unsaved: changed && current !== saved }
+}
+
+// -------------------------------------------------------------------------- //
+// Leaving — Apply commits, Discard restores (asking first when the view loses changes)
+// -------------------------------------------------------------------------- //
+
+/** The builder's leave actions, built by {@link builderLeave}. */
+export interface BuilderLeave {
+  /** Apply: hands the commit to `onExit`. Absent without `onExit` (no view to apply to). */
+  apply?: () => void
+  /** Discard: asks first when the view would lose changes, else leaves at once. */
+  discard: () => void
+  /** Discard without asking (the confirmation's own action). */
+  discardNow: () => void
+}
+
+/**
+ * The builder's leave actions. Apply hands `commit()` to `onExit`. Discard
+ * calls `onExit()` WITHOUT a commit, so the view stays as it was before
+ * editing; without `onExit` it calls `onReset()`, which restores the draft in
+ * place. Discard asks first (`confirm`) only when the draft `changed` the
+ * view: a draft that matches the view before editing loses nothing, even when
+ * it differs from a saved dashboard.
+ */
+export function builderLeave({
+  changed,
+  onExit,
+  onReset,
+  commit,
+  confirm,
+}: {
+  changed: boolean
+  onExit?: (commit?: BuilderExitCommit) => void
+  onReset: () => void
+  commit: () => BuilderExitCommit
+  confirm: () => void
+}): BuilderLeave {
+  // Never hands its own arguments on: a click event must not reach `onExit` as a commit.
+  const discardNow = () => {
+    if (onExit) onExit()
+    else onReset()
+  }
+  return {
+    ...(onExit ? { apply: () => onExit(commit()) } : {}),
+    discard: () => {
+      if (changed) confirm()
+      else discardNow()
+    },
+    discardNow,
+  }
 }
 
 // -------------------------------------------------------------------------- //
@@ -437,6 +492,48 @@ export function renameFieldKeyAction(key: string): "commit" | "cancel" | null {
   if (key === "Enter") return "commit"
   if (key === "Escape") return "cancel"
   return null
+}
+
+/**
+ * Hands the focus back to a tab once its rename field closes by keyboard.
+ * The tab strip holds it, by the tab's INDEX: a rename that changes the label
+ * mounts a new tab, so a request held by the tab itself would go with the old
+ * one and leave the focus on the document body.
+ */
+export interface TabRefocus {
+  /** The trigger of tab `tabIdx` takes the focus the next time it attaches. */
+  request: (tabIdx: number) => void
+  /** The ref callback of tab `tabIdx`'s trigger: focuses it once while a request for it is open. */
+  attach: (tabIdx: number, el: { focus: () => void } | null) => void
+  /** The two props that wire tab `tabIdx` to this hand-back: its trigger's ref and its request. */
+  forTab: (tabIdx: number) => TabRefocusProps
+}
+
+/** What one tab gets from {@link TabRefocus.forTab}. */
+export interface TabRefocusProps {
+  triggerRef: (el: { focus: () => void } | null) => void
+  onRefocus: () => void
+}
+
+/** A {@link TabRefocus} with no open request. */
+export function createTabRefocus(): TabRefocus {
+  let pending: number | null = null
+  const request = (tabIdx: number) => {
+    pending = tabIdx
+  }
+  const attach = (tabIdx: number, el: { focus: () => void } | null) => {
+    if (el === null || pending !== tabIdx) return
+    pending = null
+    el.focus()
+  }
+  return {
+    request,
+    attach,
+    forTab: (tabIdx) => ({
+      triggerRef: (el) => attach(tabIdx, el),
+      onRefocus: () => request(tabIdx),
+    }),
+  }
 }
 
 // -------------------------------------------------------------------------- //

@@ -279,7 +279,10 @@ const CHROME_CASES: { name: string; render: () => ReactElement }[] = [
             ],
           ],
         ]}
+        appDisplayByName={new Map()}
         paletteCount={2}
+        paletteLoading={false}
+        onOpenDataSources={noop}
         activeRows={[{ row: [{ widget: "demo:orders" }] }, { row: [] }]}
         focusedRowIndex={0}
         setFocusedRowIndex={noop}
@@ -301,6 +304,36 @@ const CHROME_CASES: { name: string; render: () => ReactElement }[] = [
       />
     ),
   },
+  ...[true, false].map((paletteLoading) => ({
+    name: `Builder workspace (palette ${paletteLoading ? "loading" : "empty"})`,
+    render: () => (
+      <Workspace
+        L={PSEUDO.builder}
+        paletteByApp={[]}
+        appDisplayByName={new Map()}
+        paletteCount={0}
+        paletteLoading={paletteLoading}
+        onOpenDataSources={noop}
+        activeRows={[{ row: [] }]}
+        focusedRowIndex={0}
+        setFocusedRowIndex={noop}
+        dragOverRow={null}
+        setDragOverRow={noop}
+        onAddRow={noop}
+        onRemoveRow={noop}
+        onMoveRow={noop}
+        onSetCellSpan={noop}
+        onRemoveCell={noop}
+        onAddWidget={noop}
+        onConfigureCell={noop}
+        propsSchemaByWidgetId={new Map()}
+        displayByWidgetId={new Map()}
+        advanced={false}
+        widgets={{}}
+        widgetProps={{ keys: {}, context: { keys: {}, steps: {}, errors: [] } }}
+      />
+    ),
+  })),
   {
     name: "Builder data sources",
     render: () => (

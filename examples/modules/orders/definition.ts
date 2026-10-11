@@ -18,7 +18,8 @@ import { listCustomerOrdersStep } from "./steps/list-customer-orders.js"
  *
  * `title` and `summary` name each widget for the people using the view builder
  * (palette, canvas, props sheet), one text per locale; `description` stays the
- * LLM's text in `get-framework-manifest`.
+ * LLM's text in `get-framework-manifest`. The module's own `title` heads its
+ * group of widgets in the builder's palette.
  *
  * `steps` lists BOTH steps so the host registers them; `render-view` then drives
  * the A → B chain. The eager `show_orders_dashboard` tool (see `plugin.ts`) does
@@ -26,6 +27,7 @@ import { listCustomerOrdersStep } from "./steps/list-customer-orders.js"
  */
 export const definition: AppDefinition = {
   name: "orders",
+  title: { en: "Orders", de: "Bestellungen" },
   steps: [resolveCustomerStep, listCustomerOrdersStep],
   widgets: [
     {

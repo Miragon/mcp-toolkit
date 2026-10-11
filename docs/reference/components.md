@@ -143,7 +143,10 @@ key). `WidgetRenderer` also uses `Tabs` for tabbed layouts.
 
 Modal (`Dialog`) and slide-in panel (`Sheet`). Both: `open?` / `onOpenChange?`,
 and `*Trigger` / `*Content` / `*Header` / `*Title` / `*Description` / `*Footer`
-/ `*Close` parts.
+/ `*Close` parts. Opened from state without a `*Trigger`, both still hand the
+focus back to the element that had it when they opened; let them focus their
+first field themselves (no `autoFocus` inside), and pass `onCloseAutoFocus`
+with `preventDefault()` to take the focus elsewhere.
 
 **When to use:** `Dialog` to confirm a destructive action or show detail in a
 modal; `Sheet` for a side panel to view/edit without leaving the widget.

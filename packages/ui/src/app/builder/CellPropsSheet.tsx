@@ -14,7 +14,8 @@ import { useDisplayResolver } from "./use-display-resolver.js"
  * active draft surface (rows or active tab's rows); renders nothing when no
  * cell is being configured or the address no longer resolves. The sheet is
  * titled with the widget's name; closing it returns focus to the cell's
- * configure button (the sheet's focus scope restores it).
+ * configure button (the kit's `SheetContent` hands it back to the element
+ * that opened it, see `lib/focus-return.ts`).
  */
 export function CellPropsSheet({
   configuringCell,

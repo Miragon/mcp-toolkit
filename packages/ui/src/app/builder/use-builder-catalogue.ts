@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type {
   AvailableStep,
+  CatalogueApp,
   DisplayText,
   KeyCatalogEntry,
   PipelineContext,
@@ -22,6 +23,17 @@ import type { RefreshStatus } from "./labels.js"
 // -------------------------------------------------------------------------- //
 
 const EMPTY_CONTEXT: PipelineContext = { steps: {}, keys: {}, errors: [] }
+
+/** What the builder reads from a `get-builder-catalogue` response (every field optional). */
+interface CatalogueSnapshot {
+  reachableWidgets?: ReachableWidget[]
+  unreachableWidgets?: UnreachableWidget[]
+  availableSteps?: AvailableStep[]
+  keyCatalog?: KeyCatalogEntry[]
+  validationIssues?: string[]
+  context?: WireContext
+  apps?: CatalogueApp[]
+}
 
 /**
  * Owns the builder's live catalogue: the snapshots fetched from the app-only
@@ -50,6 +62,9 @@ export function useBuilderCatalogue({
   const [liveCatalog, setLiveCatalog] = useState<KeyCatalogEntry[]>([])
   const [liveSteps, setLiveSteps] = useState<AvailableStep[]>([])
   const [liveContext, setLiveContext] = useState<PipelineContext>(EMPTY_CONTEXT)
+  // The titled apps (the palette's group headings); the catalogue leaves the
+  // field out when no app has a title.
+  const [liveApps, setLiveApps] = useState<CatalogueApp[]>([])
   // Pipeline validation issues from the catalogue (Finding [10]/[6]). The
   // catalogue is fail-soft, but `render-view` is fail-hard, so we surface
   // these so the user sees — before committing — that the pipeline as
@@ -62,6 +77,26 @@ export function useBuilderCatalogue({
   // instead of only `console.warn`-ing, so the user knows the palette/context
   // may be stale. Cleared on the next successful refresh.
   const [refreshError, setRefreshError] = useState<string | null>(null)
+  // The first fetch has settled (answer or failure). Until then the palette
+  // shows a loading state, not "no elements" (CI §9: a skeleton while loading).
+  const [loaded, setLoaded] = useState(false)
+
+  // Takes over what one catalogue response carries; a field it lacks keeps
+  // the last snapshot.
+  const applySnapshot = useCallback((sc: CatalogueSnapshot | null) => {
+    if (sc?.reachableWidgets) setLiveReachable(sc.reachableWidgets)
+    if (sc?.unreachableWidgets) setLiveUnreachable(sc.unreachableWidgets)
+    if (sc?.availableSteps) setLiveSteps(sc.availableSteps)
+    if (sc?.keyCatalog) setLiveCatalog(sc.keyCatalog)
+    if (sc?.context) setLiveContext(toPipelineContext(sc.context))
+    // Absent `apps` means no app has a title (not "unchanged").
+    if (sc) setLiveApps(sc.apps ?? [])
+    // Pipeline issues are fail-soft in the catalogue but fail-hard in
+    // render-view; surface them so the user sees the render path wouldn't
+    // run as configured (Finding [10]/[6]). Coerce undefined → [] so a
+    // fixed pipeline clears a previously-shown warning.
+    setValidationIssues(sc?.validationIssues ?? [])
+  }, [])
 
   const refreshBuilder = useCallback(async () => {
     setStatus("refreshing")
@@ -70,24 +105,7 @@ export function useBuilderCatalogue({
         keys: entriesToKeys(keyEntries),
         steps: stepEntries.filter((s) => s.step.trim().length > 0),
       })
-      const sc = parseToolResult<{
-        reachableWidgets?: ReachableWidget[]
-        unreachableWidgets?: UnreachableWidget[]
-        availableSteps?: AvailableStep[]
-        keyCatalog?: KeyCatalogEntry[]
-        validationIssues?: string[]
-        context?: WireContext
-      } | null>(result)
-      if (sc?.reachableWidgets) setLiveReachable(sc.reachableWidgets)
-      if (sc?.unreachableWidgets) setLiveUnreachable(sc.unreachableWidgets)
-      if (sc?.availableSteps) setLiveSteps(sc.availableSteps)
-      if (sc?.keyCatalog) setLiveCatalog(sc.keyCatalog)
-      if (sc?.context) setLiveContext(toPipelineContext(sc.context))
-      // Pipeline issues are fail-soft in the catalogue but fail-hard in
-      // render-view; surface them so the user sees the render path wouldn't
-      // run as configured (Finding [10]/[6]). Coerce undefined → [] so a
-      // fixed pipeline clears a previously-shown warning.
-      setValidationIssues(sc?.validationIssues ?? [])
+      applySnapshot(parseToolResult<CatalogueSnapshot | null>(result))
       // A successful fetch clears any stale failure banner.
       setRefreshError(null)
     } catch (err) {
@@ -105,8 +123,9 @@ export function useBuilderCatalogue({
       setRefreshError(reason)
     } finally {
       setStatus("idle")
+      setLoaded(true)
     }
-  }, [catalogueToolName, callTool, keyEntries, stepEntries])
+  }, [applySnapshot, catalogueToolName, callTool, keyEntries, stepEntries])
 
   const refreshRef = useRef(refreshBuilder)
   useEffect(() => {
@@ -164,6 +183,11 @@ export function useBuilderCatalogue({
     return map
   }, [liveReachable, liveUnreachable])
 
+  const appDisplayByName = useMemo(
+    () => new Map<string, DisplayText>(liveApps.map((app) => [app.name, app])),
+    [liveApps],
+  )
+
   const paletteByApp = useMemo(() => {
     const groups = new Map<string, ReachableWidget[]>()
     for (const w of liveReachable) {
@@ -192,11 +216,13 @@ export function useBuilderCatalogue({
     liveContext,
     validationIssues,
     status,
+    loaded,
     refreshError,
     retryCatalogue,
     widgetById,
     propsSchemaByWidgetId,
     displayByWidgetId,
+    appDisplayByName,
     paletteByApp,
     liveKeyCount,
     stepsByApp,

@@ -5,6 +5,7 @@ import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { FOCUS_RING } from "../lib/focus-ring.js"
+import { useFocusReturn } from "../lib/focus-return.js"
 import { useToolkitMessages } from "../locale/locale-provider.js"
 import { cn } from "../lib/utils.js"
 import { usePortalContainer } from "../theme/portal-container.js"
@@ -55,6 +56,8 @@ function SheetContent({
   side = "right",
   showCloseButton = true,
   closeLabel,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -63,6 +66,9 @@ function SheetContent({
   closeLabel?: string
 }) {
   const messages = useToolkitMessages()
+  // Without a SheetTrigger, Radix returns the focus nowhere: hand it back to
+  // the element that opened it (lib/focus-return.ts).
+  const focusReturn = useFocusReturn({ onOpenAutoFocus, onCloseAutoFocus })
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -81,6 +87,7 @@ function SheetContent({
           className,
         )}
         {...props}
+        {...focusReturn}
       >
         {children}
         {showCloseButton && (

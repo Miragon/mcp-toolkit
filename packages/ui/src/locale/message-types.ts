@@ -126,7 +126,9 @@ export interface BuilderMessages {
   save: string
   /**
    * @deprecated Since 2.8 the builder's commit button is Apply
-   * ({@link BuilderMessages.apply}). An override of `done` still labels it.
+   * ({@link BuilderMessages.apply}). An override of `done`, in the builder's
+   * `labels` or a `LocaleProvider`'s `toolkitMessages`, still labels it unless
+   * the same override sets `apply`.
    */
   done: string
   /** Primary action: show the edited view in place and leave the builder (saves nothing). */
@@ -137,14 +139,24 @@ export interface BuilderMessages {
   discard: string
   /** Tooltip of {@link BuilderMessages.discard}. */
   discardHint: string
+  /**
+   * Tooltip of {@link BuilderMessages.discard} in a builder without a view to
+   * apply to (no `onExit`): Discard resets the draft in place.
+   */
+  discardHintStandalone: string
   /** Tooltip of {@link BuilderMessages.save}: what a dashboard is for. */
   saveHint: string
-  /** Marker next to the title while the draft has changes that are neither applied nor saved. */
+  /**
+   * Marker next to the title while the draft has changes that would be lost:
+   * neither the view before editing nor a saved dashboard holds them.
+   */
   unsavedChanges: string
   /** Title of the confirmation before unsaved changes are discarded. */
   discardDialogTitle: string
-  /** What discarding does to the view. */
+  /** What discarding does to the view, when no saved dashboard holds the changes. */
   discardDialogDescription: string
+  /** What discarding does to the view, when a saved dashboard holds the changes. */
+  discardDialogDescriptionSaved: string
   /** Safe choice of the discard confirmation (it keeps the draft). */
   keepEditing: string
   /** Destructive choice of the discard confirmation. */
@@ -167,7 +179,13 @@ export interface BuilderMessages {
   viewPipelineTab: string
   viewPreviewTab: string
   saveDialogTitle: string
+  /** What the save dialog does, and that Apply (not Save) changes the view. */
   saveDialogDescription: string
+  /**
+   * {@link BuilderMessages.saveDialogDescription} in a builder without a view
+   * to apply to (no `onExit`): no Apply to point to.
+   */
+  saveDialogDescriptionStandalone: string
   saveNameLabel: string
   saveDescriptionLabel: string
   saveConfirm: string
@@ -187,6 +205,9 @@ export interface BuilderMessages {
   statusPending: string
   statusRefreshing: string
   paletteHeader: string
+  /** Status line of the palette while the first catalogue answer is on its way. */
+  paletteLoading: string
+  /** The palette has no element (the catalogue answered with none). */
   paletteEmpty: string
   canvasEmpty: string
   canvasDropHint: string

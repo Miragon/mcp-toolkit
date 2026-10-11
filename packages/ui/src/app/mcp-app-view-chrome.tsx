@@ -79,7 +79,7 @@ export function isCompleteViewData(value: unknown): value is ViewData {
   return Boolean(v?.context && v?.layout)
 }
 
-/** What the LayoutBuilder hands back on Done. */
+/** What the LayoutBuilder hands back on Apply. */
 export interface BuilderCommit {
   layout: LayoutConfig
   keys?: Record<string, unknown>

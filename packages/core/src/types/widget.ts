@@ -53,10 +53,11 @@ export interface WidgetDefinition extends DisplayText {
   size: WidgetSize
   /**
    * Optional JSON Schema describing the per-instance props the widget accepts
-   * via the layout cell's `props` field. Surfaced verbatim in
-   * `getFrameworkManifest` so an LLM constructing a `render-view` call can
-   * discover valid props per widget without guessing — same JSON-Schema
-   * contract the LLM already understands from MCP tool input schemas.
+   * via the layout cell's `props` field. Surfaced in `getFrameworkManifest`
+   * (without the properties' `x-display` texts, which are for people) so an
+   * LLM constructing a `render-view` call can discover valid props per widget
+   * without guessing — same JSON-Schema contract the LLM already understands
+   * from MCP tool input schemas.
    *
    * Generate it from a Zod object with `z.toJSONSchema(schema)` so the
    * documentation lives next to the widget code.

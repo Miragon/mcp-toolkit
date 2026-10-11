@@ -70,6 +70,7 @@ export type {
 } from "./framework/view-builders.js"
 export { getBuilderCatalogue } from "./framework/catalogue.js"
 export type {
+  CatalogueApp,
   CatalogueInput,
   CatalogueOptions,
   CataloguePayload,

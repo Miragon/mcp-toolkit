@@ -63,14 +63,17 @@ export const en: ToolkitMessages = {
     save: "Save as dashboard",
     done: "Done",
     apply: "Apply",
-    applyHint: "Shows your changes in this view. Nothing is saved.",
+    applyHint: "Shows your changes in this view and saves nothing.",
     discard: "Discard",
     discardHint: "Leaves the editor. The view stays as it was.",
+    discardHintStandalone: "Resets your changes.",
     saveHint: "Saves the layout as a dashboard you can open again later.",
     unsavedChanges: "Unsaved changes",
     discardDialogTitle: "Discard your changes?",
     discardDialogDescription:
-      "Your changes to this view will be lost. The view stays as it was before you edited it.",
+      "You lose your changes to this view. The view stays as it was before you edited it.",
+    discardDialogDescriptionSaved:
+      "The view goes back to how it was before you edited it. Your saved dashboard keeps your changes.",
     keepEditing: "Keep editing",
     discardConfirm: "Discard changes",
     advanced: "Advanced",
@@ -86,6 +89,8 @@ export const en: ToolkitMessages = {
     saveDialogTitle: "Save as dashboard",
     saveDialogDescription:
       "Saves the layout and its data sources as a dashboard you can open again later. To change this view, use Apply.",
+    saveDialogDescriptionStandalone:
+      "Saves the layout and its data sources as a dashboard you can open again later.",
     saveNameLabel: "Name",
     saveDescriptionLabel: "Description",
     saveConfirm: "Save dashboard",
@@ -105,7 +110,8 @@ export const en: ToolkitMessages = {
     statusPending: "Updating soon…",
     statusRefreshing: "Updating…",
     paletteHeader: "Elements",
-    paletteEmpty: "No elements available yet. Add a key or a step.",
+    paletteLoading: "Loading elements…",
+    paletteEmpty: "No elements available yet. Elements appear as soon as their data is there.",
     canvasEmpty: "Drag an element here or click one in the list.",
     canvasDropHint: "Drop to add",
     addRow: "Add row",

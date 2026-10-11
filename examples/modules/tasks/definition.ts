@@ -12,6 +12,7 @@ import type { AppDefinition } from "@miragon/mcp-toolkit-core"
  */
 export const definition: AppDefinition = {
   name: "tasks",
+  title: { en: "Tasks", de: "Aufgaben" },
   steps: [],
   widgets: [
     {

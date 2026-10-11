@@ -15,19 +15,25 @@ import type { LayoutBuilderLabels } from "./labels.js"
 // -------------------------------------------------------------------------- //
 
 /**
- * Asks before unsaved changes are thrown away (CI §9: confirm before an
- * irreversible action). The safe choice comes first in the DOM, so the dialog
- * opens with focus on "Keep editing"; closing it returns focus to Discard.
+ * Asks before Discard takes the changes out of the view (CI §9: confirm
+ * before an irreversible action). When a saved dashboard holds them
+ * (`changesSaved`), it says so instead of calling them lost. The safe choice
+ * comes first in the DOM, so the dialog opens with focus on "Keep editing";
+ * closing it returns focus to Discard (the kit's `DialogContent` hands it
+ * back to the element that opened it, see `lib/focus-return.ts`).
  */
 export function DiscardDialog({
   L,
   open,
   onOpenChange,
+  changesSaved,
   onConfirm,
 }: {
   L: Required<LayoutBuilderLabels>
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** A saved dashboard holds the changes: only the view goes back. */
+  changesSaved: boolean
   onConfirm: () => void
 }) {
   return (
@@ -35,7 +41,9 @@ export function DiscardDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{L.discardDialogTitle}</DialogTitle>
-          <DialogDescription>{L.discardDialogDescription}</DialogDescription>
+          <DialogDescription>
+            {changesSaved ? L.discardDialogDescriptionSaved : L.discardDialogDescription}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
