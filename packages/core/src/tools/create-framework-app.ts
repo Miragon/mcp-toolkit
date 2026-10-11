@@ -17,6 +17,11 @@ import type { DuplicateToolNamePolicy } from "./tool-name-guard.js"
 
 export interface CreateFrameworkAppOptionsBase {
   name: string
+  /**
+   * The server's version, reported as `serverInfo.version` and printed on
+   * mcp-use's landing page. Pass your own (e.g. from `package.json`); the
+   * default `"0.1.0"` only stays for compatibility.
+   */
   version?: string
   /**
    * Human-readable description of what the server does. Shown on mcp-use's

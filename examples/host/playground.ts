@@ -1,3 +1,4 @@
+import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { createFrameworkApp } from "@miragon/mcp-toolkit-core/tools"
@@ -16,12 +17,25 @@ import { createPlugin as createOrdersPlugin } from "../modules/orders/plugin.js"
  * use the default in-memory store on purpose: the playground is a shared,
  * ephemeral surface — every restart resets what visitors saved.
  *
- * The guided tour through this server lives in `docs/playground.md`.
+ * The guided tour through this server lives in `docs/playground/tour.md`.
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+
+// The landing page prints the server version: report the toolkit release the
+// playground runs, not createFrameworkApp's "0.1.0" default.
+const corePackage = path.join(here, "..", "..", "packages", "core", "package.json")
+const { version } = JSON.parse(fs.readFileSync(corePackage, "utf8")) as { version: string }
+
+// The Komet on blue is the app icon of Miragon software (corporate design):
+// the browser tab, the landing page and the MCP implementation metadata show
+// it. The file is the brand asset, unchanged; a data URL needs no public dir.
+const komet = fs.readFileSync(path.join(here, "assets", "miragon-komet-blau.svg"))
+const kometUrl = `data:image/svg+xml;base64,${komet.toString("base64")}`
+
 const app = await createFrameworkApp({
   name: "mcp-toolkit-playground",
+  version,
   description:
     "Live playground for @miragon/mcp-toolkit: call a tool, get a rendered widget, " +
     "compose a multi-widget dashboard, chain a render-view pipeline, and save a " +
@@ -34,7 +48,12 @@ const app = await createFrameworkApp({
   // inspector, whose cross-origin fetches need the preflight answered — 2.x
   // ships with CORS off unless opted in. A public demo surface accepts any
   // origin on purpose.
-  serverOptions: { cors: {} },
+  serverOptions: {
+    cors: {},
+    favicon: kometUrl,
+    icons: [{ src: kometUrl, mimeType: "image/svg+xml", sizes: ["any"] }],
+    websiteUrl: "https://miragon.github.io/mcp-toolkit/",
+  },
   // Note: `dev:playground` deliberately does NOT load examples/.env (unlike
   // `dev:host`) — the full host's .env sets PORT 3010, which would collide
   // with a locally running dev:host.
