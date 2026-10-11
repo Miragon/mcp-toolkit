@@ -2,7 +2,13 @@ import { QueryClient, useQueryClient } from "@tanstack/react-query"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 import { createStandaloneHostBridge, HostBridgeProvider } from "../app/host-bridge.js"
-import { AppQueryProvider, queryClient, useCallTool } from "./query-provider.js"
+import { useToolQueryKey } from "../hooks/use-tool-query.js"
+import {
+  AppQueryProvider,
+  queryClient,
+  useCallTool,
+  useToolNameInQueryKey,
+} from "./query-provider.js"
 
 /**
  * The tool transport and client of the data hooks (toolkit#176 N25, K18):
@@ -71,5 +77,51 @@ describe("AppQueryProvider", () => {
     expect(probe((node) => <AppQueryProvider client={own}>{node}</AppQueryProvider>).client).toBe(
       own,
     )
+  })
+})
+
+describe("AppQueryProvider toolNameInQueryKey (K18)", () => {
+  /** The setting and the key `useToolQueryKey` builds under `tree`. */
+  function keyUnder(tree: (node: React.ReactNode) => React.ReactNode) {
+    let setting: boolean | undefined
+    let key: unknown[] | undefined
+    function Probe() {
+      setting = useToolNameInQueryKey()
+      key = useToolQueryKey(["feed"], "feed_data", { id: 1 })
+      return null
+    }
+    renderToStaticMarkup(tree(<Probe />))
+    return { setting, key }
+  }
+
+  it("is off by default: the 2.x key, outside a provider too", () => {
+    expect(keyUnder((node) => node)).toEqual({ setting: false, key: ["feed", { id: 1 }] })
+    expect(keyUnder((node) => <AppQueryProvider>{node}</AppQueryProvider>)).toEqual({
+      setting: false,
+      key: ["feed", { id: 1 }],
+    })
+  })
+
+  it("on, the hooks' key carries the tool name", () => {
+    expect(
+      keyUnder((node) => <AppQueryProvider toolNameInQueryKey>{node}</AppQueryProvider>),
+    ).toEqual({ setting: true, key: ["feed", "feed_data", { id: 1 }] })
+  })
+
+  it("a nested provider keeps its parent's setting unless it sets its own", () => {
+    expect(
+      keyUnder((node) => (
+        <AppQueryProvider toolNameInQueryKey>
+          <AppQueryProvider callTool={vi.fn()}>{node}</AppQueryProvider>
+        </AppQueryProvider>
+      )).setting,
+    ).toBe(true)
+    expect(
+      keyUnder((node) => (
+        <AppQueryProvider toolNameInQueryKey>
+          <AppQueryProvider toolNameInQueryKey={false}>{node}</AppQueryProvider>
+        </AppQueryProvider>
+      )).setting,
+    ).toBe(false)
   })
 })

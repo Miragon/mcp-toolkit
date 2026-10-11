@@ -1,6 +1,6 @@
 export { useIsMobile } from "./use-mobile.js"
 export { useDebouncedValue } from "./use-debounced-value.js"
-export { useToolQuery, useToolMutation } from "./use-tool-query.js"
+export { useToolQuery, useToolQueryKey, useToolMutation } from "./use-tool-query.js"
 export type { UseToolQueryOptions, UseToolMutationOptions } from "./use-tool-query.js"
 export { useViewToolQuery } from "./use-view-tool-query.js"
 export type { UseViewToolQueryOptions } from "./use-view-tool-query.js"

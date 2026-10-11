@@ -66,7 +66,7 @@ export {
 // NOTE: the view-tool hooks (`useViewToolQuery`, `useViewData`) are exported
 // from the `./hooks` subpath only — see `packages/ui/src/hooks/index.ts`.
 export { useIsMobile } from "./hooks/use-mobile.js"
-export { useToolQuery, useToolMutation } from "./hooks/use-tool-query.js"
+export { useToolQuery, useToolQueryKey, useToolMutation } from "./hooks/use-tool-query.js"
 export type { UseToolQueryOptions, UseToolMutationOptions } from "./hooks/use-tool-query.js"
 // The query layer's contract: the effective cache key, the opt-in retry
 // policy (no retry of a tool's own isError answer), and TanStack's

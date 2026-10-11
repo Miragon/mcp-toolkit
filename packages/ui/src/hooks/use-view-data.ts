@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react"
 import { hashKey, useQueryClient } from "@tanstack/react-query"
-import { seedToolQuery, toolQueryKey, type UseToolQueryOptions } from "../lib/tool-query.js"
-import { useToolQuery } from "./use-tool-query.js"
+import { seedToolQuery, type UseToolQueryOptions } from "../lib/tool-query.js"
+import { useToolQuery, useToolQueryKey } from "./use-tool-query.js"
 
 export interface ViewDataResult<T> {
   data: T | null
@@ -80,7 +80,7 @@ export function useViewData<T>(
 ): ViewDataResult<T> {
   const { initialDataMode = "static", enabled, ...queryOptions } = options ?? {}
   const seeding = initialDataMode === "seed"
-  const cacheKey = useStableKey(toolQueryKey(key, tool, args))
+  const cacheKey = useStableKey(useToolQueryKey(key, tool, args))
   useSeed(seeding ? initialData : null, cacheKey, queryOptions.initialDataUpdatedAt)
 
   const active = ready && enabled !== false

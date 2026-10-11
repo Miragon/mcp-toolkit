@@ -9,7 +9,7 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from "@tanstack/react-query"
-import { useCallTool } from "../providers/query-provider.js"
+import { useCallTool, useToolNameInQueryKey } from "../providers/query-provider.js"
 import { parseToolResult } from "../lib/parse-tool-result.js"
 import {
   claimToolQueryKey,
@@ -26,9 +26,24 @@ import {
 export type { UseToolQueryOptions } from "../lib/tool-query.js"
 
 /**
+ * The exact cache key `useToolQuery`, `useViewToolQuery` and `useViewData`
+ * use for this tool and args under the nearest `AppQueryProvider`:
+ * `toolQueryKey` with the provider's `toolNameInQueryKey` setting. For
+ * `getQueryData`, `setQueryData` or `cancelQueries({ exact: true })`; prefix
+ * invalidation needs only the caller's `queryKey`. A new array per render.
+ */
+export function useToolQueryKey(
+  queryKey: readonly unknown[],
+  toolName: string,
+  args: object,
+): unknown[] {
+  return toolQueryKey(queryKey, toolName, args, useToolNameInQueryKey())
+}
+
+/**
  * Warns when two tools use one cache key (toolkit#176 K18): their answers
- * would overwrite each other. The guard of the 2.x key, which does not carry
- * the tool name yet (see `toolQueryKey`).
+ * would overwrite each other. Only the 2.x key can collide: with the tool
+ * name in the key (`toolNameInQueryKey`), two tools never share one.
  */
 export function useToolKeyGuard(
   queryKey: readonly unknown[],
@@ -36,7 +51,7 @@ export function useToolKeyGuard(
   args: object,
 ): void {
   const client = useQueryClient()
-  const keyId = hashKey(toolQueryKey(queryKey, toolName, args))
+  const keyId = hashKey(useToolQueryKey(queryKey, toolName, args))
   useEffect(() => {
     const previous = claimToolQueryKey(client, keyId, toolName)
     if (previous !== null) console.warn(toolKeyCollisionMessage(keyId, toolName, previous))
@@ -49,12 +64,15 @@ export function useToolKeyGuard(
  * The effective cache key is `[...queryKey, args]` (`toolQueryKey`): two
  * callers that share `queryKey` but pass different `args` get separate
  * entries. Two tools must not share a key and args; the hook warns when they
- * do. `opts` passes TanStack's query options through (`retry`, `retryDelay`,
- * `staleTime`, `placeholderData` / `keepPreviousData`, `initialData` +
- * `initialDataUpdatedAt`, `enabled`, `select`, …), and the result exposes
- * `refetch`, `failureCount` and `failureReason`. `retry` defaults to the
- * client's; `retry: shouldRetryToolCall` stops retrying a tool's own
- * `isError` answer.
+ * do. Under an `AppQueryProvider` with `toolNameInQueryKey` (opt-in in 2.x,
+ * the default from the next major) the key is `[...queryKey, toolName,
+ * args]` and two tools never collide; `useToolQueryKey` returns the key in
+ * force. `opts` passes TanStack's query options through (`retry`,
+ * `retryDelay`, `staleTime`, `placeholderData` / `keepPreviousData`,
+ * `initialData` + `initialDataUpdatedAt`, `enabled`, `select`, …), and the
+ * result exposes `refetch`, `failureCount` and `failureReason`. `retry`
+ * defaults to the client's; `retry: shouldRetryToolCall` stops retrying a
+ * tool's own `isError` answer.
  *
  * The tool goes through `AppQueryProvider`'s `callTool`, else the nearest
  * `HostBridgeProvider`'s bridge; with neither, the query fails with a
@@ -67,9 +85,12 @@ export function useToolQuery<TData = unknown, TSelected = TData>(
   opts?: UseToolQueryOptions<TData, TSelected>,
 ): UseQueryResult<TSelected, Error> {
   const callTool = useCallTool()
+  const toolNameInKey = useToolNameInQueryKey()
   useToolKeyGuard(queryKey, toolName, args)
   return useQuery<TData, Error, TSelected>(
-    toolQueryOptions<TData, TSelected>(queryKey, toolName, args, callTool, opts),
+    toolQueryOptions<TData, TSelected>(queryKey, toolName, args, callTool, opts, {
+      toolNameInKey,
+    }),
   )
 }
 

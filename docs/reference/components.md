@@ -624,8 +624,11 @@ How a widget gets its data. All return TanStack Query results unless noted.
   `[...queryKey, args]` (`toolQueryKey`): callers with different `args` get
   separate entries. Two tools must not share a key and args (their answers
   would overwrite each other); the hook warns in the console when they do.
-  Build an exact key with `toolQueryKey(queryKey, toolName, args)`, not by
-  hand: the next major appends the tool name, and the helper follows.
+  With `toolNameInQueryKey` on the `AppQueryProvider` (or `McpAppView`) the
+  key is `[...queryKey, toolName, args]`, so two tools never share an entry
+  whatever key their callers pass; the next major makes that the default.
+  Build an exact key with `useToolQueryKey(queryKey, toolName, args)` (or
+  the pure `toolQueryKey`), not by hand: it follows the setting in force.
 - `opts?: UseToolQueryOptions` — TanStack's query options, passed through:
   `retry`, `retryDelay`, `staleTime`, `placeholderData` / `keepPreviousData`,
   `initialData` + `initialDataUpdatedAt`, `enabled`, `select`, `gcTime`, …
@@ -758,15 +761,16 @@ self-fetches when embedded in a cockpit. Sibling widgets sharing `key` and
 The options above replace the workarounds consumers built around the 2.7
 hooks (miragon-ai's widget-shell is the reference). Mapping:
 
-| Workaround                                                                 | With the options                                                                                                                                                                                                                                  |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useSeededToolQuery(key, tool, args, { seed, enabled })`                   | `useViewData(seed, key, tool, args, enabled, { initialDataMode: "seed" })`. `data`, `error`, `failureReason`, `isFetching` and the cancel-then-refetch `refetch` are on the result; no direct `queryClient` write.                                |
-| its `[...key, args]` cache key (`setQueryData`, exact `cancelQueries`)     | `toolQueryKey(key, tool, args)`: the same key today; through the helper it stays right when the next major appends the tool name. Prefix invalidation by `key` is unchanged.                                                                      |
-| `refreshError` / `refreshing` of a seeded view                             | `data ? (error ?? failureReason) : null` / `Boolean(data) && isFetching` from the result.                                                                                                                                                         |
-| `useKeptPage(fetched, scope)` (keep the last page 0 per list)              | `placeholderData: keepPreviousData` on the page-0 query (`isPlaceholderData` is the old `stale`). To keep rows only within one list, pass a function: `placeholderData: (prev, prevQuery) => (sameList(prevQuery?.queryKey) ? prev : undefined)`. |
-| `retry: false` on the client's defaults so a tool error shows at once      | `retry: shouldRetryToolCall` (per query or as the client's default): no retry for an `isError` answer, still three for a lost transport. Tune further with `retry` / `retryDelay`, or give `AppQueryProvider` a `client` of its own.              |
-| `mutation.mutateAsync(args).then(…)` per call, to keep each call's outcome | `mutation.mutate(args, { onSuccess, onError })`: the per-call callbacks fire for every call.                                                                                                                                                      |
-| an `AppQueryProvider callTool` that only forwards the bridge               | Nothing: the hooks fall back to the nearest `HostBridgeProvider`.                                                                                                                                                                                 |
+| Workaround                                                                 | With the options                                                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useSeededToolQuery(key, tool, args, { seed, enabled })`                   | `useViewData(seed, key, tool, args, enabled, { initialDataMode: "seed" })`. `data`, `error`, `failureReason`, `isFetching` and the cancel-then-refetch `refetch` are on the result; no direct `queryClient` write.                                  |
+| its `[...key, args]` cache key (`setQueryData`, exact `cancelQueries`)     | `useToolQueryKey(key, tool, args)` (or `toolQueryKey`): the same key by default; with `toolNameInQueryKey` (opt-in now, the default in the next major) it carries the tool name, and the helper follows. Prefix invalidation by `key` is unchanged. |
+| a key root unique to each tool, so two tools never share an entry          | `toolNameInQueryKey` on `McpAppView` / `AppQueryProvider`: the tool name is in every key. Without it, the hooks warn when two tools share a key and args.                                                                                           |
+| `refreshError` / `refreshing` of a seeded view                             | `data ? (error ?? failureReason) : null` / `Boolean(data) && isFetching` from the result.                                                                                                                                                           |
+| `useKeptPage(fetched, scope)` (keep the last page 0 per list)              | `placeholderData: keepPreviousData` on the page-0 query (`isPlaceholderData` is the old `stale`). To keep rows only within one list, pass a function: `placeholderData: (prev, prevQuery) => (sameList(prevQuery?.queryKey) ? prev : undefined)`.   |
+| `retry: false` on the client's defaults so a tool error shows at once      | `retry: shouldRetryToolCall` (per query or as the client's default): no retry for an `isError` answer, still three for a lost transport. Tune further with `retry` / `retryDelay`, or give `AppQueryProvider` a `client` of its own.                |
+| `mutation.mutateAsync(args).then(…)` per call, to keep each call's outcome | `mutation.mutate(args, { onSuccess, onError })`: the per-call callbacks fire for every call.                                                                                                                                                        |
+| an `AppQueryProvider callTool` that only forwards the bridge               | Nothing: the hooks fall back to the nearest `HostBridgeProvider`.                                                                                                                                                                                   |
 
 ### useIsMobile
 

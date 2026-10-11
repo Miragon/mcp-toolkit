@@ -83,6 +83,52 @@ describe("toolQueryKey", () => {
   })
 })
 
+describe("toolQueryKey with the tool name (toolNameInQueryKey, K18)", () => {
+  it("is the caller's key, the tool name, then the args", () => {
+    expect(toolQueryKey(["orders", 7], "orders_list", { page: 1 }, true)).toEqual([
+      "orders",
+      7,
+      "orders_list",
+      { page: 1 },
+    ])
+    expect(toolQueryKey(["orders"], "orders_list", { page: 1 }, false)).toEqual([
+      "orders",
+      { page: 1 },
+    ])
+    expect(
+      toolQueryOptions(["orders"], "orders_list", { page: 1 }, undefined, undefined, {
+        toolNameInKey: true,
+      }).queryKey,
+    ).toEqual(["orders", "orders_list", { page: 1 }])
+  })
+
+  it("two tools behind one key and args get an entry each; the caller's key still invalidates both", async () => {
+    const callTool = vi.fn<ToolCaller>((name) => Promise.resolve(ok({ from: name })))
+    const build = { toolNameInKey: true }
+    const a = observe(toolQueryOptions(["feed"], "a_data", { id: 1 }, callTool, undefined, build))
+    const b = observe(toolQueryOptions(["feed"], "b_data", { id: 1 }, callTool, undefined, build))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(a.observer.getCurrentResult().data).toEqual({ from: "a_data" })
+    expect(b.observer.getCurrentResult().data).toEqual({ from: "b_data" })
+    expect(client.getQueryCache().findAll({ queryKey: ["feed"] })).toHaveLength(2)
+    expect(client.getQueryCache().findAll({ queryKey: ["feed", "a_data"] })).toHaveLength(1)
+    expect(hashKey(toolQueryKey(["feed"], "a_data", { id: 1 }, true))).not.toBe(
+      hashKey(toolQueryKey(["feed"], "b_data", { id: 1 }, true)),
+    )
+    callTool.mockClear()
+    await client.invalidateQueries({ queryKey: ["feed"] })
+    expect(callTool.mock.calls.map(([name]) => name).sort()).toEqual(["a_data", "b_data"])
+  })
+
+  it("with the 2.x key the same two tools share one entry: the collision the guard reports", async () => {
+    const callTool = vi.fn<ToolCaller>((name) => Promise.resolve(ok({ from: name })))
+    observe(toolQueryOptions(["feed"], "a_data", { id: 1 }, callTool))
+    observe(toolQueryOptions(["feed"], "b_data", { id: 1 }, callTool))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(client.getQueryCache().findAll({ queryKey: ["feed"] })).toHaveLength(1)
+  })
+})
+
 describe("claimToolQueryKey (the guard of a key two tools share)", () => {
   const keyId = hashKey(toolQueryKey(["feed"], "a_data", { id: 1 }))
 
@@ -156,7 +202,9 @@ describe("toolQueryOptions", () => {
     const { queryFn } = toolQueryOptions(["k"], "orders_list", { page: 2 }, callTool)
     await expect(Promise.resolve((queryFn as () => Promise<unknown>)())).resolves.toEqual({ n: 1 })
     expect(callTool).toHaveBeenCalledWith("orders_list", { page: 2 })
-    const custom = toolQueryOptions(["k"], "t", {}, callTool, undefined, () => "decoded")
+    const custom = toolQueryOptions(["k"], "t", {}, callTool, undefined, {
+      decode: () => "decoded",
+    })
     await expect(Promise.resolve((custom.queryFn as () => Promise<unknown>)())).resolves.toBe(
       "decoded",
     )

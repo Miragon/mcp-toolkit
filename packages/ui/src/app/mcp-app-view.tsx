@@ -121,6 +121,13 @@ export interface McpAppViewProps {
    * so a slow tool is never re-run. Default 2500 ms.
    */
   strippedResultGraceMs?: number
+  /**
+   * Put the tool name into the cache keys of the data hooks inside the view
+   * (`[...queryKey, toolName, args]`, see `toolQueryKey`), so two tools never
+   * share an entry. Omitted: an enclosing `AppQueryProvider`'s setting, else
+   * the 2.x key `[...queryKey, args]`. The next major makes it the default.
+   */
+  toolNameInQueryKey?: boolean
 }
 
 /**
@@ -409,6 +416,7 @@ function McpAppViewShell({
   describeStep,
   recoverStrippedResult,
   strippedResultGraceMs,
+  toolNameInQueryKey,
 }: McpAppViewProps) {
   const messages = useToolkitMessages()
   const L = useMemo(() => ({ ...messages.view, ...labels }), [messages.view, labels])
@@ -526,7 +534,7 @@ function McpAppViewShell({
           onRetry={viewData._refreshParams ? () => void refreshView() : undefined}
         />
 
-        <AppQueryProvider callTool={callToolFn}>
+        <AppQueryProvider callTool={callToolFn} toolNameInQueryKey={toolNameInQueryKey}>
           <ViewBody
             buildMode={buildMode}
             viewData={viewData}

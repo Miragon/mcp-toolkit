@@ -9,6 +9,9 @@ type CallToolFn = (name: string, args: object) => Promise<unknown>
 
 const CallToolContext = createContext<CallToolFn | undefined>(undefined)
 
+/** Whether the data hooks put the tool name into their cache keys (`toolQueryKey`). */
+const ToolNameInQueryKeyContext = createContext(false)
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -25,21 +28,41 @@ const queryClient = new QueryClient({
  * fall back to the nearest `HostBridgeProvider`'s bridge (toolkit#176 N25).
  * `client` replaces the shared module-level client, e.g. one per mount;
  * omitted, every provider shares the toolkit's client (`queryClient`).
+ * `toolNameInQueryKey` puts the tool name into the hooks' cache keys
+ * (`[...queryKey, toolName, args]`, see `toolQueryKey`), so two tools never
+ * share an entry; omitted, a nested provider keeps its parent's setting, and
+ * the outermost one uses the 2.x key `[...queryKey, args]`. The next major
+ * makes the tool name the default.
  */
 export function AppQueryProvider({
   children,
   callTool,
   client = queryClient,
+  toolNameInQueryKey,
 }: {
   children: ReactNode
   callTool?: CallToolFn
   client?: QueryClient
+  toolNameInQueryKey?: boolean
 }) {
+  const inherited = useContext(ToolNameInQueryKeyContext)
   return (
     <QueryClientProvider client={client}>
-      <CallToolContext.Provider value={callTool}>{children}</CallToolContext.Provider>
+      <CallToolContext.Provider value={callTool}>
+        <ToolNameInQueryKeyContext.Provider value={toolNameInQueryKey ?? inherited}>
+          {children}
+        </ToolNameInQueryKeyContext.Provider>
+      </CallToolContext.Provider>
     </QueryClientProvider>
   )
+}
+
+/**
+ * Whether the nearest `AppQueryProvider` puts the tool name into the data
+ * hooks' cache keys (`toolNameInQueryKey`); `false` outside one.
+ */
+export function useToolNameInQueryKey(): boolean {
+  return useContext(ToolNameInQueryKeyContext)
 }
 
 /**

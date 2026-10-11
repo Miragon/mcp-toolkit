@@ -17,16 +17,16 @@ function probe(
   ready: boolean,
   callTool: CallTool,
   key: string,
-  options?: UseViewDataOptions<Demo> & { client?: QueryClient },
+  options?: UseViewDataOptions<Demo> & { client?: QueryClient; toolNameInQueryKey?: boolean },
 ): ViewDataResult<Demo> {
   let result: ViewDataResult<Demo> | undefined
-  const { client, ...hookOptions } = options ?? {}
+  const { client, toolNameInQueryKey, ...hookOptions } = options ?? {}
   function Probe() {
     result = useViewData<Demo>(initialData, [...KEY, key], "demo_data", ARGS, ready, hookOptions)
     return null
   }
   renderToStaticMarkup(
-    <AppQueryProvider callTool={callTool} client={client}>
+    <AppQueryProvider callTool={callTool} client={client} toolNameInQueryKey={toolNameInQueryKey}>
       <Probe />
     </AppQueryProvider>,
   )
@@ -100,6 +100,18 @@ describe('useViewData initialDataMode: "seed" (the live standalone view)', () =>
     expect(result).toMatchObject({ data: { n: 1 }, loading: false })
     expect(client.getQueryData(cacheKey("seeded"))).toEqual({ n: 1 })
     expect(client.getQueryState(cacheKey("seeded"))?.dataUpdatedAt).toBe(1234)
+  })
+
+  it("with toolNameInQueryKey the seed lands under the key carrying the tool name", () => {
+    const client = new QueryClient()
+    const result = probe({ n: 1 }, true, vi.fn<CallTool>(), "tool-key", {
+      client,
+      initialDataMode: "seed",
+      toolNameInQueryKey: true,
+    })
+    expect(result.data).toEqual({ n: 1 })
+    expect(client.getQueryData([...KEY, "tool-key", "demo_data", ARGS])).toEqual({ n: 1 })
+    expect(client.getQueryData(cacheKey("tool-key")), "never the 2.x key").toBeUndefined()
   })
 
   it("static mode never writes the cache", () => {

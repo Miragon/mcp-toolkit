@@ -1110,7 +1110,7 @@
           "name": "queryKey",
           "type": "readonly unknown[]",
           "required": true,
-          "description": "Cache key prefix. The effective key is [...queryKey, args] (toolQueryKey): different args get separate entries. Two tools must not share a key and args — the hook warns when they do."
+          "description": "Cache key prefix. The effective key is [...queryKey, args] (toolQueryKey): different args get separate entries. Two tools must not share a key and args (the hook warns when they do), unless AppQueryProvider / McpAppView toolNameInQueryKey puts the tool name into the key ([...queryKey, toolName, args])."
         },
         {
           "name": "toolName",
@@ -1179,9 +1179,43 @@
           "type": "object",
           "required": true,
           "description": "The tool arguments."
+        },
+        {
+          "name": "toolNameInKey",
+          "type": "boolean",
+          "required": false,
+          "description": "Put the tool name between the key and the args ([...queryKey, toolName, args]). Default false (the 2.x key); the default from the next major."
         }
       ],
-      "whenToUse": "Build the exact cache key useToolQuery / useViewToolQuery / useViewData use ([...queryKey, args] in 2.x) for getQueryData, setQueryData or cancelQueries with exact: true — never by hand: the next major appends the tool name and the helper follows. Prefix invalidation needs only your queryKey."
+      "whenToUse": "Build the exact cache key useToolQuery / useViewToolQuery / useViewData use for getQueryData, setQueryData or cancelQueries with exact: true, never by hand. Pass toolNameInKey when the provider sets toolNameInQueryKey, or use useToolQueryKey, which reads it. Prefix invalidation needs only your queryKey."
+    },
+    {
+      "name": "useToolQueryKey",
+      "export": "useToolQueryKey",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "hook",
+      "group": "data-hooks",
+      "props": [
+        {
+          "name": "queryKey",
+          "type": "readonly unknown[]",
+          "required": true,
+          "description": "The caller's key prefix, as passed to useToolQuery."
+        },
+        {
+          "name": "toolName",
+          "type": "string",
+          "required": true,
+          "description": "The tool the query calls."
+        },
+        {
+          "name": "args",
+          "type": "object",
+          "required": true,
+          "description": "The tool arguments."
+        }
+      ],
+      "whenToUse": "The exact cache key the data hooks use for this tool and args under the nearest AppQueryProvider (toolQueryKey with its toolNameInQueryKey setting), for getQueryData, setQueryData or cancelQueries with exact: true, e.g. for an optimistic update in a mutation's onMutate. Stays right when the next major puts the tool name into every key."
     },
     {
       "name": "shouldRetryToolCall",

@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query"
-import { useCallTool } from "../providers/query-provider.js"
+import { useCallTool, useToolNameInQueryKey } from "../providers/query-provider.js"
 import { parseViewToolResult } from "../lib/parse-tool-result.js"
 import { toolQueryOptions, type UseToolQueryOptions } from "../lib/tool-query.js"
 import { useToolKeyGuard } from "./use-tool-query.js"
@@ -20,8 +20,9 @@ export type UseViewToolQueryOptions<T = unknown> = UseToolQueryOptions<T>
  * flat data, multi-step → keyed by step id) instead.
  *
  * Same key and options contract as {@link useToolQuery}: the effective key is
- * `[...queryKey, args]`, so sibling widgets sharing a query key and args
- * collapse to a single deduped tool call.
+ * `[...queryKey, args]` (`[...queryKey, toolName, args]` under an
+ * `AppQueryProvider` with `toolNameInQueryKey`), so sibling widgets sharing a
+ * query key and args collapse to a single deduped tool call.
  */
 export function useViewToolQuery<T = unknown>(
   queryKey: readonly unknown[],
@@ -30,8 +31,12 @@ export function useViewToolQuery<T = unknown>(
   opts?: UseViewToolQueryOptions<T>,
 ): UseQueryResult<T, Error> {
   const callTool = useCallTool()
+  const toolNameInKey = useToolNameInQueryKey()
   useToolKeyGuard(queryKey, toolName, args)
   return useQuery<T, Error>(
-    toolQueryOptions<T>(queryKey, toolName, args, callTool, opts, parseViewToolResult),
+    toolQueryOptions<T>(queryKey, toolName, args, callTool, opts, {
+      decode: parseViewToolResult,
+      toolNameInKey,
+    }),
   )
 }

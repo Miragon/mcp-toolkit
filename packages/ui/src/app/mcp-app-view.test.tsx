@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { ToolCancelledError, ToolError } from "mcp-use/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { useToolQueryKey } from "../hooks/use-tool-query.js"
 import type {
   ToolResultRecoveryOptions,
   ToolResultRecoveryState,
@@ -281,6 +282,27 @@ describe("McpAppView lifecycle wiring (toolkit#176)", () => {
     expect(view).toContain("widget-locale:")
     // The frame stays the same element across placeholder and view.
     expect(attribute(openingTags(view, "div")[0] ?? "", "data-slot")).toBe("mcp-app-view")
+  })
+})
+
+describe("McpAppView toolNameInQueryKey (toolkit#176 K18)", () => {
+  /** A widget that prints the cache key its data hooks would use. */
+  function KeyProbe() {
+    return <output>{JSON.stringify(useToolQueryKey(["feed"], "feed_data", { id: 1 }))}</output>
+  }
+  const keyIn = (props: { toolNameInQueryKey?: boolean }) =>
+    decodeEntities(
+      renderToStaticMarkup(
+        <HostBridgeProvider bridge={bridge}>
+          <McpAppView widgets={{ "demo:probe": KeyProbe }} {...props} />
+        </HostBridgeProvider>,
+      ),
+    ).match(/<output>(.*?)<\/output>/)?.[1]
+
+  it("hands the setting to the widgets' data hooks; omitted, the 2.x key stays", () => {
+    host.tool = { status: "ready", toolOutput: VIEW, toolInput: {} }
+    expect(keyIn({ toolNameInQueryKey: true })).toBe('["feed","feed_data",{"id":1}]')
+    expect(keyIn({})).toBe('["feed",{"id":1}]')
   })
 })
 

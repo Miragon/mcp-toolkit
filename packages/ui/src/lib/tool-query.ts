@@ -65,21 +65,28 @@ export function shouldRetryToolCall(failureCount: number, error: unknown): boole
 }
 
 /**
- * The effective cache key of a tool query: the caller's key, then the args,
- * so two callers sharing a key with different args get separate entries.
+ * The effective cache key of a tool query (toolkit#176 K18).
+ *
+ * - 2.x default: the caller's key, then the args (`[...queryKey, args]`), so
+ *   two callers sharing a key with different args get separate entries.
+ * - `toolNameInKey`: the caller's key, the tool name, then the args
+ *   (`[...queryKey, toolName, args]`), so two tools never share an entry,
+ *   whatever key their callers pass. Opt-in in 2.x (`AppQueryProvider` /
+ *   `McpAppView` `toolNameInQueryKey`), the default from the next major.
+ *
  * Build exact keys (`getQueryData`, `setQueryData`, `cancelQueries` with
- * `exact: true`) with this helper rather than by hand: it takes the tool
- * name because the next major appends it to the key (toolkit#176 K18), and
- * code that goes through the helper keeps working then. Prefix invalidation
- * by `queryKey` matches either way.
+ * `exact: true`) with this helper, or with `useToolQueryKey`, which reads the
+ * provider's setting, rather than by hand: code that goes through them keeps
+ * working when the default changes. Prefix invalidation by `queryKey`
+ * matches either way.
  */
 export function toolQueryKey(
   queryKey: readonly unknown[],
   toolName: string,
   args: object,
+  toolNameInKey = false,
 ): unknown[] {
-  void toolName
-  return [...queryKey, args]
+  return toolNameInKey ? [...queryKey, toolName, args] : [...queryKey, args]
 }
 
 /**
@@ -115,6 +122,14 @@ export function toolKeyCollisionMessage(keyId: string, toolName: string, previou
   )
 }
 
+/** How {@link toolQueryOptions} decodes a result and builds the key. */
+export interface ToolQueryBuild<TData> {
+  /** Decodes the tool result. Default: `parseToolResult` (structured-first). */
+  decode?: (result: unknown) => TData
+  /** Put the tool name into the key (see {@link toolQueryKey}). Default `false`. */
+  toolNameInKey?: boolean
+}
+
 /**
  * The TanStack options of a tool query: the caller's options, the
  * {@link toolQueryKey} and a fetcher that calls `toolName` and decodes the
@@ -128,14 +143,15 @@ export function toolQueryOptions<TData, TSelected = TData>(
   args: object,
   callTool: ToolCaller | undefined,
   opts?: UseToolQueryOptions<TData, TSelected>,
-  decode: (result: unknown) => TData = parseToolResult,
+  build: ToolQueryBuild<TData> = {},
 ): UseQueryOptions<TData, Error, TSelected> {
+  const decode = build.decode ?? ((result: unknown) => parseToolResult<TData>(result))
   return {
     ...opts,
     // An omitted `retry` must stay omitted: an explicit `undefined` would
     // shadow the client's default.
     ...(callTool ? null : { retry: false }),
-    queryKey: toolQueryKey(queryKey, toolName, args),
+    queryKey: toolQueryKey(queryKey, toolName, args, build.toolNameInKey),
     queryFn: async () => {
       if (!callTool) throw new NoToolTransportError(toolName)
       return decode(await callTool(toolName, args))
