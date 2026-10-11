@@ -38,18 +38,29 @@ export interface ViewMessages {
   slowHint: string
   /** Title of the error state when the view could not be loaded. */
   errorTitle: string
-  /** One line under the error title: what you can do next. */
+  /** One line under the error title: what you can do next (a retry button follows). */
   errorHint: string
+  /**
+   * The line under an error title when no retry is offered (the originating
+   * tool is unknown, or the view cannot refresh): what you can do instead.
+   */
+  errorHintNoRetry: string
   /** Retry button of the error state and of the step-error alert. */
   retry: string
   /** Summary of the error's technical-details disclosure. */
   errorDetails: string
   /** Title of the alert that lists the data steps that failed. */
   stepErrorsTitle: string
-  /** Toast text when a refresh failed. */
+  /** The line under the step-error title when a retry is offered: what it does. */
+  stepErrorsHint: string
+  /** Toast title when a refresh failed: what happened, in one short sentence. */
   refreshFailed: string
-  /** Toast text when the host rejected a display-mode change. */
+  /** Toast line under {@link ViewMessages.refreshFailed}: what you see now and can do. */
+  refreshFailedHint: string
+  /** Toast title when the host rejected a display-mode change. */
   fullscreenFailed: string
+  /** Toast line under {@link ViewMessages.fullscreenFailed}: what you can do. */
+  fullscreenFailedHint: string
 }
 
 /** Strings of `ListFooter`. */

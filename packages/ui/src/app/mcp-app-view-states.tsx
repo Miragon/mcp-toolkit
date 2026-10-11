@@ -2,7 +2,8 @@
  * The pre-payload states of `McpAppView`, one per lifecycle phase
  * (`view-lifecycle.ts`): waiting (skeleton + status line + slow hint),
  * cancelled, and error (icon, title, what to do, raw reason under "Details",
- * retry). Hook-free and SSR-renderable, so each phase is pinned by a test.
+ * retry when the originating tool is known). Hook-free and SSR-renderable, so
+ * each phase is pinned by a test.
  */
 import { ErrorState } from "../components/ErrorState.js"
 import { Skeleton } from "../primitives/skeleton.js"
@@ -53,8 +54,10 @@ export function ViewPlaceholder({
 }
 
 function ViewWaiting({ slow, labels }: { slow: boolean; labels: Required<McpAppViewLabels> }) {
+  // No aria-busy on an ancestor of the live region: assistive technology may
+  // hold back changes inside a busy subtree, and the slow hint is one.
   return (
-    <div className="flex flex-col gap-4 px-4 py-4" aria-busy="true">
+    <div className="flex flex-col gap-4 px-4 py-4">
       <Skeleton aria-hidden="true" className="h-8 w-48" />
       <Skeleton aria-hidden="true" className="h-32 w-full" />
       {/* One live region: the status line, then the slow hint when it appears. */}
@@ -80,11 +83,13 @@ function ViewErrorState({
   describeError?: DescribeViewError
 }) {
   const human = describeError?.(reason)
+  // The hint never promises a retry the state does not offer.
+  const hint = canRetry ? labels.errorHint : labels.errorHintNoRetry
   return (
     <div className="px-4 py-4">
       <ErrorState
         title={human?.title ?? labels.errorTitle}
-        description={human?.description ?? labels.errorHint}
+        description={human?.description ?? hint}
         details={reason}
         detailsLabel={labels.errorDetails}
         retryLabel={labels.retry}

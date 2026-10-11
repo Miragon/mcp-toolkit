@@ -35,6 +35,10 @@ describe("ViewPlaceholder — one rendering per lifecycle phase (toolkit#176)", 
     expect(html).not.toContain("<button")
   })
 
+  it("waiting: the live region sits in no aria-busy subtree (AT may hold back the slow hint)", () => {
+    expect(placeholder({ phase: "waiting", slow: true })).not.toMatch(/aria-busy="true"/)
+  })
+
   it("waiting too long: the slow hint joins the status line", () => {
     const html = placeholder({ phase: "waiting", slow: true })
     expect(html).toContain(en.slowHint)
@@ -66,12 +70,19 @@ describe("ViewPlaceholder — one rendering per lifecycle phase (toolkit#176)", 
     expect(html).toContain(`${en.retry}</button>`)
   })
 
-  it("error without a known originating tool: no retry button, the hint still says what to do", () => {
+  it("error without a known originating tool: no retry button, and a hint that promises none", () => {
     const html = placeholder({ phase: "error", reason: undefined, canRetry: false })
     expect(decodeEntities(html)).toContain(en.errorTitle)
-    expect(html).toContain(en.errorHint)
+    expect(html).toContain(en.errorHintNoRetry)
+    expect(html).not.toContain(en.errorHint)
     expect(html).not.toContain("<button")
     expect(html).not.toContain("<details")
+    const de = placeholder(
+      { phase: "error", reason: undefined, canRetry: false },
+      TOOLKIT_MESSAGES.de.view,
+    )
+    expect(de).toContain(TOOLKIT_MESSAGES.de.view.errorHintNoRetry)
+    expect(de).not.toContain(TOOLKIT_MESSAGES.de.view.errorHint)
   })
 
   it("error copy maps through describeError while the raw reason stays under Details", () => {
@@ -145,13 +156,15 @@ function toolbar(over: Partial<ViewToolbarProps> = {}, wrap = (n: ReactNode) => 
 }
 
 describe("ViewToolbar", () => {
-  it("renders Refresh and Fullscreen as 32 px icon buttons named by aria-label", () => {
+  it("renders Refresh and Fullscreen as 32 px CI chrome icon buttons named by aria-label", () => {
     const html = toolbar()
     const buttons = openingTags(html, "button")
     expect(buttons.map((b) => attribute(b, "aria-label"))).toEqual([en.refresh, en.enterFullscreen])
     for (const b of buttons) {
       expect(attribute(b, "data-size")).toBe("icon-sm")
       expect(attribute(b, "type")).toBe("button")
+      // CI §8 icon button: surface, border, shadow-1 (never a bare ghost glyph).
+      expect(attribute(b, "data-variant")).toBe("outline")
     }
     // Icons are decorative (the name is on the button) and use the dense stroke.
     for (const svg of openingTags(html, "svg")) {
@@ -180,6 +193,8 @@ describe("ViewToolbar", () => {
     const html = toolbar({ builderAvailable: true })
     expect(html).toContain(`${en.build}</button>`)
     expect(html).toContain("lucide-pencil")
+    const edit = openingTags(html, "button")[0] ?? ""
+    expect(attribute(edit, "data-variant")).toBe("outline")
   })
 
   it("titles the view once: show (configurable level), hide, or slot", () => {
@@ -259,7 +274,7 @@ describe("StepErrors — an alert with step titles and a retry", () => {
     { id: "kpi", step: "camunda7:kpis" },
   ]
 
-  it("lists each failed step by its human title, else its step id, with the reason", () => {
+  it("lists each failed step by its human title, else its step id, plus what to do", () => {
     const html = renderToStaticMarkup(
       <LocaleProvider locale="de">
         <StepErrors
@@ -277,16 +292,30 @@ describe("StepErrors — an alert with step titles and a retry", () => {
     expect(html).toMatch(/font-medium">Incidents<\/span>/)
     expect(html).toMatch(/font-mono[^"]*">camunda7:kpis<\/span>/)
     expect(html).not.toContain(">inc<")
-    expect(html).toContain("[503] Engine is shutting down")
+    expect(html).toContain(de.stepErrorsHint)
     expect(html).toContain(`${de.retry}</button>`)
   })
 
-  it("falls back to the step ref id and offers no retry when the view cannot refresh", () => {
+  it("keeps the raw step reasons under Details, never in the alert text", () => {
+    const html = renderToStaticMarkup(
+      <StepErrors hidden={false} errors={errors} steps={steps} labels={en} onRetry={noop} />,
+    )
+    const [body, details = ""] = html.split("<details")
+    expect(body).not.toContain("Engine is shutting down")
+    expect(body).not.toContain("timeout")
+    expect(details).toMatch(/<summary[^>]*>Details<\/summary>/)
+    expect(details).toContain("camunda7:incidents: [503] Engine is shutting down")
+    expect(details).toContain("camunda7:kpis: timeout")
+  })
+
+  it("falls back to the step ref id and, without a refresh, offers no retry nor promises one", () => {
     const html = renderToStaticMarkup(
       <StepErrors hidden={false} errors={[{ stepId: "x", reason: "boom" }]} labels={en} />,
     )
     expect(html).toMatch(/font-mono[^"]*">x<\/span>/)
     expect(html).not.toContain("<button")
+    expect(html).toContain(en.errorHintNoRetry)
+    expect(html).not.toContain(en.stepErrorsHint)
   })
 
   it("renders nothing without errors or in build mode", () => {

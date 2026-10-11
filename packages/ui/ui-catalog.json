@@ -709,7 +709,7 @@
           "description": "Subtree that raises toasts via useToast."
         }
       ],
-      "whenToUse": "Provide toasts to a subtree and render their stack: bottom centre, status colour as left edge + icon next to plain text, ONE persistent live region (role=status, aria-live=polite), auto-dismiss after 2.8 s (errors 5 s), held while hovered or focused. Idempotent when nested. McpAppView mounts one, so widgets inside a view only call useToast."
+      "whenToUse": "Provide toasts to a subtree and render their stack: bottom centre, status colour as left edge + icon next to plain text, ONE persistent live region (role=status, aria-live=polite), auto-dismiss after 2.8 s (errors 5 s), held while hovered or focused. Idempotent when nested. McpAppView mounts one, so widgets inside a view only call useToast. Toast icons follow the LucideProvider around the outermost ToastProvider (stroke 2.5 inside McpAppView)."
     },
     {
       "name": "useToast",
@@ -718,7 +718,7 @@
       "kind": "hook",
       "group": "feedback",
       "props": [],
-      "whenToUse": "Raise feedback after a user action instead of logging to the console: useToast().show({ tone: 'success' | 'warning' | 'danger' | 'info', title, description?, duration? }) returns an id; dismiss(id) removes it early. Name the object in the title ('Job retried.'). Outside a ToastProvider it is a safe no-op."
+      "whenToUse": "Raise feedback after a user action instead of logging to the console: useToast().show({ tone: 'success' | 'warning' | 'danger' | 'info', title, description?, duration? }) returns an id; dismiss(id) removes it early. Name the object in the title ('Job retried.'); the description says what to do next. Both come from your catalog: never put a raw error (e.message) in a toast, log it or show it under an ErrorState's Details. Outside a ToastProvider it is a safe no-op."
     },
     {
       "name": "EmptyState",
@@ -743,7 +743,7 @@
           "name": "icon",
           "type": "ReactNode",
           "required": false,
-          "description": "Decorative icon or brand mark (aria-hidden): a Lucide icon for the situation, or a logo."
+          "description": "Decorative icon or brand mark (aria-hidden): a Lucide icon for the situation (24 px), or a logo; an SVG with its own size-* class keeps that size."
         },
         {
           "name": "tone",

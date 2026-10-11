@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useReducer, useState } from "react"
+import { useCallback, useEffect, useReducer, useRef, useState, type RefObject } from "react"
 import {
-  decodeRetryResult,
+  decodeViewResult,
   errorMessage,
   resolveViewLifecycle,
   RETRY_IDLE,
+  retryFocusTarget,
   retryReducer,
   waitKey,
+  withSlowHint,
   type RenderCallStatus,
   type ViewLifecycle,
 } from "./view-lifecycle.js"
@@ -57,17 +59,14 @@ export function useViewLifecycle<T>(options: UseViewLifecycleOptions<T>): {
     return () => clearTimeout(timer)
   }, [currentWait, slowHintAfterMs])
 
-  const lifecycle: ViewLifecycle =
-    unslowed.phase === "waiting" && slowWait !== null && slowWait === currentWait
-      ? { phase: "waiting", slow: true }
-      : unslowed
+  const lifecycle = withSlowHint(unslowed, slowWait, currentWait)
 
   const retry = useCallback(() => {
     if (toolName === undefined) return
     dispatch({ type: "start" })
     void callTool(toolName, toolInput ?? {}).then(
       (result) => {
-        const outcome = decodeRetryResult(result, isValid)
+        const outcome = decodeViewResult(result, isValid)
         if (outcome.ok) {
           onResult(outcome.data)
           dispatch({ type: "succeeded" })
@@ -80,4 +79,38 @@ export function useViewLifecycle<T>(options: UseViewLifecycleOptions<T>): {
   }, [callTool, isValid, onResult, toolInput, toolName])
 
   return { lifecycle, retry }
+}
+
+/** The retry button of the view's error state (the focus target after a failed retry). */
+const RETRY_BUTTON = '[data-slot="error-state"] button'
+
+/**
+ * Keeps keyboard focus in the view across a user retry: the pressed button
+ * unmounts when the view starts waiting, so focus moves to the frame (a
+ * `tabIndex={-1}` container), then to the new retry button when the retry
+ * failed, or stays on the frame once the view rendered (see
+ * {@link retryFocusTarget}). Focus the user moved elsewhere meanwhile is left
+ * alone. Returns the frame ref and `retry` wrapped to start the hand-off.
+ */
+export function useRetryFocus(
+  phase: ViewLifecycle["phase"],
+  retry: () => void,
+): { frameRef: RefObject<HTMLDivElement | null>; retry: () => void } {
+  const frameRef = useRef<HTMLDivElement | null>(null)
+  const owed = useRef(false)
+  const retryWithFocus = useCallback(() => {
+    owed.current = true
+    retry()
+  }, [retry])
+  useEffect(() => {
+    const frame = frameRef.current
+    if (!owed.current || !frame) return
+    const { target, settled } = retryFocusTarget(phase)
+    if (settled) owed.current = false
+    const active = frame.ownerDocument.activeElement
+    if (active && active !== frame.ownerDocument.body && !frame.contains(active)) return
+    const button = target === "retry" ? frame.querySelector<HTMLElement>(RETRY_BUTTON) : null
+    ;(button ?? frame).focus()
+  }, [phase])
+  return { frameRef, retry: retryWithFocus }
 }

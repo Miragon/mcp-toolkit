@@ -9,7 +9,8 @@ export interface EmptyStateProps {
    * Icon or mark above the title, rendered decoratively (`aria-hidden`): a
    * Lucide icon for the concrete situation (e.g. `<CircleCheck />` for "all
    * done"), or a brand mark (an app passes its logo; a customer brand passes
-   * its own or nothing).
+   * its own or nothing). An SVG renders at 24 px unless it carries its own
+   * `size-*` class, so a mark can be larger (`<Komet className="size-12" />`).
    */
   icon?: ReactNode
   /** Colour of the icon slot: `"neutral"` (muted, default) or `"success"` ("all done"). */
@@ -55,7 +56,10 @@ export function EmptyState({
       {icon && (
         <div
           aria-hidden="true"
-          className={cn("mb-1 flex items-center justify-center [&_svg]:size-6", ICON_TONE[tone])}
+          className={cn(
+            "mb-1 flex items-center justify-center [&_svg:not([class*='size-'])]:size-6",
+            ICON_TONE[tone],
+          )}
         >
           {icon}
         </div>

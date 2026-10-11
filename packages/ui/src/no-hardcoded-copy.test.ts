@@ -18,6 +18,12 @@ import { TEXT_ATTRIBUTES } from "./render-scan.js"
  *  - such a literal in a text attribute of a DOM element (aria-label, title,
  *    placeholder, alt, …), or in any prop of a component except the
  *    non-text props below (variants, sizes, roles, ids, …).
+ *
+ * And in every `.ts`/`.tsx` source, the toast copy rule: the `title` and
+ * `description` of a `<x>.show({ … })` call carry catalog text only, never a
+ * literal and never a raw error (`e.message`, `String(e)`, an `errorText(e)`
+ * helper). The raw reason belongs in the console or under an ErrorState's
+ * "Details", not in a sentence the user reads.
  */
 
 declare global {
@@ -30,6 +36,12 @@ declare global {
 }
 
 const SOURCES = import.meta.glob(["./**/*.tsx", "!./**/*.test.tsx", "!./render-cases*.tsx"], {
+  query: "?raw",
+  import: "default",
+  eager: true,
+})
+
+const TS_SOURCES = import.meta.glob(["./**/*.ts", "!./**/*.test.ts", "!./**/*.d.ts"], {
   query: "?raw",
   import: "default",
   eager: true,
@@ -146,6 +158,95 @@ function hardcodedCopy(file: string, source: string): string[] {
   visit(sf)
   return found
 }
+
+/** Calls that turn a caught error into text. */
+const RAW_ERROR_CALLS = new Set(["errorText", "errorMessage", "String"])
+
+/** Whether an expression reads a raw error: `.message`/`.stack`, or a raw-error call. */
+function readsRawError(node: ts.Node): boolean {
+  if (
+    ts.isPropertyAccessExpression(node) &&
+    (node.name.text === "message" || node.name.text === "stack")
+  ) {
+    return true
+  }
+  if (
+    ts.isCallExpression(node) &&
+    ts.isIdentifier(node.expression) &&
+    RAW_ERROR_CALLS.has(node.expression.text)
+  ) {
+    return true
+  }
+  return ts.forEachChild(node, readsRawError) ?? false
+}
+
+/** `title`/`description` of `<x>.show({ … })` calls that are literals or raw errors. */
+function toastCopyLeaks(file: string, source: string): string[] {
+  const kind = file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind)
+  const found: string[] = []
+  const visit = (node: ts.Node) => {
+    const options = ts.isCallExpression(node) ? node.arguments[0] : undefined
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "show" &&
+      options &&
+      ts.isObjectLiteralExpression(options)
+    ) {
+      for (const prop of options.properties) {
+        if (!ts.isPropertyAssignment(prop)) continue
+        const key = prop.name.getText(sf)
+        if (key !== "title" && key !== "description") continue
+        const literal = renderedLiterals(prop.initializer).some((lit) =>
+          HAS_LETTER.test(literalText(lit)),
+        )
+        if (literal || readsRawError(prop.initializer)) {
+          const { line } = sf.getLineAndCharacterOfPosition(prop.getStart(sf))
+          found.push(`${file}:${line + 1}: ${key}: ${prop.initializer.getText(sf)}`)
+        }
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return found
+}
+
+describe("toast copy comes from the catalog, never from a raw error", () => {
+  it("scans the toast call sites", () => {
+    const all = { ...SOURCES, ...TS_SOURCES }
+    expect(Object.keys(all)).toContain("./app/mcp-app-view.tsx")
+    expect(Object.values(all).filter((src) => /\.show\(\{/.test(src)).length).toBeGreaterThan(1)
+  })
+
+  it("finds no literal and no raw error in a toast's title or description", () => {
+    const offenders = Object.entries({ ...SOURCES, ...TS_SOURCES }).flatMap(([file, source]) =>
+      toastCopyLeaks(file, source),
+    )
+    expect(
+      offenders,
+      "Say what happened and what to do in catalog words (locale/messages-*.ts); log the raw reason (console.warn) or show it under an ErrorState's Details.",
+    ).toEqual([])
+  })
+
+  it("catches the shapes it promises to catch (gate self-test)", () => {
+    const src = `
+      toast.show({ tone: "danger", title: "Refresh failed", description: errorText(e) })
+      toast.show({ title: L.refreshFailed, description: e.message })
+      toast.show({ title: L.x, description: String(err) })
+      toast.show({ tone: "success", title: L.saved(name) })
+      toast.show({ title: L.refreshFailed, description: L.refreshFailedHint })
+      other.show(options)
+    `
+    expect(toastCopyLeaks("self.ts", src).map((s) => s.replace(/^self\.ts:\d+: /, ""))).toEqual([
+      'title: "Refresh failed"',
+      "description: errorText(e)",
+      "description: e.message",
+      "description: String(err)",
+    ])
+  })
+})
 
 describe("no hard-coded copy in toolkit components", () => {
   it("scans the component sources", () => {

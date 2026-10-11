@@ -113,6 +113,19 @@ describe("EmptyState", () => {
     expect(html).toContain("Alles erledigt.")
   })
 
+  it("sizes an icon to 24 px but lets a mark keep its own size-* class (the Komet needs room)", () => {
+    const html = renderToStaticMarkup(
+      <EmptyState icon={<svg className="size-12" aria-label="mark" />} title="Willkommen" />,
+    )
+    const slot = openingTags(html, "div").find((t) => /aria-hidden="true"/.test(t)) ?? ""
+    const slotClass = attribute(slot, "class") ?? ""
+    // The default applies only to an SVG without its own size class…
+    expect(slotClass).toContain("[&_svg:not([class*='size-'])]:size-6")
+    // …and never as a clamp that outranks the mark's class (0,1,1 beats 0,1,0).
+    expect(slotClass).not.toMatch(/\[&_svg\]:size-/)
+    expect(html).toContain('<svg class="size-12"')
+  })
+
   it("takes the heading level of its surface and at most two actions", () => {
     const html = renderToStaticMarkup(
       <EmptyState

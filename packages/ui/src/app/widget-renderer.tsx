@@ -1,4 +1,11 @@
-import { Component, useMemo, type ComponentType, type ReactNode, type ErrorInfo } from "react"
+import {
+  Component,
+  createRef,
+  useMemo,
+  type ComponentType,
+  type ReactNode,
+  type ErrorInfo,
+} from "react"
 import type { LayoutConfig, PipelineContext, RowDef, WidgetProps } from "@miragon/mcp-toolkit-core"
 import { normalizeLayout } from "@miragon/mcp-toolkit-core"
 import { ErrorState } from "../components/ErrorState.js"
@@ -29,6 +36,10 @@ export function resetKeysChanged(
  * "Details" and offers a retry. The boundary resets itself when its
  * `resetKeys` change, so new data (a refresh, a new tool result, a builder
  * edit) gets a fresh render instead of a latched failure (toolkit#176 N24).
+ * When a retry crashes again, keyboard focus moves to the new retry button
+ * instead of falling back to the document (the pressed one unmounted). After
+ * a retry that renders, the widget's own markup is unknown here, so focus
+ * returns to the document.
  *
  * Exported so the visual builder's canvas + preview render sites reuse the
  * same isolation the rendered `WidgetRenderer` already had — every place a
@@ -40,6 +51,9 @@ export class WidgetErrorBoundary extends Component<
   { error: Error | null }
 > {
   override state: { error: Error | null } = { error: null }
+  /** Set by the user's retry; consumed by the next update. */
+  private retryFocusOwed = false
+  private readonly fallbackRef = createRef<HTMLDivElement>()
   static getDerivedStateFromError(error: Error) {
     return { error }
   }
@@ -47,6 +61,10 @@ export class WidgetErrorBoundary extends Component<
     console.error(`Widget ${this.props.widgetId} crashed:`, error, info)
   }
   override componentDidUpdate(prevProps: { resetKeys?: readonly unknown[] }) {
+    if (this.retryFocusOwed) {
+      this.retryFocusOwed = false
+      if (this.state.error) this.fallbackRef.current?.querySelector<HTMLElement>("button")?.focus()
+    }
     if (this.state.error && resetKeysChanged(prevProps.resetKeys, this.props.resetKeys)) {
       this.reset()
     }
@@ -54,14 +72,21 @@ export class WidgetErrorBoundary extends Component<
   reset = () => {
     this.setState({ error: null })
   }
+  /** The fallback's retry: a reset that keeps keyboard focus if the widget crashes again. */
+  retry = () => {
+    this.retryFocusOwed = true
+    this.reset()
+  }
   override render() {
     if (this.state.error) {
       return (
-        <WidgetCrashFallback
-          widgetId={this.props.widgetId}
-          error={this.state.error}
-          onRetry={this.reset}
-        />
+        <div ref={this.fallbackRef} data-slot="widget-crash">
+          <WidgetCrashFallback
+            widgetId={this.props.widgetId}
+            error={this.state.error}
+            onRetry={this.retry}
+          />
+        </div>
       )
     }
     return this.props.children

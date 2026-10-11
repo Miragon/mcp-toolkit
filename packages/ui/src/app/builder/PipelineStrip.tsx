@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react"
-import { ArrowDownToLine, ArrowRightToLine, Plus, X } from "lucide-react"
+import { ArrowDownToLine, ArrowRightToLine, LucideProvider, Plus, X } from "lucide-react"
 import type { AvailableStep, KeyCatalogEntry, PipelineStepRef } from "@miragon/mcp-toolkit-core"
+import { DENSE_ICON_STROKE } from "../../lib/icon-stroke.js"
 import { Badge } from "../../primitives/badge.js"
 import { Button } from "../../primitives/button.js"
 import { Input } from "../../primitives/input.js"
@@ -256,4 +257,13 @@ function PipelineStripImpl({
   )
 }
 
-export const PipelineStrip = memo(PipelineStripImpl)
+/** A dense chrome bar: its Lucide icons draw at stroke 2 (CI §11), not the view's 2.5. */
+function DensePipelineStrip(props: Parameters<typeof PipelineStripImpl>[0]) {
+  return (
+    <LucideProvider strokeWidth={DENSE_ICON_STROKE}>
+      <PipelineStripImpl {...props} />
+    </LucideProvider>
+  )
+}
+
+export const PipelineStrip = memo(DensePipelineStrip)

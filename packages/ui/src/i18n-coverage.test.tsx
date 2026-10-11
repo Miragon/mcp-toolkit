@@ -126,6 +126,26 @@ const CHROME_CASES: { name: string; render: () => ReactElement }[] = [
     ),
   },
   {
+    name: "ViewPlaceholder error without a retry",
+    render: () => (
+      <ViewPlaceholder
+        lifecycle={{ phase: "error", reason: undefined, canRetry: false }}
+        labels={PSEUDO.view}
+        onRetry={noop}
+      />
+    ),
+  },
+  {
+    name: "StepErrors without a refresh",
+    render: () => (
+      <StepErrors
+        hidden={false}
+        errors={[{ stepId: "inc", reason: "[503] engine down" }]}
+        labels={PSEUDO.view}
+      />
+    ),
+  },
+  {
     name: "ViewPlaceholder cancelled",
     render: () => (
       <ViewPlaceholder lifecycle={{ phase: "cancelled" }} labels={PSEUDO.view} onRetry={noop} />

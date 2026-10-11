@@ -1,5 +1,6 @@
 import { memo } from "react"
-import { Check, Eye, Layers, Library, Save } from "lucide-react"
+import { Check, Eye, Layers, Library, LucideProvider, Save } from "lucide-react"
+import { DENSE_ICON_STROKE } from "../../lib/icon-stroke.js"
 import { Badge } from "../../primitives/badge.js"
 import { Button } from "../../primitives/button.js"
 import { TONE_DOT, TONE_SOFT } from "../../lib/tone-utils.js"
@@ -94,4 +95,13 @@ function ToolbarImpl({
   )
 }
 
-export const Toolbar = memo(ToolbarImpl)
+/** A dense chrome bar: its Lucide icons draw at stroke 2 (CI §11), not the view's 2.5. */
+function DenseToolbar(props: Parameters<typeof ToolbarImpl>[0]) {
+  return (
+    <LucideProvider strokeWidth={DENSE_ICON_STROKE}>
+      <ToolbarImpl {...props} />
+    </LucideProvider>
+  )
+}
+
+export const Toolbar = memo(DenseToolbar)

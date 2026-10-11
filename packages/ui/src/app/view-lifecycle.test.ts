@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest"
 import {
-  decodeRetryResult,
+  decodeViewResult,
   DEFAULT_SLOW_HINT_MS,
   errorMessage,
   resolveViewLifecycle,
   RETRY_IDLE,
+  retryFocusTarget,
   retryReducer,
   waitKey,
+  withSlowHint,
   type RetryState,
   type ViewLifecycleInput,
 } from "./view-lifecycle.js"
@@ -53,6 +55,27 @@ describe("resolveViewLifecycle (toolkit#176 state machine)", () => {
     expect(at({ callStatus: "error", canRetry: false })).toMatchObject({
       phase: "error",
       canRetry: false,
+    })
+  })
+
+  it("a latched non-view result nothing can recover is an error, not an endless wait", () => {
+    // No toolInfo: the recovery cannot re-run the tool, so the wait would never end.
+    expect(at({ callStatus: "ready", canRetry: false })).toEqual({
+      phase: "error",
+      reason: undefined,
+      canRetry: false,
+    })
+    // Still pending on such a host: the result may yet arrive.
+    expect(at({ callStatus: "pending", canRetry: false })).toEqual({
+      phase: "waiting",
+      slow: false,
+    })
+    // A running retry or a payload in hand still win.
+    expect(
+      at({ callStatus: "ready", canRetry: false, retryState: { status: "running", attempt: 1 } }),
+    ).toEqual({ phase: "waiting", slow: false })
+    expect(at({ callStatus: "ready", canRetry: false, hasViewData: true })).toEqual({
+      phase: "result",
     })
   })
 
@@ -129,26 +152,64 @@ describe("waitKey", () => {
   })
 })
 
-describe("decodeRetryResult", () => {
+describe("withSlowHint", () => {
+  const waiting = { phase: "waiting", slow: false } as const
+
+  it("turns the current wait slow once ITS delay passed", () => {
+    expect(withSlowHint(waiting, "idle:0", "idle:0")).toEqual({ phase: "waiting", slow: true })
+  })
+
+  it("keeps a new attempt and an unslowed wait without the hint", () => {
+    expect(withSlowHint(waiting, "idle:0", "running:1")).toBe(waiting)
+    expect(withSlowHint(waiting, null, "idle:0")).toBe(waiting)
+    expect(withSlowHint(waiting, null, null)).toBe(waiting)
+  })
+
+  it("never touches a phase that is not waiting", () => {
+    const error = { phase: "error", reason: "x", canRetry: true } as const
+    expect(withSlowHint(error, "idle:0", "idle:0")).toBe(error)
+    expect(withSlowHint({ phase: "result" }, "idle:0", "idle:0")).toEqual({ phase: "result" })
+  })
+})
+
+describe("retryFocusTarget", () => {
+  it("holds focus on the frame while the retry runs, then hands it on and settles", () => {
+    expect(retryFocusTarget("waiting")).toEqual({ target: "frame", settled: false })
+    expect(retryFocusTarget("error")).toEqual({ target: "retry", settled: true })
+    expect(retryFocusTarget("result")).toEqual({ target: "frame", settled: true })
+    expect(retryFocusTarget("cancelled")).toEqual({ target: "frame", settled: true })
+  })
+})
+
+describe("decodeViewResult", () => {
   const isView = (v: unknown): v is { layout: unknown } =>
     typeof v === "object" && v !== null && "layout" in v
 
   it("returns the payload of a complete view", () => {
-    expect(decodeRetryResult({ structuredContent: { layout: { rows: [] } } }, isView)).toEqual({
+    expect(decodeViewResult({ structuredContent: { layout: { rows: [] } } }, isView)).toEqual({
       ok: true,
       data: { layout: { rows: [] } },
     })
   })
 
-  it("returns the isError text as the reason", () => {
-    expect(decodeRetryResult({ isError: true, content: [{ text: "[503] down" }] }, isView)).toEqual(
-      { ok: false, reason: "[503] down" },
-    )
+  it("types a tool error as such, with the isError text as the raw reason", () => {
+    expect(decodeViewResult({ isError: true, content: [{ text: "[503] down" }] }, isView)).toEqual({
+      ok: false,
+      isError: true,
+      reason: "[503] down",
+    })
+    // An isError result without text is still a tool error.
+    expect(decodeViewResult({ isError: true, content: [{ text: "" }] }, isView)).toEqual({
+      ok: false,
+      isError: true,
+      reason: undefined,
+    })
   })
 
-  it("has no reason for a payload the shell cannot render", () => {
-    expect(decodeRetryResult({ structuredContent: { other: 1 } }, isView)).toEqual({
+  it("types a payload the shell cannot render as no view, without a reason", () => {
+    expect(decodeViewResult({ structuredContent: { other: 1 } }, isView)).toEqual({
       ok: false,
+      isError: false,
       reason: undefined,
     })
   })

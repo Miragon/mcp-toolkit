@@ -22,8 +22,10 @@ export interface LocaleContextValue {
    * The toolkit's own strings for the active locale (its shipped `en`/`de`
    * catalog, English for any other locale) with the provider's
    * `toolkitMessages` override applied. Read it with {@link useToolkitMessages}.
+   * Optional on the type (a hand-built value may omit it); `LocaleProvider`
+   * always sets it.
    */
-  messages: ToolkitMessages
+  messages?: ToolkitMessages
 }
 
 const DEFAULT_LOCALE = "en"
@@ -35,13 +37,21 @@ const DEFAULT_LOCALE = "en"
  * missing wrapper echoes the key (visible + greppable) instead of crashing a
  * widget that is perfectly renderable in English.
  */
-const DEFAULT_VALUE: LocaleContextValue = {
+const DEFAULT_VALUE = {
   locale: DEFAULT_LOCALE,
   t: (key) => key,
   messages: resolveToolkitMessages(DEFAULT_LOCALE),
-}
+} satisfies Required<LocaleContextValue>
 
 const LocaleContext = createContext<LocaleContextValue | null>(null)
+
+/** The toolkit-only locale a {@link ToolkitLocaleFallback} binds (no `t`). */
+interface ToolkitLocaleScope {
+  locale: string
+  messages: ToolkitMessages
+}
+
+const ToolkitLocaleFallbackContext = createContext<ToolkitLocaleScope | null>(null)
 
 /** Read the active locale tag from the nearest {@link LocaleProvider}. */
 export function useLocale(): string {
@@ -64,16 +74,47 @@ export function useTranslate(): BoundTranslate {
  * toolkit chrome.
  */
 export function useToolkitMessages(): ToolkitMessages {
-  return useContext(LocaleContext)?.messages ?? DEFAULT_VALUE.messages
+  const provided = useContext(LocaleContext)
+  const fallback = useContext(ToolkitLocaleFallbackContext)
+  return provided?.messages ?? fallback?.messages ?? DEFAULT_VALUE.messages
 }
 
 /**
- * The nearest {@link LocaleProvider}'s value, or `null` when none is mounted.
- * The app shell uses it to fall back to the host's locale only when the
- * consumer provides none.
+ * The locale the toolkit's own text is in: the nearest {@link LocaleProvider}'s,
+ * else a {@link ToolkitLocaleFallback}'s (the host's, inside `McpAppView`),
+ * else `"en"`. Toolkit components format their numbers with it, so a count
+ * always matches the language of the sentence around it. Internal: consumer
+ * widgets read {@link useLocale}.
  */
-export function useLocaleContextOrNull(): LocaleContextValue | null {
-  return useContext(LocaleContext)
+export function useToolkitLocale(): string {
+  const provided = useContext(LocaleContext)
+  const fallback = useContext(ToolkitLocaleFallbackContext)
+  return provided?.locale ?? fallback?.locale ?? DEFAULT_VALUE.locale
+}
+
+/**
+ * Binds ONLY the toolkit's own strings and number format to `locale` for a
+ * subtree — the fallback `McpAppView` mounts with the host's locale. It is not
+ * a {@link LocaleProvider}: {@link useLocale} and {@link useTranslate} keep
+ * their outside-a-provider behaviour (`"en"`, echoed keys) for consumer
+ * widgets, and any `LocaleProvider` above or below wins over it.
+ */
+export function ToolkitLocaleFallback({
+  locale,
+  children,
+}: {
+  locale: string
+  children: ReactNode
+}): ReactNode {
+  const value = useMemo<ToolkitLocaleScope>(
+    () => ({ locale, messages: resolveToolkitMessages(locale) }),
+    [locale],
+  )
+  return (
+    <ToolkitLocaleFallbackContext.Provider value={value}>
+      {children}
+    </ToolkitLocaleFallbackContext.Provider>
+  )
 }
 
 export interface LocaleProviderProps {

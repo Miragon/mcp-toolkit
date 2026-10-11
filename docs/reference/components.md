@@ -338,19 +338,24 @@ from `@miragon/mcp-toolkit-ui`; their text defaults come from the active locale.
 import { useToast } from "@miragon/mcp-toolkit-ui"
 const toast = useToast()
 toast.show({ tone: "success", title: "Job retried." })
-toast.show({ tone: "danger", title: "Retry failed.", description: error.message })
+toast.show({ tone: "danger", title: "Retry failed.", description: "Try again in a moment." })
 ```
 
 **When to use:** confirm a write or report a failure instead of a silent
 `console` line. The stack sits bottom centre: status colour as left edge and
 icon next to plain text, one persistent `role="status"` `aria-live="polite"`
 region, 2.8 s (errors 5 s), held while hovered or focused. `McpAppView` mounts
-the provider; outside one, `useToast()` is a no-op.
+the provider; outside one, `useToast()` is a no-op. The title says what
+happened, the description what to do next, both from your catalog: keep the
+raw error (`error.message`) out of the toast and log it, or show it under an
+`ErrorState`'s Details. Toast icons follow the `LucideProvider` around the
+outermost `ToastProvider` (stroke 2.5 inside `McpAppView`).
 
 ### EmptyState
 
 Props: `title` (required), `description?` (one help line), `icon?` (Lucide icon or
-a brand mark, decorative), `tone?: "neutral" | "success"`, `action?`,
+a brand mark, decorative; an SVG renders at 24 px unless it carries its own
+`size-*` class, so a mark can be larger), `tone?: "neutral" | "success"`, `action?`,
 `secondaryAction?`, `titleAs?` (default `"h3"`).
 
 ```tsx

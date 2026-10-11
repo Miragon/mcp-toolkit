@@ -1,5 +1,5 @@
 import { FOCUS_RING } from "../lib/focus-ring.js"
-import { useLocale, useToolkitMessages } from "../locale/locale-provider.js"
+import { useToolkitLocale, useToolkitMessages } from "../locale/locale-provider.js"
 import { formatCount } from "../locale/toolkit-messages.js"
 
 export interface ListFooterProps {
@@ -22,7 +22,7 @@ export interface ListFooterProps {
  * explicit "Load more" control. Deliberately not infinite scroll — the user
  * gets the total, a reachable footer, and control over fetching. Renders
  * nothing when `total` is 0. Text and number format follow the active locale
- * (`LocaleProvider`).
+ * (`LocaleProvider`, else the host's inside `McpAppView`).
  */
 export function ListFooter({
   shown,
@@ -32,7 +32,7 @@ export function ListFooter({
   onLoadMore,
   noun,
 }: ListFooterProps) {
-  const locale = useLocale()
+  const locale = useToolkitLocale()
   const { listFooter } = useToolkitMessages()
   if (total <= 0) return null
   return (

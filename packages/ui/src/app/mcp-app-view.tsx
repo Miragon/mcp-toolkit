@@ -2,17 +2,14 @@ import { useState, useCallback, useMemo, type ReactNode } from "react"
 import { LucideProvider } from "lucide-react"
 import { ToolCancelledError, useDisplayMode, useHostContext, useToolContext } from "mcp-use/react"
 import { ToastProvider, useToast } from "../components/Toast.js"
-import {
-  LocaleProvider,
-  useLocaleContextOrNull,
-  useToolkitMessages,
-} from "../locale/locale-provider.js"
+import { ToolkitLocaleFallback, useToolkitMessages } from "../locale/locale-provider.js"
+import type { ViewMessages } from "../locale/toolkit-messages.js"
 import { AppQueryProvider, queryClient } from "../providers/query-provider.js"
 import {
   resolveRecoveryToolName,
   useToolResultRecovery,
 } from "../hooks/use-tool-result-recovery.js"
-import { parseToolResult } from "../lib/parse-tool-result.js"
+import { ICON_STROKE } from "../lib/icon-stroke.js"
 import { useHostBridge } from "./host-bridge.js"
 import {
   applyBuilderCommit,
@@ -30,16 +27,13 @@ import {
 } from "./mcp-app-view-chrome.js"
 import { ViewPlaceholder, type DescribeViewError } from "./mcp-app-view-states.js"
 import type { LayoutBuilderLabels } from "./layout-builder.js"
-import { useViewLifecycle } from "./use-view-lifecycle.js"
-import { DEFAULT_SLOW_HINT_MS } from "./view-lifecycle.js"
+import { useRetryFocus, useViewLifecycle } from "./use-view-lifecycle.js"
+import { DEFAULT_SLOW_HINT_MS, decodeViewResult } from "./view-lifecycle.js"
 import type { WidgetComponent } from "./widget-renderer.js"
 
 export type { McpAppViewLabels, ViewTitleLevel, ViewTitleMode } from "./mcp-app-view-chrome.js"
 export type { DescribeStep } from "./mcp-app-view-chrome.js"
 export type { DescribeViewError } from "./mcp-app-view-states.js"
-
-/** Stroke width of Lucide icons in the view (CI §11: 2.5, 2 in dense bars). */
-const ICON_STROKE = 2.5
 
 export interface McpAppViewProps {
   /**
@@ -99,21 +93,23 @@ export interface McpAppViewProps {
 /**
  * The toolkit's MCP App view: lifecycle placeholder (waiting / error /
  * cancelled), toolbar, failed-steps alert and the rendered layout (or the
- * builder). Mounts a `ToastProvider` and, when the consumer provides no
- * `LocaleProvider`, one bound to the host's locale — so every toolkit string
- * below follows the host language.
+ * builder). Mounts a `ToastProvider` and binds the toolkit's own strings to
+ * the host's locale unless a `LocaleProvider` sets one, so the chrome follows
+ * the host language; `useLocale()` in consumer widgets is unaffected. Lucide
+ * icons draw at the CI stroke (2.5) throughout, the toast stack included.
  */
 export function McpAppView(props: McpAppViewProps) {
-  const outerLocale = useLocaleContextOrNull()
   const { locale } = useHostContext()
-  const view = (
-    <ToastProvider>
+  return (
+    <ToolkitLocaleFallback locale={locale}>
+      {/* Wraps the ToastProvider, whose toast stack renders beside the shell. */}
       <LucideProvider strokeWidth={ICON_STROKE}>
-        <McpAppViewShell {...props} />
+        <ToastProvider>
+          <McpAppViewShell {...props} />
+        </ToastProvider>
       </LucideProvider>
-    </ToastProvider>
+    </ToolkitLocaleFallback>
   )
-  return outerLocale ? view : <LocaleProvider locale={locale}>{view}</LocaleProvider>
 }
 
 /**
@@ -147,45 +143,61 @@ function useHostViewData(
   return [viewData, setViewData] as const
 }
 
-/** Refresh via the refresh tool; a failure keeps the data and says so in a toast. */
+/**
+ * Refresh via the refresh tool. A failure keeps the data and says so in a
+ * toast in catalog words only; the raw reason goes to the console, never to
+ * the user.
+ */
 function useViewRefresh(options: {
   viewData: ViewData | null
   setViewData: (next: ViewData) => void
   callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>
   refreshToolName: string
-  failedText: string
+  labels: Pick<ViewMessages, "refreshFailed" | "refreshFailedHint">
 }) {
-  const { viewData, setViewData, callTool, refreshToolName, failedText } = options
+  const { viewData, setViewData, callTool, refreshToolName, labels } = options
   const toast = useToast()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const refreshView = useCallback(async () => {
     if (!viewData?._refreshParams) return
     setIsRefreshing(true)
+    let failure: unknown = null
     try {
       const result = await callTool(
         refreshToolName,
         viewData._refreshParams as unknown as Record<string, unknown>,
       )
-      // One decoding convention with `useToolQuery`: structured-first.
-      const refreshed = parseToolResult<ViewData | null>(result)
-      if (!isCompleteViewData(refreshed)) throw new Error("refresh returned no view")
-      setViewData(refreshed)
-      void queryClient.invalidateQueries()
+      // One decoding convention with `useToolQuery` (structured-first), with a
+      // typed outcome: an unusable payload is a failure, never exception text.
+      const outcome = decodeViewResult(result, isCompleteViewData)
+      if (outcome.ok) setViewData(outcome.data)
+      else failure = outcome.reason ?? "the refresh tool returned no view"
+      // The call went through, so self-fetching widgets refresh as well;
+      // a tool error refreshes nothing.
+      if (outcome.ok || !outcome.isError) void queryClient.invalidateQueries()
     } catch (e) {
-      toast.show({ tone: "danger", title: failedText, description: errorText(e) })
+      failure = e
     } finally {
       setIsRefreshing(false)
     }
-  }, [callTool, failedText, refreshToolName, setViewData, toast, viewData])
+    if (failure === null) return
+    console.warn("[mcp-toolkit] refresh failed:", failure)
+    toast.show({
+      tone: "danger",
+      title: labels.refreshFailed,
+      description: labels.refreshFailedHint,
+    })
+  }, [callTool, labels, refreshToolName, setViewData, toast, viewData])
   return { isRefreshing, refreshView }
 }
 
-function errorText(e: unknown): string | undefined {
-  return e instanceof Error && e.message ? e.message : undefined
-}
-
-/** The fullscreen toggle, gated on the host's offer; a rejected request shows a toast. */
-function useFullscreenToggle(failedText: string) {
+/**
+ * The fullscreen toggle, gated on the host's offer. A rejected request shows
+ * a toast in catalog words; the raw reason goes to the console.
+ */
+function useFullscreenToggle(
+  labels: Pick<ViewMessages, "fullscreenFailed" | "fullscreenFailedHint">,
+) {
   const { displayMode, availableDisplayModes, requestDisplayMode } = useDisplayMode()
   const toast = useToast()
   const toggle = useCallback(async () => {
@@ -194,9 +206,14 @@ function useFullscreenToggle(failedText: string) {
       // Advisory since 2.x: `displayMode` updates when the host applies it.
       await requestDisplayMode({ mode })
     } catch (e) {
-      toast.show({ tone: "danger", title: failedText, description: errorText(e) })
+      console.warn("[mcp-toolkit] display-mode request failed:", e)
+      toast.show({
+        tone: "danger",
+        title: labels.fullscreenFailed,
+        description: labels.fullscreenFailedHint,
+      })
     }
-  }, [displayMode, failedText, requestDisplayMode, toast])
+  }, [displayMode, labels, requestDisplayMode, toast])
   return {
     isFullscreen: displayMode === "fullscreen",
     canFullscreen: fullscreenAvailable(displayMode, availableDisplayModes),
@@ -254,7 +271,7 @@ function McpAppViewShell({
     callTool,
   })
   const [viewData, setViewData] = useHostViewData(initialViewData, isPending, recovery.data)
-  const { lifecycle, retry } = useViewLifecycle({
+  const { lifecycle, retry: retryCall } = useViewLifecycle({
     hasViewData: viewData !== null,
     callStatus: tool.status,
     cancelled: isCancelled,
@@ -267,14 +284,15 @@ function McpAppViewShell({
     onResult: setViewData,
     slowHintAfterMs,
   })
+  const { frameRef, retry } = useRetryFocus(lifecycle.phase, retryCall)
   const { isRefreshing, refreshView } = useViewRefresh({
     viewData,
     setViewData,
     callTool,
     refreshToolName,
-    failedText: L.refreshFailed,
+    labels: L,
   })
-  const fullscreen = useFullscreenToggle(L.fullscreenFailed)
+  const fullscreen = useFullscreenToggle(L)
   // In-iframe build mode is purely a UI state — the LLM never sees the catalogue.
   const [buildMode, setBuildMode] = useState(false)
   const exitBuildMode = useCallback(
@@ -286,66 +304,71 @@ function McpAppViewShell({
   )
 
   // `isPending` must not gate the render: on stripping hosts the latch stays
-  // "pending" forever, and recovered viewData still has to replace it.
+  // "pending" forever, and recovered viewData still has to replace it. The
+  // frame is the stable focus target of a retry (`useRetryFocus`).
   if (!viewData) {
     return (
-      <ViewPlaceholder
-        lifecycle={lifecycle}
-        labels={L}
-        onRetry={retry}
-        describeError={describeError}
-      />
+      <div ref={frameRef} tabIndex={-1} data-slot="mcp-app-view" className="outline-none">
+        <ViewPlaceholder
+          lifecycle={lifecycle}
+          labels={L}
+          onRetry={retry}
+          describeError={describeError}
+        />
+      </div>
     )
   }
 
   return (
-    <main
-      style={{
-        // Fullscreen: the view owns the viewport and scrolls itself. Inline:
-        // the host sizes us from our intrinsic height (bootstrapView's
-        // auto-resize), so no overflow clipping there.
-        ...(fullscreen.isFullscreen ? { minHeight: "100vh", overflowY: "auto" as const } : null),
-        paddingTop: safeArea.top,
-        paddingRight: safeArea.right,
-        paddingBottom: safeArea.bottom,
-        paddingLeft: safeArea.left,
-      }}
-    >
-      <ViewToolbar
-        hidden={buildMode}
-        viewData={viewData}
-        builderAvailable={builderEnabled ?? viewData.builderAvailable ?? false}
-        isFullscreen={fullscreen.isFullscreen}
-        canFullscreen={fullscreen.canFullscreen}
-        isRefreshing={isRefreshing}
-        labels={L}
-        titleMode={titleMode}
-        titleLevel={titleLevel}
-        renderTitle={renderTitle}
-        onRefresh={refreshView}
-        onEnterBuildMode={() => setBuildMode(true)}
-        onToggleFullscreen={fullscreen.toggle}
-      />
-
-      <StepErrors
-        hidden={buildMode}
-        errors={viewData.context.errors}
-        steps={viewData._refreshParams?.steps}
-        labels={L}
-        describeStep={describeStep}
-        onRetry={viewData._refreshParams ? () => void refreshView() : undefined}
-      />
-
-      <AppQueryProvider callTool={callToolFn}>
-        <ViewBody
-          buildMode={buildMode}
+    <div ref={frameRef} tabIndex={-1} data-slot="mcp-app-view" className="outline-none">
+      <main
+        style={{
+          // Fullscreen: the view owns the viewport and scrolls itself. Inline:
+          // the host sizes us from our intrinsic height (bootstrapView's
+          // auto-resize), so no overflow clipping there.
+          ...(fullscreen.isFullscreen ? { minHeight: "100vh", overflowY: "auto" as const } : null),
+          paddingTop: safeArea.top,
+          paddingRight: safeArea.right,
+          paddingBottom: safeArea.bottom,
+          paddingLeft: safeArea.left,
+        }}
+      >
+        <ViewToolbar
+          hidden={buildMode}
           viewData={viewData}
-          widgets={widgets}
-          callTool={callToolFn}
-          builderLabels={builderLabels}
-          onExit={exitBuildMode}
+          builderAvailable={builderEnabled ?? viewData.builderAvailable ?? false}
+          isFullscreen={fullscreen.isFullscreen}
+          canFullscreen={fullscreen.canFullscreen}
+          isRefreshing={isRefreshing}
+          labels={L}
+          titleMode={titleMode}
+          titleLevel={titleLevel}
+          renderTitle={renderTitle}
+          onRefresh={refreshView}
+          onEnterBuildMode={() => setBuildMode(true)}
+          onToggleFullscreen={fullscreen.toggle}
         />
-      </AppQueryProvider>
-    </main>
+
+        <StepErrors
+          hidden={buildMode}
+          errors={viewData.context.errors}
+          steps={viewData._refreshParams?.steps}
+          labels={L}
+          describeStep={describeStep}
+          onRetry={viewData._refreshParams ? () => void refreshView() : undefined}
+        />
+
+        <AppQueryProvider callTool={callToolFn}>
+          <ViewBody
+            buildMode={buildMode}
+            viewData={viewData}
+            widgets={widgets}
+            callTool={callToolFn}
+            builderLabels={builderLabels}
+            onExit={exitBuildMode}
+          />
+        </AppQueryProvider>
+      </main>
+    </div>
   )
 }

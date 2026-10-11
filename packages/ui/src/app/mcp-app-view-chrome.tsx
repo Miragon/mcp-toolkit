@@ -10,6 +10,7 @@ import { createElement, type ReactNode } from "react"
 import { LucideProvider, Maximize2, Minimize2, Pencil, RefreshCw } from "lucide-react"
 import type { LayoutConfig, PipelineStepRef } from "@miragon/mcp-toolkit-core"
 import { ErrorState } from "../components/ErrorState.js"
+import { DENSE_ICON_STROKE } from "../lib/icon-stroke.js"
 import { TOOLKIT_MESSAGES, type ViewMessages } from "../locale/toolkit-messages.js"
 import { Button } from "../primitives/button.js"
 import {
@@ -32,9 +33,6 @@ export type McpAppViewLabels = Partial<ViewMessages>
  * (or `TOOLKIT_MESSAGES.en.view`); this alias stays for existing imports.
  */
 export const DEFAULT_LABELS: Required<McpAppViewLabels> = TOOLKIT_MESSAGES.en.view
-
-/** Stroke width of Lucide icons in dense bars (the view toolbar), CI §11. */
-const DENSE_ICON_STROKE = 2
 
 /** How the toolbar shows the view title — so a view has exactly ONE title. */
 export type ViewTitleMode = "show" | "hide" | "slot"
@@ -193,7 +191,7 @@ function RefreshButton({
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="outline"
       size="icon-sm"
       aria-label={label}
       title={label}
@@ -224,7 +222,7 @@ function FullscreenButton({
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="outline"
       size="icon-sm"
       aria-label={label}
       title={label}
@@ -241,8 +239,10 @@ function FullscreenButton({
  * The view toolbar: the title (per {@link ViewTitleMode}, so a widget that
  * renders its own heading is not titled twice), then Edit, Refresh and
  * Fullscreen. Refresh and Fullscreen are 32 px icon buttons named by
- * `aria-label`; Fullscreen renders only when the host offers it. A 16 px
- * inset keeps the bar off the frame edge, also in fullscreen.
+ * `aria-label`; Fullscreen renders only when the host offers it. All three are
+ * chrome buttons in the CI pattern (CI §8: surface, border, shadow-1; the
+ * `outline` variant). A 16 px inset keeps the bar off the frame edge, also in
+ * fullscreen.
  */
 export function ViewToolbar({
   hidden,
@@ -272,7 +272,7 @@ export function ViewToolbar({
         />
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {show.edit && (
-            <Button type="button" variant="ghost" size="sm" onClick={onEnterBuildMode}>
+            <Button type="button" variant="outline" size="sm" onClick={onEnterBuildMode}>
               <Pencil aria-hidden="true" />
               {labels.build}
             </Button>
@@ -300,6 +300,12 @@ export function ViewToolbar({
 /** Resolves a human title for a pipeline step (`{ id, step }` from the view's steps). */
 export type DescribeStep = (step: { id: string; step?: string }) => string | undefined
 
+/**
+ * The failed data steps as ONE inline alert: what happened (the title), which
+ * data is affected (each step by its human title, else its step id), what you
+ * can do (retry, or ask in the chat when the view cannot refresh). The raw
+ * step reasons stay under "Details", out of the user copy.
+ */
 export function StepErrors({
   hidden,
   errors,
@@ -319,6 +325,10 @@ export function StepErrors({
   onRetry?: () => void
 }) {
   if (hidden || errors.length === 0) return null
+  const failed = errors.map((err) => {
+    const ref = { id: err.stepId, step: steps?.find((s) => s.id === err.stepId)?.step }
+    return { ref, human: describeStep?.(ref), reason: err.reason }
+  })
   return (
     <div className="px-4 pb-4">
       <ErrorState
@@ -326,23 +336,23 @@ export function StepErrors({
         title={labels.stepErrorsTitle}
         retryLabel={labels.retry}
         onRetry={onRetry}
+        detailsLabel={labels.errorDetails}
+        details={failed.map(({ ref, reason }) => `${ref.step ?? ref.id}: ${reason}`).join("\n")}
         description={
-          <ul className="flex flex-col gap-1">
-            {errors.map((err) => {
-              const ref = { id: err.stepId, step: steps?.find((s) => s.id === err.stepId)?.step }
-              const human = describeStep?.(ref)
-              return (
-                <li key={err.stepId} className="break-words">
+          <>
+            <ul className="flex flex-col gap-1">
+              {failed.map(({ ref, human }) => (
+                <li key={ref.id} className="break-words">
                   {human ? (
                     <span className="font-medium">{human}</span>
                   ) : (
                     <span className="font-mono text-xs">{ref.step ?? ref.id}</span>
                   )}
-                  <span className="text-muted-foreground">: {err.reason}</span>
                 </li>
-              )
-            })}
-          </ul>
+              ))}
+            </ul>
+            <p className="mt-1">{onRetry ? labels.stepErrorsHint : labels.errorHintNoRetry}</p>
+          </>
         }
       />
     </div>
