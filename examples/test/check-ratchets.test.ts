@@ -248,3 +248,51 @@ describe("render-allowlist policy (shrink-only)", () => {
     ).toEqual([])
   })
 })
+
+describe("design-exemptions policy (shrink-only)", () => {
+  const rel = "ratchets/design-exemptions.json"
+  const toolbar = "packages/ui/src/app/builder/Toolbar.tsx"
+  const oldJson = {
+    $comment: "x",
+    "design-system": { [toolbar]: { rules: ["text-below-floor"], reason: "12 px pending" } },
+    "example-ui-copy": {},
+  }
+
+  it("flags a new exempt file and a new rule on an exempt file", () => {
+    const violations = compareRatchets(rel, oldJson, {
+      "design-system": {
+        [toolbar]: {
+          rules: ["text-below-floor", "icon-glyph"],
+          reason: "12 px pending, and a typed arrow",
+        },
+      },
+      "example-ui-copy": {
+        "examples/modules/tasks/widgets/TasksBoard.tsx": {
+          rules: ["hardcoded-copy"],
+          reason: "no time for the catalog",
+        },
+      },
+    })
+    expect(violations).toHaveLength(2)
+    expect(violations[0]).toContain(`design-system exemption "${toolbar}" for rule "icon-glyph"`)
+    expect(violations[1]).toContain(
+      'example-ui-copy exemption "examples/modules/tasks/widgets/TasksBoard.tsx"',
+    )
+  })
+
+  it("accepts removal, a reworded reason and introduction", () => {
+    expect(compareRatchets(rel, oldJson, { "design-system": {}, "example-ui-copy": {} })).toEqual(
+      [],
+    )
+    expect(
+      compareRatchets(rel, oldJson, {
+        "design-system": { [toolbar]: { rules: ["text-below-floor"], reason: "clearer why" } },
+      }),
+    ).toEqual([])
+    expect(
+      compareRatchets(rel, null, {
+        "design-system": { "x.tsx": { rules: ["raw-hex"], reason: "r" } },
+      }),
+    ).toEqual([])
+  })
+})

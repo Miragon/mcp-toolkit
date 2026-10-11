@@ -32,7 +32,7 @@ type Labels = Required<LayoutBuilderLabels>
 /** "needs a, b · provides c" in words (no arrow glyphs): a step's contract. */
 function StepContract({ L, step }: { L: Labels; step: AvailableStep }) {
   return (
-    <span className="text-muted-foreground flex flex-wrap gap-x-2 text-xs">
+    <span className="text-muted-foreground text-small flex flex-wrap gap-x-2">
       <span>
         {L.catalogueNeedsKeys}{" "}
         <span className="font-mono">
@@ -78,22 +78,22 @@ function KeyRows({
               value={entry.name || undefined}
               onValueChange={(value) => onUpdateKey(idx, { name: value })}
             >
-              <SelectTrigger aria-label={L.keyName} className="h-7 min-w-0 font-mono text-xs">
+              <SelectTrigger aria-label={L.keyName} className="text-small h-7 min-w-0 font-mono">
                 {/* The trigger names the chosen key only; who uses it shows in the list. */}
                 <SelectValue placeholder={L.keyName}>{entry.name || null}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {pickable.length === 0 ? (
-                  <div className="text-muted-foreground px-2 py-1.5 text-xs italic">
+                  <div className="text-muted-foreground text-small px-2 py-1.5 italic">
                     {L.noMoreKeys}
                   </div>
                 ) : (
                   pickable.map((c) => (
                     <SelectItem key={c.key} value={c.key} className="py-1.5">
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-mono text-xs">{c.key}</span>
+                        <span className="text-small font-mono">{c.key}</span>
                         {c.consumedByWidgets.length + c.consumedBySteps.length > 0 && (
-                          <span className="text-muted-foreground text-xs">
+                          <span className="text-muted-foreground text-small">
                             {L.catalogueConsumedBy}{" "}
                             <span className="font-mono">
                               {[...c.consumedByWidgets, ...c.consumedBySteps].join(", ")}
@@ -113,10 +113,10 @@ function KeyRows({
                   value={entry.rawValue}
                   onChange={(e) => onUpdateKey(idx, { rawValue: e.target.value })}
                   placeholder={livePreview ?? L.keyValue}
-                  className="h-7 pr-14 font-mono text-xs"
+                  className="text-small h-7 pr-14 font-mono"
                 />
                 <span
-                  className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs tabular-nums"
+                  className="text-muted-foreground text-small pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 tabular-nums"
                   title={L.parsedType}
                 >
                   {L.valueType(valueTypeLabel(entry.rawValue))}
@@ -170,7 +170,7 @@ function StepRows({
                 value={step.id}
                 onChange={(e) => onUpdateStep(idx, { id: e.target.value })}
                 placeholder={L.stepContextId}
-                className="h-7 w-24 font-mono text-xs"
+                className="text-small h-7 w-24 font-mono"
               />
               <Select
                 value={step.step || undefined}
@@ -178,7 +178,7 @@ function StepRows({
               >
                 <SelectTrigger
                   aria-label={L.stepPickerLabel}
-                  className="h-7 min-w-0 flex-1 text-xs"
+                  className="text-small h-7 min-w-0 flex-1"
                 >
                   {/* The trigger names the chosen step only; its contract follows below. */}
                   <SelectValue placeholder={L.stepPickerLabel}>
@@ -188,7 +188,7 @@ function StepRows({
                 <SelectContent>
                   {stepsByApp.map(([app, items]) => (
                     <div key={app}>
-                      <div className="text-muted-foreground px-2 py-1 text-xs font-semibold">
+                      <div className="text-muted-foreground text-small px-2 py-1 font-semibold">
                         {app}
                       </div>
                       {items.map((s) => {
@@ -196,14 +196,14 @@ function StepRows({
                         return (
                           <SelectItem key={s.id} value={s.id} className="py-2">
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-xs font-medium">{name.label}</span>
+                              <span className="text-small font-medium">{name.label}</span>
                               {name.summary && (
-                                <span className="text-muted-foreground text-xs">
+                                <span className="text-muted-foreground text-small">
                                   {name.summary}
                                 </span>
                               )}
                               {name.hint && (
-                                <span className="text-muted-foreground font-mono text-xs">
+                                <span className="text-muted-foreground text-small font-mono">
                                   {name.hint}
                                 </span>
                               )}
@@ -278,24 +278,24 @@ function PipelineStripImpl({
   return (
     <section className="bg-muted/30 -mx-1 rounded-lg border px-3 py-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h3 className="text-muted-foreground text-xs font-semibold">{L.pipelineHeader}</h3>
-        <span className="text-muted-foreground text-xs">{L.autoApplies}</span>
-        <div className="ml-auto text-xs">
+        <h3 className="text-muted-foreground text-small font-semibold">{L.pipelineHeader}</h3>
+        <span className="text-muted-foreground text-small">{L.autoApplies}</span>
+        <div className="text-small ml-auto">
           <StatusChip status={status} L={L} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-x-6 gap-y-3 lg:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold">
+          <div className="text-muted-foreground text-small flex items-center gap-1.5 font-semibold">
             <ArrowRightToLine aria-hidden="true" className="size-3.5" />
             {L.keysHeader}
-            <Badge variant="outline" className="px-1.5 text-xs">
+            <Badge variant="outline" className="px-1.5">
               {keyEntries.length}
             </Badge>
           </div>
           {keyEntries.length === 0 ? (
-            <div className="text-muted-foreground rounded-md border border-dashed px-2 py-1.5 text-xs italic">
+            <div className="text-muted-foreground text-small rounded-md border border-dashed px-2 py-1.5 italic">
               {L.emptyKeys}
             </div>
           ) : (
@@ -319,15 +319,15 @@ function PipelineStripImpl({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold">
+          <div className="text-muted-foreground text-small flex items-center gap-1.5 font-semibold">
             <ArrowDownToLine aria-hidden="true" className="size-3.5" />
             {L.stepsHeader}
-            <Badge variant="outline" className="px-1.5 text-xs">
+            <Badge variant="outline" className="px-1.5">
               {stepEntries.length}
             </Badge>
           </div>
           {stepEntries.length === 0 ? (
-            <div className="text-muted-foreground rounded-md border border-dashed px-2 py-1.5 text-xs italic">
+            <div className="text-muted-foreground text-small rounded-md border border-dashed px-2 py-1.5 italic">
               {L.emptySteps}
             </div>
           ) : (

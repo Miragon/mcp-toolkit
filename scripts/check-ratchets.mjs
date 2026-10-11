@@ -15,6 +15,8 @@
  *                                       rises in the same diff
  *   knip.json                           ignore lists shrink-only
  *   packages/ui/ui-catalog.allowlist.json  exemptions shrink-only
+ *   ratchets/design-exemptions.json     shrink-only; no new exempt file,
+ *                                       no new rule on an exempt file
  *
  * The SINGLE documented escape is a commit trailer in the PR range:
  *
@@ -166,6 +168,23 @@ export function compareRatchets(relPath, oldJson, newJson) {
     return violations
   }
 
+  if (kind === "design-exemptions.json") {
+    for (const [gate, entries] of Object.entries(newJson ?? {})) {
+      if (gate === "$comment" || !entries || typeof entries !== "object") continue
+      for (const [file, entry] of Object.entries(entries)) {
+        const oldRules = new Set(oldJson?.[gate]?.[file]?.rules ?? [])
+        for (const rule of Array.isArray(entry?.rules) ? entry.rules : []) {
+          if (!oldRules.has(rule)) {
+            violations.push(
+              `${relPath} -> new ${gate} exemption "${file}" for rule "${rule}". The gate exemptions are shrink-only — fix the file (the gate's message names the house path) instead of exempting it.`,
+            )
+          }
+        }
+      }
+    }
+    return violations
+  }
+
   return violations
 }
 
@@ -175,6 +194,7 @@ export function monitoredFiles(root) {
     "ratchets/eslint-ratchets.json",
     "ratchets/coverage-thresholds.json",
     "ratchets/render-allowlist.json",
+    "ratchets/design-exemptions.json",
     "packages/ui/ui-catalog.allowlist.json",
     "knip.json",
   ]

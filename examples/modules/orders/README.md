@@ -224,8 +224,7 @@ from the slim composed UI layer — theme tokens only, so they white-label for f
 - [`OrdersKpi.tsx`](./widgets/OrdersKpi.tsx) — a `KpiGrid` strip (revenue + per-status
   counts) with a `WidgetHeader`, `LivePill`, and tier `Badge`. Reads `data.kpi`.
 - [`OrdersTable.tsx`](./widgets/OrdersTable.tsx) — a `Table` of the customer's orders
-  with `SectionHeading` and tone-tinted status pills (`TONE_SOFT` + `ToneVariant`).
-  Reads `data.table`.
+  with `SectionHeading` and a `StatusBadge` per order state. Reads `data.table`.
 
 They are registered in the host bundle ([`../../app-bundle/main.tsx`](../../app-bundle/main.tsx))
 with `adaptDataWidget(…, "orders:dashboard", describeForModel)` — the third argument

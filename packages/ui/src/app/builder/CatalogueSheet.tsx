@@ -63,19 +63,19 @@ export function CatalogueSheet({
             <section className="flex flex-col gap-2">
               <CatalogueSectionHeader title={L.catalogueKeys} count={keyCatalog.length} />
               {keyCatalog.length === 0 ? (
-                <p className="text-muted-foreground text-xs italic">{L.noKeysRegistered}</p>
+                <p className="text-muted-foreground text-small italic">{L.noKeysRegistered}</p>
               ) : (
                 <ul className="flex flex-col gap-1">
                   {keyCatalog.map((entry) => (
                     <li
                       key={entry.key}
-                      className="hover:bg-muted flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
+                      className="hover:bg-muted text-small flex flex-col gap-1 rounded-md border px-2 py-1.5"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="truncate font-mono">{entry.key}</span>
                         <span
                           className={cn(
-                            "inline-flex shrink-0 items-center gap-1 text-xs",
+                            "text-small inline-flex shrink-0 items-center gap-1",
                             entry.inContext ? TONE_TEXT.success : "text-muted-foreground",
                           )}
                         >
@@ -94,7 +94,7 @@ export function CatalogueSheet({
                       {(entry.producedBySteps.length > 0 ||
                         entry.consumedBySteps.length > 0 ||
                         entry.consumedByWidgets.length > 0) && (
-                        <div className="text-muted-foreground flex flex-col gap-0.5 text-xs">
+                        <div className="text-muted-foreground text-small flex flex-col gap-0.5">
                           {entry.producedBySteps.length > 0 && (
                             <span>
                               {L.catalogueProducedBy}{" "}
@@ -142,7 +142,7 @@ export function CatalogueSheet({
             <section className="flex flex-col gap-2">
               <CatalogueSectionHeader title={L.catalogueSteps} count={availableSteps.length} />
               {availableSteps.length === 0 ? (
-                <p className="text-muted-foreground text-xs italic">{L.noStepsRegistered}</p>
+                <p className="text-muted-foreground text-small italic">{L.noStepsRegistered}</p>
               ) : (
                 <ul className="flex flex-col gap-1">
                   {availableSteps.map((s) => {
@@ -150,7 +150,7 @@ export function CatalogueSheet({
                     return (
                       <li
                         key={s.id}
-                        className="flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-xs"
+                        className="text-small flex flex-col gap-0.5 rounded-md border px-2 py-1.5"
                       >
                         <span className="truncate font-medium">{name.label}</span>
                         {name.hint && (
@@ -185,7 +185,7 @@ export function CatalogueSheet({
                 count={unreachableWidgets.length}
               />
               {unreachableWidgets.length === 0 ? (
-                <p className="text-muted-foreground text-xs italic">
+                <p className="text-muted-foreground text-small italic">
                   {L.catalogueUnreachableEmpty}
                 </p>
               ) : (
@@ -198,7 +198,7 @@ export function CatalogueSheet({
                     return (
                       <li
                         key={w.id}
-                        className="bg-muted/20 flex flex-col gap-1 rounded-md border px-2 py-1.5 text-xs"
+                        className="bg-muted/20 text-small flex flex-col gap-1 rounded-md border px-2 py-1.5"
                       >
                         <span className="truncate font-medium">{name.label}</span>
                         {name.hint && (
@@ -243,9 +243,9 @@ export function CatalogueSheet({
 function CatalogueSectionHeader({ title, count }: { title: string; count: number }) {
   return (
     <div className="flex items-center gap-2">
-      <h3 className="text-muted-foreground text-xs font-semibold">{title}</h3>
+      <h3 className="text-muted-foreground text-small font-semibold">{title}</h3>
       <span className="bg-border h-px flex-1" aria-hidden="true" />
-      <Badge variant="outline" className="px-1.5 text-xs">
+      <Badge variant="outline" className="px-1.5">
         {count}
       </Badge>
     </div>

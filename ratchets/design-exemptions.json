@@ -1,0 +1,5 @@
+{
+  "$comment": "Files exempt from a rule of a source-scan gate, keyed by gate: `design-system` (examples/test/design-system.test.ts: role tokens, the 13 px type floor, typed glyphs) and `example-ui-copy` (examples/test/example-ui-copy.test.ts: copy, catalog, error, icon and locale rules). An entry is `\"<repo-relative file>\": { \"rules\": [\"<rule id>\"], \"reason\": \"<why, and what clears it>\" }`. SHRINK-ONLY: fix the file and remove its rule. A new file or a new rule on an exempt file fails scripts/check-ratchets.mjs against the merge-base (the single escape is the 'Ratchet-Exception: <reason>' commit trailer); a stale entry (the file no longer breaks that rule, or is gone) fails the gate's own test.",
+  "design-system": {},
+  "example-ui-copy": {}
+}

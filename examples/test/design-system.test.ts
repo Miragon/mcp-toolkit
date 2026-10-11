@@ -2,6 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { REPO_ROOT } from "./helpers/fitness-probe.js"
+import designExemptions from "../../ratchets/design-exemptions.json"
 
 /**
  * Design-system gate (CLAUDE.md "Design-System (verbindlich)"): UI code styles
@@ -125,50 +126,14 @@ function sizeBelowFloor(line: string): string | undefined {
 }
 
 /**
- * Files that still break a rule here, by rule — the builder's UX pass (T4
- * builder) took out the typed glyphs but predates the 13 px floor, so its
- * files keep 12 px text until a type pass. SHRINK-ONLY: fix a file and
- * remove its rule; a stale entry (the file is clean of that rule, or gone)
- * fails below.
+ * Files that still break a rule here, by rule, from the `design-system`
+ * section of `ratchets/design-exemptions.json` (empty since the builder took
+ * the 13 px floor). SHRINK-ONLY: fix a file and remove its rule; a stale
+ * entry (the file is clean of that rule, or gone) fails below, and a new
+ * file or rule fails `scripts/check-ratchets.mjs` against the merge-base.
  */
-const RULE_EXEMPTIONS: Record<string, { rules: string[]; reason: string }> = {
-  "packages/ui/src/app/builder/BuilderBanners.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
-  },
-  "packages/ui/src/app/builder/CanvasRow.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
-  },
-  "packages/ui/src/app/builder/CatalogueSheet.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px): 12 px ids and step contracts",
-  },
-  "packages/ui/src/app/builder/LayoutSurface.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
-  },
-  "packages/ui/src/app/builder/PipelineStrip.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px): 12 px step chips",
-  },
-  "packages/ui/src/app/builder/Toolbar.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
-  },
-  "packages/ui/src/app/builder/Workspace.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px): 12 px palette ids and hints",
-  },
-  "packages/ui/src/app/layout-builder.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
-  },
-  "packages/ui/src/app/widget-props-sheet.tsx": {
-    rules: ["text-below-floor"],
-    reason: "13 px floor pending (the T4 builder pass kept 12 px)",
-  },
-}
+const RULE_EXEMPTIONS: Record<string, { rules: string[]; reason: string }> =
+  designExemptions["design-system"]
 /** A surface utility (with its variant prefix) whose text must switch with it. */
 const LIFTED_SURFACE = /((?:[\w&>*[\]=.()/@-]+:)*)bg-(accent|secondary)(?:\/\d{1,3})?(?![-\w])/g
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")
@@ -252,7 +217,14 @@ function sourceFiles(): string[] {
     for (const entry of fs.readdirSync(path.join(REPO_ROOT, dir), { withFileTypes: true })) {
       const rel = path.posix.join(dir, entry.name)
       if (entry.isDirectory()) {
-        if (!SKIP_DIRS.has(entry.name) && !entry.name.startsWith(".")) walk(rel)
+        // A gate self-test's probe directory (fitness-gates.test.ts) comes and goes.
+        if (
+          !SKIP_DIRS.has(entry.name) &&
+          !entry.name.startsWith(".") &&
+          !entry.name.startsWith("__fitness-probe__")
+        ) {
+          walk(rel)
+        }
       } else if (
         SCAN_EXTENSIONS.has(path.extname(entry.name)) &&
         !/\.test\.tsx?$/.test(entry.name) &&
@@ -300,7 +272,7 @@ describe("design-system gate (role tokens only)", () => {
       for (const rule of rules) {
         expect(
           findings.some((f) => f.file === file && f.rule === rule),
-          `${file} no longer breaks "${rule}" — remove it from RULE_EXEMPTIONS`,
+          `${file} no longer breaks "${rule}" — remove it from ratchets/design-exemptions.json`,
         ).toBe(true)
       }
     }

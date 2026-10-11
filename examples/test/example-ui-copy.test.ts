@@ -3,6 +3,7 @@ import path from "node:path"
 import ts from "typescript"
 import { describe, expect, it } from "vitest"
 import { REPO_ROOT } from "./helpers/fitness-probe.js"
+import designExemptions from "../../ratchets/design-exemptions.json"
 
 /**
  * The UI the toolkit ships as reference (examples, the starter template) is
@@ -29,8 +30,9 @@ import { REPO_ROOT } from "./helpers/fitness-probe.js"
  *  - no locale literal as the first argument of `Intl.*` or `toLocale*String`
  *    (`"en-US"`, `[]`): format in the widget's locale (`useLocale()`). A
  *    literal fallback inside a `catch` (an invalid tag) stays allowed.
- * In the reference widgets ({@link COPY_SCOPE}: the module widgets and the
- * host-portable `OrderStatusCard`) every word comes from their en/de catalog
+ * In the reference widgets ({@link COPY_SCOPE}: the module widgets, the
+ * host-portable `OrderStatusCard` and the starter's views, which every new
+ * server starts from) every word comes from their en/de catalog
  * (`messages.ts`), never from the component: no JSX text with a letter, and
  * no letter-bearing literal as a rendered child, as a text attribute or
  * component prop (`title`, `aria-label`, `placeholder`, …) or as a text field
@@ -45,18 +47,23 @@ const SKIP_DIRS = new Set(["node_modules", "dist", "generated", "test", ".mcp-us
 const COPY_SCOPE = [
   /^examples\/modules\/[^/]+\/widgets\/.+\.tsx$/,
   /^examples\/host-portability\/OrderStatusCard\.tsx$/,
+  /^templates\/minimal-server\/views\/.+\.tsx$/,
 ]
 
 /**
- * Files exempt from a rule, with the reason. SHRINK-ONLY: a stale entry (the
- * file is clean of that rule, or gone) fails below.
+ * Files exempt from a rule, with the reason, from the `example-ui-copy`
+ * section of `ratchets/design-exemptions.json`. SHRINK-ONLY: a stale entry
+ * (the file is clean of that rule, or gone) fails below, and a new file or
+ * rule fails `scripts/check-ratchets.mjs` against the merge-base.
  */
-const EXEMPTIONS: Record<string, { rules: string[]; reason: string }> = {}
+const EXEMPTIONS: Record<string, { rules: string[]; reason: string }> =
+  designExemptions["example-ui-copy"]
 
 function listSources(dir: string): string[] {
   const out: string[] = []
   for (const entry of fs.readdirSync(path.join(REPO_ROOT, dir), { withFileTypes: true })) {
-    if (SKIP_DIRS.has(entry.name)) continue
+    // A gate self-test's probe (fitness-gates.test.ts) comes and goes mid-run.
+    if (SKIP_DIRS.has(entry.name) || entry.name.startsWith("__fitness-probe__")) continue
     const rel = path.join(dir, entry.name)
     if (entry.isDirectory()) out.push(...listSources(rel))
     else if (/\.tsx?$/.test(entry.name) && !/\.(test|d)\.tsx?$/.test(entry.name)) out.push(rel)
@@ -296,9 +303,9 @@ describe("example and template UI copy", () => {
     ]) {
       expect(files).toContain(expected)
     }
-    expect(files.filter((f) => COPY_SCOPE.some((re) => re.test(f))).length).toBeGreaterThanOrEqual(
-      6,
-    )
+    const scoped = files.filter((f) => COPY_SCOPE.some((re) => re.test(f)))
+    expect(scoped.length).toBeGreaterThanOrEqual(7)
+    expect(scoped).toContain("templates/minimal-server/views/shared/TaskListCard.tsx")
   })
 
   it("follows the copy, catalog, error, icon and locale rules", () => {
@@ -319,7 +326,7 @@ describe("example and template UI copy", () => {
       for (const rule of rules) {
         expect(
           findings.some((f) => f.file === file && f.rule === rule),
-          `${file} no longer breaks "${rule}": remove it from EXEMPTIONS`,
+          `${file} no longer breaks "${rule}": remove it from ratchets/design-exemptions.json`,
         ).toBe(true)
       }
     }
@@ -396,7 +403,16 @@ describe("example UI copy gate fires (self-test)", () => {
         )
       `),
     ).toEqual([])
-    // Outside the reference widgets (a harness, the template) the rule is off.
+    // The starter's views are reference widgets too: a new server copies them.
+    expect(
+      scan("templates/minimal-server/views/shared/Probe.tsx", "const A = () => <p>Tasks</p>").map(
+        (f) => f.rule,
+      ),
+    ).toEqual(["hardcoded-copy"])
+    // Outside the reference widgets (a harness, the template's server code) the rule is off.
     expect(scan("examples/widget-playground/App.tsx", "const A = () => <p>Brand</p>")).toEqual([])
+    expect(scan("templates/minimal-server/src/Probe.tsx", "const A = () => <p>Brand</p>")).toEqual(
+      [],
+    )
   })
 })

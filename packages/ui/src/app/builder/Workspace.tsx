@@ -163,12 +163,12 @@ function Palette({
       <div className="lg:sticky lg:top-16">
         <h3
           id={headingId}
-          className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-semibold"
+          className="text-muted-foreground text-small mb-2 flex items-center gap-2 font-semibold"
         >
           {L.paletteHeader}
           {/* No count while loading: "0" would say there are none. */}
           {!loading && (
-            <Badge variant="outline" className="px-1.5 text-xs">
+            <Badge variant="outline" className="px-1.5">
               {paletteCount}
             </Badge>
           )}
@@ -217,7 +217,7 @@ function PaletteLoading({ L }: { L: Required<LayoutBuilderLabels> }) {
       <Skeleton aria-hidden="true" className="h-9 w-full" />
       <Skeleton aria-hidden="true" className="h-9 w-full" />
       <Skeleton aria-hidden="true" className="h-9 w-3/4" />
-      <p role="status" className="text-muted-foreground mt-1 text-xs">
+      <p role="status" className="text-muted-foreground text-small mt-1">
         {L.paletteLoading}
       </p>
     </div>
@@ -240,7 +240,7 @@ export function PaletteEmpty({
   return (
     <div
       data-slot="builder-palette-empty"
-      className="text-muted-foreground flex flex-col items-start gap-2 rounded-md border border-dashed p-3 text-xs"
+      className="text-muted-foreground text-small flex flex-col items-start gap-2 rounded-md border border-dashed p-3"
     >
       <p>{L.paletteEmpty}</p>
       <Button size="sm" variant="outline" onClick={onOpenDataSources}>
@@ -272,7 +272,10 @@ function PaletteGroupHeading({
   const { label, hint } = displayLabel(display ?? {}, app, locale, resolveKey)
   if (hint === undefined && !advanced) return null
   return (
-    <div data-slot="builder-palette-group" className="text-muted-foreground text-xs font-semibold">
+    <div
+      data-slot="builder-palette-group"
+      className="text-muted-foreground text-small font-semibold"
+    >
       {label}
       {advanced && hint && <span className="ml-1.5 font-mono font-normal">{hint}</span>}
     </div>
@@ -327,10 +330,10 @@ function PaletteItemImpl({
           className="text-muted-foreground group-hover:text-accent-foreground size-3.5 shrink-0"
         />
       </span>
-      {summary && <span className={cn(quiet, "text-xs")}>{summary}</span>}
-      {hint && <span className={cn(quiet, "font-mono text-xs")}>{hint}</span>}
+      {summary && <span className={cn(quiet, "text-small")}>{summary}</span>}
+      {hint && <span className={cn(quiet, "text-small font-mono")}>{hint}</span>}
       {advanced && w.requires.length > 0 && (
-        <span className={cn(quiet, "text-xs")}>
+        <span className={cn(quiet, "text-small")}>
           {L.catalogueNeedsKeys} <span className="font-mono">{w.requires.join(", ")}</span>
         </span>
       )}

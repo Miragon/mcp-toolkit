@@ -107,7 +107,7 @@ function CanvasRowImpl({
       )}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+        <div className="text-muted-foreground text-small flex flex-wrap items-center gap-2">
           <span className="font-medium">{L.rowLabel(rowIdx + 1)}</span>
           <span className="bg-muted rounded px-1.5 py-0.5">{L.elementCount(row.row.length)}</span>
           {focused && (
@@ -161,7 +161,7 @@ function CanvasRowImpl({
       {row.row.length === 0 ? (
         <div
           className={cn(
-            "rounded-md border border-dashed py-6 text-center text-xs transition-colors",
+            "text-small rounded-md border border-dashed py-6 text-center transition-colors",
             dragOver
               ? "border-focus bg-accent text-accent-foreground"
               : "border-input text-muted-foreground",
@@ -186,7 +186,7 @@ function CanvasRowImpl({
               return (
                 <GridItem key={`${cell.widget}-${cellIdx}`} span={span}>
                   <div className="border-border bg-card shadow-1 relative overflow-hidden rounded-md border">
-                    <div className="text-muted-foreground bg-muted/30 flex items-center justify-between gap-2 border-b px-2 py-1 text-xs">
+                    <div className="text-muted-foreground bg-muted/30 text-small flex items-center justify-between gap-2 border-b px-2 py-1">
                       <span className="flex min-w-0 items-baseline gap-2" title={name.hint}>
                         <span className="text-foreground truncate font-medium">{name.label}</span>
                         {advanced && name.hint && (
@@ -203,7 +203,7 @@ function CanvasRowImpl({
                             <SelectTrigger
                               size="sm"
                               className={cn(
-                                "h-6 gap-0.5 border-none bg-transparent px-1 py-0 text-xs tabular-nums shadow-none",
+                                "text-small h-6 gap-0.5 border-none bg-transparent px-1 py-0 tabular-nums shadow-none",
                                 // Borderless, so the input focus edge is gone: the kit ring instead.
                                 FOCUS_RING,
                               )}
@@ -217,7 +217,7 @@ function CanvasRowImpl({
                                 <SelectItem
                                   key={n}
                                   value={String(n)}
-                                  className="text-xs tabular-nums"
+                                  className="text-small tabular-nums"
                                 >
                                   {n}
                                 </SelectItem>
@@ -263,7 +263,7 @@ function CanvasRowImpl({
                         props={widgetProps}
                         cellProps={cell.props}
                         showEmptyHint
-                        notBundledClassName="text-muted-foreground rounded border border-dashed p-3 text-center text-xs"
+                        notBundledClassName="text-muted-foreground rounded border border-dashed p-3 text-center text-small"
                       />
                     </div>
                     <ResizeHandle

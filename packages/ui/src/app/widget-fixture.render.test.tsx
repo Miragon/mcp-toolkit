@@ -67,8 +67,10 @@ describe("WidgetFixtureHost host scope", () => {
 
   it("mounts the toast stack as the view's one polite live region", () => {
     // Like McpAppView's: fixed attributes, no role and no name, so the first
-    // toast lands in a region the browser already tracks.
-    const html = render({ locale: "de" })
+    // toast lands in a region the browser already tracks. Its words (the
+    // dismiss label in the host locale) need a toast, so effects:
+    // widget-fixture.effects.test.tsx.
+    const html = render()
     const viewport = /<div data-slot="toast-viewport"[^>]*>/.exec(html)?.[0]
     expect(viewport).toBeDefined()
     expect(viewport).toContain('aria-live="polite"')

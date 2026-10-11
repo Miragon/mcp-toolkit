@@ -101,11 +101,12 @@ default, light or dark as the host is: import
 `@miragon/mcp-toolkit-ui/globals.css` once in your view's CSS, and give it your
 brand by overriding role variables only (see
 [white-labeling](./guides/white-labeling.md)). Geist and Geist Mono are named
-first in the font stacks; loading them is opt-in
-(`@miragon/mcp-toolkit-ui/fonts.css`). The toolkit's own text follows the
-host's locale in English or German; your widgets' text is yours, and the
-[`tasks` example](../examples/modules/tasks/widgets/messages.ts) shows a typed
-en/de catalog for it.
+first in the font stacks; loading them is opt-in in the package
+(`@miragon/mcp-toolkit-ui/fonts.css`), and the starter template imports it.
+The toolkit's own text follows the host's locale in English or German; your
+widgets' text is yours, and the
+[`tasks` example](../examples/modules/tasks/widgets/messages.ts) and the
+starter's `views/shared/messages.ts` show a typed en/de catalog for it.
 
 ### The standard path — a plain mcp-use project, toolkit on top
 

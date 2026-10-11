@@ -322,7 +322,7 @@ function LayoutBuilderImpl({
               <SlidersHorizontal aria-hidden="true" className="size-3.5" />
               {L.viewPipelineTab}
               {(keyEntries.length > 0 || stepEntries.length > 0) && (
-                <span className="bg-muted text-muted-foreground ml-1 rounded px-1 text-xs tabular-nums">
+                <span className="bg-muted text-muted-foreground text-small ml-1 rounded px-1 tabular-nums">
                   {keyEntries.length}/{stepEntries.length}
                 </span>
               )}

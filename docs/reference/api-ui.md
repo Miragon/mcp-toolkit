@@ -301,7 +301,8 @@ result itself, so the view re-runs the tool as that result arrives, with the
 call's complete arguments, and keeps waiting while a compliant host is still
 running the tool. `HostBridge.getWidgetData()` returns the payload the view
 shows. A payload the view loaded itself (its recovery, a retry after a result
-the chat got, a refresh) carries a quiet line under the toolbar title
+the chat got, a refresh, an Apply from the view builder, whose catalogue call
+ran the data steps again) carries a quiet line under the toolbar title
 ("Reloaded at 2:32 PM" / "Neu geladen um 14:32 Uhr": its figures are live as
 of then and can differ from the answer in the chat) and is reported to the
 model. A retry after a failed or cancelled call carries none: the model never

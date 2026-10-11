@@ -51,7 +51,7 @@ export function BuilderBanners({
         <div
           role="status"
           aria-live="polite"
-          className="border-warning bg-warning-soft text-foreground flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
+          className="border-warning bg-warning-soft text-foreground text-small flex items-start gap-2 rounded-md border px-3 py-2"
         >
           <AlertTriangle
             className={`mt-0.5 size-3.5 shrink-0 ${TONE_ICON.warning}`}

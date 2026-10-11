@@ -1,10 +1,10 @@
 import { memo } from "react"
-import { Check, Eye, Layers, Library, LucideProvider, Save, Undo2, Wrench } from "lucide-react"
+import { Check, Library, LucideProvider, Save, Undo2, Wrench } from "lucide-react"
 import { DENSE_ICON_STROKE } from "../../lib/icon-stroke.js"
 import { FOCUS_RING } from "../../lib/focus-ring.js"
 import { Badge } from "../../primitives/badge.js"
 import { Button } from "../../primitives/button.js"
-import { TONE_DOT, TONE_SOFT } from "../../lib/tone-utils.js"
+import { TONE_DOT } from "../../lib/tone-utils.js"
 import { cn } from "../../lib/utils.js"
 import type { LayoutBuilderLabels, RefreshStatus } from "./labels.js"
 import { StatusChip } from "./status-chip.js"
@@ -44,7 +44,7 @@ function Stats({
   unreachableCount,
 }: Pick<ToolbarProps, "L" | "status" | "liveKeys" | "reachableCount" | "unreachableCount">) {
   return (
-    <div className="text-muted-foreground hidden items-center gap-3 text-xs sm:flex">
+    <div className="text-muted-foreground text-small hidden items-center gap-3 sm:flex">
       <span className="inline-flex items-center gap-1.5">
         <span aria-hidden="true" className={`size-1.5 rounded-full ${TONE_DOT.success}`} />
         <span>
@@ -78,7 +78,7 @@ function UnsavedMarker({ L, unsaved }: { L: Required<LayoutBuilderLabels>; unsav
     <span
       role="status"
       data-slot="builder-unsaved"
-      className="text-muted-foreground inline-flex items-center gap-1.5 text-xs"
+      className="text-muted-foreground text-small inline-flex items-center gap-1.5"
     >
       {unsaved && (
         <>
@@ -110,16 +110,9 @@ function ToolbarImpl({
   return (
     <header className="bg-background/80 sticky top-0 z-10 -mx-1 flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-1 py-2 backdrop-blur">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <span
-          className={cn(
-            "inline-flex size-6 items-center justify-center rounded-md",
-            previewMode ? TONE_SOFT.success : TONE_SOFT.info,
-          )}
-          aria-hidden="true"
-        >
-          {previewMode ? <Eye className="size-3.5" /> : <Layers className="size-3.5" />}
-        </span>
-        {/* The focus target when build mode opens (McpAppView moves focus here). */}
+        {/* No tinted icon tile before the title: a mode is no status, and the
+            badge next to the title already names it (anti-slop U2, CI §3.3).
+            The focus target when build mode opens (McpAppView moves focus here). */}
         <h2
           data-slot="builder-title"
           tabIndex={-1}

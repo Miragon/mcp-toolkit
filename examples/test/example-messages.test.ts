@@ -12,9 +12,14 @@ import {
   ordersText,
 } from "../modules/orders/widgets/messages.js"
 import { TASKS_TEXT, tasksText } from "../modules/tasks/widgets/messages.js"
+import {
+  TASK_BOARD_TEXT,
+  taskBoardText,
+} from "../../templates/minimal-server/views/shared/messages.js"
 
 /**
- * The reference widgets' en/de catalogs follow the same rules as the
+ * The reference widgets' en/de catalogs (the starter template's included)
+ * follow the same rules as the
  * toolkit's own catalog (`packages/ui/src/locale/toolkit-messages.test.ts`):
  * both languages have the same shape, every string keeps the house copy rules
  * (no dash as a connector, "…" never "...", AI not KI, "CIB seven"), German
@@ -53,6 +58,7 @@ const CATALOGS = {
   orders: ORDERS_TEXT,
   articles: ARTICLES_TEXT,
   "order card": ORDER_CARD_TEXT,
+  "starter task board": TASK_BOARD_TEXT,
 } as const
 
 /** Every message of a catalog as `[path, rendered text]`, nested records flattened. */
@@ -130,7 +136,7 @@ for (const [name, catalog] of Object.entries(CATALOGS)) {
 }
 
 describe("catalog choice by locale tag", () => {
-  const pickers = [tasksText, ordersText, articlesText, orderCardText]
+  const pickers = [tasksText, ordersText, articlesText, orderCardText, taskBoardText]
 
   it("picks German for any German tag and English for every other language", () => {
     for (const pick of pickers) {
@@ -168,6 +174,8 @@ describe("plurals pick the word for the count", () => {
     expect(TASKS_TEXT.en.taskCount(4, "4")).toBe("4 tasks")
     expect(TASKS_TEXT.de.taskCount(1, "1")).toBe("1 Aufgabe")
     expect(TASKS_TEXT.de.taskCount(0, "0")).toBe("0 Aufgaben")
+    expect(TASK_BOARD_TEXT.en.taskCount(1, "1")).toBe("1 task")
+    expect(TASK_BOARD_TEXT.de.taskCount(2, "2")).toBe("2 Aufgaben")
     expect(ORDERS_TEXT.en.orderCount(1, "1")).toBe("1 order")
     expect(ORDERS_TEXT.de.orderCount(1234, "1.234")).toBe("1.234 Bestellungen")
   })

@@ -63,7 +63,8 @@ cp env.example .env
     └── shared/                    # shared browser modules — MUST live under views/
         ├── widgets.tsx            # widget-id map → React components
         ├── TaskListCard.tsx       # the widget: {data: TasksBoardData} → UI primitives
-        └── styles.css             # Tailwind entry: globals.css + @source scan paths
+        ├── messages.ts            # the widget's words: typed en/de catalog
+        └── styles.css             # Tailwind entry: globals.css + fonts.css + @source scan paths
 ```
 
 ## How the views work
@@ -126,15 +127,18 @@ release lifts them. It is a warning, not a break — install, typecheck and
   [white-labeling guide](https://github.com/Miragon/mcp-toolkit/blob/main/docs/guides/white-labeling.md)
   lists every role.
 - **Fonts.** The theme names Geist and Geist Mono first and falls back to the
-  host's font. Loading Geist is opt-in: uncomment the `fonts.css` import in
-  `views/shared/styles.css`. The files come from npm through the bundler, no
-  font CDN; they are inlined into every view, so weigh the size.
+  host's font. `views/shared/styles.css` loads both through the `fonts.css`
+  import: the files come from npm through the bundler, no font CDN. The view
+  build inlines them into every view; to keep views small, drop the import
+  and serve the files by URL with `fontFaces({ baseUrl })` (allow that origin
+  in the view's CSP `resourceDomains`), or let the host's font stand in.
 - **Language.** The toolkit's own text (list footers, empty and error states,
-  toasts, the view toolbar) follows the host's locale, in English or German.
-  `TaskListCard`'s own words are English. To translate them, give the module
-  a typed en/de catalog the way the toolkit's
-  [tasks example](https://github.com/Miragon/mcp-toolkit/blob/main/examples/modules/tasks/widgets/messages.ts)
-  does, and format counts and dates with `useLocale()`.
+  toasts, the view toolbar) follows the host's locale, in English or German,
+  and so does `TaskListCard`: every word comes from the typed en/de catalog in
+  `views/shared/messages.ts` (German with du), picked by `useLocale()`. Each
+  `views/<tool>/view.tsx` hands the host's locale to a `LocaleProvider`. Add
+  a widget's words to the catalog, never into the component, and format
+  counts and dates with `useLocale()`.
 
 ## CI
 

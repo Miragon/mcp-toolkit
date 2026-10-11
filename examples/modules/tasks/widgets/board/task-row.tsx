@@ -7,16 +7,15 @@ import {
   CardContent,
   FOCUS_RING,
   Skeleton,
-  TONE_BORDER,
+  StatusBadge,
   TONE_ICON,
-  TONE_SOFT,
   cn,
   type ToneVariant,
 } from "@miragon/mcp-toolkit-ui"
 import type { Task, TaskPriority, TaskStatus } from "../../store.js"
 import { useTasksText } from "../messages.js"
 
-/** A task's status is a state, so it takes a status tone (tint, rim, foreground text). */
+/** A task's status is a state, so it takes a status tone (tint, rim and dot, foreground text). */
 export const STATUS_TONE: Record<TaskStatus, ToneVariant> = {
   todo: "neutral",
   doing: "info",
@@ -29,22 +28,6 @@ export const STATUS_TONE: Record<TaskStatus, ToneVariant> = {
  * tone (nothing has failed).
  */
 const PRIORITY_ICON = { high: ChevronsUp, medium: Equal, low: ChevronDown } as const
-
-/** Small tone-tinted status pill, built from the shared `TONE_*` token maps. */
-function StatusPill({ status }: { status: TaskStatus }) {
-  const text = useTasksText()
-  return (
-    <span
-      className={cn(
-        "text-small inline-flex items-center rounded-md border px-2 py-0.5 font-semibold",
-        TONE_SOFT[STATUS_TONE[status]],
-        TONE_BORDER[STATUS_TONE[status]],
-      )}
-    >
-      {text.status[status]}
-    </span>
-  )
-}
 
 function PriorityBadge({ priority }: { priority: TaskPriority }) {
   const text = useTasksText()
@@ -111,7 +94,7 @@ export function TaskRow({
           </span>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <StatusPill status={task.status} />
+          <StatusBadge tone={STATUS_TONE[task.status]}>{text.status[task.status]}</StatusBadge>
           {justCompleted ? (
             <JustCompleted />
           ) : (

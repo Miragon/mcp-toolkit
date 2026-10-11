@@ -3,14 +3,13 @@ import {
   Badge,
   EmptyState,
   SectionHeading,
+  StatusBadge,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-  TONE_BORDER,
-  TONE_SOFT,
   cn,
   formatCount,
   useLocale,
@@ -22,7 +21,8 @@ import { formatDay, formatEuro, useOrdersText } from "./messages.js"
 /**
  * OrdersTable — the second widget of the orders dashboard: a table of the
  * customer's orders built from the shared `Table` primitive plus `SectionHeading`
- * and tone-tinted status `Badge`s.
+ * and the kit's `StatusBadge` for each order's state (tint, rim and dot in the
+ * tone, the words in the foreground).
  *
  * Data contract: like `OrdersKpi`, this is a single-data `({ data })` widget
  * registered via `adaptDataWidget(OrdersTable, "orders:dashboard")`. It receives
@@ -36,22 +36,6 @@ const STATUS_TONE: Record<OrderStatus, ToneVariant> = {
   paid: "neutral",
   shipped: "success",
   cancelled: "danger",
-}
-
-/** Small tone-tinted status pill, built from the shared `TONE_SOFT`/`TONE_BORDER` token maps. */
-function StatusPill({ status }: { status: OrderStatus }) {
-  const text = useOrdersText()
-  return (
-    <span
-      className={cn(
-        "text-small inline-flex items-center rounded-md border px-2 py-0.5 font-semibold",
-        TONE_SOFT[STATUS_TONE[status]],
-        TONE_BORDER[STATUS_TONE[status]],
-      )}
-    >
-      {text.status[status]}
-    </span>
-  )
 }
 
 export function OrdersTable({ data }: { data: OrdersDashboardData | null }) {
@@ -92,7 +76,9 @@ export function OrdersTable({ data }: { data: OrdersDashboardData | null }) {
                   {formatDay(order.placedAt, locale)}
                 </TableCell>
                 <TableCell>
-                  <StatusPill status={order.status} />
+                  <StatusBadge tone={STATUS_TONE[order.status]}>
+                    {text.status[order.status]}
+                  </StatusBadge>
                 </TableCell>
                 <TableCell
                   className={cn(

@@ -63,9 +63,10 @@ owns its data in-process instead of fetching through a declarative step.
 
 A curated `({ data }: { data: TasksBoardData | null })` component built from the
 slim composed UI layer — `WidgetHeader`, `KpiGrid` (boxed, click-to-filter
-cells), `FilterBar` + `useDebouncedValue`, `SectionHeading`, tone-tinted status
-pills (`TONE_SOFT` + `ToneVariant`), `Badge`, `CountPill`, `LivePill`,
-`ListFooter`. No auto-UI, no `<div>` soup, theme tokens only (so it white-labels).
+cells), `FilterBar` + `useDebouncedValue`, `SectionHeading`, `StatusBadge` for
+each task's state, `Badge`, `LivePill`, `ListFooter` (mounted next to the empty
+filter result too, so its live region announces "No entries"). No auto-UI, no
+`<div>` soup, theme tokens only (so it white-labels).
 
 **Complete** is a deterministic write: the button calls `complete_task` through
 `useToolMutation`, shows the row as done at once, rolls it back if the call

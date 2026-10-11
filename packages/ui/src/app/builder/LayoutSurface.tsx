@@ -105,10 +105,12 @@ export function LayoutSurface({
         >
           <Plus aria-hidden="true" />
         </Button>
-        <span className="text-muted-foreground ml-2 hidden text-xs sm:inline">{L.renameHint}</span>
+        <span className="text-muted-foreground text-small ml-2 hidden sm:inline">
+          {L.renameHint}
+        </span>
       </div>
       {renameRejected && editingTabIdx !== null && (
-        <p id={errorId} className="text-danger-ink -mt-1 mb-2 text-xs" role="alert">
+        <p id={errorId} className="text-danger-ink text-small -mt-1 mb-2" role="alert">
           {L.renameDuplicate}
         </p>
       )}

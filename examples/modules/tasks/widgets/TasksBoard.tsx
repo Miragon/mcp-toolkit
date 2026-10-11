@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { ListChecks, SearchX } from "lucide-react"
+import { ListChecks } from "lucide-react"
 import {
   Button,
   EmptyState,
@@ -7,7 +7,6 @@ import {
   FOCUS_RING,
   FilterBar,
   KpiGrid,
-  ListFooter,
   LivePill,
   SectionHeading,
   WidgetHeader,
@@ -28,7 +27,8 @@ import {
 import { SHOW_TASKS_BOARD } from "../tool-names.js"
 import { useTasksText } from "./messages.js"
 import { listTasks } from "./board/board-logic.js"
-import { BoardSkeleton, STATUS_TONE, TaskRow } from "./board/task-row.js"
+import { TaskList } from "./board/task-list.js"
+import { BoardSkeleton, STATUS_TONE } from "./board/task-row.js"
 import { useBoard, useCompletion } from "./board/use-board.js"
 
 /**
@@ -53,7 +53,9 @@ import { useBoard, useCompletion } from "./board/use-board.js"
  * States: a failed self-fetch is an `ErrorState` with a retry (the raw reason
  * under Details, never as the message); an empty board and an empty filter
  * result are two different `EmptyState`s, each with its next step; writes and
- * refreshes report their outcome as a toast.
+ * refreshes report their outcome as a toast. The list's `ListFooter` stays
+ * mounted next to the empty filter result too (`TaskList`), so its live
+ * region announces "No entries" and, once the filter is cleared, the count.
  *
  * Interaction: KPI cells filter by status, the `FilterBar` by text and
  * priority; an active status filter is named in the KPI header and in the
@@ -287,38 +289,15 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
                 onChipToggle={(id) => filter.togglePriority(id as TaskPriority)}
               />
 
-              {visible.length === 0 ? (
-                <EmptyState
-                  icon={<SearchX />}
-                  title={text.noMatchTitle}
-                  description={text.noMatchHint}
-                  action={
-                    <Button variant="outline" size="sm" onClick={filter.clear}>
-                      {text.clearFilters}
-                    </Button>
-                  }
-                />
-              ) : (
-                <>
-                  <div className="mt-3 flex flex-col gap-2">
-                    {visible.map((task) => (
-                      <TaskRow
-                        key={task.id}
-                        task={task}
-                        justCompleted={placedAs.has(task.id)}
-                        onComplete={complete}
-                      />
-                    ))}
-                  </div>
-                  <ListFooter
-                    shown={visible.length}
-                    total={filtered.length}
-                    hasMore={filtered.length > filter.limit}
-                    onLoadMore={filter.showMore}
-                    noun={text.listNoun}
-                  />
-                </>
-              )}
+              <TaskList
+                visible={visible}
+                matching={filtered.length}
+                hasMore={filtered.length > filter.limit}
+                placedAs={placedAs}
+                onShowMore={filter.showMore}
+                onClearFilters={filter.clear}
+                onComplete={complete}
+              />
             </div>
           </>
         )}

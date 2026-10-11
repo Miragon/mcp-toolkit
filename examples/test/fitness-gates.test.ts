@@ -188,6 +188,31 @@ describe("eslint widget-discipline gates fire", () => {
     expect(messages.some((m) => m.message.includes("Hard-coded Tailwind palette"))).toBe(true)
   })
 
+  it(
+    "templates view entries may read the host context; what they render may not",
+    { timeout: PROBE_TIMEOUT },
+    async () => {
+      // `views/<tool>/view.tsx` is mounted by bootstrapView (the host's locale
+      // for a LocaleProvider); `views/shared/` is widget code.
+      const entry = "templates/minimal-server/views/__fitness-probe__/view.tsx"
+      const shared = "templates/minimal-server/views/shared/__fitness-probe__.tsx"
+      const hostImport = 'import { useHostContext } from "mcp-use/react"\n'
+      const [atEntry, atShared] = await withProbeFiles(
+        {
+          [entry]: `${hostImport}export default function Probe() {\n  return <span lang={useHostContext().locale} className="text-emerald-600" />\n}`,
+          [shared]: `${hostImport}export function Probe() {\n  return <span lang={useHostContext().locale} />\n}`,
+        },
+        async () => [await eslintProbe([entry]), await eslintProbe([shared])],
+      )
+      const said = (probe: typeof atEntry, text: string) =>
+        probe.messages.some((m) => m.message.includes(text))
+      expect(said(atEntry, "useHostBridge()")).toBe(false)
+      // The rest of the widget discipline still holds for the entry.
+      expect(said(atEntry, "Hard-coded Tailwind palette")).toBe(true)
+      expect(said(atShared, "useHostBridge()")).toBe(true)
+    },
+  )
+
   it("hand-stamped _meta.ui keys are rejected", { timeout: PROBE_TIMEOUT }, async () => {
     const probe = "examples/modules/tasks/__fitness-probe__meta.ts"
     const { messages } = await withProbeFiles(

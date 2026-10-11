@@ -1,3 +1,5 @@
+import { useHostContext } from "mcp-use/react"
+import { LocaleProvider } from "@miragon/mcp-toolkit-ui"
 import { McpToolkitApp } from "@miragon/mcp-toolkit-ui/app"
 import { widgets } from "../shared/widgets.js"
 import "../shared/styles.css"
@@ -9,5 +11,12 @@ import "../shared/styles.css"
  * export via `bootstrapView`.
  */
 export default function RenderView() {
-  return <McpToolkitApp widgets={widgets} />
+  // The host's language for the widgets' own text (the toolkit chrome follows
+  // it by itself); the CLI mounts this component, so the view hooks run here.
+  const { locale } = useHostContext()
+  return (
+    <LocaleProvider locale={locale}>
+      <McpToolkitApp widgets={widgets} />
+    </LocaleProvider>
+  )
 }
