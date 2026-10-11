@@ -1,10 +1,10 @@
-# my-mcp-server — minimal @miragon/mcp-toolkit starter
+# my-mcp-server: a minimal Miragon MCP Toolkit starter
 
-A self-contained MCP server built on the published `@miragon/mcp-toolkit`
-packages: a plain [mcp-use](https://mcp-use.com) project with the toolkit
-installed on top — one module that registers its **own** tools plus a widget
-(the `tasks` module), views built and served by the mcp-use CLI. Two commands
-take you from clone to a rendered widget.
+A self-contained MCP server built on the Miragon MCP Toolkit (the published
+`@miragon/mcp-toolkit-*` packages): a plain [mcp-use](https://mcp-use.com)
+project with the toolkit installed on top. One module registers its **own**
+tools plus a widget (the `tasks` module), and the mcp-use CLI builds and
+serves the views. Two commands take you from clone to a rendered widget.
 
 ## Quickstart
 
@@ -118,17 +118,52 @@ release lifts them. It is a warning, not a break — install, typecheck and
 
 ## Look and language
 
-- **Look.** The widgets render in the Miragon design system, the toolkit's
-  default theme, light or dark as the host is. To give them your brand,
-  override **role variables** only (`--primary`, `--primary-hover`, `--link`,
-  `--focus`, `--radius-md`, …) in `views/shared/styles.css`: the commented
-  block there has the light and the dark selectors. Never override the
-  `--cd-*` tokens or component classes. The
-  [white-labeling guide](https://github.com/Miragon/mcp-toolkit/blob/main/docs/guides/white-labeling.md)
-  lists every role.
-- **Fonts.** The theme names Geist and Geist Mono first and falls back to the
-  host's font. `views/shared/styles.css` loads both through the `fonts.css`
-  import: the files come from npm through the bundler, no font CDN. The view
+The widgets render in the Miragon design system, the toolkit's default
+theme, light or dark as the host is, in Geist, with their words in English or
+German as the host's locale is. Out of the box you change none of it.
+
+### Your brand
+
+To give the widgets your brand, override **role variables** at the end of
+`views/shared/styles.css`, below the two toolkit imports (the commented block
+there is the skeleton). Use the selectors of the toolkit's theme, one light
+and one dark block, and declare every colour you change in both:
+
+```css
+:root,
+[data-theme-mode="light"] {
+  --primary: #0f766e; /* button fill; --primary-foreground is its label */
+  --primary-hover: #115e59;
+  --link: #0f766e;
+  --focus: #0f766e; /* the focus ring */
+  --ring: #0f766e;
+  --radius-md: 6px; /* mode-independent: the light block is enough */
+}
+
+.dark,
+[data-theme="dark"],
+[data-theme-mode="dark"] {
+  --primary: #0f766e;
+  --primary-hover: #115e59;
+  --link: #5eead4; /* light enough to read on a dark ground */
+  --focus: #5eead4;
+  --ring: #5eead4;
+}
+```
+
+Keep every text colour at 4.5:1 on its surface and the focus ring at 3:1, in
+both modes. Override roles only, never the `--cd-*` tokens (the Miragon
+palette the roles default to) and never a component class: your brand then
+needs no toolkit release and survives every update. The
+[white-labeling guide](https://github.com/Miragon/mcp-toolkit/blob/main/docs/guides/white-labeling.md)
+lists every role (status tones, surfaces, radii, fonts) and the alternative
+in code, `createTheme` + `ThemeProvider`.
+
+### Fonts and language
+
+- **Fonts.** Geist and Geist Mono are on by default: the theme names them
+  first, and `views/shared/styles.css` loads both through the `fonts.css`
+  import (the files come from npm through the bundler, no font CDN). The view
   build inlines them into every view; to keep views small, drop the import
   and serve the files by URL with `fontFaces({ baseUrl })` (allow that origin
   in the view's CSP `resourceDomains`), or let the host's font stand in.

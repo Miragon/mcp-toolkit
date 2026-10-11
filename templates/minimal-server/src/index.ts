@@ -17,7 +17,7 @@ import { createPlugin as createTasksPlugin } from "./modules/tasks/plugin.js"
 const server: MCPServer = new MCPServer({
   name: "my-mcp-server",
   version: "0.1.0",
-  description: "Minimal MCP server built on @miragon/mcp-toolkit.",
+  description: "Minimal MCP server built on the Miragon MCP Toolkit.",
 })
 
 installToolkit(server, {

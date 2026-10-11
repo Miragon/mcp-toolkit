@@ -1,4 +1,4 @@
-# Miranum MCP toolkit
+# Miragon MCP Toolkit
 
 Framework for building MCP servers that expose **tools + widgets + pipeline
 steps** to an LLM client. Consumers compose it with their own modules and
@@ -22,8 +22,8 @@ several MCP servers into one surface is an external MCP gateway's job
   pipelines → builder. Zero install.
 - [Getting started](getting-started.md) — run the examples, then start your
   own project.
-- [Architecture](concepts/architecture.md) — what a Miranum-style MCP server
-  actually does at request time.
+- [Architecture](concepts/architecture.md) — what a toolkit MCP server actually
+  does at request time.
 
 ## Map
 

@@ -1,6 +1,6 @@
 # Architecture
 
-A Miranum-style MCP server is an mcp-use `MCPServer` with two layers:
+A Miragon MCP Toolkit server is an mcp-use `MCPServer` with two layers:
 
 1. **App plugins** — register domain tools, widget tools, pipeline steps, widgets.
 2. **Framework tools** — always-on: LLM-facing `get-framework-manifest`

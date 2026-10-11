@@ -34,10 +34,12 @@ const komet = fs.readFileSync(path.join(here, "assets", "miragon-komet-blau.svg"
 const kometUrl = `data:image/svg+xml;base64,${komet.toString("base64")}`
 
 const app = await createFrameworkApp({
+  // The protocol name stays the identifier clients key the server by; the
+  // product name is the display title (the landing page and the hosts show it).
   name: "mcp-toolkit-playground",
   version,
   description:
-    "Live playground for @miragon/mcp-toolkit: call a tool, get a rendered widget, " +
+    "Live playground for the Miragon MCP Toolkit: call a tool, get a rendered widget, " +
     "compose a multi-widget dashboard, chain a render-view pipeline, and save a " +
     "dashboard with the builder. Demo data resets on restart.",
   // The serving origin is request-resolved by mcp-use (or the MCP_URL env
@@ -49,6 +51,7 @@ const app = await createFrameworkApp({
   // ships with CORS off unless opted in. A public demo surface accepts any
   // origin on purpose.
   serverOptions: {
+    title: "Miragon MCP Toolkit playground",
     cors: {},
     favicon: kometUrl,
     icons: [{ src: kometUrl, mimeType: "image/svg+xml", sizes: ["any"] }],

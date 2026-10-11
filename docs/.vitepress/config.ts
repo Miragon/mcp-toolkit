@@ -1,16 +1,47 @@
 import { defineConfig } from "vitepress"
 
+// GitHub Pages serves the project site under /mcp-toolkit/ — the docs
+// workflow (.github/workflows/docs.yml) sets DOCS_BASE accordingly.
+// Local dev and preview keep the default "/".
+const base = process.env.DOCS_BASE ?? "/"
+
 export default defineConfig({
-  // GitHub Pages serves the project site under /mcp-toolkit/ — the docs
-  // workflow (.github/workflows/docs.yml) sets DOCS_BASE accordingly.
-  // Local dev and preview keep the default "/".
-  base: process.env.DOCS_BASE ?? "/",
+  base,
   lang: "en-US",
-  title: "mcp-toolkit",
+  // The product name (corporate design: a tool is "Miragon" plus what it
+  // does); the npm packages keep their @miragon/mcp-toolkit-* names.
+  title: "Miragon MCP Toolkit",
   description:
     "Shared framework runtime and UI primitives for mcp-use based MCP servers. Plugins, pipeline steps, widgets, and an interactive view builder.",
   cleanUrls: true,
   lastUpdated: true,
+
+  // Code blocks sit on --cd-grau (light) and a white lift of --cd-schwarz
+  // (dark). There, github-light-high-contrast and github-dark-default keep
+  // every token colour at WCAG AA (the lowest, comments, at 4.72:1 and
+  // 4.98:1); VitePress' default pair github-light/github-dark and
+  // github-light-default (comments 4.26:1 on --cd-grau) don't.
+  markdown: {
+    theme: { light: "github-light-high-contrast", dark: "github-dark-default" },
+  },
+
+  head: [
+    // The app icon of Miragon software: the green Komet on the blue tile,
+    // the CI's file unchanged. Head links are not rewritten for `base`.
+    ["link", { rel: "icon", type: "image/svg+xml", href: `${base}logo/miragon-komet-blau.svg` }],
+    // CI primary blue (--cd-blau) for the browser chrome
+    ["meta", { name: "theme-color", content: "#335DE5" }],
+  ],
+
+  // Preload the self-hosted Geist (hashed file name, so a static head link
+  // can't point at it; see vitepress.dev site-config#transformhead).
+  transformHead({ assets }) {
+    const geist = assets.find((file) => /geist-latin-wght-normal\.[\w-]+\.woff2$/.test(file))
+    if (!geist) return
+    return [
+      ["link", { rel: "preload", href: geist, as: "font", type: "font/woff2", crossorigin: "" }],
+    ]
+  },
 
   // Relative links inside the docs work fine.
   // Links from docs into ../examples/..., ../../packages/..., ../../templates/...,
@@ -27,7 +58,16 @@ export default defineConfig({
   ],
 
   themeConfig: {
-    siteTitle: "mcp-toolkit",
+    // The official wordmarks: green (the standard) on light, white on dark.
+    logo: {
+      light: "/logo/miragon-logo-gruen.svg",
+      dark: "/logo/miragon-logo-weiss.svg",
+      alt: "Miragon",
+    },
+    // A product shows the wordmark and writes its name next to it in Geist;
+    // the wordmark already reads MIRAGON, so the nav reads "MIRAGON MCP
+    // Toolkit" (and its link's accessible name "Miragon MCP Toolkit").
+    siteTitle: "MCP Toolkit",
     // Getting Started and Playground are foregrounded as their own top-level
     // sections; everything reference-y lives under the "Docs" submenu. Each of
     // the three has its own left sidebar (see `sidebar` below) so they never

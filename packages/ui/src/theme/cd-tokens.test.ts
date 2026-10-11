@@ -17,7 +17,9 @@ import { CD_TOKENS, CD_TOKENS_VERSION } from "./cd-tokens.js"
  * compared to it directly; everywhere else (CI) the pinned hash below holds it.
  *
  * To re-vendor: copy the new upstream file below the marker line, update the
- * version in the marker, CD_TOKENS_VERSION, UPSTREAM_SHA256 and CD_TOKENS.
+ * version in the marker, CD_TOKENS_VERSION, UPSTREAM_SHA256 and CD_TOKENS,
+ * then copy the result to docs/.vitepress/theme/ (the docs site vendors the
+ * same file; examples/test/docs-theme.test.ts holds the two byte-identical).
  */
 const UPSTREAM_SHA256 = "36d76f3a330a1250d332c6862be1dc4f7564d2461e7051d9a565ba723ef2c379"
 const UPSTREAM_REL = join("skills", "modeler-tool-design", "assets", "cd-tokens.generated.css")

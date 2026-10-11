@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: mcp-toolkit
+  name: Miragon MCP Toolkit
   text: Build MCP servers whose tools answer with real UI.
   tagline: Widgets, data pipelines and a view builder on top of mcp-use, in the Miragon design system by default.
   actions:
