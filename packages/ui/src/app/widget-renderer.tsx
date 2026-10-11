@@ -126,7 +126,7 @@ export function UnavailableWidget({
   return (
     <div data-slot="widget-unavailable" data-widget-id={widgetId} className={className}>
       <p>{messages.renderer.widgetUnavailable}</p>
-      <p className="mt-1 font-mono text-xs break-all">{widgetId}</p>
+      <p className="text-small mt-1 font-mono break-all">{widgetId}</p>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { TONE_ICON } from "../lib/tone-utils.js"
+import { resolveTone, TONE_ICON } from "../lib/tone-utils.js"
 import { cn } from "../lib/utils.js"
 
 /** Heading element for an empty/error state title (the surface decides the outline level). */
@@ -50,6 +50,8 @@ export function EmptyState({
   titleAs: Title = "h3",
   className,
 }: EmptyStateProps) {
+  // An untyped tone resolves (`ok` → success); anything else stays quiet.
+  const iconTone = resolveTone(tone) === "success" ? "success" : "neutral"
   return (
     <div
       data-slot="empty-state"
@@ -60,15 +62,15 @@ export function EmptyState({
           aria-hidden="true"
           className={cn(
             "mb-1 flex items-center justify-center [&_svg:not([class*='size-'])]:size-6",
-            ICON_TONE[tone],
+            ICON_TONE[iconTone],
           )}
         >
           {icon}
         </div>
       )}
-      <Title className="text-foreground text-base font-semibold">{title}</Title>
+      <Title className="text-foreground text-body font-semibold">{title}</Title>
       {description && (
-        <p className="text-muted-foreground max-w-prose text-sm text-balance">{description}</p>
+        <p className="text-muted-foreground text-body max-w-prose text-balance">{description}</p>
       )}
       {(action || secondaryAction) && (
         <div className="mt-2 flex flex-wrap items-center justify-center gap-2">

@@ -92,13 +92,12 @@ export interface Order {
   trackingUrl: string
 }
 
-const STATUS_VARIANT: Record<Order["status"], "default" | "secondary" | "outline" | "destructive"> =
-  {
-    processing: "secondary",
-    shipped: "default",
-    delivered: "outline",
-    cancelled: "destructive",
-  }
+const STATUS_VARIANT: Record<Order["status"], "default" | "secondary" | "outline" | "danger"> = {
+  processing: "secondary",
+  shipped: "default",
+  delivered: "outline",
+  cancelled: "danger",
+}
 
 const STATUS_LABEL: Record<Order["status"], string> = {
   processing: "Processing",
@@ -229,7 +228,7 @@ export function OrderStatusCard({ orderId = "ORD-4471" }: { orderId?: string }) 
                 <IconExternal />
                 Track shipment
               </Button>
-              <span className="text-muted-foreground ml-auto text-xs">
+              <span className="text-muted-foreground text-small ml-auto">
                 {bridge.theme ? `host theme: ${bridge.theme}` : "host theme: unknown"}
               </span>
             </div>

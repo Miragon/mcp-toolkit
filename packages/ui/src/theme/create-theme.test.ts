@@ -63,6 +63,11 @@ describe("tokensToVars (token → CSS-var mapping)", () => {
       fontSans: "Inter, sans-serif",
       fontMono: "JetBrains Mono, monospace",
       fontHeading: "Sora, sans-serif",
+      textTitle: "2rem",
+      textSection: "1.5rem",
+      textBody: "1.0625rem",
+      textDense: "0.9375rem",
+      textSmall: "0.875rem",
     }
     expect(tokensToVars(full)).toEqual({
       "--primary": "oklch(0.55 0.2 264)",
@@ -113,6 +118,11 @@ describe("tokensToVars (token → CSS-var mapping)", () => {
       "--font-sans": "Inter, sans-serif",
       "--font-mono": "JetBrains Mono, monospace",
       "--font-heading": "Sora, sans-serif",
+      "--text-title": "2rem",
+      "--text-section": "1.5rem",
+      "--text-body": "1.0625rem",
+      "--text-dense": "0.9375rem",
+      "--text-small": "0.875rem",
     })
   })
 

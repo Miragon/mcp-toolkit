@@ -28,7 +28,7 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 }
 
 const PRIORITY_BADGE = {
-  high: "destructive",
+  high: "danger",
   medium: "default",
   low: "secondary",
 } as const
@@ -48,7 +48,9 @@ function TaskRow({ task }: { task: Task }) {
             {task.title}
           </span>
         </div>
-        <span className="text-muted-foreground shrink-0 text-xs">{STATUS_LABEL[task.status]}</span>
+        <span className="text-muted-foreground text-small shrink-0">
+          {STATUS_LABEL[task.status]}
+        </span>
       </CardContent>
     </Card>
   )
@@ -67,12 +69,7 @@ export function TaskListCard({ data }: { data: TasksBoardData | null }) {
   const { counts, tasks } = data
   return (
     <div className="bg-card text-card-foreground mx-auto flex max-w-3xl flex-col gap-6 p-6">
-      <WidgetHeader
-        icon="✓"
-        iconTone="info"
-        title="Task board"
-        sub={<span>{counts.total} task(s)</span>}
-      />
+      <WidgetHeader title="Task board" sub={<span>{counts.total} task(s)</span>} />
 
       <KpiGrid
         boxed

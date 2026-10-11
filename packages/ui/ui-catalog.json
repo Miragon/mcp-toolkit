@@ -46,9 +46,9 @@
       "props": [
         {
           "name": "variant",
-          "type": "\"default\" | \"secondary\" | \"destructive\" | \"success\" | \"warning\" | \"info\" | \"outline\" | \"ghost\" | \"link\"",
+          "type": "\"default\" | \"secondary\" | \"danger\" | \"success\" | \"warning\" | \"info\" | \"outline\" | \"ghost\" | \"link\" | \"destructive\"",
           "required": false,
-          "description": "Visual style. Default 'default'. destructive/success/warning/info follow the tone model: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER)."
+          "description": "Visual style. Default 'default'. danger/success/warning/info follow the tone model: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER). 'destructive' is the deprecated name of 'danger'."
         },
         {
           "name": "className",
@@ -285,9 +285,9 @@
       "props": [
         {
           "name": "variant",
-          "type": "\"default\" | \"destructive\"",
+          "type": "\"default\" | \"danger\" | \"destructive\"",
           "required": false,
-          "description": "Visual style."
+          "description": "Visual style. 'danger': tint, rim and icon in the danger colour, foreground text. 'destructive' is its deprecated name. For a failed fetch prefer ErrorState (title, next step, Details, retry)."
         }
       ],
       "whenToUse": "Inline notice or error message inside a widget body."
@@ -396,7 +396,13 @@
           "name": "cells",
           "type": "KpiCell[]",
           "required": true,
-          "description": "Metric cells flowed as columns (1–6, clamped). Each: { label, value, fraction?, trend?, trendDirection?, tone?, onClick?, ariaLabel? }. A cell with onClick renders as a button (drill into a detail view)."
+          "description": "Metric cells: { label, value, fraction?, trend?, trendDirection?: 'up'|'down'|'flat', trendTone?, tone?, onClick?, actionHint? }. Flows 1–6 columns (4+ fall back to 2 in narrow frames). A cell with onClick is a button named by its visible label and value; actionHint ('Opens the incidents dashboard') becomes its aria-describedby. ariaLabel is deprecated (it hides the visible label from voice control, WCAG 2.5.3)."
+        },
+        {
+          "name": "variant",
+          "type": "'strip' | 'soft'",
+          "required": false,
+          "description": "'strip' (default): one bordered strip, tone as a dot next to the label. 'soft': a card per cell in its tone's tint and edge (boxed/header don't apply)."
         },
         {
           "name": "boxed",
@@ -408,10 +414,56 @@
           "name": "header",
           "type": "KpiGridHeader",
           "required": false,
-          "description": "Group header shown above the strip when boxed: { label, badge? }."
+          "description": "Group header above the strip: { label, badge? } (13 px semibold, normal case)."
+        },
+        {
+          "name": "ariaLabel",
+          "type": "string",
+          "required": false,
+          "description": "Names the group of metrics (role=group); omit when a heading right above names it."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root element."
         }
       ],
-      "whenToUse": "Show a row of headline metrics in a widget (replaces the old single-metric KPICard). Pre-format values for locale/currency. A cell tone (e.g. 'danger') shows as a status dot next to its label — figures stay in the foreground colour; set onClick to make a metric a drill target."
+      "whenToUse": "Show a row of headline metrics in a widget (replaces the old single-metric KPICard). Pre-format values for locale/currency. Figures stay in the foreground at the page-title size; a cell tone shows as a dot next to its label, a trend as a Lucide direction icon (or a dot with trendTone) next to neutral words. Set onClick + actionHint to make a metric a drill target. Pair with KpiGridSkeleton while loading."
+    },
+    {
+      "name": "KpiGridSkeleton",
+      "export": "KpiGridSkeleton",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "cells",
+          "type": "number",
+          "required": true,
+          "description": "How many cells the loaded grid will have."
+        },
+        {
+          "name": "variant",
+          "type": "'strip' | 'soft'",
+          "required": false,
+          "description": "The loaded grid's variant. Default 'strip'."
+        },
+        {
+          "name": "boxed",
+          "type": "boolean",
+          "required": false,
+          "description": "The loaded grid's boxed. Default false."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root element."
+        }
+      ],
+      "whenToUse": "Loading placeholder with KpiGrid's geometry (same wrapper, grid and cell padding), so the layout doesn't jump when the data arrives. Marked aria-busy."
     },
     {
       "name": "LivePill",
@@ -422,7 +474,7 @@
       "props": [
         {
           "name": "tone",
-          "type": "ToneVariant",
+          "type": "ToneName",
           "required": false,
           "description": "Status tone driving the dot, tint and border ('neutral'|'info'|'success'|'warning'|'danger'): tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER). Default 'info'."
         },
@@ -431,6 +483,12 @@
           "type": "ReactNode",
           "required": false,
           "description": "Pill label. Defaults to 'Live'."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root element."
         }
       ],
       "whenToUse": "Signal live/real-time data in a widget header — a tinted pill with a pulsing dot."
@@ -444,18 +502,52 @@
       "props": [
         {
           "name": "tone",
-          "type": "ToneVariant",
+          "type": "ToneName",
           "required": false,
-          "description": "Status tone driving the tint and border: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER); the number never takes a tone colour. Default 'neutral'."
+          "description": "Status tone driving the tint and border: tint + foreground text, rim in the tone (TONE_SOFT + TONE_BORDER); the number never takes a tone colour, also on the neutral tint. Default 'neutral'."
         },
         {
           "name": "children",
           "type": "ReactNode",
           "required": true,
           "description": "The count/value (rendered with tabular numbers)."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root element."
         }
       ],
       "whenToUse": "Right-aligned count indicator on a list/group row (e.g. a per-group item count)."
+    },
+    {
+      "name": "StatusBadge",
+      "export": "StatusBadge",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "children",
+          "type": "string | number | ReactElement | (string | number | ReactElement)[]",
+          "required": true,
+          "description": "The state in words ('Suspended', '3 open incidents'). Required: colour is never the only signal."
+        },
+        {
+          "name": "tone",
+          "type": "ToneName",
+          "required": true,
+          "description": "The state's tone: tint, edge and a static dot ('danger'|'warning'|'success'|'info'|'neutral'; retired names map through resolveTone)."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root element."
+        }
+      ],
+      "whenToUse": "Say a state in words, marked in its tone: a detail-page header (WidgetHeader badge) or a table cell. Foreground text on the tint, never coloured words. For live data use LivePill, for a count CountPill."
     },
     {
       "name": "SectionHeading",
@@ -499,16 +591,28 @@
           "description": "The widget title."
         },
         {
-          "name": "icon",
-          "type": "ReactNode",
+          "name": "as",
+          "type": "'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'",
           "required": false,
-          "description": "Icon/glyph rendered in a tinted tile above the title."
+          "description": "Heading element. Default 'h1'. Pick the level that keeps one outline per view: below a toolbar title (an h2) use 'h3'. The size follows `size`, not the level."
         },
         {
-          "name": "iconTone",
-          "type": "ToneVariant",
+          "name": "size",
+          "type": "'default' | 'detail'",
           "required": false,
-          "description": "Tone for the icon tile. Default 'neutral'."
+          "description": "'default': page title (28 px / 700); 'detail': compact detail-page title (21 px / 600)."
+        },
+        {
+          "name": "badge",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Above the title: a StatusBadge that says the state in words."
+        },
+        {
+          "name": "titleSuffix",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Inline after the title inside the heading (e.g. a version chip)."
         },
         {
           "name": "sub",
@@ -521,9 +625,27 @@
           "type": "ReactNode",
           "required": false,
           "description": "Right-aligned actions slot (buttons, drill controls)."
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "required": false,
+          "description": "Deprecated: the icon tile above the title is the anti-slop U2 pattern; use badge. Still rendered (aria-hidden)."
+        },
+        {
+          "name": "iconTone",
+          "type": "ToneName",
+          "required": false,
+          "description": "Deprecated: tone of the icon tile."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root element."
         }
       ],
-      "whenToUse": "Anchor the top of a dashboard widget surface: tinted icon tile, large title, meta row, and an actions slot. Use once per widget."
+      "whenToUse": "Anchor the top of a widget surface: optional state badge, the title at a configurable heading level, a meta row and an actions slot. Use once per widget; with McpAppView's toolbar title shown, set titleMode='hide' or as='h3' so the view keeps one title and one outline."
     },
     {
       "name": "GroupCard",
@@ -582,7 +704,7 @@
           "name": "chips",
           "type": "FilterChip[]",
           "required": true,
-          "description": "Toggleable filter chips: { id, label, count?, active? }."
+          "description": "Toggle chips: { id, label, count?, active? }. Each is a button with aria-pressed; an active chip is the info tint and edge around foreground text."
         },
         {
           "name": "onChipToggle",
@@ -595,9 +717,27 @@
           "type": "string",
           "required": false,
           "description": "Placeholder for the search input. Default 'Filter…'."
+        },
+        {
+          "name": "searchAriaLabel",
+          "type": "string",
+          "required": false,
+          "description": "Accessible name of the search input. Default: the locale's 'Filter' (a placeholder is no label)."
+        },
+        {
+          "name": "chipsAriaLabel",
+          "type": "string",
+          "required": false,
+          "description": "Names the chip group (role=group). Default: the locale's 'Filters'."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root element."
         }
       ],
-      "whenToUse": "Filter a list/table of widget items with a search box + chip row. Pair with useDebouncedValue so a server-side filter only re-queries once typing pauses."
+      "whenToUse": "Filter a list/table of widget items with a labelled search box + a row of toggle chips (aria-pressed). Pair with useDebouncedValue so a server-side filter only re-queries once typing pauses."
     },
     {
       "name": "DrillButton",
@@ -622,7 +762,7 @@
           "name": "icon",
           "type": "ReactNode",
           "required": false,
-          "description": "Optional leading glyph; the trailing → is always rendered."
+          "description": "Optional leading Lucide icon (decorative, never a typed glyph); the trailing Lucide arrow is always rendered."
         },
         {
           "name": "size",
@@ -634,7 +774,7 @@
           "name": "ariaLabel",
           "type": "string",
           "required": false,
-          "description": "Accessible label when the visible text is terse."
+          "description": "Accessible label when the visible text is terse; keep the visible text in it (WCAG 2.5.3)."
         }
       ],
       "whenToUse": "The single neutral in-widget navigation control (drill into a detail/sub-view). Use it for every drill so they read identically and stay visually quieter than primary/agentic actions."
@@ -681,9 +821,73 @@
           "type": "string",
           "required": false,
           "description": "Plural noun for the count, e.g. 'instances'. Default: the locale's word for rows."
+        },
+        {
+          "name": "refreshing",
+          "type": "boolean",
+          "required": false,
+          "description": "A first page is in flight while these rows stay on screen: the status line adds a visible 'Updating…'."
+        },
+        {
+          "name": "stale",
+          "type": "boolean",
+          "required": false,
+          "description": "The rows on screen are the previous result: count and Load more hide, so the old count never reads as the new search's answer."
+        },
+        {
+          "name": "labels",
+          "type": "Partial<ListFooterMessages>",
+          "required": false,
+          "description": "Override strings of the active catalog's listFooter section."
+        },
+        {
+          "name": "announce",
+          "type": "boolean",
+          "required": false,
+          "description": "Make the count line a polite live region (role=status). Default true; false only where the caller announces the count in a live region of its own."
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false,
+          "description": "Merged onto the root element."
         }
       ],
-      "whenToUse": "Footer for a paginated list: an honest 'Showing X of Y' total + an explicit 'Load more' (not infinite scroll). Text and number format follow the active locale."
+      "whenToUse": "Footer for a paginated list: an honest 'Showing X of Y' total + an explicit 'Load more' (not infinite scroll). The count is a polite live region (role=status), so the new total is announced after Load more or a filter change. At zero rows it shows nothing but keeps the region mounted (visually hidden) with 'No entries', so a search that finds nothing is announced too. Text and number format follow the active locale. For a paged query with failures use PagedListFooter."
+    },
+    {
+      "name": "PagedListFooter",
+      "export": "PagedListFooter",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "component",
+      "group": "composed",
+      "props": [
+        {
+          "name": "paged",
+          "type": "PagedListState",
+          "required": true,
+          "description": "{ items, total, hasMore, loadMore, loadingMore?, refreshing?, stale?, firstPage?, error?, retry?, loadMoreError? } — a paged-query hook's result passes as is."
+        },
+        {
+          "name": "noun",
+          "type": "string",
+          "required": false,
+          "description": "Plural noun for the count. Default: the locale's word for rows."
+        },
+        {
+          "name": "labels",
+          "type": "Partial<ListFooterMessages>",
+          "required": false,
+          "description": "Override strings of the active catalog's listFooter section."
+        },
+        {
+          "name": "retryLabel",
+          "type": "string",
+          "required": false,
+          "description": "Retry button label of both error lines. Default: the locale's 'Try again'."
+        }
+      ],
+      "whenToUse": "The tail of a paged list: a failed first page over the previous rows (warning alert, retry re-runs page 0) and a failed load-more (danger alert, retry fetches the next offset) stay apart, each with the raw reason under Details; then the ListFooter with 'Updating…' while page 0 is in flight and no count while the rows are stale."
     },
     {
       "name": "Tone tokens",
@@ -691,9 +895,40 @@
       "importPath": "@miragon/mcp-toolkit-ui",
       "kind": "object",
       "group": "composed",
-      "parts": ["TONE_SOFT", "TONE_DOT", "TONE_TEXT", "TONE_BORDER", "TONE_ICON"],
+      "parts": [
+        "TONE_SOFT",
+        "TONE_TINT",
+        "TONE_DOT",
+        "TONE_INK",
+        "TONE_TEXT",
+        "TONE_BORDER",
+        "TONE_ICON"
+      ],
       "props": [],
-      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings, three roles per tone (Miragon CI): the colour for fills, dots, borders and icons (TONE_DOT, TONE_BORDER, TONE_ICON), the tint (TONE_SOFT = tint + foreground text, rim in the tone via TONE_BORDER; never put TONE_TEXT/-ink on a tint) and the TEXT colour for a tone's words on a plain surface (TONE_TEXT = the tone's -ink role). Status is never text in its own colour: success and warning ink is the foreground, so show the tone as a dot, icon or border next to the text; figures (counts, KPI values) stay in the foreground. TONE_ICON is for SVG icons only. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, Badge, WidgetHeader) consume these internally."
+      "whenToUse": "Record<ToneVariant, string> maps from a status tone ('neutral'|'info'|'success'|'warning'|'danger') to Tailwind class strings, three roles per tone (Miragon CI): the colour for fills, dots, borders and icons (TONE_DOT, TONE_BORDER, TONE_ICON), the tint (TONE_SOFT = tint + foreground text, rim in the tone via TONE_BORDER; TONE_TINT = the tint alone; never put TONE_INK on a tint) and the TEXT colour for a tone's words on a plain surface (TONE_INK = the tone's -ink role; TONE_TEXT is its deprecated name). Status is never text in its own colour: success and warning ink is the foreground, so show the tone as a dot, icon or border next to the text; figures (counts, KPI values) stay in the foreground. TONE_ICON is for SVG icons only. Use to colour a custom element by status without a tone === 'x' ? ... ternary; the tone-aware components (KpiGrid, LivePill, CountPill, StatusBadge, Badge) consume these internally."
+    },
+    {
+      "name": "Tone vocabulary",
+      "export": "resolveTone",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "function",
+      "group": "composed",
+      "parts": ["resolveTone", "isToneVariant", "TONE_VARIANTS", "TONE_ALIASES"],
+      "props": [
+        {
+          "name": "name",
+          "type": "unknown",
+          "required": true,
+          "description": "A tone name, possibly from data: a ToneVariant or a retired alias ('critical', 'error', 'destructive', 'warn', 'ok', …)."
+        },
+        {
+          "name": "fallback",
+          "type": "ToneVariant",
+          "required": false,
+          "description": "The tone for anything unknown. Default 'neutral'."
+        }
+      ],
+      "whenToUse": "ONE tone vocabulary: success | warning | danger | info | neutral (TONE_VARIANTS). resolveTone maps a retired or foreign name onto it (critical/error/destructive → danger; one red, one amber) and anything unknown onto the fallback, so a tone that arrives as data never renders colourless; isToneVariant is the type guard. The props typed ToneName resolve it this way (KpiCell tone/trendTone, LivePill, StatusBadge, CountPill, WidgetHeader iconTone). Toast, ErrorState and EmptyState keep their own tone subset in the types; an untyped name still resolves at runtime and anything outside the subset gets their default. Badge/Alert variants are cva keys: pass a resolved tone."
     },
     {
       "name": "ToastProvider",
@@ -709,7 +944,7 @@
           "description": "Subtree that raises toasts via useToast."
         }
       ],
-      "whenToUse": "Provide toasts to a subtree and render their stack: bottom centre, status colour as left edge + icon next to plain text, ONE persistent live region (role=status, aria-live=polite), auto-dismiss after 2.8 s (errors 5 s), held while hovered or focused. Idempotent when nested. McpAppView mounts one, so widgets inside a view only call useToast. Toast icons follow the LucideProvider around the outermost ToastProvider (stroke 2.5 inside McpAppView)."
+      "whenToUse": "Provide toasts to a subtree and render their stack: bottom centre, status colour as left edge + icon next to plain text, ONE persistent live region (aria-live=polite, fixed attributes: no role or name, so the first toast is announced; tests find it by data-slot=toast-viewport), toast text at 16 px, auto-dismiss after 2.8 s (errors 5 s), held while hovered or focused. Idempotent when nested. McpAppView mounts one, so widgets inside a view only call useToast. Toast icons follow the LucideProvider around the outermost ToastProvider (stroke 2.5 inside McpAppView)."
     },
     {
       "name": "useToast",
@@ -1424,6 +1659,16 @@
       "parts": ["FOCUS_RING", "FOCUS_RING_INSET"],
       "props": [],
       "whenToUse": "The kit's opaque focus ring as a class string (2px ring in --focus with an offset; FOCUS_RING_INSET draws it inside, for cells flush with a container edge). Spread it into a custom control's className so keyboard focus reads the same everywhere (3:1 or more in both modes)."
+    },
+    {
+      "name": "Type scale",
+      "export": "TYPE_SCALE",
+      "importPath": "@miragon/mcp-toolkit-ui",
+      "kind": "object",
+      "group": "widget-authoring",
+      "parts": ["TYPE_SCALE", "TYPE_STEPS", "TYPE_FLOOR_PX", "MICRO_LABEL"],
+      "props": [],
+      "whenToUse": "The CI type scale as role tokens and utilities: text-title (28/700, page title), text-section (21/600), text-body (16/400/1.6, running text incl. state and toast descriptions), text-dense (14, dense tables and controls such as inputs, chips, count pills and the inline alert box; never running text), text-small (13, the floor: captions, hints, meta rows). Nothing renders below 13 px: no text-xs, no text-[10px]; a former 10–11 px uppercase caption is MICRO_LABEL (13 px semibold, normal case). Combine with the kit's cn (plain tailwind-merge drops text-small next to a text colour). Brands resize via --text-* (ThemeTokens textTitle … textSmall)."
     },
     {
       "name": "LocaleProvider",

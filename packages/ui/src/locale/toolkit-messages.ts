@@ -15,6 +15,7 @@ import { en } from "./messages-en.js"
 export type {
   BuilderMessages,
   CommonMessages,
+  FilterBarMessages,
   ListFooterMessages,
   PropsSheetMessages,
   RendererMessages,

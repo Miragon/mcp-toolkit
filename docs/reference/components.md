@@ -55,15 +55,15 @@ of building a bordered `<div>` by hand.
 
 ### Badge
 
-Props: `variant?: "default" | "secondary" | "destructive" | "success" | "warning" | "info" | "outline" | "ghost" | "link"`, `className?`. The status variants follow the tone model: tint, foreground text, a border in the tone.
+Props: `variant?: "default" | "secondary" | "danger" | "success" | "warning" | "info" | "outline" | "ghost" | "link"`, `className?`. The status variants follow the tone model: tint, foreground text, a border in the tone; `destructive` is the deprecated name of `danger`.
 
 ```tsx
 import { Badge } from "@miragon/mcp-toolkit-ui"
-;<Badge variant="destructive">Overdue</Badge>
+;<Badge variant="danger">Overdue</Badge>
 ```
 
 **When to use:** inline status/label pill. For a tone-driven status dot or a
-count indicator, see [`LivePill` / `CountPill`](#livepill--countpill).
+state in words or a count, see [`LivePill` / `StatusBadge` / `CountPill`](#livepill--statusbadge--countpill).
 
 ### Button
 
@@ -150,9 +150,10 @@ modal; `Sheet` for a side panel to view/edit without leaving the widget.
 
 ### Alert
 
-Parts: `Alert`, `AlertTitle`, `AlertDescription`. Prop: `variant?: "default" | "destructive"`.
+Parts: `Alert`, `AlertTitle`, `AlertDescription`. Prop: `variant?: "default" | "danger"` (`destructive` is the deprecated name of `danger`).
 
-**When to use:** an inline notice or error message inside a widget body.
+**When to use:** an inline notice inside a widget body. For a failed fetch use
+[`ErrorState`](#errorstate) (title, next step, raw reason under Details, retry).
 
 ### ScrollArea / Separator / Skeleton
 
@@ -173,52 +174,78 @@ import { Skeleton } from "@miragon/mcp-toolkit-ui"
 Focused widget building blocks assembled from the primitives — the patterns
 real widgets keep needing. Reach for these before re-implementing the same thing
 from `<div>`s. All import from `@miragon/mcp-toolkit-ui` (pure: React +
-primitives + `cn`, no host dependency). Many are **tone-aware**: a
-`ToneVariant` (`"neutral" | "info" | "success" | "warning" | "danger"`) maps to
-the status roles in `theme.css`, so they re-skin with the theme. Status shows
-as a dot, icon or border next to readable text, never as coloured text; see
-[the tone tokens](#tone-tokens).
+primitives + `cn`, no host dependency). Many are **tone-aware**: they take a
+tone from ONE vocabulary (`"success" | "warning" | "danger" | "info" | "neutral"`)
+that maps to the status roles in `theme.css`, so they re-skin with the theme.
+A retired name (`critical`, `error`, `destructive`, …) still resolves through
+[`resolveTone`](#tone-vocabulary). Status shows as a dot, icon or border next
+to readable text, never as coloured text; see [the tone tokens](#tone-tokens).
+Text sits on the [type scale](#type-scale): nothing renders below 13 px.
 
-### KpiGrid
+### KpiGrid / KpiGridSkeleton
 
-A bordered strip of KPI cells — the canonical way to show a row of headline
-metrics (replaces the old single-metric `KPICard`).
+A row of headline metrics, the canonical way to show KPIs in a widget
+(replaces the old single-metric `KPICard`). Cells flow as 1–6 columns; from 4
+cells on they fall back to 2 columns in narrow frames (inline chat views are
+often under 500 px).
 
-| Prop     | Type            | Required | Notes                                                                                                   |
-| -------- | --------------- | -------- | ------------------------------------------------------------------------------------------------------- |
-| `cells`  | `KpiCell[]`     | yes      | `{ label, value, fraction?, trend?, trendDirection?, tone?, onClick?, ariaLabel? }`. Flows 1–6 columns. |
-| `boxed`  | `boolean`       | no       | Wrap in a bordered card with an optional `header`. Default `false` (lighter `border-y` strip).          |
-| `header` | `KpiGridHeader` | no       | `{ label, badge? }` group header shown when `boxed`.                                                    |
+| Prop        | Type                | Required | Notes                                                                                                                       |
+| ----------- | ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `cells`     | `KpiCell[]`         | yes      | `{ label, value, fraction?, trend?, trendDirection?, trendTone?, tone?, onClick?, actionHint? }`.                           |
+| `variant`   | `"strip" \| "soft"` | no       | `"strip"` (default): one bordered strip, the tone as a dot next to the label. `"soft"`: a card per cell in its tone's tint. |
+| `boxed`     | `boolean`           | no       | Wrap the strip in a bordered card with an optional `header`. Default `false` (lighter `border-y` strip).                    |
+| `header`    | `KpiGridHeader`     | no       | `{ label, badge? }` group header above the strip (13 px semibold, normal case).                                             |
+| `ariaLabel` | `string`            | no       | Names the group (`role="group"`); omit when a heading right above names it.                                                 |
 
 ```tsx
 import { KpiGrid } from "@miragon/mcp-toolkit-ui"
 ;<KpiGrid
   cells={[
-    { label: "Open", value: 12, tone: "danger" },
+    {
+      label: "Open incidents",
+      value: 18,
+      tone: "danger",
+      onClick: openIncidents,
+      actionHint: "Opens the incidents dashboard",
+    },
     { label: "In progress", value: 5 },
-    { label: "Done", value: 130, trend: "+8 today", trendDirection: "down" },
+    { label: "Done", value: 130, trend: "+8 today", trendDirection: "up", trendTone: "success" },
   ]}
 />
 ```
 
 **When to use:** a row of metrics at the top of a widget. Pre-format values for
-locale/currency. A cell `tone` shows as a status dot next to its label (figures stay in the foreground colour); set `onClick` to make a metric a
-drill target.
+locale/currency. Figures stay in the foreground at the page-title size: a cell
+`tone` shows as a dot next to its label (or as a soft card's tint and edge), a
+trend as a Lucide direction icon in the trend's tone (`up` reads as worse unless
+`trendTone` says otherwise; a dot when there is no direction) next to neutral
+words. A cell with `onClick` is a button whose accessible name is its visible
+label and value (WCAG 2.5.3); `actionHint` says what the click does
+(`aria-describedby`). `ariaLabel` on a cell is deprecated: it replaces the
+visible label for voice control. `KpiGridSkeleton` (`cells`, `variant?`,
+`boxed?`) keeps the loaded grid's geometry while the data loads (`aria-busy`).
 
-### LivePill / CountPill
+### LivePill / StatusBadge / CountPill
 
-Tone-driven pills. `LivePill` (`tone?`, default `"info"`; `children?`, default
-`"Live"`) shows a pulsing dot for real-time data; `CountPill` (`tone?`, default
-`"neutral"`; `children` required) is a compact tabular-number count badge.
+Tone-driven pills, all with foreground text on the tone's tint and a rim in the
+tone. `LivePill` (`tone?`, default `"info"`; `children?`, default the locale's
+"Live") shows a dot that pulses unless reduced motion is on. `StatusBadge`
+(`tone` and `children` both required) says a state in words with a static dot:
+a badge without words would make colour the only signal. `CountPill` (`tone?`,
+default `"neutral"`; `children` required) is a compact tabular-number count.
+All take `className`.
 
 ```tsx
-import { LivePill, CountPill } from "@miragon/mcp-toolkit-ui"
+import { CountPill, LivePill, StatusBadge } from "@miragon/mcp-toolkit-ui"
 ;<LivePill tone="success">Streaming</LivePill>
+;<StatusBadge tone="warning">Suspended</StatusBadge>
 ;<CountPill tone="danger">{incidents.length}</CountPill>
 ```
 
-**When to use:** `LivePill` in a header to signal live data; `CountPill` as the
-right-aligned count on a list/group row.
+**When to use:** `LivePill` in a header to signal live data; `StatusBadge` for
+a state on a detail-page header (`WidgetHeader`'s `badge`) or in a table cell;
+`CountPill` as the right-aligned count on a list/group row. A count without a
+state stays `neutral`.
 
 ### SectionHeading
 
@@ -235,22 +262,27 @@ without the weight of a full card header.
 
 ### WidgetHeader
 
-Props: `title: ReactNode` (required), `icon?`, `iconTone?: ToneVariant` (default
-`"neutral"`), `sub?`, `actions?`.
+Props: `title: ReactNode` (required), `as?: "h1" … "h6"` (heading element,
+default `"h1"`), `size?: "default" | "detail"` (28 px / 700 or 21 px / 600; the
+size follows `size`, not the level), `badge?` (above the title, a
+`StatusBadge`), `titleSuffix?` (inside the heading, e.g. a version chip),
+`sub?`, `actions?`, `className?`. `icon?` / `iconTone?` are deprecated: the icon
+tile above every title is a pattern the CI rules out; say a state with `badge`.
 
 ```tsx
-import { WidgetHeader, LivePill } from "@miragon/mcp-toolkit-ui"
+import { LivePill, StatusBadge, WidgetHeader } from "@miragon/mcp-toolkit-ui"
 ;<WidgetHeader
-  icon="⚠"
-  iconTone="danger"
+  as="h3"
   title="Incidents"
+  badge={<StatusBadge tone="danger">18 open</StatusBadge>}
   sub={<LivePill>Live</LivePill>}
   actions={<button>Refresh</button>}
 />
 ```
 
-**When to use:** anchor the top of a dashboard widget surface (icon tile, large
-title, meta row, actions). Use once per widget.
+**When to use:** anchor the top of a widget surface, once per widget. Pick the
+level that keeps ONE outline per view: below `McpAppView`'s toolbar title (an
+`h2`) use `as="h3"`, or hide the toolbar title (`titleMode="hide"`).
 
 ### GroupCard
 
@@ -273,8 +305,10 @@ grouped by a key).
 
 Props: `search: string` (required), `onSearchChange: (next) => void` (required),
 `chips: FilterChip[]` (required), `onChipToggle: (id) => void` (required),
-`searchPlaceholder?` (default `"Filter…"`). `FilterChip` is
-`{ id, label, count?, active? }`.
+`searchPlaceholder?` (default: the locale's "Filter…"), `searchAriaLabel?`
+(default: the locale's "Filter"; a placeholder is no label), `chipsAriaLabel?`
+(names the chip group, default the locale's "Filters"), `className?`.
+`FilterChip` is `{ id, label, count?, active? }`.
 
 ```tsx
 import { FilterBar, useDebouncedValue } from "@miragon/mcp-toolkit-ui"
@@ -283,19 +317,23 @@ const debounced = useDebouncedValue(search)
 ;<FilterBar
   search={search}
   onSearchChange={setSearch}
+  searchAriaLabel="Filter incidents"
   chips={[{ id: "open", label: "Open", count: 12, active: true }]}
   onChipToggle={toggle}
 />
 ```
 
-**When to use:** filter a list/table of widget items. Pair with `useDebouncedValue`
-so a server-side filter only re-queries once typing pauses.
+**When to use:** filter a list/table of widget items. Every chip is a toggle
+button with `aria-pressed`; an active chip is a selection (the info tint and
+edge around foreground text). Pair with `useDebouncedValue` so a server-side
+filter only re-queries once typing pauses.
 
 ### DrillButton
 
 Props: `children: ReactNode` (required), `onDrill: () => void` (required),
-`icon?`, `size?: "sm" | "md"` (default `"sm"`), `ariaLabel?`. A neutral outline
-button with a trailing →.
+`icon?` (a leading Lucide icon, decorative), `size?: "sm" | "md"` (default
+`"sm"`), `ariaLabel?` (keep the visible text in it, WCAG 2.5.3). A neutral
+outline button with a trailing Lucide `ArrowRight`.
 
 ```tsx
 import { DrillButton } from "@miragon/mcp-toolkit-ui"
@@ -306,15 +344,34 @@ import { DrillButton } from "@miragon/mcp-toolkit-ui"
 detail/sub-view). Use it for every drill so they read identically and stay
 visually quieter than primary/agentic actions.
 
-### ListFooter
+### ListFooter / PagedListFooter
 
-Props: `shown: number`, `total: number`, `hasMore: boolean`, `onLoadMore: () => void`
-(all required), `loadingMore?`, `noun?` (default: the locale's word for rows).
-Renders nothing when `total` is 0. Text and number format follow the active
-locale ("Zeigt 8 von 42 …" under `de`).
+`ListFooter` props: `shown: number`, `total: number`, `hasMore: boolean`,
+`onLoadMore: () => void` (all required), `loadingMore?`, `noun?` (default: the
+locale's word for rows), `refreshing?` (a first page is in flight over the rows
+on screen: adds a visible "Updating…"), `stale?` (the rows are the previous
+result: the count and "Load more" hide), `labels?` (overrides of the catalog's
+`listFooter` strings), `announce?` (default `true`), `className?`. The count
+line is a polite live region (`role="status"`), so the new total is announced
+after "Load more" or a filter change; set `announce={false}` only where your own
+live region already announces the count. With nothing to count and nothing in
+flight it shows nothing, but the live region stays mounted (visually hidden)
+and says "No entries" (`listFooter.noResults`), so a search that finds nothing
+is announced too. Text and number format follow the active locale ("Zeigt 8
+von 42 …" under `de`).
+
+`PagedListFooter` (`paged`, `noun?`, `labels?`, `retryLabel?`) is the whole
+tail of a paged list. `paged` is structural (`PagedListState`: `items`,
+`total`, `hasMore`, `loadMore`, `loadingMore?`, `refreshing?`, `stale?`,
+`firstPage?`, `error?`, `retry?`, `loadMoreError?`), so a paged-query hook's
+result passes as is. It keeps two failures apart because their retries differ:
+a failed first page over the previous rows (a warning alert whose retry re-runs
+page 0) and a failed load-more (a danger alert whose retry fetches the next
+offset). Each is an inline `ErrorState` with the raw reason under "Details". A
+first-page failure with no rows on screen is left to your loading guard.
 
 ```tsx
-import { ListFooter } from "@miragon/mcp-toolkit-ui"
+import { ListFooter, PagedListFooter } from "@miragon/mcp-toolkit-ui"
 ;<ListFooter
   shown={rows.length}
   total={total}
@@ -322,10 +379,28 @@ import { ListFooter } from "@miragon/mcp-toolkit-ui"
   onLoadMore={fetchNext}
   noun="incidents"
 />
+;<PagedListFooter paged={pagedQuery} noun="incidents" />
 ```
 
 **When to use:** footer for a paginated list — an honest "Showing X of Y" total
-plus an explicit "Load more" (not infinite scroll).
+plus an explicit "Load more" (not infinite scroll). Use `PagedListFooter` when
+the list can fail or refetch while rows stay on screen.
+
+### Replacing a forked kit
+
+The composed components above absorbed the improvements of the kit fork in
+miragon-ai's `packages/core/widget-shell/src/ui`, so a consumer imports them
+from `@miragon/mcp-toolkit-ui` and deletes its copy. What changes on the way:
+
+| Fork file               | Toolkit symbol                                          | Differences to handle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kpi-grid.tsx`          | `KpiGrid`, `KpiGridSkeleton`, `KpiCell`                 | A clickable cell is named by its visible label and value: move the fork's required `ariaLabel` into `actionHint` (WCAG 2.5.3; `ariaLabel` still works, deprecated). Figures at `text-title` (28 px), trend and header at 13 px in normal case, soft cards `rounded-lg`. The strip's dividers sit on the cells: the fork's `gap-px` on a `bg-border` grid painted the empty tracks of a short last row (5 cells in 2 columns) as a solid block of the divider colour.                                                                                                                                                                                                    |
+| `pills.tsx`             | `LivePill`, `StatusBadge`, `CountPill`                  | `StatusBadge` requires `tone` (the fork defaulted to `danger`) and its text; all three at 13 px or more with `rounded-sm`; `LivePill`'s default label comes from the catalog.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `filter-bar.tsx`        | `FilterBar`, `FilterChip`                               | The search input's name defaults to the catalog's "Filter" (the fork reused the placeholder); the chips sit in a named `role="group"` (`chipsAriaLabel`) and carry `FOCUS_RING`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `widget-header.tsx`     | `WidgetHeader`                                          | `as` picks the heading level (the fork always rendered an `h1`); `size` maps to `text-title` / `text-section` (the fork used 30 / 24 px); the `sub` meta row is a 13 px caption row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `paged-list-footer.tsx` | `PagedListFooter`, `PagedListState`                     | `paged` is structural, so the fork's `PagedViewData` passes as is. The text props (`loadMoreErrorText`, `refreshErrorText`, `refreshingText`) become `labels` (`ListFooterMessages`); the raw reason moves under "Details" instead of into the sentence. The live region is `ListFooter`'s count line: while the fork still wraps `ListFooter` next to its own `role="status"`, it passes `announce={false}`, or the count is announced twice. Like the fork's persistent region, the count line stays mounted at zero rows (visually hidden) and says "No entries" (the fork: "0 / 0 {noun}"), so a search that finds nothing is announced. `PagedRows` is not lifted. |
+| `tone-utils.ts`         | `TONE_*`, `TONE_VARIANTS`, `resolveTone`, `MICRO_LABEL` | Same maps. `TONE_INK.neutral` is the foreground (the fork: muted); `MICRO_LABEL` is 13 px semibold in normal case (the fork: 11 px uppercase). A leftover `critical` resolves to `danger`. Replace `cn.ts` (next row) first: `MICRO_LABEL` merged through the fork's `cn` loses a class.                                                                                                                                                                                                                                                                                                                                                                                |
+| `cn.ts`                 | `cn`                                                    | The fork's `cn` is plain tailwind-merge, which reads a type-scale step (`text-title` … `text-small`) as a text COLOUR: `cn("text-muted-foreground", MICRO_LABEL)` drops the colour, and a colour after the step drops the 13 px. No error and no test flags it. Swap it for the kit's `cn` before it merges `MICRO_LABEL` or a `text-*` step, or extend it: `extendTailwindMerge({ extend: { theme: { text: [...TYPE_STEPS] } } })`.                                                                                                                                                                                                                                    |
 
 ## Feedback and states
 
@@ -343,8 +418,14 @@ toast.show({ tone: "danger", title: "Retry failed.", description: "Try again in 
 
 **When to use:** confirm a write or report a failure instead of a silent
 `console` line. The stack sits bottom centre: status colour as left edge and
-icon next to plain text, one persistent `role="status"` `aria-live="polite"`
-region, 2.8 s (errors 5 s), held while hovered or focused. `McpAppView` mounts
+icon next to plain text, in ONE persistent `aria-live="polite"` region that
+is mounted before the first toast and never changes its attributes (a role or
+name switched on with the first toast would rebuild the region with the toast
+already in it, and that toast would go unannounced). It has no role, so an idle
+stack is no second "status" next to a view's loading line; a test finds it by
+`data-slot="toast-viewport"`. The text is running text (16 px).
+A toast shows 2.8 s (errors 5 s); hover or keyboard focus holds it, and on
+leave it resumes with the time that was LEFT, not a fresh duration. `McpAppView` mounts
 the provider; outside one, `useToast()` is a no-op. The title says what
 happened, the description what to do next, both from your catalog: keep the
 raw error (`error.message`) out of the toast and log it, or show it under an
@@ -364,7 +445,8 @@ import { CircleCheck } from "lucide-react"
 ;<EmptyState icon={<CircleCheck />} tone="success" title="No open incidents" />
 ```
 
-**When to use:** a list, table or view with nothing to show. At most two actions.
+**When to use:** a list, table or view with nothing to show. At most two
+actions. The help line is running text (16 px).
 
 ### ErrorState
 
@@ -387,7 +469,8 @@ import { ErrorState } from "@miragon/mcp-toolkit-ui"
 do; keep the raw exception under Details. `inline` is the alert above content
 that still renders. The tone shows as rim, tint and icon (`TONE_BORDER`,
 `TONE_SOFT`, `TONE_ICON`); every word, Details included, stays in the
-foreground.
+foreground. The `block` description is running text (16 px); the `inline`
+alert box stays at the dense 14 px.
 
 ### GridLayout / GridItem
 
@@ -420,11 +503,11 @@ internally.
 "warning" | "danger"`) to Tailwind class strings. Every status tone has three
 roles (Miragon CI), each with light and dark values:
 
-| Role                    | Token           | Maps                                   |
-| ----------------------- | --------------- | -------------------------------------- |
-| fill, dot, border, icon | `--<tone>`      | `TONE_DOT`, `TONE_BORDER`, `TONE_ICON` |
-| tint                    | `--<tone>-soft` | `TONE_SOFT` (tint + foreground text)   |
-| text on a plain surface | `--<tone>-ink`  | `TONE_TEXT`                            |
+| Role                    | Token           | Maps                                                           |
+| ----------------------- | --------------- | -------------------------------------------------------------- |
+| fill, dot, border, icon | `--<tone>`      | `TONE_DOT`, `TONE_BORDER`, `TONE_ICON`                         |
+| tint                    | `--<tone>-soft` | `TONE_SOFT` (tint + foreground text), `TONE_TINT` (tint alone) |
+| text on a plain surface | `--<tone>-ink`  | `TONE_INK` (`TONE_TEXT` is its deprecated name)                |
 
 Status is never text in its own colour: success and warning reach only
 1.67:1 / 1.83:1 on white, so their ink is the foreground. Text on a tint is
@@ -434,17 +517,83 @@ to them. In dark mode the colours are the `-hell` values and the tints are
 transparent.
 
 ```tsx
-import { TONE_DOT, TONE_TEXT, type ToneVariant } from "@miragon/mcp-toolkit-ui"
+import { TONE_DOT, TONE_INK, type ToneVariant } from "@miragon/mcp-toolkit-ui"
 ;<span className="inline-flex items-center gap-1.5">
   <span aria-hidden="true" className={`size-2 rounded-full ${TONE_DOT[tone]}`} />
-  <span className={TONE_TEXT[tone]}>{label}</span>
+  <span className={TONE_INK[tone]}>{label}</span>
 </span>
 ```
 
 **When to use:** colour a custom element by status without hand-rolling a
 `tone === "x" ? …` ternary. `TONE_ICON` is for SVG icons only. The tone-aware
-components (`KpiGrid`, `LivePill`, `CountPill`, `Badge`, `WidgetHeader`)
+components (`KpiGrid`, `LivePill`, `StatusBadge`, `CountPill`, `Badge`)
 consume these internally.
+
+### Tone vocabulary
+
+ONE vocabulary: `TONE_VARIANTS` (`"danger" | "warning" | "success" | "info" |
+"neutral"`, in severity order). One red and one amber: there is no severity
+above `danger`. `resolveTone(name, fallback = "neutral")` maps any name onto
+it: a tone as is, a retired name from `TONE_ALIASES` (case-insensitive) onto
+its tone, anything else onto the fallback. `isToneVariant(value)` is the type
+guard for data from the wire. The props typed `ToneName` (`ToneVariant` or
+`ToneAlias`) resolve it this way: `KpiCell`'s `tone` and `trendTone`,
+`LivePill`, `StatusBadge`, `CountPill` and `WidgetHeader`'s `iconTone`, so a
+server-built cell with a retired name never renders without a colour. The
+feedback components keep their own subset in the types: `Toast` (`success |
+warning | danger | info`), `ErrorState` (`danger | warning | info`),
+`EmptyState` (`neutral | success`). A name that still reaches them untyped
+(plain JS, wire data) resolves through `resolveTone`; whatever falls outside
+the subset gets the default (`info` for a toast, `danger` for an error state,
+`neutral` for an empty state), so it never crashes a view. `Badge` and
+`Alert` variants are their own keys (`destructive` the deprecated name of
+`danger`); pass them a resolved tone.
+
+| Retired name                                  | Tone      |
+| --------------------------------------------- | --------- |
+| `critical`, `error`, `destructive`, `failure` | `danger`  |
+| `warn`                                        | `warning` |
+| `ok`, `positive`                              | `success` |
+| `notice`                                      | `info`    |
+| `default`, `muted`, `secondary`               | `neutral` |
+
+```tsx
+import { resolveTone, StatusBadge } from "@miragon/mcp-toolkit-ui"
+;<StatusBadge tone={resolveTone(row.severity)}>{row.label}</StatusBadge>
+```
+
+**When to use:** write the five tones in new code; reach for `resolveTone` when
+a tone arrives as data. `Button`'s `destructive` variant is an ACTION (the
+`--destructive` fill of an irreversible action), not a status tone, and stays.
+
+### Type scale
+
+The CI type scale (modeler-tool-design §4, adapted for embedded widgets) as
+role tokens and Tailwind utilities of the same name; each sets size, line
+height and (for the titles) weight. `TYPE_SCALE`, `TYPE_STEPS`,
+`TYPE_FLOOR_PX` and `MICRO_LABEL` are the same scale in TS.
+
+| Utility        | Size / weight / line height | Use                                                                                                                                |
+| -------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `text-title`   | 28 px / 700 / 1.2           | page title (the CI h2), KPI figures                                                                                                |
+| `text-section` | 21 px / 600 / 1.3           | section title (CI h3), dialog title, detail-page title                                                                             |
+| `text-body`    | 16 px / 400 / 1.6           | running text: state titles and descriptions, toasts                                                                                |
+| `text-dense`   | 14 px / 400 / 1.5           | dense tables and controls (inputs, chips, count pills, the inline alert box): the documented product exception, never running text |
+| `text-small`   | 13 px / 400 / 1.5           | captions, labels, hints: the FLOOR                                                                                                 |
+
+```tsx
+import { cn, MICRO_LABEL } from "@miragon/mcp-toolkit-ui"
+;<th className={cn(MICRO_LABEL, "text-muted-foreground")}>Activity</th>
+```
+
+**When to use:** every text size in kit and widget code. Nothing renders below
+13 px — no `text-xs`, no `text-[10px]` micro-labels; a former 10–11 px
+uppercase caption is `MICRO_LABEL` (13 px semibold, normal case). The design
+gate (`examples/test/design-system.test.ts`) fails on `text-xs`, an arbitrary
+`text-[…]` under 13 px / 0.8125 rem, a CSS `font-size` or a React `fontSize`
+under 13 px. Combine the utilities through the kit's `cn` (plain
+tailwind-merge drops `text-small` next to a text colour). A brand resizes the
+steps through `--text-*` (`ThemeTokens` `textTitle` … `textSmall`).
 
 ### FOCUS_RING
 

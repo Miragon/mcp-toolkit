@@ -354,7 +354,7 @@ export function StepErrors({
                   {human ? (
                     <span className="font-medium">{human}</span>
                   ) : (
-                    <span className="font-mono text-xs">{ref.step ?? ref.id}</span>
+                    <span className="text-small font-mono">{ref.step ?? ref.id}</span>
                   )}
                 </li>
               ))}

@@ -134,6 +134,19 @@ export interface ThemeTokens {
   fontMono?: string
   /** Heading font-family list. Maps to `--font-heading`. */
   fontHeading?: string
+  /** Page title size (CI h2, 28 px). Maps to `--text-title` (`text-title`). */
+  textTitle?: string
+  /** Section title size (CI h3, 21 px). Maps to `--text-section` (`text-section`). */
+  textSection?: string
+  /** Running text size (16 px). Maps to `--text-body` (`text-body`). */
+  textBody?: string
+  /** Dense tables and controls (14 px), never running text. Maps to `--text-dense` (`text-dense`). */
+  textDense?: string
+  /**
+   * Captions, labels and hints: the smallest text the kit renders (13 px;
+   * keep it at 13 px or more). Maps to `--text-small` (`text-small`).
+   */
+  textSmall?: string
 }
 
 /** The CSS custom-property name a {@link ThemeTokens} field resolves to. */
@@ -194,6 +207,11 @@ export const TOKEN_TO_CSS_VAR = {
   fontSans: "--font-sans",
   fontMono: "--font-mono",
   fontHeading: "--font-heading",
+  textTitle: "--text-title",
+  textSection: "--text-section",
+  textBody: "--text-body",
+  textDense: "--text-dense",
+  textSmall: "--text-small",
 } as const satisfies Record<keyof ThemeTokens, CssVarName>
 
 /**
@@ -245,6 +263,11 @@ export const ROLE_TOKENS = [
   "--ease",
   "--font-sans",
   "--font-mono",
+  "--text-title",
+  "--text-section",
+  "--text-body",
+  "--text-dense",
+  "--text-small",
 ] as const satisfies readonly CssVarName[]
 
 /**
@@ -279,6 +302,11 @@ export const MODE_INVARIANT_VARS: ReadonlySet<CssVarName> = new Set<CssVarName>(
   "--font-sans",
   "--font-mono",
   "--font-heading",
+  "--text-title",
+  "--text-section",
+  "--text-body",
+  "--text-dense",
+  "--text-small",
 ])
 
 /** A serializable map of CSS custom properties (`--primary` → value). */

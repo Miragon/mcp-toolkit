@@ -37,6 +37,25 @@ recorded in Miragon/miragon-ai's CLAUDE.md; don't undo them here):
   step-error alerts) use the same tone model as everything else: status as edge, rim,
   tint and icon, every word in the foreground; texts come from the en/de catalog
   (`locale/messages-{en,de}.ts`), never from a component.
+- **Type scale** (CI §4, `lib/typography.ts`): `text-title` 28/700 (page title, the CI
+  h2), `text-section` 21/600 (CI h3), `text-body` 16/400/1.6 (running text: state and
+  toast descriptions), `text-dense` 14 (dense tables and controls: inputs, chips,
+  count pills, the inline alert box; the documented product exception, never running
+  text), `text-small` 13, the FLOOR (captions, one-line hints, meta rows).
+  Nothing renders below 13 px: no `text-xs`, no `text-[10px]`; a caption is
+  `MICRO_LABEL` (13 px semibold, normal case, never uppercase micro-labels). Merge
+  classes with the kit's `cn` (it knows the scale; plain tailwind-merge drops
+  `text-small` next to a text colour).
+- **ONE tone vocabulary:** `success | warning | danger | info | neutral`
+  (`TONE_VARIANTS`). Retired names (`critical`, `error`, `destructive`, …) map through
+  `resolveTone` (`TONE_ALIASES`). The props typed `ToneName` resolve it: `KpiCell`
+  `tone`/`trendTone`, `LivePill`, `StatusBadge`, `CountPill`, `WidgetHeader`
+  `iconTone`. `Toast`, `ErrorState` and `EmptyState` keep their own subset in the
+  types and, for a name that arrives untyped, resolve it at runtime with their default
+  as the fallback (never a crash); `Badge`/`Alert` variants are cva keys and take a
+  resolved tone. One red, one amber: no severity above `danger`. `Badge`/`Alert`
+  `destructive` are deprecated names of `danger`; `Button`'s `destructive` is an
+  action, not a tone, and stays. `TONE_TEXT` is the deprecated name of `TONE_INK`.
 
 **The role-token contract.** Every component, in this repo and in apps built on it,
 styles through these CSS variables (Tailwind utilities of the same name), never through
@@ -47,7 +66,8 @@ raw colours or Tailwind palette classes:
 --success --warning --danger --info --success-soft --warning-soft --danger-soft
 --info-soft --success-ink --warning-ink --danger-ink --info-ink --destructive
 --radius-sm --radius-md --radius-lg --radius-pill --shadow-1 --shadow-2 --shadow-3
---scrim --motion-fast --motion-base --motion-slow --ease --font-sans --font-mono`
+--scrim --motion-fast --motion-base --motion-slow --ease --font-sans --font-mono
+--text-title --text-section --text-body --text-dense --text-small`
 
 (`ROLE_TOKENS` in `packages/ui/src/theme/create-theme.ts`.) The tone model has three
 roles per tone: the colour (`--<tone>`: fill, dot, border, icon), the tint
@@ -79,13 +99,35 @@ non-text ≥ 3:1, both modes, default theme and every preset).
 **Gates:** `examples/test/design-system.test.ts` (no palette or black/white utilities,
 no raw or named colours outside the theme files, no status/primary/destructive as text,
 no ink on a tint, no translucent text, no `outline-none`, a lifted surface switches its
-text), `packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast),
+text, no text below 13 px (`text-xs`, an arbitrary `text-[…]`, a CSS `font-size` or a
+React `fontSize` under 13 px), no typed icon glyph (arrows, chevrons, ✓ ×, ⚠ ⚙, shapes,
+emoji) in `.tsx`/`.css`/`.html` or the toolkit catalogs; its `RULE_EXEMPTIONS` list the
+builder files that await their UX pass, shrink-only, a stale entry fails),
+`packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast, the
+type scale),
 `components/tone-figures.test.tsx` (no coloured digits), `components/feedback-states.test.tsx`
-(the tone model of Toast, ErrorState, EmptyState), `lib/icon-stroke.test.ts` (one stroke
-mechanism), `no-hardcoded-copy.test.ts` + `i18n-coverage.test.tsx` (no copy outside the catalog;
+(the tone model of Toast, ErrorState, EmptyState; one live region), `lib/toast-model.test.ts`
+(a held toast resumes its remaining time, fake timers), `lib/tone-utils.test.ts` (the
+vocabulary and its aliases), `components/{KpiGrid,FilterBar,ListFooter,PagedListFooter,
+Pills,WidgetHeader}.test.tsx` (the lifted kit's a11y on SSR markup), `lib/icon-stroke.test.ts`
+(one stroke mechanism), `no-hardcoded-copy.test.ts` + `i18n-coverage.test.tsx` (no copy outside the catalog;
 no raw error in a toast, an ErrorState/EmptyState title or description, or an inline alert: the
 raw reason goes under the ErrorState's Details).
 `.miragon/brand.json` switches the brand-lint hook on for this repo.
+
+**One kit (miragon-ai forks).** The kit now carries what miragon-ai's
+`packages/core/widget-shell/src/ui` forked, so these forks can be deleted there (a
+consumer change in miragon-ai after the pin bump, M6; the mapping and the behaviour
+differences are in [`docs/reference/components.md`](docs/reference/components.md#replacing-a-forked-kit)):
+`kpi-grid.tsx` (→ `KpiGrid`, `KpiGridSkeleton`), `pills.tsx` (→ `LivePill`,
+`StatusBadge`, `CountPill`), `filter-bar.tsx` (→ `FilterBar`), `widget-header.tsx`
+(→ `WidgetHeader`), `paged-list-footer.tsx` (→ `PagedListFooter`), `tone-utils.ts`
+(→ the `TONE_*` maps, `TONE_VARIANTS`, `MICRO_LABEL`) and `cn.ts` (→ the kit's `cn`).
+Replace `cn.ts` FIRST: it is plain tailwind-merge, which reads a type-scale step
+(`text-title` … `text-small`) as a text colour, so merging `MICRO_LABEL` or a `text-*`
+step through it silently drops the colour or the size. Swap it for the kit's `cn`, or
+extend it with `extendTailwindMerge({ extend: { theme: { text: [...TYPE_STEPS] } } })`.
+New kit pieces land HERE, not in a consumer's fork.
 
 ## Module boundaries
 

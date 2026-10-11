@@ -71,11 +71,28 @@ export type { UseToolQueryOptions } from "./hooks/use-tool-query.js"
 export { useDebouncedValue } from "./hooks/use-debounced-value.js"
 
 // Tone token system — the semantic status tones (ToneVariant + TONE_* maps)
-// behind the tone-aware components below. Pure data + class strings. Three
+// behind the tone-aware components below. Pure data + class strings. ONE
+// vocabulary (TONE_VARIANTS; retired names map through resolveTone). Three
 // roles per tone: colour (TONE_DOT/TONE_BORDER/TONE_ICON), tint (TONE_SOFT,
-// foreground text on it), text on a plain surface (TONE_TEXT, the -ink role).
-export { TONE_SOFT, TONE_DOT, TONE_TEXT, TONE_BORDER, TONE_ICON } from "./lib/tone-utils.js"
-export type { ToneVariant } from "./lib/tone-utils.js"
+// foreground text on it; TONE_TINT alone), text on a plain surface (TONE_INK,
+// the -ink role; TONE_TEXT is its deprecated name).
+export {
+  TONE_VARIANTS,
+  TONE_ALIASES,
+  resolveTone,
+  isToneVariant,
+  TONE_SOFT,
+  TONE_TINT,
+  TONE_DOT,
+  TONE_INK,
+  TONE_TEXT,
+  TONE_BORDER,
+  TONE_ICON,
+} from "./lib/tone-utils.js"
+export type { ToneVariant, ToneAlias, ToneName } from "./lib/tone-utils.js"
+// The type scale (CI §4): text-title/section/body/dense/small utilities, 13 px floor.
+export { TYPE_SCALE, TYPE_STEPS, TYPE_FLOOR_PX, MICRO_LABEL } from "./lib/typography.js"
+export type { TypeStep } from "./lib/typography.js"
 // The kit's opaque focus ring as class strings, for custom controls.
 export { FOCUS_RING, FOCUS_RING_INSET } from "./lib/focus-ring.js"
 
@@ -83,14 +100,24 @@ export { FOCUS_RING, FOCUS_RING_INSET } from "./lib/focus-ring.js"
 // primitives. Pure (React + primitives + cn), so they live in the root barrel.
 export { GridLayout, GridItem } from "./components/GridLayout.js"
 export type { GridLayoutProps, GridItemProps } from "./components/GridLayout.js"
-export { KpiGrid } from "./components/KpiGrid.js"
-export type { KpiGridProps, KpiGridHeader, KpiCell } from "./components/KpiGrid.js"
-export { LivePill, CountPill } from "./components/Pills.js"
-export type { LivePillProps, CountPillProps } from "./components/Pills.js"
+export { KpiGrid, KpiGridSkeleton } from "./components/KpiGrid.js"
+export type {
+  KpiGridProps,
+  KpiGridHeader,
+  KpiCell,
+  KpiGridSkeletonProps,
+} from "./components/KpiGrid.js"
+export { LivePill, CountPill, StatusBadge } from "./components/Pills.js"
+export type {
+  LivePillProps,
+  CountPillProps,
+  StatusBadgeProps,
+  StatusBadgeText,
+} from "./components/Pills.js"
 export { SectionHeading } from "./components/SectionHeading.js"
 export type { SectionHeadingProps } from "./components/SectionHeading.js"
 export { WidgetHeader } from "./components/WidgetHeader.js"
-export type { WidgetHeaderProps } from "./components/WidgetHeader.js"
+export type { WidgetHeaderProps, WidgetHeadingLevel } from "./components/WidgetHeader.js"
 export { GroupCard } from "./components/GroupCard.js"
 export type { GroupCardProps } from "./components/GroupCard.js"
 export { FilterBar } from "./components/FilterBar.js"
@@ -99,6 +126,8 @@ export { DrillButton } from "./components/DrillButton.js"
 export type { DrillButtonProps } from "./components/DrillButton.js"
 export { ListFooter } from "./components/ListFooter.js"
 export type { ListFooterProps } from "./components/ListFooter.js"
+export { PagedListFooter } from "./components/PagedListFooter.js"
+export type { PagedListFooterProps, PagedListState } from "./components/PagedListFooter.js"
 
 // Feedback and states — one pattern each for toasts, empty and error states.
 export { ToastProvider, useToast } from "./components/Toast.js"
@@ -166,6 +195,7 @@ export type {
   BoundTranslate,
   BuilderMessages,
   CommonMessages,
+  FilterBarMessages,
   ListFooterMessages,
   PropsSheetMessages,
   RendererMessages,

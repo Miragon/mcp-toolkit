@@ -5,14 +5,17 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ErrorState,
   Skeleton,
+  useToolkitMessages,
 } from "@miragon/mcp-toolkit-ui"
 import { useArticlesGetArticle } from "../generated/hooks.js"
 
 export function ArticleCard({ keys }: WidgetProps) {
   const raw = keys["articles:articleId"]
   const id = typeof raw === "string" ? raw : ""
-  const { data, isLoading, error } = useArticlesGetArticle({ id }, { enabled: !!id })
+  const { data, isLoading, error, refetch } = useArticlesGetArticle({ id }, { enabled: !!id })
+  const { common } = useToolkitMessages()
 
   if (!id) {
     return (
@@ -35,10 +38,15 @@ export function ArticleCard({ keys }: WidgetProps) {
     )
   }
   if (error) {
+    // What happened and what you can do, from the toolkit's en/de catalog; the
+    // raw reason stays under "Details" instead of leading the card.
     return (
-      <Card>
-        <CardContent className="text-danger-ink text-sm">{error.message}</CardContent>
-      </Card>
+      <ErrorState
+        title={common.loadFailed}
+        description={common.loadFailedHint}
+        details={error.message}
+        onRetry={() => void refetch()}
+      />
     )
   }
   if (!data) return null

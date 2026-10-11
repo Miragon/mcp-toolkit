@@ -29,8 +29,6 @@ export function OrdersKpi({ data }: { data: OrdersDashboardData | null }) {
   return (
     <div className="bg-card text-card-foreground flex flex-col gap-4 p-5">
       <WidgetHeader
-        icon="€"
-        iconTone="success"
         title={customer.name}
         sub={
           <>

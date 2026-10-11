@@ -8,6 +8,7 @@ import {
   resolveThemeVars,
   type ThemeVars,
 } from "./create-theme.js"
+import { TYPE_FLOOR_PX, TYPE_STEPS } from "../lib/typography.js"
 import { HOST_FONT_VARIABLES } from "./host-fonts.js"
 import { themePresets } from "./presets.js"
 
@@ -240,6 +241,56 @@ describe("theme.css — the role-token contract", () => {
       expect(THEME_REFERENCE[name], name).toBe(`var(${name})`)
     }
     for (const value of Object.values(THEME_REFERENCE)) expect(value).not.toContain("calc(")
+  })
+
+  it("defines the type scale per CI §4 (page title h2, section h3, body, dense, small) with a 13 px floor", () => {
+    const px = (rem: string | undefined) => Number(/^([\d.]+)rem$/.exec(rem ?? "")?.[1]) * 16
+    const scale = Object.fromEntries(
+      TYPE_STEPS.map((step) => [
+        step,
+        {
+          px: px(ROOT[`--text-${step}`]),
+          lineHeight: ROOT[`--text-${step}--line-height`],
+          weight: ROOT[`--text-${step}--font-weight`],
+        },
+      ]),
+    )
+    expect(scale).toEqual({
+      title: { px: 28, lineHeight: "1.2", weight: "700" },
+      section: { px: 21, lineHeight: "1.3", weight: "600" },
+      body: { px: 16, lineHeight: "1.6", weight: undefined },
+      dense: { px: 14, lineHeight: "1.5", weight: undefined },
+      small: { px: 13, lineHeight: "1.5", weight: undefined },
+    })
+    for (const { px: size } of Object.values(scale)) {
+      expect(size).toBeGreaterThanOrEqual(TYPE_FLOOR_PX)
+    }
+    // Mode-independent roles of the contract, themeable like the radii.
+    for (const step of TYPE_STEPS) {
+      expect(ROLE_TOKENS).toContain(`--text-${step}`)
+      expect(MODE_INVARIANT_VARS.has(`--text-${step}`)).toBe(true)
+      expect(LIGHT, step).not.toHaveProperty(`--text-${step}`)
+      expect(DARK, step).not.toHaveProperty(`--text-${step}`)
+    }
+  })
+
+  it("maps the type-scale utilities (text-title … text-small) onto the roles, size, leading and weight", () => {
+    for (const step of TYPE_STEPS) {
+      expect(THEME_REFERENCE[`--text-${step}`], step).toBe(`var(--text-${step})`)
+      expect(THEME_REFERENCE[`--text-${step}--line-height`], step).toBe(
+        `var(--text-${step}--line-height)`,
+      )
+    }
+    for (const step of ["title", "section"]) {
+      expect(THEME_REFERENCE[`--text-${step}--font-weight`], step).toBe(
+        `var(--text-${step}--font-weight)`,
+      )
+    }
+    // Tailwind's own steps stay untouched (text-xs is still 12 px): the floor
+    // is a gate on the kit's sources, not a redefinition of a consumer's scale.
+    for (const name of Object.keys({ ...THEME_INLINE, ...THEME_REFERENCE })) {
+      expect(name).not.toMatch(/^--text-(?:xs|sm|base|lg|\d?xl)\b/)
+    }
   })
 
   it("exposes the new colour roles as utilities (bg-scrim, text-link, ring-focus, text-*-ink, …)", () => {

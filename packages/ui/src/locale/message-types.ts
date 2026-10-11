@@ -14,8 +14,16 @@ export interface CommonMessages {
   details: string
   /** Accessible name of a toast's close button. */
   dismiss: string
-  /** Accessible name of the toast region. */
+  /**
+   * @deprecated No longer rendered: the toast region is a plain live region
+   * with fixed attributes and takes no name. Kept so a catalog that sets it
+   * still type-checks.
+   */
   notifications: string
+  /** Title of a widget's error state when its data could not be loaded. */
+  loadFailed: string
+  /** The line under {@link CommonMessages.loadFailed}: what you can do (a retry follows). */
+  loadFailedHint: string
 }
 
 /** Strings of the `McpAppView` chrome (placeholder, error state, toolbar, step errors). */
@@ -71,6 +79,31 @@ export interface ListFooterMessages {
   defaultNoun: string
   loadMore: string
   loadingMore: string
+  /** Status while a new first page is in flight over the rows on screen. */
+  updating: string
+  /**
+   * Status at zero rows, for screen readers only (the caller's empty state is
+   * what you see): a search that finds nothing is announced like any count.
+   */
+  noResults: string
+  /** Title when a new first page failed and the previous rows stay on screen. */
+  refreshFailed: string
+  /** The line under {@link ListFooterMessages.refreshFailed}: what you see and can do. */
+  refreshFailedHint: string
+  /** Title when loading the next page failed. */
+  loadMoreFailed: string
+  /** The line under {@link ListFooterMessages.loadMoreFailed}: what you see and can do. */
+  loadMoreFailedHint: string
+}
+
+/** Strings of `FilterBar`. */
+export interface FilterBarMessages {
+  /** Placeholder of the search input. */
+  searchPlaceholder: string
+  /** Accessible name of the search input (a placeholder is no label). */
+  searchLabel: string
+  /** Accessible name of the chip group. */
+  chipsLabel: string
 }
 
 /** Strings of the widget renderer's fallbacks. */
@@ -213,7 +246,7 @@ export interface ToolkitMessages {
   common: CommonMessages
   view: ViewMessages
   listFooter: ListFooterMessages
-  filterBar: { searchPlaceholder: string }
+  filterBar: FilterBarMessages
   pills: { live: string }
   renderer: RendererMessages
   builder: BuilderMessages

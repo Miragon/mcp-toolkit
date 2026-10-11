@@ -57,7 +57,7 @@ function StatusPill({ status }: { status: OrderStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold",
+        "text-small inline-flex items-center rounded-md border px-2 py-0.5 font-semibold",
         TONE_SOFT[STATUS_TONE[status]],
         TONE_BORDER[STATUS_TONE[status]],
       )}
@@ -92,7 +92,7 @@ export function OrdersTable({ data }: { data: OrdersDashboardData | null }) {
               <TableRow key={order.id}>
                 <TableCell>
                   <div className="font-medium">{order.summary}</div>
-                  <div className="text-muted-foreground text-xs">
+                  <div className="text-muted-foreground text-small">
                     <Badge variant="outline">{order.id}</Badge>
                   </div>
                 </TableCell>

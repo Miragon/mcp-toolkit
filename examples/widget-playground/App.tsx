@@ -53,7 +53,7 @@ function ThemeSwitcher({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <span className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+      <span className="text-muted-foreground text-small font-semibold tracking-wide uppercase">
         Brand
       </span>
       <div className="flex flex-wrap gap-1">
@@ -119,7 +119,7 @@ function StoryList({
 }) {
   return (
     <nav className="flex flex-col gap-1 p-3">
-      <div className="text-muted-foreground px-2 pb-2 text-xs font-semibold tracking-wide uppercase">
+      <div className="text-muted-foreground text-small px-2 pb-2 font-semibold tracking-wide uppercase">
         Widgets
       </div>
       {stories.map((story) => {
@@ -140,7 +140,7 @@ function StoryList({
                 --muted-foreground reaches only 3.66:1 on the 10 % lift. */}
             <div
               className={
-                "group-hover:text-accent-foreground mt-0.5 line-clamp-2 text-xs " +
+                "group-hover:text-accent-foreground text-small mt-0.5 line-clamp-2 " +
                 (active ? "text-accent-foreground" : "text-muted-foreground")
               }
             >
@@ -203,12 +203,12 @@ export function App() {
       {/* Sidebar — widget selection */}
       <aside className="bg-sidebar flex w-72 shrink-0 flex-col border-r">
         <div className="flex h-14 items-center gap-2 border-b px-4">
-          <div className="bg-primary text-primary-foreground flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold">
+          <div className="bg-primary text-primary-foreground text-small flex h-7 w-7 items-center justify-center rounded-md font-bold">
             UI
           </div>
           <div>
             <div className="text-sm leading-none font-semibold">Widget Playground</div>
-            <div className="text-muted-foreground mt-0.5 text-xs">Storybook for MCP widgets</div>
+            <div className="text-muted-foreground text-small mt-0.5">Storybook for MCP widgets</div>
           </div>
         </div>
         <ScrollArea className="flex-1">
@@ -244,15 +244,15 @@ export function App() {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   spellCheck={false}
-                  className="border-input bg-muted/40 focus-visible:ring-ring min-h-[280px] flex-1 resize-y rounded-md border p-3 font-mono text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-hidden"
+                  className="border-input bg-muted/40 focus-visible:ring-ring text-small min-h-[280px] flex-1 resize-y rounded-md border p-3 font-mono leading-relaxed focus-visible:ring-2 focus-visible:outline-hidden"
                 />
                 {parsed.error ? (
-                  <Alert variant="destructive">
+                  <Alert variant="danger">
                     <AlertTitle>Invalid JSON</AlertTitle>
                     <AlertDescription>{parsed.error}</AlertDescription>
                   </Alert>
                 ) : (
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-muted-foreground text-small">
                     Valid JSON — preview reflects the latest edit.
                   </p>
                 )}
@@ -315,7 +315,7 @@ export function App() {
               </CardHeader>
               <CardContent>
                 {modelContext ? (
-                  <pre className="bg-muted/40 overflow-x-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap">
+                  <pre className="bg-muted/40 text-small overflow-x-auto rounded-md border p-3 font-mono whitespace-pre-wrap">
                     {modelContext}
                   </pre>
                 ) : (
@@ -343,10 +343,10 @@ export function App() {
                         <Badge variant={ACTION_VARIANT[entry.action.type]}>
                           {entry.action.type}
                         </Badge>
-                        <code className="text-muted-foreground min-w-0 flex-1 text-xs break-all">
+                        <code className="text-muted-foreground text-small min-w-0 flex-1 break-all">
                           {formatAction(entry.action)}
                         </code>
-                        <span className="text-muted-foreground shrink-0 text-[10px]">
+                        <span className="text-muted-foreground text-small shrink-0">
                           {entry.at}
                         </span>
                       </li>
@@ -357,7 +357,7 @@ export function App() {
             </Card>
           </div>
           <Separator />
-          <p className="text-muted-foreground p-6 text-xs">
+          <p className="text-muted-foreground text-small p-6">
             Add a widget to this playground by appending a <code>Story</code> to{" "}
             <code>stories.ts</code> — no host, no backend.
           </p>

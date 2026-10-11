@@ -136,7 +136,9 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold", className)}
+      // The dialog's heading row (CI §8: weight 600) on the type scale's
+      // section step (21 px / 600, the CI h3).
+      className={cn("text-section", className)}
       {...props}
     />
   )
