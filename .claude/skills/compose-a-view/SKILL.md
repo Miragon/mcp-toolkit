@@ -50,7 +50,7 @@ import { withToolErrors } from "@miragon/mcp-toolkit-core/tools"
 server.tool(
   {
     name: "show_orders_dashboard",
-    title: "Orders Dashboard",
+    title: "Orders dashboard",
     description: "Show a customer's orders: a KPI strip next to an orders table.",
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({ customerId: z.string().optional() }),
@@ -58,23 +58,19 @@ server.tool(
     outputSchema: z.object({}).passthrough(), // a view binding requires one
     _meta: appsSdkMeta({
       resourceUri: viewResourceUri("show_orders_dashboard"),
-      title: "Orders Dashboard",
+      title: "Orders dashboard",
     }),
   },
   withToolErrors((args: { customerId?: string }) => {
     const dashboard = store.dashboard(args.customerId ?? "c-1") // ONE pass → { kpi, table }
     const view = buildComposedView({
       app: "orders",
-      title: `Orders — ${dashboard.kpi.customer.name}`,
+      title: `Orders: ${dashboard.kpi.customer.name}`,
       summary: dashboardSummary(dashboard), // 1-line, model-facing — NOT the full data
       layout: {
         rows: [
-          {
-            row: [
-              { widget: "orders:kpi", span: 5 }, // ┐ one row,
-              { widget: "orders:table", span: 7 }, // ┘ two cells (12-col grid)
-            ],
-          },
+          { row: [{ widget: "orders:kpi", span: 12 }] }, // the KPI strip on top,
+          { row: [{ widget: "orders:table", span: 12 }] }, // the orders table below
         ],
       },
       entries: [
@@ -160,12 +156,8 @@ Drive it with `render-view` and a layout — note B references A's produced key 
   ],
   "layout": {
     "rows": [
-      {
-        "row": [
-          { "widget": "orders:kpi", "span": 5 },
-          { "widget": "orders:table", "span": 7 },
-        ],
-      },
+      { "row": [{ "widget": "orders:kpi", "span": 12 }] },
+      { "row": [{ "widget": "orders:table", "span": 12 }] },
     ],
   },
 }
@@ -218,12 +210,8 @@ The layout is a **12-column grid** of rows, optionally nested in tabs
 ```jsonc
 {
   "rows": [
-    {
-      "row": [
-        { "widget": "orders:kpi", "span": 5 },
-        { "widget": "orders:table", "span": 7 },
-      ],
-    },
+    { "row": [{ "widget": "orders:kpi", "span": 12 }] },
+    { "row": [{ "widget": "orders:table", "span": 12 }] },
   ],
 }
 // flat-array form (legacy) and { "tabs": [{ "label", "rows" }] } are also accepted.

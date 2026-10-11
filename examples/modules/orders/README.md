@@ -68,12 +68,8 @@ const view = buildComposedView({
   summary: dashboardSummary(dashboard), // 1-line, model-facing
   layout: {
     rows: [
-      {
-        row: [
-          { widget: "orders:kpi", span: 5 }, // ┐ one row,
-          { widget: "orders:table", span: 7 }, // ┘ two cells
-        ],
-      },
+      { row: [{ widget: "orders:kpi", span: 12 }] }, // the KPI strip on top,
+      { row: [{ widget: "orders:table", span: 12 }] }, // the orders table below
     ],
   },
   entries: [
@@ -85,8 +81,10 @@ return { content: view.content, structuredContent: view.structuredContent }
 ```
 
 The native `view` binding (+ `appsSdkMeta` for Apps SDK hosts) tells the host to render the result as
-UI. The layout is a **12-column grid**: `span: 5` + `span: 7` puts the KPI strip
-and the table side by side in one row.
+UI. The layout is a **12-column grid** of rows: the KPI strip and the table each
+take a full row (`span: 12`), so both stay readable at a chat's inline width
+(about 760 px). Side by side, the five KPI figures and the table's Amount column
+run out of room there.
 
 The data flow is direct — no executor in the loop:
 
@@ -95,7 +93,7 @@ show_orders_dashboard(customerId)            (plugin.ts)
   → store.dashboard(customerId)              : { kpi, table }   ← ONE pass
   → buildComposedView({ layout, entries: [{ dataType: "orders:dashboard", data }, …] })
   → structuredContent: ViewStructuredContent
-        .layout = { rows: [{ row: [kpi(5), table(7)] }] }
+        .layout = { rows: [{ row: [kpi(12)] }, { row: [table(12)] }] }
         .context.stepData.kpi   = { _dataType: "orders:dashboard", data }
         .context.stepData.table = { _dataType: "orders:dashboard", data }
   → host renders the app bundle (the tool's view binding)
@@ -163,7 +161,7 @@ on missing data. The `orders.smoke.test.ts` asserts exactly this.
 
 The layout for this path lives in
 [`examples/layouts/orders-dashboard.yaml`](../../layouts/orders-dashboard.yaml) —
-**identical in shape** to the eager path's layout (one row, two cells, same spans),
+**identical in shape** to the eager path's layout (two full-width rows, same spans),
 so both paths visibly converge on one rendered view:
 
 ```sh
@@ -182,7 +180,8 @@ curl -sX POST http://localhost:3010/mcp \
       ],
       "layout": {
         "rows": [
-          { "row": [ { "widget": "orders:kpi", "span": 5 }, { "widget": "orders:table", "span": 7 } ] }
+          { "row": [ { "widget": "orders:kpi", "span": 12 } ] },
+          { "row": [ { "widget": "orders:table", "span": 12 } ] }
         ]
       }
     }

@@ -55,10 +55,12 @@ const customerSchema = z.object({
 })
 
 /**
- * The eager dashboard layout: ONE row with TWO cells — the KPI strip on the left,
- * the orders table on the right. This is the same `LayoutConfig` shape `render-view`
- * takes, so the eager path and the pipeline path share an identical layout model
- * (compare `examples/layouts/orders-dashboard.yaml`).
+ * The eager dashboard layout: TWO full-width rows — the KPI strip on top, the
+ * orders table below. Side by side (5 + 7 columns) the five KPI figures and the
+ * table's Amount column ran out of room at a chat's inline width (about 760 px).
+ * This is the same `LayoutConfig` shape `render-view` takes, so the eager path
+ * and the pipeline path share an identical layout model (compare
+ * `examples/layouts/orders-dashboard.yaml`).
  *
  * Each cell names a widget id (registered in the app bundle) and a 12-column `span`.
  * Both cells reference widgets that read the `orders:dashboard` `_dataType`, so a
@@ -68,12 +70,8 @@ const customerSchema = z.object({
  */
 const DASHBOARD_LAYOUT: LayoutConfig = {
   rows: [
-    {
-      row: [
-        { widget: "orders:kpi", span: 5 },
-        { widget: "orders:table", span: 7 },
-      ],
-    },
+    { row: [{ widget: "orders:kpi", span: 12 }] },
+    { row: [{ widget: "orders:table", span: 12 }] },
   ],
 }
 
@@ -82,8 +80,8 @@ function dashboardSummary(dashboard: OrdersDashboardData): string {
   const { customer, counts, revenueCents } = dashboard.kpi
   const euros = (revenueCents / 100).toFixed(2)
   return (
-    `Orders dashboard for ${customer.name}: ${counts.total} order(s) — ${counts.open} open, ` +
-    `${counts.paid} paid, ${counts.shipped} shipped, ${counts.cancelled} cancelled; ` +
+    `Orders dashboard for ${customer.name}: ${counts.total} ${counts.total === 1 ? "order" : "orders"} ` +
+    `(${counts.open} open, ${counts.paid} paid, ${counts.shipped} shipped, ${counts.cancelled} cancelled), ` +
     `€${euros} revenue. Full breakdown is shown in the dashboard.`
   )
 }
