@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   CountPill,
+  ErrorState,
   FilterBar,
   KpiGrid,
   ListFooter,
@@ -16,6 +17,7 @@ import {
   WidgetHeader,
   cn,
   useDebouncedValue,
+  useToolkitMessages,
   useToolQuery,
   type FilterChip,
   type ToneVariant,
@@ -62,8 +64,8 @@ const STATUS_TONE: Record<TaskStatus, ToneVariant> = {
 }
 
 const PRIORITY_RANK: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 }
-const PRIORITY_BADGE: Record<TaskPriority, "destructive" | "default" | "secondary"> = {
-  high: "destructive",
+const PRIORITY_BADGE: Record<TaskPriority, "danger" | "default" | "secondary"> = {
+  high: "danger",
   medium: "default",
   low: "secondary",
 }
@@ -91,7 +93,7 @@ function StatusPill({ status }: { status: TaskStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold",
+        "text-small inline-flex items-center rounded-md border px-2 py-0.5 font-semibold",
         TONE_SOFT[STATUS_TONE[status]],
         TONE_BORDER[STATUS_TONE[status]],
       )}
@@ -152,6 +154,7 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
   const board = query.data ?? pushed ?? null
 
   const host = useHostActions()
+  const { common } = useToolkitMessages()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<TaskStatus | null>(null)
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | null>(null)
@@ -180,10 +183,16 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
   // Loading / error states only matter on the self-fetch path (no pushed data).
   if (!board) {
     if (query.error) {
+      // Title and next step from the toolkit's en/de catalog; the raw reason
+      // (a transport or tool error) goes under "Details", never into the title.
       return (
-        <Card className="m-4">
-          <CardContent className="text-danger-ink text-sm">{query.error.message}</CardContent>
-        </Card>
+        <ErrorState
+          className="m-4"
+          title={common.loadFailed}
+          description={common.loadFailedHint}
+          details={query.error.message}
+          onRetry={() => void query.refetch()}
+        />
       )
     }
     return (
@@ -215,8 +224,6 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
     <HostModelContext content={describeBoard(board)}>
       <div className="bg-card text-card-foreground mx-auto flex max-w-3xl flex-col gap-6 p-6">
         <WidgetHeader
-          icon="✓"
-          iconTone="info"
           title="Task board"
           sub={
             <>
@@ -264,21 +271,21 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
               value: counts.todo,
               tone: "neutral",
               onClick: () => toggleStatus("todo"),
-              ariaLabel: "Filter to to-do tasks",
+              actionHint: "Filters the list to to-do tasks",
             },
             {
               label: STATUS_LABEL.doing,
               value: counts.doing,
               tone: "info",
               onClick: () => toggleStatus("doing"),
-              ariaLabel: "Filter to in-progress tasks",
+              actionHint: "Filters the list to in-progress tasks",
             },
             {
               label: STATUS_LABEL.done,
               value: counts.done,
               tone: "success",
               onClick: () => toggleStatus("done"),
-              ariaLabel: "Filter to done tasks",
+              actionHint: "Filters the list to done tasks",
             },
             { label: "Total", value: counts.total },
           ]}
@@ -293,7 +300,7 @@ export function TasksBoard({ data: pushed }: { data: TasksBoardData | null }) {
                 <button
                   type="button"
                   onClick={() => setStatusFilter(null)}
-                  className="text-link text-xs font-medium hover:underline"
+                  className="text-link text-small font-medium hover:underline"
                 >
                   Clear “{STATUS_LABEL[statusFilter]}” filter
                 </button>

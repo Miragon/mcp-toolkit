@@ -60,7 +60,7 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 500,
           color: "#0369a1",
           background: "#e0f2fe",
@@ -92,7 +92,7 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#0f172a" }}>{name}</h3>
         <span
           style={{
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: 600,
             padding: "3px 9px",
             borderRadius: 999,
@@ -108,7 +108,7 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
         </span>
       </div>
       <div style={{ fontSize: 13, color: "#334155", marginTop: 6 }}>{email}</div>
-      <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+      <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
         customer since {since || "—"}
       </div>
       <button
@@ -122,7 +122,7 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
           background: "#f8fafc",
           color: "#334155",
           cursor: "pointer",
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: 500,
           transition: "background 0.15s",
         }}
@@ -134,7 +134,7 @@ export default function CustomerCard({ keys }: { keys: Keys }) {
       {expanded && (
         <div
           style={{
-            fontSize: 12,
+            fontSize: 13,
             color: "#64748b",
             marginTop: 8,
             padding: "6px 8px",

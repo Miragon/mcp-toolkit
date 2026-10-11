@@ -21,7 +21,15 @@ import { REPO_ROOT } from "./helpers/fitness-probe.js"
  *   text to that surface's foreground (quiet text drops below 4.5:1 there in
  *   dark);
  * - never `outline-none` (forced-colors mode then shows no focus at all; use
- *   `outline-hidden`, as FOCUS_RING does).
+ *   `outline-hidden`, as FOCUS_RING does);
+ * - nothing below the type floor (CI §4 "klein", 13 px): no Tailwind
+ *   `text-xs` (12 px) in any variant, no arbitrary `text-[…]` size under
+ *   13 px / 0.8125 rem, no CSS `font-size` or React `fontSize` under 13 px —
+ *   the scale is `text-title` … `text-small` (`MICRO_LABEL` for captions);
+ * - no typed icon glyph (arrows, chevrons ‹ ›, check marks, crosses ×, stars,
+ *   ⚠ ⚙ ⏱, geometric shapes, ⊞, emoji) in UI source (`.tsx`, `.css`, `.html`
+ *   and the toolkit catalogs): function icons are Lucide (CI §11). Typographic
+ *   marks stay allowed: "…", "·", "±", "≥", quotes.
  *
  * Scope: every source file of the published packages, the examples and the
  * starter template (tests excluded — they assert on colour literals as data).
@@ -83,6 +91,83 @@ const NAMED_COLOUR =
 const INK_ON_TINT =
   /\bbg-(success|warning|danger|info)-soft\b.*\btext-\1-ink\b|\btext-(success|warning|danger|info)-ink\b.*\bbg-\2-soft\b/
 const OUTLINE_NONE = /\boutline-none\b/
+/** The CI's smallest size (§4 "klein"); `TYPE_FLOOR_PX` in packages/ui/src/lib/typography.ts. */
+const TYPE_FLOOR_PX = 13
+const TEXT_XS = /(?<![\w-])text-xs(?![-\w])/
+const ARBITRARY_SIZE = /\btext-\[(\d*\.?\d+)(px|rem)\]/g
+const CSS_FONT_SIZE = /\bfont-size\s*:\s*(\d*\.?\d+)(px|rem)\b/g
+const STYLE_FONT_SIZE = /\bfontSize\s*:\s*["'`]?(\d*\.?\d+)(px|rem)?\b/g
+/**
+ * Typed icon glyphs: the arrows blocks, single guillemets used as chevrons,
+ * the multiplication sign as a close glyph, dingbats (✓ ✕ ✦), miscellaneous
+ * symbols (⚠ ⚙ ★), technical symbols (⏱ ⏵), geometric shapes (▶ ◆ ▦), the
+ * boxed operators (⊞ ⊡) and the emoji planes.
+ */
+const ICON_GLYPH =
+  /[\u2190-\u21FF\u27F0-\u27FF\u2900-\u297F\u2039\u203A\u00D7\u2700-\u27BF\u2600-\u26FF\u2300-\u23FF\u25A0-\u25FF\u2295-\u22A1\u2B00-\u2BFF]|[\u{1F300}-\u{1FAFF}]/u
+/** Where a typed glyph would reach the screen: markup, styles and the toolkit's catalogs. */
+const GLYPH_SCOPE = /\.(?:tsx|css|html)$|^packages\/ui\/src\/locale\/messages-[a-z]+\.ts$/
+
+/** The px a CSS length stands for (rem at the 16 px default). */
+const toPx = (value: string, unit: string | undefined) =>
+  unit === "rem" ? Number(value) * 16 : Number(value)
+
+/** The first font size on a line that falls below the floor, as written. */
+function sizeBelowFloor(line: string): string | undefined {
+  const xs = TEXT_XS.exec(line)
+  if (xs) return xs[0]
+  for (const re of [ARBITRARY_SIZE, CSS_FONT_SIZE, STYLE_FONT_SIZE]) {
+    for (const m of line.matchAll(re)) {
+      if (toPx(m[1] ?? "", m[2]) < TYPE_FLOOR_PX) return m[0]
+    }
+  }
+  return undefined
+}
+
+/**
+ * Files that still break a rule here, by rule — the builder awaits its own
+ * UX pass (palette, pipeline strip, catalogue sheet, props sheet: package T4
+ * builder). SHRINK-ONLY: fix a file and remove its rule; a stale entry (the
+ * file is clean of that rule, or gone) fails below.
+ */
+const RULE_EXEMPTIONS: Record<string, { rules: string[]; reason: string }> = {
+  "packages/ui/src/app/builder/BuilderBanners.tsx": {
+    rules: ["text-below-floor"],
+    reason: "builder UX pass pending (T4 builder)",
+  },
+  "packages/ui/src/app/builder/CanvasRow.tsx": {
+    rules: ["text-below-floor"],
+    reason: "builder UX pass pending (T4 builder)",
+  },
+  "packages/ui/src/app/builder/CatalogueSheet.tsx": {
+    rules: ["text-below-floor", "icon-glyph"],
+    reason: "builder UX pass pending (T4 builder): 10 px ids, ← → as input/output arrows",
+  },
+  "packages/ui/src/app/builder/LayoutSurface.tsx": {
+    rules: ["text-below-floor"],
+    reason: "builder UX pass pending (T4 builder)",
+  },
+  "packages/ui/src/app/builder/PipelineStrip.tsx": {
+    rules: ["text-below-floor", "icon-glyph"],
+    reason: "builder UX pass pending (T4 builder): 10–11 px step chips, ← → as input/output arrows",
+  },
+  "packages/ui/src/app/builder/Toolbar.tsx": {
+    rules: ["text-below-floor"],
+    reason: "builder UX pass pending (T4 builder)",
+  },
+  "packages/ui/src/app/builder/Workspace.tsx": {
+    rules: ["text-below-floor", "icon-glyph"],
+    reason: "builder UX pass pending (T4 builder): 10 px palette ids, ← as the requires arrow",
+  },
+  "packages/ui/src/app/layout-builder.tsx": {
+    rules: ["text-below-floor"],
+    reason: "builder UX pass pending (T4 builder)",
+  },
+  "packages/ui/src/app/widget-props-sheet.tsx": {
+    rules: ["text-below-floor"],
+    reason: "builder UX pass pending (T4 builder): the props sheet speaks prop names",
+  },
+}
 /** A surface utility (with its variant prefix) whose text must switch with it. */
 const LIFTED_SURFACE = /((?:[\w&>*[\]=.()/@-]+:)*)bg-(accent|secondary)(?:\/\d{1,3})?(?![-\w])/g
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")
@@ -149,6 +234,9 @@ function scanSource(file: string, source: string): Finding[] {
     check("primary-as-text", PRIMARY_TEXT, true)
     check("translucent-text", TRANSLUCENT_TEXT, true)
     check("outline-none", OUTLINE_NONE, true)
+    check("icon-glyph", ICON_GLYPH, GLYPH_SCOPE.test(file))
+    const small = sizeBelowFloor(text)
+    if (small) findings.push({ file, line: idx + 1, rule: "text-below-floor", match: small })
     const surface = surfaceWithoutItsText(text)
     if (surface) {
       findings.push({ file, line: idx + 1, rule: "surface-without-its-text", match: surface })
@@ -187,16 +275,34 @@ describe("design-system gate (role tokens only)", () => {
     expect(files).toContain("templates/minimal-server/views/shared/styles.css")
   })
 
-  it("finds no palette utility, raw colour, status-as-text or translucent text", () => {
-    const findings = files.flatMap((file) =>
-      scanSource(file, fs.readFileSync(path.join(REPO_ROOT, file), "utf8")),
-    )
+  const allFindings = () =>
+    files.flatMap((file) => scanSource(file, fs.readFileSync(path.join(REPO_ROOT, file), "utf8")))
+  const exempt = (f: Finding) => RULE_EXEMPTIONS[f.file]?.rules.includes(f.rule) ?? false
+
+  it("finds no palette utility, raw colour, status-as-text, text below 13 px or typed glyph", () => {
     expect(
-      findings.map((f) => `${f.file}:${f.line} ${f.rule} "${f.match}"`),
+      allFindings()
+        .filter((f) => !exempt(f))
+        .map((f) => `${f.file}:${f.line} ${f.rule} "${f.match}"`),
       "Use the role tokens: bg-primary, text-link, border-input, ring-focus, " +
-        "the tone maps (TONE_SOFT/TONE_TEXT/TONE_DOT/TONE_BORDER/TONE_ICON) — " +
-        "colour values live only in the theme files.",
+        "the tone maps (TONE_SOFT/TONE_INK/TONE_DOT/TONE_BORDER/TONE_ICON) — " +
+        "colour values live only in the theme files. Type: the scale text-title … " +
+        "text-small (13 px floor, MICRO_LABEL for captions). Icons: Lucide, never a typed glyph.",
     ).toEqual([])
+  })
+
+  it("keeps the rule exemptions free of stale entries (shrink-only)", () => {
+    const findings = allFindings()
+    for (const [file, { rules, reason }] of Object.entries(RULE_EXEMPTIONS)) {
+      expect(reason, file).toBeTruthy()
+      expect(fs.existsSync(path.join(REPO_ROOT, file)), file).toBe(true)
+      for (const rule of rules) {
+        expect(
+          findings.some((f) => f.file === file && f.rule === rule),
+          `${file} no longer breaks "${rule}" — remove it from RULE_EXEMPTIONS`,
+        ).toBe(true)
+      }
+    }
   })
 
   it("keeps the theme-file allowlist free of stale entries", () => {
@@ -289,6 +395,35 @@ describe("design-system gate fires (self-test — a gate never red is decoration
     expect(rulesOf('"text-muted-foreground/70"')).toContain("translucent-text")
     expect(rulesOf('"text-foreground/60 hover:text-foreground"')).toContain("translucent-text")
     expect(rulesOf('"text-sm/6 text-2xl/tight"')).toEqual([])
+  })
+
+  it("flags text below the 13 px floor: text-xs, small arbitrary sizes, CSS and style sizes", () => {
+    expect(rulesOf('"text-xs font-medium"')).toContain("text-below-floor")
+    expect(rulesOf('cn("sm:text-xs")')).toContain("text-below-floor")
+    expect(rulesOf('"text-xs/5"')).toContain("text-below-floor")
+    expect(rulesOf('"text-[11px] uppercase"')).toContain("text-below-floor")
+    expect(rulesOf('"text-[0.75rem]"')).toContain("text-below-floor")
+    expect(rulesOf("  font-size: 12px;")).toContain("text-below-floor")
+    expect(rulesOf("style={{ fontSize: 11 }}")).toContain("text-below-floor")
+    expect(rulesOf('style={{ fontSize: "10px" }}')).toContain("text-below-floor")
+    expect(
+      rulesOf(
+        '"text-small text-dense text-sm text-[13px] text-[0.8125rem] max-w-xs text-xsmall" fontSize: 13 font-size: 1rem',
+      ),
+    ).toEqual([])
+  })
+
+  it("flags typed icon glyphs in markup and catalogs, not typographic marks or other files", () => {
+    const glyphs = ["→", "←", "↗", "›", "‹", "×", "✓", "✕", "✦", "⚠", "⚙", "⏱", "▶", "◆", "⊞"]
+    for (const glyph of [...glyphs, "↻", "⟳", "★", "🚀"]) {
+      expect(rulesOf(`<span>${glyph}</span>`), glyph).toContain("icon-glyph")
+    }
+    expect(rulesOf('loadMore: "Load more →",', "packages/ui/src/locale/messages-en.ts")).toContain(
+      "icon-glyph",
+    )
+    expect(rulesOf('<p>Loading… · ±0 · ≥3 · „Ops“ · "x"</p>')).toEqual([])
+    // Server code and plain .ts helpers (tool descriptions for the model) are out of scope.
+    expect(rulesOf('description: "a → b",', "packages/core/src/tools/x.ts")).toEqual([])
   })
 
   it("lets colour values through only in the theme files", () => {

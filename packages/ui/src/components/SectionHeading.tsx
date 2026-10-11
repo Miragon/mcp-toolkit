@@ -16,10 +16,10 @@ export interface SectionHeadingProps {
  */
 export function SectionHeading({ title, hint, trailing }: SectionHeadingProps) {
   return (
-    <div className="text-muted-foreground mb-3 flex items-center justify-between text-sm font-semibold">
+    <div className="text-muted-foreground text-dense mb-3 flex items-center justify-between font-semibold">
       <span>{title}</span>
       {(hint || trailing) && (
-        <span className="text-muted-foreground text-xs font-medium">{trailing ?? hint}</span>
+        <span className="text-muted-foreground text-small font-medium">{trailing ?? hint}</span>
       )}
     </div>
   )

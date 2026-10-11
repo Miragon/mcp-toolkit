@@ -226,7 +226,7 @@ export const PRIMITIVE_RENDER_CASES: RenderCase[] = [
     name: "Alert",
     marker: "RC:Alert",
     render: () => (
-      <Alert variant="destructive">
+      <Alert variant="danger">
         <AlertTitle>RC:Alert</AlertTitle>
         <AlertDescription>The engine rejected the job.</AlertDescription>
       </Alert>

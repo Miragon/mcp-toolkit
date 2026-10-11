@@ -59,14 +59,14 @@ const VARIANT = {
   block: {
     box: "gap-4 p-4",
     icon: "size-5",
-    title: "text-base",
+    title: "text-body",
     defaultTitleAs: "h2",
     retry: "default",
   },
   inline: {
-    box: "gap-3 px-4 py-3 text-sm",
+    box: "gap-3 px-4 py-3 text-dense",
     icon: "size-4",
-    title: "text-sm",
+    title: "text-dense",
     defaultTitleAs: "p",
     retry: "outline",
   },
@@ -125,7 +125,7 @@ export function ErrorState({
       <Icon aria-hidden="true" className={cn("mt-0.5 shrink-0", style.icon, TONE_ICON[tone])} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <Title className={cn("font-semibold", style.title)}>{title}</Title>
-        {description && <div className="text-sm break-words">{description}</div>}
+        {description && <div className="text-dense break-words">{description}</div>}
         {details && <ErrorDetails label={detailsLabel}>{details}</ErrorDetails>}
         <ErrorActions
           onRetry={onRetry}
@@ -146,7 +146,7 @@ export function ErrorState({
 function ErrorDetails({ label, children }: { label: string | undefined; children: ReactNode }) {
   const messages = useToolkitMessages()
   return (
-    <details className="text-xs">
+    <details className="text-small">
       <summary className={`w-fit cursor-pointer rounded-sm py-0.5 select-none ${FOCUS_RING}`}>
         {label ?? messages.common.details}
       </summary>

@@ -47,12 +47,7 @@ export function MetricsShowcase({ data }: { data?: { rows?: Row[] } | null }) {
 
   return (
     <div className="bg-card text-card-foreground mx-auto flex max-w-3xl flex-col gap-6 p-8">
-      <WidgetHeader
-        icon="◆"
-        iconTone="info"
-        title="Metrics showcase"
-        sub={<LivePill tone="success">Live</LivePill>}
-      />
+      <WidgetHeader title="Metrics showcase" sub={<LivePill tone="success">Live</LivePill>} />
 
       <KpiGrid
         boxed

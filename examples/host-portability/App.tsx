@@ -64,7 +64,7 @@ export function App() {
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 md:p-10">
         <header className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <div className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-md text-xs font-bold">
+            <div className="bg-primary text-primary-foreground text-small flex h-8 w-8 items-center justify-center rounded-md font-bold">
               HB
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Host portability</h1>
@@ -79,7 +79,7 @@ export function App() {
         </header>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground text-xs font-medium">Order:</span>
+          <span className="text-muted-foreground text-small font-medium">Order:</span>
           {ORDER_IDS.map((id) => (
             <Button
               key={id}
@@ -147,10 +147,10 @@ export function App() {
                               <Badge variant={CALL_VARIANT[entry.call.kind]}>
                                 {entry.call.kind}
                               </Badge>
-                              <code className="text-muted-foreground min-w-0 flex-1 text-xs break-all">
+                              <code className="text-muted-foreground text-small min-w-0 flex-1 break-all">
                                 {formatCall(entry.call)}
                               </code>
-                              <span className="text-muted-foreground shrink-0 text-[10px]">
+                              <span className="text-muted-foreground text-small shrink-0">
                                 {entry.at}
                               </span>
                             </li>
@@ -166,7 +166,7 @@ export function App() {
         </Tabs>
 
         <Separator />
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-small">
           The widget never imports <code>mcp-use/react</code> or touches <code>window.openai</code>{" "}
           — only <code>useHostBridge()</code>. See <code>OrderStatusCard.tsx</code> for the widget
           and <code>bridges.tsx</code> for the three adapters.

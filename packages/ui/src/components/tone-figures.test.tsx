@@ -28,13 +28,17 @@ describe("figures never take a tone colour", () => {
         ]}
       />,
     )
-    expect(html).not.toMatch(TONE_AS_TEXT)
-    // The tone is still there — as a dot.
+    // Icons draw in the tone (SVG currentColor, TONE_ICON); no WORD or digit does.
+    const words = html.replace(/<svg[\s\S]*?<\/svg>/g, "")
+    expect(words).not.toMatch(TONE_AS_TEXT)
+    // The tone is still there — as a dot next to a label, an icon next to a trend.
     expect(html).toMatch(/bg-danger\b/)
     expect(html).toMatch(/bg-success\b/)
+    expect(html).toMatch(/<svg[^>]*class="lucide lucide-trending-up[^"]*text-danger"/)
+    expect(html).toMatch(/<svg[^>]*class="lucide lucide-trending-down[^"]*text-success"/)
     // A toned trend reads in the foreground, an untoned one stays quiet.
-    expect(html).toMatch(/text-foreground[^"]*"><span aria-hidden="true"[^>]*bg-danger/)
-    expect(html).toMatch(/text-muted-foreground">±0/)
+    expect(html).toMatch(/<span class="text-foreground">\+12% vs last week<\/span>/)
+    expect(html).toMatch(/<span class="text-muted-foreground">±0<\/span>/)
   })
 
   it.each(TONES)(

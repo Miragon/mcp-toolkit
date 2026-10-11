@@ -66,9 +66,9 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      <Title className="text-foreground text-base font-semibold">{title}</Title>
+      <Title className="text-foreground text-body font-semibold">{title}</Title>
       {description && (
-        <p className="text-muted-foreground max-w-prose text-sm text-balance">{description}</p>
+        <p className="text-muted-foreground text-dense max-w-prose text-balance">{description}</p>
       )}
       {(action || secondaryAction) && (
         <div className="mt-2 flex flex-wrap items-center justify-center gap-2">

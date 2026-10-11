@@ -9,6 +9,7 @@ export { TOOLKIT_MESSAGES, formatCount, resolveToolkitMessages } from "./toolkit
 export type {
   BuilderMessages,
   CommonMessages,
+  FilterBarMessages,
   ListFooterMessages,
   PropsSheetMessages,
   RendererMessages,

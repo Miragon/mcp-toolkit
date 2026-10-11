@@ -1,5 +1,5 @@
 import type { ReactElement } from "react"
-import { Inbox } from "lucide-react"
+import { ExternalLink, Inbox } from "lucide-react"
 import {
   Button,
   CountPill,
@@ -11,10 +11,13 @@ import {
   GridLayout,
   GroupCard,
   KpiGrid,
+  KpiGridSkeleton,
   ListFooter,
   LivePill,
   LocaleProvider,
+  PagedListFooter,
   SectionHeading,
+  StatusBadge,
   ThemeProvider,
   themePresets,
   ToastProvider,
@@ -111,10 +114,16 @@ export const RENDER_CASES: RenderCase[] = [
             trendDirection: "up",
           },
           { label: "Done", value: 12, fraction: "/19", tone: "success" },
-          { label: "Total", value: 19, onClick: noop, ariaLabel: "Show all" },
+          { label: "Total", value: 19, onClick: noop, actionHint: "Shows all orders" },
         ]}
       />
     ),
+  },
+  {
+    // A skeleton has no text; the marker is its busy state.
+    name: "KpiGridSkeleton",
+    marker: 'aria-busy="true"',
+    render: () => <KpiGridSkeleton cells={4} boxed />,
   },
   {
     name: "LivePill",
@@ -127,6 +136,11 @@ export const RENDER_CASES: RenderCase[] = [
     render: () => <CountPill tone="warning">RC:CountPill</CountPill>,
   },
   {
+    name: "StatusBadge",
+    marker: "RC:StatusBadge",
+    render: () => <StatusBadge tone="warning">RC:StatusBadge</StatusBadge>,
+  },
+  {
     name: "SectionHeading",
     marker: "RC:SectionHeading",
     render: () => <SectionHeading title="RC:SectionHeading" hint="3 shown" />,
@@ -136,9 +150,9 @@ export const RENDER_CASES: RenderCase[] = [
     marker: "RC:WidgetHeader",
     render: () => (
       <WidgetHeader
-        icon="✓"
-        iconTone="info"
+        as="h2"
         title="RC:WidgetHeader"
+        badge={<StatusBadge tone="info">Running</StatusBadge>}
         sub={<LivePill>Live</LivePill>}
         actions={
           <Button size="sm" variant="ghost" onClick={noop}>
@@ -178,7 +192,7 @@ export const RENDER_CASES: RenderCase[] = [
     name: "DrillButton",
     marker: "RC:DrillButton",
     render: () => (
-      <DrillButton onDrill={noop} icon="↗" size="sm" ariaLabel="Open order o-1001">
+      <DrillButton onDrill={noop} icon={<ExternalLink />} size="sm" ariaLabel="Open order o-1001">
         RC:DrillButton
       </DrillButton>
     ),
@@ -187,6 +201,24 @@ export const RENDER_CASES: RenderCase[] = [
     name: "ListFooter",
     marker: "of 42 tasks",
     render: () => <ListFooter shown={8} total={42} hasMore onLoadMore={noop} noun="tasks" />,
+  },
+  {
+    name: "PagedListFooter",
+    marker: "of 3 orders",
+    render: () => (
+      <PagedListFooter
+        paged={{
+          items: ["o-1", "o-2"],
+          total: 3,
+          hasMore: true,
+          loadMore: noop,
+          refreshing: true,
+          firstPage: {},
+          loadMoreError: new Error("HTTP 503"),
+        }}
+        noun="orders"
+      />
+    ),
   },
 
   // ── Feedback and states ──
