@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [2.8.1](https://github.com/Miragon/mcp-toolkit/compare/v2.8.0...v2.8.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ui:** DrillButton is the outline Button, at the Button scale ([#195](https://github.com/Miragon/mcp-toolkit/issues/195)) ([dd542b1](https://github.com/Miragon/mcp-toolkit/commit/dd542b1c62270f5f59889fb4a4cd13592b445962)), closes [#194](https://github.com/Miragon/mcp-toolkit/issues/194)
+
 ## [2.8.0](https://github.com/Miragon/mcp-toolkit/compare/v2.7.0...v2.8.0) (2026-10-11)
 
 
