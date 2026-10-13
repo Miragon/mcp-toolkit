@@ -336,7 +336,9 @@ filter only re-queries once typing pauses.
 Props: `children: ReactNode` (required), `onDrill: () => void` (required),
 `icon?` (a leading Lucide icon, decorative), `size?: "sm" | "md"` (default
 `"sm"`), `ariaLabel?` (keep the visible text in it, WCAG 2.5.3). A neutral
-outline button with a trailing Lucide `ArrowRight`.
+outline button with a trailing Lucide `ArrowRight`: the outline `Button` itself
+(`buttonVariants`), `sm` at 32 px / 14 px / weight 600 like a `Button size="sm"`
+or an `AskAiButton` beside it, `md` at the `Button` default (36 px).
 
 ```tsx
 import { DrillButton } from "@miragon/mcp-toolkit-ui"

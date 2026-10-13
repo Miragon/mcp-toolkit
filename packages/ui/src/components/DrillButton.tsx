@@ -1,7 +1,6 @@
 import type { ReactNode } from "react"
 import { ArrowRight } from "lucide-react"
-import { FOCUS_RING } from "../lib/focus-ring.js"
-import { cn } from "../lib/utils.js"
+import { buttonVariants } from "../primitives/button.js"
 
 export interface DrillButtonProps {
   /** Button label. */
@@ -19,25 +18,28 @@ export interface DrillButtonProps {
   ariaLabel?: string
 }
 
+/** The `Button` size each drill size is: one scale for every action of a view. */
+const BUTTON_SIZE = { sm: "sm", md: "default" } as const
+
 /**
  * The single, deterministic in-widget navigation control: a neutral outline
  * button with a trailing Lucide arrow that drills into a detail/sub-view. Use
  * it for every in-app drill (row "Open", header nav) so they read identically
  * and stay visually quieter than primary/agentic actions. Decoupled from any
  * host — pass an `onDrill` callback (e.g. wrapping `useHostActions().showWidget`).
+ *
+ * It IS the toolkit's outline `Button` (`buttonVariants`): `sm` is 32 px,
+ * 14 px, weight 600, the size of a `Button size="sm"` or an `AskAiButton`
+ * beside it in a row; `md` is the `Button` default (36 px). The design
+ * system gives every button weight 600 and one radius.
  */
 export function DrillButton({ children, onDrill, icon, size = "sm", ariaLabel }: DrillButtonProps) {
-  const pad = size === "md" ? "px-3 py-1.5 text-dense" : "px-2.5 py-1 text-small"
   return (
     <button
       type="button"
       onClick={onDrill}
       aria-label={ariaLabel}
-      className={cn(
-        "border-border text-foreground hover:border-focus hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded-md border font-medium transition-colors [&_svg:not([class*='size-'])]:size-4",
-        FOCUS_RING,
-        pad,
-      )}
+      className={buttonVariants({ variant: "outline", size: BUTTON_SIZE[size] })}
     >
       {icon && (
         <span aria-hidden="true" className="inline-flex">
