@@ -37,7 +37,15 @@
       "project": ["**/*.{ts,tsx}"]
     },
     "docs": {
-      "project": [".vitepress/**/*.ts"]
+      "project": [".vitepress/**/*.ts"],
+      "ignoreDependencies": [
+        "@braintree/sanitize-url",
+        "cytoscape",
+        "cytoscape-cose-bilkent",
+        "dayjs",
+        "debug",
+        "vue"
+      ]
     }
   },
   "ignore": [],
