@@ -1,7 +1,7 @@
 # Layered adoption
 
 The toolkit is not all-or-nothing. The UI primitives, the host bridge, the
-data-widget adapter, and the full framework runtime are separable layers — use
+data-widget adapter, and the full framework runtime are separable layers: use
 the parts you need and ignore the rest. Three common entry points, in order of
 how much of the toolkit they pull in:
 
@@ -9,7 +9,7 @@ how much of the toolkit they pull in:
 | -------------------------------------------------- | --------------------------------- | ---------------------------------------------- |
 | **(a)** Primitives + hand-built UI, standalone     | an existing MCP server + a widget | `createFrameworkApp`, plugins, the host bundle |
 | **(b)** Data-widgets + `adaptDataWidget` in a host | a host bundle + widget components | pipelines beyond one step                      |
-| **(c)** Full pipelines and dashboards              | plugins + steps + layouts         | nothing — the whole runtime                    |
+| **(c)** Full pipelines and dashboards              | plugins + steps + layouts         | nothing, it is the whole runtime               |
 
 You can start at (a) and grow into (c) without rewriting widgets: a widget
 written against `useHostBridge()` and the primitives renders unchanged whether
@@ -17,7 +17,7 @@ it is mounted standalone or in a host.
 
 ## (a) Primitives + a hand-built UI against an existing server
 
-The lightest layer. You have an MCP server already — you only want a polished UI
+The lightest layer. You have an MCP server already and only want a polished UI
 over it. Pull in `@miragon/mcp-toolkit-ui` for the [primitives](./widgets.md)
 (`Table`, `Card`, `Badge`) and composed blocks (`KpiGrid`, `FilterBar`, …) and
 `@miragon/mcp-toolkit-ui/app` for `createStandaloneHostBridge`. Inject a
@@ -49,7 +49,7 @@ tab) and the [Host portability](./host-portability.md) concept.
 
 White-labeling lives in this layer too: the primitives read CSS-variable design
 tokens, so a single `createTheme(...)` + `<ThemeProvider>` re-skins a client UI at
-any adoption level — see the [white-labeling guide](../guides/white-labeling.md).
+any adoption level. See the [white-labeling guide](../guides/white-labeling.md).
 
 ## (b) Data-widgets + `adaptDataWidget` in a host
 
@@ -99,7 +99,7 @@ const app = await createFrameworkApp({
 ```
 
 Prefer owning the server yourself? `installToolkit(server, { modules })` adds
-the same surface to a plain mcp-use project (CLI `views/` convention) — see
+the same surface to a plain mcp-use project (CLI `views/` convention); see
 [getting-started](../getting-started.md).
 
 ## Use the parts you need
@@ -113,9 +113,9 @@ dashboards.
 
 ## See also
 
-- [Host portability](./host-portability.md) — the bridge that makes (a) and the
+- [Host portability](./host-portability.md): the bridge that makes (a) and the
   standalone path work.
-- [Developing widgets in isolation](../guides/developing-widgets-in-isolation.md)
-  — build hand-made widgets fast with fixtures.
-- [Widgets](./widgets.md) and [Architecture](./architecture.md) — the (b) and (c)
+- [Developing widgets in isolation](../guides/developing-widgets-in-isolation.md):
+  build hand-made widgets fast with fixtures.
+- [Widgets](./widgets.md) and [Architecture](./architecture.md): the (b) and (c)
   building blocks.

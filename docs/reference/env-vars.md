@@ -1,7 +1,7 @@
 # Environment variables
 
 The toolkit reads **no** env vars directly from its runtime code (core,
-ui). Every value is passed in by the consumer via options objects — so in
+ui). Every value is passed in by the consumer via options objects, so in
 principle a consumer is free to name its env vars whatever it wants.
 
 This page documents the **names the toolkit recommends**, so that
@@ -19,7 +19,7 @@ different names; the toolkit only sees the resolved string.
 | `version`               | —                                         | Hard-coded.                                                                                                                                             |
 | —                       | `MCP_URL`                                 | Public origin override; read by mcp-use itself (request-resolved otherwise).                                                                            |
 | `oauth`                 | `WORKOS_SUBDOMAIN`, `WORKOS_CLIENT_ID`, … | Whatever your OAuth provider factory needs. Since mcp-use 2.2.0 the built-in factories also fall back to `MCP_USE_OAUTH_*` when called without options. |
-| `middleware.orgGate`    | `WORKOS_ORG_ID`                           | Optional. Compares the mapped user's `organizationId` (or 1.x `organization_id`) — see [Middleware and auth](../guides/middleware-and-auth.md).         |
+| `middleware.orgGate`    | `WORKOS_ORG_ID`                           | Optional. Compares the mapped user's `organizationId` (or 1.x `organization_id`); see [Middleware and auth](../guides/middleware-and-auth.md).          |
 | `middleware.roleFilter` | `MCP_ROLE_MODULES`                        | JSON object `{ role: [modules] }`.                                                                                                                      |
 | `app.bundle`            | —                                         | Paths derived from the consumer's build output (`dist/mcp-app.js`, `dist/mcp-app.css`).                                                                 |
 
@@ -39,11 +39,11 @@ export default {
 
 Conventions:
 
-- `<NAME>_CODEGEN_SOURCE_URL` — the MCP URL the codegen handshake
+- `<NAME>_CODEGEN_SOURCE_URL`: the MCP URL the codegen handshake
   snapshots (`tools/list`).
 - For a token-protected source, pass
-  `auth: { mode: "bearer", token: process.env.<NAME>_CODEGEN_TOKEN! }` —
-  run any OAuth flow once in dev, paste the access token, regenerate.
+  `auth: { mode: "bearer", token: process.env.<NAME>_CODEGEN_TOKEN! }`.
+  Run any OAuth flow once in dev, paste the access token, regenerate.
 
 ## Example minimal `.env`
 
@@ -60,7 +60,7 @@ MCP_ROLE_MODULES='{"accountant":["lexoffice"]}'
 ```
 
 Running `pnpm dev:host` inside `examples/` uses a stripped-down version
-of this file — see [`examples/env.example`](../../examples/env.example).
+of this file; see [`examples/env.example`](../../examples/env.example).
 
 ## See also
 

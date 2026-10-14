@@ -9,15 +9,15 @@ below walks every breaking change with before/after snippets.
 
 **Who this is for:** consumers of `@miragon/mcp-toolkit-core` /
 `@miragon/mcp-toolkit-ui` 0.10.x (built against mcp-use 1.34). The mcp-use
-2.x line first shipped as 0.11.0 and is promoted unchanged to **1.0.0** —
-if you are already on 0.11.0, there is nothing further to migrate.
+2.x line first shipped as 0.11.0 and is promoted unchanged to **1.0.0**.
+If you are already on 0.11.0, there is nothing further to migrate.
 
 ## 1. Bump the dependencies
 
 | Package                     | Before   | After                      |
 | --------------------------- | -------- | -------------------------- |
 | `mcp-use`                   | `1.34.1` | `2.7.3`                    |
-| `@modelcontextprotocol/sdk` | `1.29.0` | removed — no longer a peer |
+| `@modelcontextprotocol/sdk` | `1.29.0` | removed (no longer a peer) |
 | `zod`                       | `4.4.3`  | `^4.4.0` (a peer range)    |
 | Node.js                     | —        | `>=22.22.2` (engines)      |
 
@@ -69,7 +69,7 @@ the toolkit ships wire-identical replacements (`textResult` / `objectResult` /
 
 2.x has two supported shapes. Pick one before touching the rest.
 
-### 3a. The standard path — plain mcp-use project, toolkit on top (new)
+### 3a. The standard path: plain mcp-use project, toolkit on top (new)
 
 You own a normal mcp-use project and the CLI owns view building and serving.
 This is the recommended target for most servers:
@@ -88,12 +88,12 @@ server.tool({ name: "echo" /* … */ }, handler) // your plain tools — after t
 export default server
 ```
 
-- `package.json` needs `"main": "index.ts"` — the CLI reads `name` and `main`
+- `package.json` needs `"main": "index.ts"`: the CLI reads `name` and `main`
   from the project directory.
 - One `views/<name>/view.tsx` per view-bound tool (`views/render-view/` plus
   one per model-visible widget tool), each default-exporting
   `<McpToolkitApp widgets={widgets} />`. The CLI mounts the default export via
-  `bootstrapView` — you do **not** call `mountMcpToolkitApp` here.
+  `bootstrapView`; you do **not** call `mountMcpToolkitApp` here.
 - Shared browser modules (the widget map, the Tailwind entry) must live
   **under `views/`** (e.g. `views/shared/widgets.tsx`): the CLI dev server
   routes only `views/*` through its Vite middleware, so a root-level shared
@@ -104,7 +104,7 @@ export default server
 The runnable reference is
 [`examples/standalone-host`](../../examples/standalone-host/README.md).
 
-### 3b. The Node adapter — `createFrameworkApp` (changed)
+### 3b. The Node adapter: `createFrameworkApp` (changed)
 
 Keep this when the server must run in your own process or ship its views
 inline in the MCP resources (gateways that only forward the JSON-RPC
@@ -142,7 +142,7 @@ const app = await createFrameworkApp({
 - The bundle is read **once at boot** (1.x re-read the HTML per request):
   after rebuilding the bundle, restart the host.
 - The widget-bundle Vite config changes from a single-file HTML to one JS +
-  one CSS output — drop `vite-plugin-singlefile`, add:
+  one CSS output. Drop `vite-plugin-singlefile`, add:
 
 ```ts
 // vite.config.ts of the widget bundle
@@ -216,7 +216,7 @@ server.tool(
 )
 ```
 
-Never stamp `_meta.ui.*` by hand — mcp-use owns that namespace and overwrites
+Never stamp `_meta.ui.*` by hand: mcp-use owns that namespace and overwrites
 it on `tools/list`.
 
 ### App-only tools (`*_data` feeds, refresh hooks)
@@ -231,7 +231,7 @@ server.tool({ name: "tasks_board_data", inputSchema: z.object({}), visibility: "
 ### Registrar API changes
 
 - `AppPlugin.registerWidgetTools(server, resourceUri, metaDefaults?)` →
-  `registerWidgetTools(server, metaDefaults?)` — the resource URI parameter is
+  `registerWidgetTools(server, metaDefaults?)`. The resource URI parameter is
   gone (views are named after tools).
 - `createWidgetToolRegistrar(server, client, resourceUri, metaDefaults?)` →
   `createWidgetToolRegistrar(server, client, metaDefaults?)`. Model-visible
@@ -255,7 +255,7 @@ origin to the view-resource CSP itself. The `baseUrl`-origin injection
 ### Host bridge
 
 - `useHostBridge()` now **throws without a provider** (2.x has no
-  provider-less fallback). Inside the toolkit shell nothing changes —
+  provider-less fallback). Inside the toolkit shell nothing changes:
   `McpToolkitApp` installs the provider. Bare unit renders must wrap in
   `HostBridgeProvider` + `createStandaloneHostBridge`.
 - `useMcpUseHostBridge` / `createMcpUseHostBridge` are removed. The mcp-use
@@ -264,7 +264,7 @@ origin to the view-resource CSP itself. The `baseUrl`-origin injection
 
 ### Model context
 
-Widgets must never import `ModelContext` from `mcp-use/react` — in 2.x it
+Widgets must never import `ModelContext` from `mcp-use/react`: in 2.x it
 throws in every mount that is not a `bootstrapView` view (the widget
 playground, ChatGPT, standalone apps). Use the host-portable replacement:
 
@@ -283,14 +283,14 @@ everywhere else it reports through the `HostBridge`'s `setModelContext`.
 
 ### Fixture harness
 
-`WidgetFixtureHost` no longer installs a `window.openai` shim — it simulates
+`WidgetFixtureHost` no longer installs a `window.openai` shim; it simulates
 the portable `HostBridge` surface only. A widget that calls `mcp-use/react`
-hooks directly must be exercised against a real host (`mcp-use dev`) — or,
+hooks directly must be exercised against a real host (`mcp-use dev`) or,
 better, rewritten against `useHostBridge`.
 
 ## 6. Middleware and infrastructure
 
-- **Role filter**: `resolveToolName` / `resolveToolNames` options are gone —
+- **Role filter**: `resolveToolName` / `resolveToolNames` options are gone.
   2.x delivers the tool name on `ctx.params.name` and fires `mcp:tools/call`
   middleware once per call (batch entries are guarded individually).
   `failClosed` keeps its meaning.
@@ -299,14 +299,14 @@ better, rewritten against `useHostBridge`.
   the built-in providers map `id` and `organizationId`, not `userId` /
   `organization_id`. Read the caller with `resolveCaller` /
   `resolveCallerId` from `@miragon/mcp-toolkit-core` (toolkit ≥ 2.6 does so
-  in the role filter, org gate, dashboards and pipeline ctx) — a provider
+  in the role filter, org gate, dashboards and pipeline ctx), so a provider
   wrapper that copies `id` to `userId` is no longer needed. See
   [Middleware and auth](middleware-and-auth.md).
 - **Dashboards saved under OAuth by toolkit ≤ 2.5** carry no owner (2.5 read
   no `id`), so toolkit ≥ 2.6 serves them to no identified caller. Re-own or
   remove them as described in
-  [Upgrading from toolkit 2.5](middleware-and-auth.md#upgrading-from-toolkit-2-5).
-- **Backend registry**: the per-session sticky selection is gone entirely —
+  [Upgrading from toolkit 2.5](middleware-and-auth.md#upgrading-from-toolkit-25).
+- **Backend registry**: the per-session sticky selection is gone entirely.
   2.x serves HTTP statelessly (no session ids to key on), and in-memory
   selection state breaks behind more than one replica. `resolve(id?)` takes an
   explicit id or falls back to the single configured backend; a server that
@@ -314,7 +314,7 @@ better, rewritten against `useHostBridge`.
   (e.g. a per-user profile) and passes it in. Single-backend setups are
   unaffected.
 - **Inspector**: the programmatic host no longer serves `/inspector`. The
-  inspector ships with `mcp-use dev` (standard path), or use the hosted one —
+  inspector ships with `mcp-use dev` (standard path), or use the hosted one,
   which needs CORS enabled on your server (`serverOptions: { cors: … }`).
 
 ## 7. Migration checklist
@@ -329,5 +329,5 @@ better, rewritten against `useHostBridge`.
 - [ ] Bundle entry → `mountMcpToolkitApp` (adapter path) / `McpToolkitApp` default export per view (CLI path).
 - [ ] Replace direct `ModelContext` imports in widgets with `HostModelContext`.
 - [ ] Wrap bare widget renders in a `HostBridgeProvider` (no provider-less fallback).
-- [ ] Multi-backend servers: resolve the caller's default backend yourself (durable store) and pass the id to `resolve` — the registry keeps no session state.
+- [ ] Multi-backend servers: resolve the caller's default backend yourself (durable store) and pass the id to `resolve`: the registry keeps no session state.
 - [ ] Adapter path: restart the host after every widget-bundle rebuild.

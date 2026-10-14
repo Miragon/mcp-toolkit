@@ -32,7 +32,7 @@ The executor appends `_dataType` to produce the stored `StepResult`.
 Keys a step _reads_ from `ctx.keys` if present but does not strictly
 need are declared via `optionalKeys`, separately from the hard `requires`
 contract. The step still runs without them (typically with a default or
-aggregated scope), so they don't gate execution — but they show up in
+aggregated scope), so they don't gate execution, but they show up in
 `get-framework-manifest` so an LLM constructing a `render-view` knows
 which scoping keys are accepted.
 
@@ -65,7 +65,7 @@ See `packages/core/src/engine/pipeline-executor.ts`.
 
 Per-app, provided by the plugin itself via `AppPlugin.appConfig`:
 
-- The plugin injects any closures its steps need — typically a typed
+- The plugin injects any closures its steps need, typically a typed
   `callTool` (see the articles module's in-process implementation).
 - Keyed by `plugin.definition.name`; the executor picks the entry via
   `ref.step.split(":")[0]`.
@@ -109,8 +109,8 @@ export const resolveInvoice: PipelineStepDefinition<{ callTool: LexofficeCallToo
 
 ## See also
 
-- [typed-call-tool-in-steps](../guides/typed-call-tool-in-steps.md) — injecting
+- [typed-call-tool-in-steps](../guides/typed-call-tool-in-steps.md): injecting
   a typed `callTool` into a plugin's `appConfig`.
-- [layout-and-rendering](../guides/layout-and-rendering.md) — how `render-view`
+- [layout-and-rendering](../guides/layout-and-rendering.md): how `render-view`
   consumes the pipeline output.
 - [debugging-pipeline-steps](../recipes/debugging-pipeline-steps.md).

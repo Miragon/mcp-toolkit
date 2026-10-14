@@ -1,7 +1,7 @@
 # Guided tour
 
 Seven stops through the toolkit's feature surface. Run each call in the
-inspector's **Tools** tab — pick a tool on the left, fill the arguments, hit
+inspector's **Tools** tab: pick a tool on the left, fill the arguments, hit
 **Execute**. Widget tools render their result inline; plain tools return
 `structuredContent` JSON. First [connect](index.md#connect) to the playground.
 
@@ -14,7 +14,7 @@ until the machine restarts.
 ## 1. Discover the contract
 
 Call `get-framework-manifest` with `{}`. One payload describes everything the
-rest of the tour uses — the steps, the widgets, and the **key contracts** that
+rest of the tour uses: the steps, the widgets, and the **key contracts** that
 wire them together:
 
 ```jsonc
@@ -35,7 +35,7 @@ wire them together:
 ```
 
 Notice `orders:list-customer-orders` **requires** the exact key
-`orders:resolve-customer` **produces** — that shared key is the pipeline in
+`orders:resolve-customer` **produces**. That shared key is the pipeline in
 stop 5.
 
 Reading: [architecture](../concepts/architecture.md) ·
@@ -43,7 +43,7 @@ Reading: [architecture](../concepts/architecture.md) ·
 
 ## 2. Plain tools
 
-`list_tasks` is a domain tool built with `createToolRegistrar` — Zod-described
+`list_tasks` is a domain tool built with `createToolRegistrar`: Zod-described
 args, an `outputSchema`, read-only annotations. Call it with `{}` for all four
 seeded tasks, then narrow it with a filter:
 
@@ -51,7 +51,7 @@ seeded tasks, then narrow it with a filter:
 { "status": "todo" }
 ```
 
-Two come back — _Draft the onboarding guide_ (high) and _Reply to the design
+Two come back: _Draft the onboarding guide_ (high) and _Reply to the design
 feedback_ (low). Now mutate the store. Add one with `create_task`:
 
 ```json
@@ -64,7 +64,7 @@ and close one with `complete_task` (grab an id from `list_tasks` first):
 { "taskId": "t-2" }
 ```
 
-`complete_task` is idempotent — call it twice and the second call is a no-op,
+`complete_task` is idempotent: call it twice and the second call is a no-op,
 not an error.
 
 Reading: [app plugins](../concepts/app-plugins.md)
@@ -73,19 +73,19 @@ Reading: [app plugins](../concepts/app-plugins.md)
 
 Call `show_tasks_board` with `{}`. Same store as stop 2, but the result now
 carries `_meta.ui` and a view envelope, so the inspector renders it as a live
-widget — the task you added and the one you completed are both on it:
+widget. The task you added and the one you completed are both on it:
 
 ![The tasks board widget: a KPI strip by status over a filterable, prioritised task list](./images/tasks-board.png)
 
 In the JSON, `structuredContent.context.stepData.result._dataType` is
-`"tasks:board"` — that tag is how the bundled widget finds its data.
+`"tasks:board"`. That tag is how the bundled widget finds its data.
 `buildSingleWidgetView` builds this envelope.
 
 Reading: [widgets](../concepts/widgets.md)
 
 ## 4. A composed view
 
-Call `list_customers` with `{}` — you get **c-1** (Miravelo Leasing GmbH,
+Call `list_customers` with `{}` and you get **c-1** (Miravelo Leasing GmbH,
 premium) and **c-2** (Nordwind Logistik, standard). Feed one to
 `show_orders_dashboard`:
 
@@ -128,8 +128,8 @@ steps whose inputs depend on earlier outputs. Call `render-view` with:
 }
 ```
 
-The rendered view looks identical to stop 4 — but it was computed by a two-step
-chain. The proof is in `context.keys` on the result:
+The rendered view looks identical to stop 4, but a two-step chain computed
+it. The proof is in `context.keys` on the result:
 
 ```json
 { "orders:customerId": "c-1", "orders:customer": {}, "orders:orderList": {} }
@@ -141,9 +141,9 @@ its `requires`, producing `orders:orderList`. The gate _is_ the chaining.
 
 Reading: [pipelines & steps](../concepts/pipelines-and-steps.md)
 
-## 6. Break it — fail-soft
+## 6. Break it: fail-soft
 
-Repeat stop 5 with one change — an id that doesn't exist:
+Repeat stop 5 with one change, an id that doesn't exist:
 
 ```json
 {
@@ -174,20 +174,20 @@ Reading: [debugging pipeline steps](../recipes/debugging-pipeline-steps.md)
 ## 7. Builder & dashboards
 
 The playground boots with `app.builder: true`, so the pipeline view from stop 5
-carries an **Edit view** button (the eager view from stop 4 doesn't — only
+carries an **Edit view** button (the eager view from stop 4 doesn't: only
 pipeline-rendered views carry the refresh params the builder re-runs). Open it
 and you get the in-iframe visual builder, fed by `get-builder-catalogue`:
 
 ![The view editor: the available widgets listed above the layout's rows, each with its column span](./images/builder.png)
 
 Drag widgets from the palette, resize their column spans, switch to the
-**Data sources** tab to wire steps — no round-trip through the LLM. **Save** persists
+**Data sources** tab to wire steps, with no round-trip through the LLM. **Save** persists
 through the dashboard CRUD tools, which you can also drive directly:
 `save-dashboard` with the keys/steps/layout from stop 5, then `list-dashboards`,
-then `load-dashboard` — whose result feeds straight back into `render-view`. A
+then `load-dashboard`, whose result feeds straight back into `render-view`. A
 saved dashboard is a callable view.
 
-(Dashboards live in the in-memory store — gone on restart, like everything
+(Dashboards live in the in-memory store: gone on restart, like everything
 here.)
 
 Reading: [view builder](../concepts/view-builder.md) ·

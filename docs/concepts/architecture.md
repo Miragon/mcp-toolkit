@@ -2,8 +2,8 @@
 
 A Miragon MCP Toolkit server is an mcp-use `MCPServer` with two layers:
 
-1. **App plugins** — register domain tools, widget tools, pipeline steps, widgets.
-2. **Framework tools** — always-on: LLM-facing `get-framework-manifest`
+1. **App plugins:** register domain tools, widget tools, pipeline steps, widgets.
+2. **Framework tools**, always on: LLM-facing `get-framework-manifest`
    and `render-view`; app-only (iframe internal, never in LLM
    `tools/list`) `refresh-view`. Plus one natively registered
    `ui://views/<tool>.html` resource per view-bound tool, all embedding
@@ -47,17 +47,17 @@ A Miragon MCP Toolkit server is an mcp-use `MCPServer` with two layers:
 Every toolkit server is **self-contained**: its own tools, its own steps,
 its own widgets, its own UI bundle. Aggregating several MCP servers into
 one client-facing surface is the job of an external MCP gateway in front
-of them (e.g. [agentgateway](https://agentgateway.dev) — federation /
+of them (e.g. [agentgateway](https://agentgateway.dev): federation /
 multiplexing of multiple MCP servers, virtual servers). The client host
 renders the UI of whichever server's tool was called. The toolkit
 deliberately ships no upstream-proxy or module-discovery machinery of its
 own.
 
-## Request flow — `render-view`
+## Request flow: `render-view`
 
 1. Client calls `render-view` with `{ keys, steps, layout, title }`.
 2. Framework-tool handler resolves the caller with `resolvePipelineContext(ctx)`
-   — `{ userId, authenticated }`, the id being `ctx.auth.user.id`, else
+   to `{ userId, authenticated }`, the id being `ctx.auth.user.id`, else
    `userId`, else the token's `sub`.
 3. `executePipeline` runs each step:
    - Looks up definition by `ref.step` in `StepRegistry`.
@@ -73,12 +73,12 @@ own.
 5. The widget bundle (`mcp-app.js`) renders each widget in the layout by
    reading its `WidgetDefinition.requires` against `context.keys`.
 
-## Request flow — server-internal tool call from a step
+## Request flow: server-internal tool call from a step
 
 1. Step calls its injected `callTool("articles_get-article", { id })`.
 2. The executor's `bindAppConfig` has pre-bound the per-request `userId`
    onto the closure.
-3. The closure resolves the call however the plugin implemented it — an
+3. The closure resolves the call however the plugin implemented it: an
    in-process store lookup (the examples' articles module), a REST call,
    or an MCP client session.
 

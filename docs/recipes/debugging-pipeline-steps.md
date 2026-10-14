@@ -6,8 +6,8 @@ When `render-view` returns but a widget shows an error or wrong data,
 the cause is almost always one of:
 
 1. The step didn't run (registry miss / missing required keys).
-2. The step ran but threw — its error landed in `context.errors`.
-3. The step ran but produced the wrong shape — widget reads from
+2. The step ran but threw: its error landed in `context.errors`.
+3. The step ran but produced the wrong shape: the widget reads from
    `context.stepData[stepId].keys` and finds nothing useful.
 
 The framework's `context.errors` array surfaces (1) and (2) with a
@@ -33,7 +33,7 @@ JSON
 ```
 
 You'll see `context.errors` and per-step `context.stepData`. If `errors`
-is non-empty, you're past the manifest layer — start there.
+is non-empty, you're past the manifest layer; start there.
 
 ## Common error reasons + fixes
 
@@ -58,7 +58,7 @@ Common reasons:
 - The step returned `keys: { item: result }` but the widget reads
   `context.keys.itemPayload`. Reconcile the key name.
 - The step's `_dataType` doesn't match what a downstream check expects.
-  `dataType` is a label — pick deliberate values
+  `dataType` is a label, so pick deliberate values
   (`"articles:article"`, not `"any"`).
 - The widget uses `useToolQuery` to fetch its own data and that call
   failed silently. Inspect the iframe's React DevTools or add a
@@ -74,8 +74,8 @@ closure sees `userId: undefined`:
 - `authenticated` is absent too: the MCP request is unauthenticated. `oauth?`
   was omitted from `createFrameworkApp`, or the user hasn't logged in.
 - `authenticated: true`: the provider maps no id. The caller id is
-  `ctx.auth.user.id`, then `user.userId`, then the verified token's `sub` —
-  check what your provider's `mapAuthInfo` returns as `user`. Refuse per-user
+  `ctx.auth.user.id`, then `user.userId`, then the verified token's `sub`.
+  Check what your provider's `mapAuthInfo` returns as `user`. Refuse per-user
   data for such a caller; never fall back to global scope.
 - The middleware order is wrong (oauth provider must run before
   org-gate / role-filter / framework tools). `createFrameworkApp` does
@@ -84,7 +84,7 @@ closure sees `userId: undefined`:
 
 ## Add transient logging to the executor
 
-The executor is small enough to read straight through —
+The executor is small enough to read straight through:
 [`packages/core/src/engine/pipeline-executor.ts`](../../packages/core/src/engine/pipeline-executor.ts).
 For deeper diagnostics, drop a `console.log` inside `bindAppConfig` to
 see what `appConfig` and `ctx` each step actually sees.
