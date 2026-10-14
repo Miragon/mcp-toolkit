@@ -77,6 +77,48 @@ jobs:
           path: reports/
           if-no-files-found: warn
 
+  brand:
+    name: Brand (CI source + brand-lint)
+    runs-on: ubuntu-latest
+    env:
+      # Read access to the private Miragon/corporate-identity. Without the secret
+      # (not set up yet, or a fork PR) the job warns and skips; check.mjs against the
+      # kit's manifest still runs in the Docs workflow and in examples/test/docs-theme.test.ts.
+      CI_SOURCE_TOKEN: ${{ secrets.CORPORATE_IDENTITY_READ_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: No access to Miragon/corporate-identity
+        if: env.CI_SOURCE_TOKEN == ''
+        run: echo "::warning title=Brand checks skipped::CORPORATE_IDENTITY_READ_TOKEN is not set, so the docs kit is not compared with Miragon/corporate-identity and brand-lint does not run. Add the secret (contents:read on Miragon/corporate-identity)."
+
+      # Keep ref on the release named in docs/.vitepress/miragon/manifest.json.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.CI_SOURCE_TOKEN != ''
+        with:
+          repository: Miragon/corporate-identity
+          ref: v1.10.0
+          token: ${{ env.CI_SOURCE_TOKEN }}
+          path: .ci-source
+          sparse-checkout: plugins/miragon-brand
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: env.CI_SOURCE_TOKEN != ''
+        with:
+          node-version: 22
+
+      - name: Docs kit equals the CI source
+        if: env.CI_SOURCE_TOKEN != ''
+        run: node docs/.vitepress/miragon/check.mjs --ci .ci-source
+
+      # Rules and exceptions come from .miragon/brand.json.
+      - name: brand-lint
+        if: env.CI_SOURCE_TOKEN != ''
+        run: node .ci-source/plugins/miragon-brand/scripts/brand-lint.mjs --nur-hart docs README.md
+
   mutation:
     name: Mutation diff gate
     if: github.event_name == 'pull_request'

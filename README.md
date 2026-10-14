@@ -10,18 +10,18 @@ This monorepo ships three packages that MCP server projects build on (currently 
 | [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen) | Build-time codegen + runtime glue for type-safe MCP tool calls: `TypedCallTool` and a CLI (`mcp-tool-codegen`) that generates TypeScript types and React Query hooks from an MCP server's `tools/list`.                                                                                                                                                                    |
 | [`@miragon/mcp-toolkit-ui`](./packages/ui)                     | React UI in the Miragon design system (the default theme; white-label it through role tokens): primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing) for bundling widgets into the app bundle served through mcp-use's native `ui://views/<name>.html` view resources. |
 
-Every toolkit server is self-contained — its own tools, steps, widgets, and UI bundle; aggregating several MCP servers into one surface is an external MCP gateway's job (e.g. [agentgateway](https://agentgateway.dev)) — see the [architecture concept](./docs/concepts/architecture.md).
+Every toolkit server is self-contained: its own tools, steps, widgets, and UI bundle. Aggregating several MCP servers into one surface is an external MCP gateway's job (e.g. [agentgateway](https://agentgateway.dev)); see the [architecture concept](./docs/concepts/architecture.md).
 
 ## Quickstart (in this repo)
 
 Zero install: the **[hosted playground](https://mcp-toolkit-playground.fly.dev/mcp)**
-serves the example modules live — open it in a browser for connect
+serves the example modules live. Open it in a browser for connect
 instructions and an auto-connected inspector, and follow the
 [guided tour](./docs/playground/tour.md) through tools → widgets → composed
 views → pipelines → builder.
 
-Locally, no npm auth needed — `pnpm install` links the workspace packages. The
-standard dev loop is the one mcp-use itself propagates — a plain mcp-use
+Locally, no npm auth needed: `pnpm install` links the workspace packages. The
+standard dev loop is the one mcp-use itself propagates: a plain mcp-use
 project with the toolkit installed on top, run through the mcp-use CLI:
 
 ```sh
@@ -33,11 +33,11 @@ pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone
 That boots [`examples/standalone-host`](./examples/standalone-host) via
 `mcp-use dev`: views are built by the CLI with HMR, and the **built-in
 inspector** (the URL is printed on start, `…/mcp/inspector`) renders the
-widgets live — call `show_tasks_board` there and you have the full loop: an
+widgets live. Call `show_tasks_board` there and you have the full loop: an
 MCP tool returning a rendered widget. Edit a widget source and the view
 hot-reloads.
 
-The full three-module host (articles, tasks, orders — the `createFrameworkApp`
+The full three-module host (articles, tasks, orders: the `createFrameworkApp`
 **Node adapter** path with the visual builder) is:
 
 ```sh
@@ -45,7 +45,7 @@ cp examples/env.example examples/.env    # first time only
 pnpm --filter @miragon/mcp-toolkit-examples start
 ```
 
-`start` builds the widget bundle and serves on `:3010` — connect a client to
+`start` builds the widget bundle and serves on `:3010`. Connect a client to
 `http://localhost:3010/mcp` (the endpoint's landing page shows per-client
 install commands), or smoke-test from the shell:
 
@@ -63,20 +63,20 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
 
 Where to next:
 
-- [`docs/playground/`](./docs/playground/index.md) — the guided tour through the
+- [`docs/playground/`](./docs/playground/index.md): the guided tour through the
   hosted playground; deploy config in [`deploy/playground/`](./deploy/playground/).
-- [`docs/getting-started.md`](./docs/getting-started.md) — the canonical
+- [`docs/getting-started.md`](./docs/getting-started.md): the canonical
   getting-started: run the examples, then build your own host + module.
-- [`examples/README.md`](./examples/README.md) — what each example proves,
+- [`examples/README.md`](./examples/README.md): what each example proves,
   every script, ports, and smoke tests.
-- [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) —
+- [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter):
   "Use this template" for your own project; auto-synced mirror of
   [`templates/minimal-server`](./templates/minimal-server).
-- [`docs/`](./docs/README.md) — concepts, guides, API reference, recipes.
+- [`docs/`](./docs/README.md): concepts, guides, API reference, recipes.
 
 ## Using the packages in your own project
 
-The packages are published to the public [npm registry](https://www.npmjs.com/org/miragon) under the `@miragon` scope — no authentication or `.npmrc` needed to install them. Inside this monorepo none of this section applies.
+The packages are published to the public [npm registry](https://www.npmjs.com/org/miragon) under the `@miragon` scope, so installing them needs no authentication or `.npmrc`. Inside this monorepo none of this section applies.
 
 Install only what you need:
 
@@ -93,18 +93,18 @@ pnpm add -D @miragon/mcp-toolkit-tool-codegen
 
 Install the peers alongside: `mcp-use@2.7.3` (pinned exactly: a second copy breaks the widgets' host context) and `zod@^4.4.0`, plus `react@^19.2.0`, `react-dom@^19.2.0` and `tailwindcss@^4.3.0` for the UI package. Each package's `peerDependencies` is the authoritative list.
 
-The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) — a self-contained mcp-use project with the toolkit on top: one module with its own tools, one widget, `views/` built and served by the mcp-use CLI, plus pinned versions and CI. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
+The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`): a self-contained mcp-use project with the toolkit on top: one module with its own tools, one widget, `views/` built and served by the mcp-use CLI, plus pinned versions and CI. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
 
 ## Building UIs fast
 
-UIs are hand-built from the `@miragon/mcp-toolkit-ui` primitives — design quality is the point, so there is no auto-generated UI. They are prompted _on top of_ this base, so the base is the ground truth. A coding agent should reach for the repo's skills first, then the building blocks below:
+UIs are hand-built from the `@miragon/mcp-toolkit-ui` primitives. Design quality is the point, so there is no auto-generated UI. They are prompted _on top of_ this base, so the base is the ground truth. A coding agent should reach for the repo's skills first, then the building blocks below:
 
-- **Agent skills** — `.claude/skills/` encodes the house patterns with runnable snippets: [`build-mcp-server`](./.claude/skills/build-mcp-server/SKILL.md) (host + a module with its own tools + a widget, worked through the [`tasks` example](./examples/modules/tasks)), [`add-mcp-tool`](./.claude/skills/add-mcp-tool/SKILL.md) (one `createToolRegistrar` entry), [`build-mcp-widget`](./.claude/skills/build-mcp-widget/SKILL.md) (a widget against the UI base), [`compose-a-view`](./.claude/skills/compose-a-view/SKILL.md) (a multi-widget dashboard with `buildComposedView`, or a multi-step pipeline with `render-view`, worked through the [`orders` example](./examples/modules/orders)), and [`white-label-client`](./.claude/skills/white-label-client/SKILL.md) (theming tokens). Invoke the matching one before hand-rolling. Building on the toolkit from a consumer repo? Copy the skill directories into that repo's `.claude/skills/` so your coding agent gets the same ground truth.
-- **Component reference** — [`docs/reference/components.md`](./docs/reference/components.md) (and its machine-readable twin [`packages/ui/ui-catalog.json`](./packages/ui/ui-catalog.json)) is the LLM-readable catalog of every prompt-relevant component and hook: import path, props, and "when to use". The repo-specific [`build-mcp-widget` skill](./.claude/skills/build-mcp-widget/SKILL.md) walks the full authoring loop against it.
-- **Widget isolation** — `WidgetFixtureHost` (a "Storybook for MCP widgets") renders a widget with fixture data and a mocked host, no backend required. See the [`widget-playground`](./examples/widget-playground) example and the [developing-widgets-in-isolation guide](./docs/guides/developing-widgets-in-isolation.md).
-- **Host portability** — write a widget against `useHostBridge()` and it runs unchanged in the mcp-use host, ChatGPT (Apps SDK), or a standalone web app against an existing server. See the [`host-portability`](./examples/host-portability) example and the [host-portability concept](./docs/concepts/host-portability.md).
-- **White-label theming** — the default is the Miragon theme, and every primitive reads CSS-variable role tokens, so one `createTheme(...)` + `<ThemeProvider>` (or a few role overrides in CSS) re-skins a whole client UI (brand colour, radius, light/dark). Widgets prompted on top use the roles (`bg-card`, `text-link`, `ring-focus`, `rounded-md`, the `TONE_*` maps for status), never hard-coded colours or Tailwind palette classes, so they inherit the brand for free. See the [white-labeling guide](./docs/guides/white-labeling.md) and the playground's brand switcher.
-- **Layered adoption** — use only the parts you need: primitives + a standalone UI, data-widgets in a host, or the full pipeline/dashboard runtime. See the [layered-adoption concept](./docs/concepts/layered-adoption.md).
+- **Agent skills:** `.claude/skills/` encodes the house patterns with runnable snippets: [`build-mcp-server`](./.claude/skills/build-mcp-server/SKILL.md) (host + a module with its own tools + a widget, worked through the [`tasks` example](./examples/modules/tasks)), [`add-mcp-tool`](./.claude/skills/add-mcp-tool/SKILL.md) (one `createToolRegistrar` entry), [`build-mcp-widget`](./.claude/skills/build-mcp-widget/SKILL.md) (a widget against the UI base), [`compose-a-view`](./.claude/skills/compose-a-view/SKILL.md) (a multi-widget dashboard with `buildComposedView`, or a multi-step pipeline with `render-view`, worked through the [`orders` example](./examples/modules/orders)), and [`white-label-client`](./.claude/skills/white-label-client/SKILL.md) (theming tokens). Invoke the matching one before hand-rolling. Building on the toolkit from a consumer repo? Copy the skill directories into that repo's `.claude/skills/` so your coding agent gets the same ground truth.
+- **Component reference:** [`docs/reference/components.md`](./docs/reference/components.md) (and its machine-readable twin [`packages/ui/ui-catalog.json`](./packages/ui/ui-catalog.json)) is the LLM-readable catalog of every prompt-relevant component and hook: import path, props, and "when to use". The repo-specific [`build-mcp-widget` skill](./.claude/skills/build-mcp-widget/SKILL.md) walks the full authoring loop against it.
+- **Widget isolation:** `WidgetFixtureHost` (a "Storybook for MCP widgets") renders a widget with fixture data and a mocked host, no backend required. See the [`widget-playground`](./examples/widget-playground) example and the [developing-widgets-in-isolation guide](./docs/guides/developing-widgets-in-isolation.md).
+- **Host portability:** write a widget against `useHostBridge()` and it runs unchanged in the mcp-use host, ChatGPT (Apps SDK), or a standalone web app against an existing server. See the [`host-portability`](./examples/host-portability) example and the [host-portability concept](./docs/concepts/host-portability.md).
+- **White-label theming:** the default is the Miragon theme, and every primitive reads CSS-variable role tokens, so one `createTheme(...)` + `<ThemeProvider>` (or a few role overrides in CSS) re-skins a whole client UI (brand colour, radius, light/dark). Widgets prompted on top use the roles (`bg-card`, `text-link`, `ring-focus`, `rounded-md`, the `TONE_*` maps for status), never hard-coded colours or Tailwind palette classes, so they inherit the brand for free. See the [white-labeling guide](./docs/guides/white-labeling.md) and the playground's brand switcher.
+- **Layered adoption:** use only the parts you need: primitives + a standalone UI, data-widgets in a host, or the full pipeline/dashboard runtime. See the [layered-adoption concept](./docs/concepts/layered-adoption.md).
 
 ## Build
 

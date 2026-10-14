@@ -1,1 +1,4 @@
-{}
+{
+  "_comment": "Activates brand-lint from the miragon-brand plugin (Claude Code hook and the brand job in ci.yml). Every rule stays on: the docs and the README are English, the UI catalogs carry German copy too. The docs kit in docs/.vitepress/miragon/ is linted at its source in Miragon/corporate-identity; release-please writes CHANGELOG.md.",
+  "ignorieren": ["docs/.vitepress/miragon/", "CHANGELOG.md"]
+}

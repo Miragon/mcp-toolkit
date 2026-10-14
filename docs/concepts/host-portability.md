@@ -3,7 +3,7 @@
 A hand-built widget should not care which host it runs in. The same
 `OrderStatusCard` can render inside the toolkit's own `mcp-use` host, inside
 ChatGPT (the OpenAI Apps SDK), or inside a standalone web app driven against an
-existing MCP server. The seam that makes this possible is the **`HostBridge`** —
+existing MCP server. The seam that makes this possible is the **`HostBridge`**:
 the single, minimal host surface a deterministic UI talks to.
 
 Write the widget against `useHostBridge()` and nothing host-specific (never
@@ -13,7 +13,7 @@ change at the app root instead of a rewrite.
 ## The bridge
 
 `HostBridge` (from `@miragon/mcp-toolkit-ui/app`) is deliberately the _minimum_ a
-UI needs — not a mirror of any one host's full surface:
+UI needs, not a mirror of any one host's full surface:
 
 ```ts
 interface HostBridge {
@@ -40,17 +40,17 @@ interface HostBridge {
 Each adapter maps the bridge verbs onto one host and fails soft where the host
 cannot honour them:
 
-| Adapter                                       | Host                   | Wraps                                                                                           |
-| --------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
-| `McpUseHostBridgeProvider`                    | toolkit's mcp-use host | the mcp-use 2.x view hooks, mapped through `toHostBridge`. Included in `McpToolkitApp`.         |
-| `createChatGptHostBridge(sdk?)`               | ChatGPT / Apps SDK     | `window.openai`, probed **defensively** — a missing method becomes a logged no-op, not a crash. |
-| `createStandaloneHostBridge({ callTool, … })` | your own web app       | an **injected** `callTool` (e.g. a `@modelcontextprotocol/client` client).                      |
+| Adapter                                       | Host                   | Wraps                                                                                          |
+| --------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `McpUseHostBridgeProvider`                    | toolkit's mcp-use host | the mcp-use 2.x view hooks, mapped through `toHostBridge`. Included in `McpToolkitApp`.        |
+| `createChatGptHostBridge(sdk?)`               | ChatGPT / Apps SDK     | `window.openai`, probed **defensively**: a missing method becomes a logged no-op, not a crash. |
+| `createStandaloneHostBridge({ callTool, … })` | your own web app       | an **injected** `callTool` (e.g. a `@modelcontextprotocol/client` client).                     |
 
 The mcp-use adapter is a provider component rather than a factory: the 2.x view
 hooks it composes only run under a `bootstrapView`-mounted view, and the pure
 mapping onto the bridge contract (`toHostBridge`) is exported and unit-tested on
 its own. The ChatGPT adapter probes every `window.openai` method before use
-because the Apps SDK surface drifts across versions — the goal is that the _same_
+because the Apps SDK surface drifts across versions. The goal is that the _same_
 widget keeps working even as that surface changes.
 
 ## Writing a host-portable widget
@@ -77,7 +77,7 @@ function OrderStatusCard() {
 ```
 
 `useHostBridge()` resolves the nearest `HostBridgeProvider`, or falls back to the
-mcp-use bridge — so the widget needs **no** provider in the toolkit's host.
+mcp-use bridge, so the widget needs **no** provider in the toolkit's host.
 `useHostActions()` (the named `openLink` / `showWidget` / `askAi` affordances) is
 a thin facade over the same bridge and honours an explicit provider too, so
 existing widgets keep working unchanged.
@@ -85,7 +85,7 @@ existing widgets keep working unchanged.
 ## Building a UI for an existing server (standalone)
 
 This is the decoupling layer: the hand-built widgets become a reusable UI kit for
-**any** MCP server — no `createFrameworkApp`, no toolkit host. Inject a
+**any** MCP server, with no `createFrameworkApp` and no toolkit host. Inject a
 `callTool` and provide the bridge once at the root:
 
 ```tsx
@@ -113,8 +113,8 @@ on the standalone bridge too, so host simulation has a single source of truth.
 
 ## See also
 
-- [`examples/host-portability/`](../../examples/host-portability/) — one widget,
+- [`examples/host-portability/`](../../examples/host-portability/): one widget,
   three hosts, with a shared bridge-activity log.
-- [Layered adoption](./layered-adoption.md) — where the standalone path sits in
+- [Layered adoption](./layered-adoption.md): where the standalone path sits in
   the bigger picture.
 - Source: [`packages/ui/src/app/host-bridge.tsx`](../../packages/ui/src/app/host-bridge.tsx).

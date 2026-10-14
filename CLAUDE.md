@@ -24,14 +24,16 @@ recorded in Miragon/miragon-ai's CLAUDE.md; don't undo them here):
   `--cd-blau-hell`, status in the `-hell` values without tinted fills, quiet text
   `--cd-kontur`. No in-app theme switch. Diagram paper and its zoom chrome stay light
   (`data-theme-mode="light"` marks such an island).
-- **The docs site and the starter wear it too.** The docs (`docs/.vitepress/theme/`) are
-  "Miragon MCP Toolkit" (the npm names stay `@miragon/mcp-toolkit-*`): the same vendored
-  token file, `custom.css` mapping VitePress' variables onto `--cd-*` (light on white with
-  tokens only, never a mixed grey; dark and the always-dark landing by the dark-ground
-  rules; focus ring `--cd-blau-link` / `--cd-blau-hell`), Geist via @fontsource, the CI's
-  wordmarks and the Komet favicon unchanged; `examples/test/docs-theme.test.ts` holds the
-  copies, every pair at AA in cascade order and the focus-ring rule against VitePress'.
-  The starter (`templates/minimal-server`) loads Geist by default and keeps its words in
+- **The docs site and the starter wear it too.** The docs are "Miragon MCP Toolkit" (the
+  npm names stay `@miragon/mcp-toolkit-*`), built with the CI's docs kit (skill
+  `miragon-brand:docs-site`): `docs/.vitepress/miragon/` and the logos in
+  `docs/public/logo/` are vendored unchanged (never edit them; re-vendor from the skill),
+  `docs/.vitepress/config.ts` is `miragonDocs({...})` with this site's names, nav and
+  sidebars, and `theme/index.ts` re-exports the kit theme. Light and dark follow the toggle
+  on every page, the home page included. Heading anchors follow GitHub's slug rule, and the
+  pages carry no em dash connectors (brand-lint). `check.mjs` runs in `docs.yml`, in the
+  `brand` job and in `examples/test/docs-theme.test.ts`, which also checks every `#anchor`
+  link. The starter (`templates/minimal-server`) loads Geist by default and keeps its words in
   an en/de catalog; its README shows the role override.
 - **UI texts follow the host locale (en/de).** German follows `brand-tone` fully; English
   takes the transferable rules (sentence case, active voice, no em-dash connectors).
@@ -124,7 +126,7 @@ Pills,WidgetHeader}.test.tsx` (the lifted kit's a11y on SSR markup), `lib/icon-s
 (one stroke mechanism), `no-hardcoded-copy.test.ts` + `i18n-coverage.test.tsx` (no copy outside the catalog;
 no raw error in a toast, an ErrorState/EmptyState title or description, or an inline alert: the
 raw reason goes under the ErrorState's Details), `examples/test/docs-theme.test.ts` (the docs
-site's vendored tokens and logos, its mapping's colour discipline and contrast in every page state).
+site's vendored kit and logos unchanged, its wiring, every `#anchor` link).
 `.miragon/brand.json` switches the brand-lint hook on for this repo.
 
 **One kit (miragon-ai forks).** The kit now carries what miragon-ai's

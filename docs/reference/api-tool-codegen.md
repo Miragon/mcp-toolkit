@@ -1,10 +1,10 @@
-# `@miragon/mcp-toolkit-tool-codegen` — API reference
+# `@miragon/mcp-toolkit-tool-codegen`: API reference
 
 Two subpath exports + a CLI.
 
 ## `@miragon/mcp-toolkit-tool-codegen` (main)
 
-Programmatic API for the codegen. All exports are side-effect-free — safe
+Programmatic API for the codegen. All exports are side-effect-free, so they are safe
 to import from build scripts.
 
 ### Types
@@ -26,7 +26,7 @@ to import from build scripts.
 
 `overrides` in `CodegenConfig` maps full tool names (`<proxyName>_<tool>`) to
 literal TypeScript type expressions that replace the generated `input` /
-`output` bodies — the escape hatch for MCPs that omit `outputSchema`.
+`output` bodies: the escape hatch for MCPs that omit `outputSchema`.
 
 ### Functions
 
@@ -47,10 +47,10 @@ bundles don't pull in `handlebars` / `json-schema-to-typescript`.
 | `ToolShape`                                             | `{ input: unknown, output: unknown }`.                                                                            |
 | `TypedCallTool<TMap extends Record<string, ToolShape>>` | `<TName extends keyof TMap & string>(name: TName, args: TMap[TName]["input"]) => Promise<TMap[TName]["output"]>`. |
 
-Generated code imports only these — consumers never need to reach into
+Generated code imports only these; consumers never need to reach into
 the `main` entry at runtime.
 
-## CLI — `mcp-tool-codegen`
+## CLI: `mcp-tool-codegen`
 
 Installed as `packages/tool-codegen/bin/mcp-tool-codegen` when the package
 is linked/installed.
@@ -65,7 +65,7 @@ Reads `./codegen.config.ts` (or `--config <path>`). The config's default
 export must satisfy `CodegenConfig`. Writes `tools.ts` + `hooks.tsx` into
 `config.out`.
 
-`--check` — regenerates into a temp dir and exits 1 if either file
+`--check` regenerates into a temp dir and exits 1 if either file
 differs from the committed output. Use in CI to catch upstream drift.
 
 ### `inspect`
@@ -77,7 +77,7 @@ mcp-tool-codegen inspect --upstream <url>
 ```
 
 Prints a markdown table of every tool (name · description · input keys).
-Discovery only — no files written.
+Discovery only: no files written.
 
 ### Auth flag resolution
 
@@ -85,7 +85,7 @@ Discovery only — no files written.
 - `--header X --header-value Y` → `{ mode: "header", headerName: "X", value: "Y" }`
 - neither → `{ mode: "none" }`
 
-For `generate`, prefer `codegen.config.ts` — env-driven config is
+For `generate`, prefer `codegen.config.ts`: env-driven config is
 reproducible, flag-driven config is for interactive debugging.
 
 ## Example `codegen.config.ts`
@@ -108,7 +108,7 @@ export default {
 ```
 
 The worked example lives at
-[`examples/modules/articles/`](../../examples/modules/articles/) —
+[`examples/modules/articles/`](../../examples/modules/articles/):
 `codegen.config.ts` snapshots the standalone build-time endpoint
 `codegen-source.ts` into the committed `generated/` client.
 

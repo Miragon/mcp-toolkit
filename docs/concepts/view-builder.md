@@ -2,13 +2,13 @@
 
 `render-view` is the LLM's only view-related tool. It takes
 `{ keys, steps, layout, title }`, runs the pipeline, and returns the
-rendered payload. The user — inside the iframe — can flip the same view
+rendered payload. The user (inside the iframe) can flip the same view
 into **build mode** with one click; the catalogue (palette, key
 contracts, available steps) is fetched on demand from an app-only tool
 and never lands in the LLM's context.
 
 > **The visual builder is opt-in.** Widget rendering
-> (`get-framework-manifest`, `render-view`, `refresh-view`) is always on —
+> (`get-framework-manifest`, `render-view`, `refresh-view`) is always on:
 > that core surface is what every server gets. The in-iframe builder
 > platform (`get-builder-catalogue` + the dashboard CRUD tools) is **off by
 > default**; pass `app: { builder: true }` to `createFrameworkApp` to enable
@@ -51,9 +51,9 @@ the iframe's concern.
 A dashboard is several widgets in one layout. There are **two** ways to
 produce one, and most modules should reach for the first:
 
-1. **Eager — `buildComposedView`.** From a `*_show_*` tool, compute the
+1. **Eager: `buildComposedView`.** From a `*_show_*` tool, compute the
    whole view-model up front and lay the widgets out. No step registry,
-   no validation pass — you already have the data. This is the
+   no validation pass, since you already have the data. This is the
    **recommended default** and the path the real CIB seven cockpit uses
    for every dashboard.
 
@@ -81,7 +81,7 @@ produce one, and most modules should reach for the first:
    reads via `adaptDataWidget`. Widgets sharing a `dataType` all receive
    the same object and render their own slice.
 
-2. **Pipeline — `render-view` + steps.** The **advanced** path: a chain
+2. **Pipeline: `render-view` + steps.** The **advanced** path: a chain
    where one step **consumes a previous step's output key** (resolve an id
    → fetch its detail → derive the view). Use it only when you must thread
    tool outputs, or when you want the view re-composable in the builder.
@@ -107,9 +107,9 @@ Given the initial `keys` plus the keys a step set would `produces`,
 the pipeline _could_ expose and returns every widget whose `requires`
 is a subset. Two helpers already shipped by the toolkit do the work:
 
-- `validatePipeline(config, stepRegistry, initialKeys)` — statically returns
+- `validatePipeline(config, stepRegistry, initialKeys)`: statically returns
   `availableKeys` after the steps would execute.
-- `widgetRegistry.findByRequiredKeys(availableKeys)` — filter by contract.
+- `widgetRegistry.findByRequiredKeys(availableKeys)`: filter by contract.
 
 `getBuilderCatalogue` unions the statically-predicted keys with the
 runtime-resolved keys from `executePipeline`, so the palette reflects
@@ -168,8 +168,8 @@ builder lets you:
 - Add widgets to the focused row; set **span** per widget (1–12).
 - Switch between flat-rows and **tabs** mode.
 
-Future extensions — optional `rowHeight`, 2D placement, shared live-state
-— are deliberately out of scope for now.
+Future extensions (optional `rowHeight`, 2D placement, shared live-state)
+are deliberately out of scope for now.
 
 ## Tools
 
@@ -180,7 +180,7 @@ Future extensions — optional `rowHeight`, 2D placement, shared live-state
 | `get-builder-catalogue`  | app        | Reachable + unreachable widgets, key catalogue, available steps. Build-mode. |
 | `get-framework-manifest` | LLM        | Discover what widgets / steps are registered (registry dump, no live keys).  |
 
-`get-builder-catalogue` is **app-only** (`visibility: ["app"]`) — it
+`get-builder-catalogue` is **app-only** (`visibility: ["app"]`): it
 never appears in `tools/list` from the LLM's perspective. Token-free.
 
 ## Dashboards
@@ -196,7 +196,7 @@ A dashboard is the full `render-view` input (`keys`, `steps`, `layout`,
 | `delete-dashboard` | Hard delete by id.                                     |
 
 These four tools (and `get-builder-catalogue`) are registered **only when
-`app.builder` is `true`** — they are the persistence half of the opt-in
+`app.builder` is `true`**: they are the persistence half of the opt-in
 builder platform. With the builder off, none of them exist.
 
 Persistence is pluggable via the `DashboardStore` interface. Default is
@@ -207,15 +207,15 @@ in-memory (test-friendly); for real deployments pass
 host is OAuth-enabled, records are scoped to the caller id `resolveCallerId`
 resolves (`ctx.auth.user.id`, else `userId`, else the token's `sub`); a call
 without one is refused, and a record that exists but cannot be read is
-reported instead of treated as absent — see
+reported instead of treated as absent. See
 [Middleware and auth](../guides/middleware-and-auth.md#dashboards-under-oauth).
 
 ## Reference
 
-- `packages/core/src/framework/catalogue.ts` — `getBuilderCatalogue` + payload types.
-- `packages/core/src/framework/dashboard-store.ts` — interface + impls.
-- `packages/core/src/tools/register-catalogue-tool.ts` — `get-builder-catalogue`.
-- `packages/core/src/tools/register-dashboard-tools.ts` — CRUD tools.
-- `packages/ui/src/app/mcp-app-view.tsx` — edit toggle in the toolbar.
-- `packages/ui/src/app/layout-builder.tsx` — interactive composer.
+- `packages/core/src/framework/catalogue.ts`: `getBuilderCatalogue` + payload types.
+- `packages/core/src/framework/dashboard-store.ts`: interface + impls.
+- `packages/core/src/tools/register-catalogue-tool.ts`: `get-builder-catalogue`.
+- `packages/core/src/tools/register-dashboard-tools.ts`: CRUD tools.
+- `packages/ui/src/app/mcp-app-view.tsx`: edit toggle in the toolbar.
+- `packages/ui/src/app/layout-builder.tsx`: interactive composer.
 - [Guide: building dashboards](../guides/building-dashboards.md)

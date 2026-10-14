@@ -55,7 +55,7 @@ server.tool(
 else `user.userId`, else the verified token's `sub`; `organizationId` is
 `user.organizationId`, else `user.organization_id`. It returns `undefined` only
 when the request carries no auth at all; an authenticated caller whose provider
-maps no id still yields a caller (without `userId`) — per-user data must refuse
+maps no id still yields a caller (without `userId`). Per-user data must refuse
 it, never widen to global scope. The role filter, the org gate, the dashboard
 tools and the `render-view` / `refresh-view` / `get-builder-catalogue` pipeline
 context all resolve the caller this way.
@@ -75,12 +75,12 @@ await createFrameworkApp({
 })
 ```
 
-Skip the option for unauthenticated development servers — the framework tools
+Skip the option for unauthenticated development servers. The framework tools
 still work (steps then see neither `userId` nor `authenticated`, dashboards
 live in one global scope).
 
-Any mcp-use provider factory works here — the toolkit only sees the resolved
-`OAuthProvider`, and pass it as-is: no wrapper that copies `id` to `userId` is
+Any mcp-use provider factory works here. The toolkit only sees the resolved
+`OAuthProvider`; pass it as-is: no wrapper that copies `id` to `userId` is
 needed. Since mcp-use 2.3.0 that includes `oauthScalekitProvider` from
 `mcp-use/oauth/scalekit`, which binds the JWT audience to a Scalekit `res_…`
 resource id. A custom provider (`oauthCustomProvider`) should map the same
@@ -92,7 +92,7 @@ With `app.builder: true`, the dashboard tools scope every call to the caller:
 
 - A caller sees, loads, updates and deletes only dashboards stamped with its
   own id.
-- A call that resolves no caller id is refused (`isError`) — with OAuth
+- A call that resolves no caller id is refused (`isError`). With OAuth
   configured, `createFrameworkApp` also refuses calls that reach the tools
   without any `ctx.auth`. Nothing is ever saved owner-less under OAuth.
 - An owner-less dashboard is global scope, which belongs to servers without
@@ -105,8 +105,8 @@ With `app.builder: true`, the dashboard tools scope every call to the caller:
   includes it with an `unreadable` reason, and load/save/delete refuse it. A
   filesystem entry the store cannot even open (a directory named `*.json`,
   `EACCES`) is listed the same way in global scope, never failing the listing.
-- The tools re-check what a custom store answers for an identified caller —
-  the record a load, save or delete touches and every listed entry — so a
+- The tools re-check what a custom store answers for an identified caller
+  (the record a load, save or delete touches and every listed entry), so a
   store still on the 2.5 rule (owner-less = everyone's) cannot leak or hand
   out such a record. Apply `isDashboardOwnedBy` (from
   `@miragon/mcp-toolkit-core/tools`) in your store anyway, and report each
@@ -183,7 +183,7 @@ you can wire them unconditionally.
 - `roleFilter.toolsCall` on `mcp:tools/call`.
 
 `createFrameworkApp` wires this ordering automatically. If you boot the
-server yourself, replicate — the helpers are typed to register directly, no
+server yourself, replicate it: the helpers are typed to register directly, no
 cast:
 
 ```ts
@@ -210,12 +210,12 @@ fall back to its global or anonymous scope. When you call `renderView` or
 `getBuilderCatalogue` from your own tool, build `ctx` with
 `resolvePipelineContext(ctx)` as well.
 
-## Caveat — server-internal calls
+## Caveat: server-internal calls
 
 Pipeline steps use the injected `callTool` closure and skip the RPC
 surface. `orgGate` doesn't matter (authentication already happened for the
 outer `render-view` call), but `roleFilter` also doesn't apply. Step code
-is trusted by definition, so this is acceptable — add explicit role checks
+is trusted by definition, so this is acceptable. Add explicit role checks
 inside a step if you need defense-in-depth on that path.
 
 ## Source
@@ -224,7 +224,7 @@ inside a step if you need defense-in-depth on that path.
 - `packages/core/src/middleware/org-gate.ts`
 - `packages/core/src/middleware/role-filter.ts`
 - `packages/core/src/tools/create-framework-app.ts`
-- `packages/core/src/tools/create-framework-app.auth.test.ts` — the contract
+- `packages/core/src/tools/create-framework-app.auth.test.ts`: the contract
   through a real server with a fake OAuth provider
 
 ## See also

@@ -29,7 +29,7 @@ interface WidgetProps {
 }
 ```
 
-A widget runs only if all `requires` keys exist in `context.keys` — the
+A widget runs only if all `requires` keys exist in `context.keys`: the
 `WidgetRenderer` in `@miragon/mcp-toolkit-ui` filters missing ones out.
 
 ## Naming a widget for people
@@ -77,30 +77,30 @@ None of these texts reach the LLM: `get-framework-manifest` sends the
 `description`s and leaves `title`, `summary` and every `x-display` out of the
 `propsSchema` it lists.
 
-## `requires` vs `consumes` — two distinct contracts
+## `requires` vs `consumes`: two distinct contracts
 
 These two fields look similar but answer different questions; keep them
 separate:
 
-- **`requires`** — _Builder reachability only._ The keys that must be in
+- **`requires`**: _Builder reachability only._ The keys that must be in
   `context.keys` before the widget will render. The in-iframe builder uses
   it to split the palette into reachable vs unreachable widgets, and
   `WidgetRenderer` filters a widget out when a required key is missing. It is
   **not** the data binding.
 - **`consumes`** (the step `dataType`, also written `_dataType` on a step
-  result) — _the actual data binding._ It names the step `dataType`s the
+  result): _the actual data binding._ It names the step `dataType`s the
   widget reads through `adaptDataWidget(Widget, dataType)`. This is how the
   rendered data slice reaches the component.
 
 A **self-fetching widget** (one that drives its own `useToolQuery` and owns
-its data) declares `requires: []` and reads from an app-only `*_data` feed —
+its data) declares `requires: []` and reads from an app-only `*_data` feed;
 it has no pipeline data binding at all, so it leaves `consumes` empty. Setting
 `requires` on such a widget would only hide it from the builder until some
 unrelated key happens to be present.
 
 ## Per-instance props
 
-A layout cell can pass per-instance props via the `props` field — the
+A layout cell can pass per-instance props via the `props` field: the
 same widget can appear multiple times in one view with different scoping
 (e.g. one tab per `processDefinitionKey`). Declare the accepted shape on
 the widget via `propsSchema` (a JSON Schema; generate with
@@ -140,7 +140,7 @@ const widgets = {
 ```
 
 A widget can instead take the raw `WidgetProps` (keys + context) the
-framework passes — useful when it reads pipeline keys directly and drives
+framework passes. That is useful when it reads pipeline keys directly and drives
 its own fetches:
 
 ```tsx
@@ -191,7 +191,7 @@ The widget bundle feeds `context.keys` into each widget's `WidgetProps.keys`.
 
 Every widget ships in the server's own bundle: one Vite-built ES module
 plus stylesheet (`app.bundle` in `createFrameworkApp`) that statically
-imports every widget. mcp-use's native view registry serves it — each
+imports every widget. mcp-use's native view registry serves it: each
 view-bound tool gets a `ui://views/<tool>.html` resource whose document
 embeds the same bundle. The consumer passes the `{ id: Component }` map
 to `mountMcpToolkitApp({ widgets })` and the toolkit handles the host
