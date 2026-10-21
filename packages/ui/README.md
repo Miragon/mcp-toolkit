@@ -10,7 +10,7 @@ Published to the public npm registry under the `@miragon` scope — no `.npmrc`
 or token needed.
 
 ```sh
-pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@2.7.3 react@^19.2.0 react-dom@^19.2.0 tailwindcss@^4.3.0
+pnpm add @miragon/mcp-toolkit-ui @miragon/mcp-toolkit-core mcp-use@2.9.0 react@^19.2.0 react-dom@^19.2.0 tailwindcss@^4.3.0
 ```
 
 `mcp-use` is pinned exactly: a second copy in the graph breaks the widgets'

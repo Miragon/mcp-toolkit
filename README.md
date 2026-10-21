@@ -91,7 +91,7 @@ pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-ui
 pnpm add -D @miragon/mcp-toolkit-tool-codegen
 ```
 
-Install the peers alongside: `mcp-use@2.7.3` (pinned exactly: a second copy breaks the widgets' host context) and `zod@^4.4.0`, plus `react@^19.2.0`, `react-dom@^19.2.0` and `tailwindcss@^4.3.0` for the UI package. Each package's `peerDependencies` is the authoritative list.
+Install the peers alongside: `mcp-use@2.9.0` (pinned exactly: a second copy breaks the widgets' host context) and `zod@^4.4.0`, plus `react@^19.2.0`, `react-dom@^19.2.0` and `tailwindcss@^4.3.0` for the UI package. Each package's `peerDependencies` is the authoritative list.
 
 The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) — a self-contained mcp-use project with the toolkit on top: one module with its own tools, one widget, `views/` built and served by the mcp-use CLI, plus pinned versions and CI. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
 

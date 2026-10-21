@@ -86,7 +86,7 @@ The packages live on the public npm registry under the `@miragon` scope, so no
 host context); the other peers are ranges, so your own versions dedupe:
 
 ```sh
-pnpm add @miragon/mcp-toolkit-core mcp-use@2.7.3 zod@^4.4.0
+pnpm add @miragon/mcp-toolkit-core mcp-use@2.9.0 zod@^4.4.0
 ```
 
 For widgets, add the UI package and its peers:
