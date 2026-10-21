@@ -26,5 +26,5 @@ overrides:
   # bootstrapView". Pin both peers to what the graph already runs:
   # lucide-react = packages/ui's dependency, server = mcp-use's own exact
   # dependency. Bump them together with those two.
-  "@mcp-use/inspector>lucide-react": 1.47.0
-  "@modelcontextprotocol/ext-apps>@modelcontextprotocol/server": 2.0.0
+  "@mcp-use/inspector>lucide-react": 1.56.0
+  "@modelcontextprotocol/ext-apps>@modelcontextprotocol/server": 2.3.1

@@ -9,7 +9,7 @@ Published to the public npm registry under the `@miragon` scope — no `.npmrc`
 or token needed.
 
 ```sh
-pnpm add @miragon/mcp-toolkit-core mcp-use@2.7.3 zod@^4.4.0
+pnpm add @miragon/mcp-toolkit-core mcp-use@2.9.0 zod@^4.4.0
 ```
 
 `mcp-use` is pinned exactly: a second copy in the graph breaks the widgets'
