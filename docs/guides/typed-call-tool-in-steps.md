@@ -8,7 +8,7 @@ what the executor does with it, and how to type it.
 
 The plugin itself owns the closure: it puts a `callTool` function into its
 `appConfig`, and `createFrameworkApp` hands that `appConfig` to the
-plugin's steps at execution time (keyed by app name — `executePipeline`
+plugin's steps at execution time (keyed by app name: `executePipeline`
 picks a step's entry by `ref.step.split(":")[0]`).
 
 Before the step runs, the executor's `bindAppConfig` rewraps any
@@ -49,15 +49,15 @@ export const step: PipelineStepDefinition<{ callTool: ArticlesCallTool }> = {
 ```
 
 `TypedCallTool` (with `ArticlesToolMap` as its generic argument) collapses
-to a 2-arg signature — the pipeline executor pre-binds `userId` so steps
+to a 2-arg signature: the pipeline executor pre-binds `userId` so steps
 don't touch it.
 
 ## Plugin-side wiring
 
 The plugin injects the implementation. In the examples' articles module it
 is an in-process closure over the module's own store; in your project it
-can be anything with the same typed surface — a REST client, a DB call, or
-an MCP client session:
+can be anything with the same typed surface (a REST client, a DB call, or
+an MCP client session):
 
 ```ts
 export function createPlugin(): AppPlugin {
@@ -77,7 +77,7 @@ including the documented cast a switch-based `TypedCallTool` needs.
 
 **Missing closure.** If the plugin forgets to put `callTool` into its
 `appConfig`, the step finds `appConfig.callTool === undefined` and crashes
-on first use — wire the closure in `createPlugin()`.
+on first use. Wire the closure in `createPlugin()`.
 
 **Role-filter middleware does not apply here.** Step dispatch bypasses the
 public RPC surface. If your step path needs a role check, add it explicitly.

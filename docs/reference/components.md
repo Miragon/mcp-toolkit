@@ -3,7 +3,7 @@
 The LLM-readable catalog of every prompt-relevant building block in
 `@miragon/mcp-toolkit-ui`. When you (or a coding agent) build a widget _on top
 of_ this base, this page is the ground truth: import path, props, one example,
-and "when to use" per symbol — so you reach for the right component instead of
+and "when to use" per symbol, so you reach for the right component instead of
 re-deriving one from `<div>`s.
 
 > **Machine-readable twin.** [`packages/ui/ui-catalog.json`](../../packages/ui/ui-catalog.json)
@@ -14,7 +14,7 @@ re-deriving one from `<div>`s.
 
 ## Import paths
 
-UIs are hand-built and prompted on top of this base — they are not
+UIs are hand-built and prompted on top of this base; they are not
 auto-generated. Three import paths, picked by what the symbol depends on:
 
 | Path                            | Contains                                                                                    | Pulls `mcp-use/react`? |
@@ -25,12 +25,12 @@ auto-generated. Three import paths, picked by what the symbol depends on:
 
 Rule of thumb: import from the **root** unless you need the host seam
 (`useHostBridge`), the data adapter (`adaptDataWidget`), or the app shell
-(`McpToolkitApp`) — those live under `/app`.
+(`McpToolkitApp`): those live under `/app`.
 
 ## Primitives
 
 shadcn/ui re-exports, pre-wired to the toolkit's Tailwind preset and tokens.
-Compose these instead of styling raw elements — they carry the design system
+Compose these instead of styling raw elements: they carry the design system
 (spacing, focus rings, dark mode, `bg-card`/`text-muted-foreground` tokens).
 All import from `@miragon/mcp-toolkit-ui`.
 
@@ -117,7 +117,7 @@ Parts: `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`,
 `TableHead`, `TableCell`, `TableCaption`.
 
 **When to use:** tabular markup. Compose the parts for a list/array tool result;
-add a [`ListFooter`](#listfooter) for pagination.
+add a [`ListFooter`](#listfooter--pagedlistfooter) for pagination.
 
 ### Tabs
 
@@ -160,11 +160,11 @@ Parts: `Alert`, `AlertTitle`, `AlertDescription`. Prop: `variant?: "default" | "
 
 ### ScrollArea / Separator / Skeleton
 
-- `ScrollArea` (+ `ScrollBar`) — constrain a long list to a fixed height with a
+- `ScrollArea` (+ `ScrollBar`): constrain a long list to a fixed height with a
   styled scrollbar.
-- `Separator` (`orientation?: "horizontal" | "vertical"`) — divider between
+- `Separator` (`orientation?: "horizontal" | "vertical"`): divider between
   card sections.
-- `Skeleton` (`className?` to size it) — loading placeholder while a self-fetch
+- `Skeleton` (`className?` to size it): loading placeholder while a self-fetch
   is in flight; avoids layout shift on first paint.
 
 ```tsx
@@ -174,7 +174,7 @@ import { Skeleton } from "@miragon/mcp-toolkit-ui"
 
 ## Composed components
 
-Focused widget building blocks assembled from the primitives — the patterns
+Focused widget building blocks assembled from the primitives: the patterns
 real widgets keep needing. Reach for these before re-implementing the same thing
 from `<div>`s. All import from `@miragon/mcp-toolkit-ui` (pure: React +
 primitives + `cn`, no host dependency). Many are **tone-aware**: they take a
@@ -291,7 +291,7 @@ level that keeps ONE outline per view: below `McpAppView`'s toolbar title (an
 
 Props: `expanded: boolean` (required), `onToggle: () => void` (required),
 `summary: ReactNode` (required), `children?`. The summary uses `role="button"`,
-so it can contain its own controls (drill buttons, links) — clicks on those
+so it can contain its own controls (drill buttons, links); clicks on those
 don't toggle.
 
 ```tsx
@@ -387,7 +387,7 @@ import { ListFooter, PagedListFooter } from "@miragon/mcp-toolkit-ui"
 ;<PagedListFooter paged={pagedQuery} noun="incidents" />
 ```
 
-**When to use:** footer for a paginated list — an honest "Showing X of Y" total
+**When to use:** footer for a paginated list: an honest "Showing X of Y" total
 plus an explicit "Load more" (not infinite scroll). Use `PagedListFooter` when
 the list can fail or refetch while rows stay on screen.
 
@@ -592,7 +592,7 @@ import { cn, MICRO_LABEL } from "@miragon/mcp-toolkit-ui"
 ```
 
 **When to use:** every text size in kit and widget code. Nothing renders below
-13 px — no `text-xs`, no `text-[10px]` micro-labels; a former 10–11 px
+13 px: no `text-xs`, no `text-[10px]` micro-labels; a former 10–11 px
 uppercase caption is `MICRO_LABEL` (13 px semibold, normal case). The design
 gate (`examples/test/design-system.test.ts`) fails on `text-xs`, an arbitrary
 `text-[…]` under 13 px / 0.8125 rem, a CSS `font-size` or a React `fontSize`
@@ -620,9 +620,9 @@ How a widget gets its data. All return TanStack Query results unless noted.
 
 ### useToolQuery
 
-`useToolQuery(queryKey, toolName, args, opts?)` — root import.
+`useToolQuery(queryKey, toolName, args, opts?)`: root import.
 
-- `queryKey: readonly unknown[]` — the cache-key prefix. The effective key is
+- `queryKey: readonly unknown[]`: the cache-key prefix. The effective key is
   `[...queryKey, args]` (`toolQueryKey`): callers with different `args` get
   separate entries. Two tools must not share a key and args (their answers
   would overwrite each other); the hook warns in the console when they do.
@@ -631,7 +631,7 @@ How a widget gets its data. All return TanStack Query results unless noted.
   whatever key their callers pass; the next major makes that the default.
   Build an exact key with `useToolQueryKey(queryKey, toolName, args)` (or
   the pure `toolQueryKey`), not by hand: it follows the setting in force.
-- `opts?: UseToolQueryOptions` — TanStack's query options, passed through:
+- `opts?: UseToolQueryOptions`: TanStack's query options, passed through:
   `retry`, `retryDelay`, `staleTime`, `placeholderData` / `keepPreviousData`,
   `initialData` + `initialDataUpdatedAt`, `enabled`, `select`, `gcTime`, …
   (everything but `queryKey` / `queryFn`).
@@ -671,7 +671,7 @@ cockpit-embedded widget. Decoded with `parseToolResult` (structured-first).
 
 ### useToolMutation
 
-`useToolMutation(toolName, opts?)` — root import. `opts?: UseToolMutationOptions`:
+`useToolMutation(toolName, opts?)`: root import. `opts?: UseToolMutationOptions`:
 TanStack's mutation options (`onSuccess`, `onError`, `onSettled`, `retry`,
 `meta`, `mutationKey`, …) plus `invalidateKeys?: unknown[][]`.
 
@@ -695,7 +695,7 @@ the widget is mounted; TanStack's own `mutate` keeps only the latest call's.
 
 ### useViewToolQuery
 
-`useViewToolQuery(queryKey, toolName, args, opts?)` — **`/hooks` import**.
+`useViewToolQuery(queryKey, toolName, args, opts?)`: **`/hooks` import**.
 Same key and options contract as `useToolQuery`.
 
 ```tsx
@@ -706,11 +706,11 @@ const { data } = useViewToolQuery<OrderData>(["order"], "orders_show_order", { i
 
 **When to use:** self-fetch from a `*_show_*` widget tool. Unwraps the
 `McpAppView` view envelope via `parseViewToolResult` (single-step → flat data,
-multi-step → keyed by step id) — the envelope-aware sibling of `useToolQuery`.
+multi-step → keyed by step id). It is the envelope-aware sibling of `useToolQuery`.
 
 ### useViewData
 
-`useViewData(initialData, key, tool, args, ready, options?)` — **`/hooks` import**.
+`useViewData(initialData, key, tool, args, ready, options?)`: **`/hooks` import**.
 Returns `{ data, loading, error, refetch, failureCount, failureReason,
 isFetching, isPlaceholderData }`; `refetch` is the retry of the error state and
 reads anew at once, also while a failed fetch still waits on its backoff.
@@ -755,7 +755,7 @@ function IncidentPanel({
   one never rolls a refetched answer back. Hand in `initialData` only for the
   `args` it answers.
 
-**When to use:** the dual-mode seam — write **one** widget that renders
+**When to use:** the dual-mode seam. Write **one** widget that renders
 host-pushed data when handed it (a standalone `*_show_*` widget) **and**
 self-fetches when embedded in a cockpit. Sibling widgets sharing `key` and
 `args` dedupe to a single call.
@@ -778,13 +778,13 @@ hooks (miragon-ai's widget-shell is the reference). Mapping:
 
 ### useIsMobile
 
-`useIsMobile(): boolean` — root import. True below the 768px breakpoint.
+`useIsMobile(): boolean`: root import. True below the 768px breakpoint.
 
 **When to use:** switch a widget between a compact and a wide layout.
 
 ### useDebouncedValue
 
-`useDebouncedValue<T>(value, delayMs = 300): T` — root import. Returns `value`
+`useDebouncedValue<T>(value, delayMs = 300): T`: root import. Returns `value`
 delayed by `delayMs`, resetting the timer on every change.
 
 ```tsx
@@ -803,7 +803,7 @@ The seam to the host (call tools, navigate, open links). All `/app` imports.
 
 ### useHostBridge
 
-`useHostBridge(): HostBridge` — never returns `null`. The bridge:
+`useHostBridge(): HostBridge` never returns `null`. The bridge:
 
 | Method                          | Purpose                                                                                |
 | ------------------------------- | -------------------------------------------------------------------------------------- |
@@ -832,7 +832,7 @@ full surface.
 
 ### useHostActions
 
-`useHostActions(): { openLink, showWidget, askAi }` — a named-affordance facade
+`useHostActions(): { openLink, showWidget, askAi }` is a named-affordance facade
 over `useHostBridge`. Pair with `buildShowWidgetIntent(toolName, description)` to
 phrase the navigation prompt with a `(use <toolName>)` hint.
 
@@ -852,11 +852,11 @@ directly.
 For non-default hosts, wrap the widget in
 `<HostBridgeProvider bridge={…}>`:
 
-- `createStandaloneHostBridge({ callTool, getData?, onFollowup?, onOpenExternal?, onModelContext?, theme? })`
-  — any MCP server in a standalone web app. `callTool` is the only required option.
-- `createChatGptHostBridge(sdk?)` — the OpenAI Apps SDK (ChatGPT). Defensive;
+- `createStandaloneHostBridge({ callTool, getData?, onFollowup?, onOpenExternal?, onModelContext?, theme? })`:
+  any MCP server in a standalone web app. `callTool` is the only required option.
+- `createChatGptHostBridge(sdk?)`: the OpenAI Apps SDK (ChatGPT). Defensive;
   missing host methods degrade to logged no-ops.
-- `McpUseHostBridgeProvider` — the toolkit's own host: composes the mcp-use 2.x
+- `McpUseHostBridgeProvider`: the toolkit's own host. It composes the mcp-use 2.x
   view hooks into the bridge; `getWidgetData()` returns the payload
   `McpAppView` shows, a re-loaded one included. Already included in
   `McpToolkitApp`, so widgets rendered by the toolkit shell need no wrapping.
@@ -893,7 +893,7 @@ so the model knows what the user is looking at.
 
 ### HostModelContext
 
-`<HostModelContext content={string}>{widget}</HostModelContext>` — host-portable
+`<HostModelContext content={string}>{widget}</HostModelContext>`: host-portable
 model-context reporting.
 
 ```tsx
@@ -907,12 +907,12 @@ context instead of going through `adaptDataWidget`'s `describeForModel`. Inside
 an mcp-use view it renders the native aggregating `ModelContext`; in every other
 mount (widget playground, ChatGPT, standalone) it routes through the
 `HostBridge`'s `setModelContext`. Never import `ModelContext` from
-`mcp-use/react` in a widget — it throws outside a `bootstrapView` mount.
+`mcp-use/react` in a widget: it throws outside a `bootstrapView` mount.
 Without `children` it reports one line where it renders.
 
 ### useHostModelContext
 
-`useHostModelContext(content)` — **`/app` import**. Reports one line of model
+`useHostModelContext(content)`: **`/app` import**. Reports one line of model
 context for as long as the component is mounted; a blank or `null` line reports
 nothing.
 
@@ -931,12 +931,12 @@ goes through the `HostBridge`'s `setModelContext`.
 ### DescribeForModel
 
 Type: `(data: NonNullable<T>, props: Readonly<Record<string, unknown>>) => string`.
-The callback shape for `adaptDataWidget`'s third argument — report view identity,
+The callback shape for `adaptDataWidget`'s third argument: report view identity,
 active filters, and headline numbers.
 
 ### parseToolResult / parseViewToolResult
 
-- `parseToolResult(result, opts?)` — decode a raw `callTool` result to its data
+- `parseToolResult(result, opts?)`: decode a raw `callTool` result to its data
   payload. Structured-first: `isError` → throw a `ToolResultError`, then
   `structuredContent`, then JSON-decoded text, then raw. `opts.prefer: "text"`
   flips the order. `useToolQuery` decodes through this for you.
@@ -945,14 +945,14 @@ active filters, and headline numbers.
   `isToolError` also matches mcp-use's `ToolError`, which a view's `callTool`
   rejects with. The query hooks retry it like any failure by default (the client's `retry`);
   pass `retry: shouldRetryToolCall` to stop that.
-- `parseViewToolResult(result)` — unwrap a `*_show_*` view envelope
+- `parseViewToolResult(result)`: unwrap a `*_show_*` view envelope
   (`context.stepData`) to flat widget data: single-step → that step's data;
   multi-step → keyed by step id. Non-envelope results pass through
   `parseToolResult`.
 
 ### cn
 
-`cn(...classes)` — `clsx` + `tailwind-merge`. Merge Tailwind class strings;
+`cn(...classes)`: `clsx` + `tailwind-merge`. Merge Tailwind class strings;
 later conflicting utilities win.
 
 ## Theming
@@ -1099,7 +1099,7 @@ import { LocaleProvider } from "@miragon/mcp-toolkit-ui"
 
 ## App shell
 
-You rarely write these when authoring a single widget — you write the widget and
+You rarely write these when authoring a single widget: you write the widget and
 register it here.
 
 ### McpToolkitApp / mountMcpToolkitApp
@@ -1117,7 +1117,7 @@ mountMcpToolkitApp({ widgets })
 
 **When to use:** the entry point for the widget bundle.
 `mountMcpToolkitApp` mounts via mcp-use's `bootstrapView` (ext-apps handshake,
-error boundary, auto-resize); `McpToolkitApp` is the component it mounts —
+error boundary, auto-resize); `McpToolkitApp` is the component it mounts:
 mcp-use `ThemeProvider` + `McpUseHostBridgeProvider` around `McpAppView`. See
 the [UI API reference](./api-ui.md) for `McpAppView`, `WidgetRenderer` and
 `LayoutBuilder`.
@@ -1126,14 +1126,14 @@ the [UI API reference](./api-ui.md) for `McpAppView`, `WidgetRenderer` and
 
 ### WidgetFixtureHost
 
-`/app` import — a Storybook-style harness that renders **one** widget with
+A Storybook-style harness (`/app` import) that renders **one** widget with
 fixture data and a mocked host (no backend, no real host).
 
 | Prop             | Type                               | Notes                                                                      |
 | ---------------- | ---------------------------------- | -------------------------------------------------------------------------- |
 | `widget`         | `FixtureWidget`                    | The widget under development.                                              |
 | `data`           | `Record<string, unknown>`          | `keys` map for `({ keys })` widgets; forwarded as `data` for `({ data })`. |
-| `dataType`       | `string`                           | For `adaptDataWidget` components — seeds a step whose `_dataType` matches. |
+| `dataType`       | `string`                           | For `adaptDataWidget` components: seeds a step whose `_dataType` matches.  |
 | `tools`          | `Record<string, FixtureToolEntry>` | Tool fixtures: a static value or a `(args) => result` handler.             |
 | `globals`        | `Record<string, unknown>`          | Host context: `theme` (on the bridge) and `locale` (the toolkit's text).   |
 | `onModelContext` | `(text: string) => void`           | Receives the serialized `<ModelContext>` the widget reports.               |
@@ -1157,7 +1157,7 @@ for unit-testing the props envelope without rendering.
 
 ## See also
 
-- [`@miragon/mcp-toolkit-ui` API reference](./api-ui.md) — the full export
+- [`@miragon/mcp-toolkit-ui` API reference](./api-ui.md): the full export
   surface (incl. app-shell internals and `LayoutBuilder`).
 - [Developing widgets in isolation](../guides/developing-widgets-in-isolation.md)
 - [Host portability concept](../concepts/host-portability.md)

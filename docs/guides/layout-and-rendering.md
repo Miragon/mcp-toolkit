@@ -93,7 +93,7 @@ for widgets that need the raw step result.
 
 ## Refresh
 
-The framework registers a second tool (`refresh-view` by default — override
+The framework registers a second tool (`refresh-view` by default; override it
 via `app.refreshToolName`) that accepts the same schema. The UI stores
 `_refreshParams` from the initial `render-view` response and calls
 `refresh-view` to re-run the pipeline without the LLM in the loop.
@@ -130,7 +130,7 @@ curl -sX POST http://localhost:3010/mcp \
 JSON
 ```
 
-See [`examples/layouts/`](../../examples/layouts/) for runnable shapes —
+See [`examples/layouts/`](../../examples/layouts/) for runnable shapes:
 `articles-layout.yaml` (single-widget row) and `orders-dashboard.yaml`
 (multi-widget dashboard).
 

@@ -1,7 +1,7 @@
 # Testing with the `examples/` playground
 
 The toolkit ships a self-contained demo under
-[`examples/`](../../examples/) — one host using `createFrameworkApp`,
+[`examples/`](../../examples/): one host using `createFrameworkApp`,
 three self-owned modules, a widget bundle built by Vite, and YAML
 layouts. Use it to exercise new toolkit features before integrating into
 a consumer.
@@ -22,14 +22,14 @@ examples/
 
 The three modules cover the common shapes:
 
-1. **`articles`** — the tool-codegen worked example: registers its own
+1. **`articles`**: the tool-codegen worked example: registers its own
    `articles_list-articles` / `articles_get-article` tools, injects a typed
    in-process `callTool` (from the committed `generated/` client) into its
    `appConfig` for the `articles:resolve-article` step, and the
    `ArticleCard` widget self-fetches via the generated hook.
-2. **`tasks`** — a module with its own tools + a self-fetching widget
+2. **`tasks`**: a module with its own tools + a self-fetching widget
    (`show_tasks_board`, app-only `tasks_board_data` feed).
-3. **`orders`** — both composition paths against one domain: an eager
+3. **`orders`**: both composition paths against one domain: an eager
    multi-widget dashboard (`buildComposedView`) and a real two-step
    pipeline (`render-view`).
 
@@ -46,7 +46,7 @@ pnpm --filter @miragon/mcp-toolkit-examples dev:host
 ```
 
 (Or the one-shot `start`, which chains both.) All modules are local
-plugins compiled into the host — no other server and no extra env
+plugins compiled into the host, so no other server and no extra env are
 needed. See [`examples/env.example`](../../examples/env.example).
 
 ## Checking the wiring
@@ -59,11 +59,11 @@ curl -sX POST http://localhost:3010/mcp \
 
 You should see:
 
-- Framework tools — `get-framework-manifest`, `render-view` (plus the
+- Framework tools: `get-framework-manifest`, `render-view` (plus the
   builder/dashboard tools, since the example host opts into `builder`).
-- Articles — `articles_list-articles`, `articles_get-article`.
-- Tasks — `show_tasks_board`, `list_tasks`, `create_task`, `complete_task`.
-- Orders — `show_orders_dashboard`, `list_customers`.
+- Articles: `articles_list-articles`, `articles_get-article`.
+- Tasks: `show_tasks_board`, `list_tasks`, `create_task`, `complete_task`.
+- Orders: `show_orders_dashboard`, `list_customers`.
 
 ## Exercising articles end-to-end
 
@@ -101,7 +101,7 @@ pnpm --filter @miragon/mcp-toolkit-examples generate
 pnpm --filter @miragon/mcp-toolkit-examples generate:check   # CI drift
 ```
 
-Writes into `examples/modules/articles/generated/` — the
+Writes into `examples/modules/articles/generated/`: the
 `ArticlesCallTool` map + `useArticlesGetArticle` React Query hook.
 
 ## Typecheck everything
@@ -117,16 +117,16 @@ first.
 
 ## Why this is useful
 
-- Dev your change in isolation — no consumer project bootstrap.
-- The `examples/` workspace is a smoke test too: if it typechecks + boots
-  - returns the expected `structuredContent`, the major integration paths
-    work.
+- Dev your change in isolation, with no consumer project bootstrap.
+- The `examples/` workspace is a smoke test too: if it typechecks, boots
+  and returns the expected `structuredContent`, the major integration paths
+  work.
 - Onboarding: the examples are the shortest path from "I cloned the repo"
   to "I see end-to-end behaviour" for the tool, widget, and pipeline
   patterns.
 
 ## See also
 
-- [Getting started](../getting-started.md) — minimal host snippet.
-- [Layout and rendering](layout-and-rendering.md) — what `render-view` accepts.
-- [`examples/README.md`](../../examples/README.md) — command reference.
+- [Getting started](../getting-started.md): minimal host snippet.
+- [Layout and rendering](layout-and-rendering.md): what `render-view` accepts.
+- [`examples/README.md`](../../examples/README.md): command reference.

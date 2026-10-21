@@ -2,7 +2,7 @@
 
 ::: tip The standard loop is the mcp-use CLI
 Day-to-day widget development runs through `mcp-use dev` and its built-in
-inspector — real server, HMR on the widget sources; see
+inspector: real server, HMR on the widget sources. See
 [getting started](../getting-started.md). This guide covers the **optional
 fixture harness** for the cases the real server won't easily produce: edge
 states (empty lists, errors, huge data), the theme/brand matrix, and work
@@ -27,7 +27,7 @@ pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground
 a widget renders exactly as it would in production, minus the infrastructure:
 
 - **`callTool`** is served from an in-memory `FixtureCallToolRegistry`, wired
-  into the simulated `HostBridge` and the toolkit's `useToolQuery` — so a
+  into the simulated `HostBridge` and the toolkit's `useToolQuery`, so a
   widget that self-fetches resolves against your fixtures.
 - **Host actions** (`openExternal`, `sendFollowUpMessage`, …) are logged to
   `onHostAction` instead of dispatched.
@@ -35,7 +35,7 @@ a widget renders exactly as it would in production, minus the infrastructure:
   through `onModelContext`, so you can _see_ what the model would see.
 - **A `HostBridge`** (a `createStandaloneHostBridge` over the same registry) is
   provided, so widgets written against `useHostBridge` are simulated from the same
-  single source — see [host portability](../concepts/host-portability.md).
+  single source (see [host portability](../concepts/host-portability.md)).
 - **The host's theme and language.** `globals.theme` (`"light"` or `"dark"`) is
   what `useHostBridge().theme` reports; `globals.locale` (a BCP 47 tag such as
   `"de-DE"`) sets the language and number format of the toolkit's own text
@@ -45,7 +45,7 @@ a widget renders exactly as it would in production, minus the infrastructure:
 - **What a view gives every widget:** a toast stack (`useToast()` shows real
   toasts) and the CI icon stroke (2.5) for Lucide icons.
 
-It is intentionally minimal — a harness, not a host. The Apps-SDK `postMessage`
+It is intentionally minimal: a harness, not a host. The Apps-SDK `postMessage`
 bridge and host features beyond the bridge verbs are out of scope.
 
 ## Mounting a widget
@@ -70,7 +70,7 @@ import { OrderCard } from "./OrderCard.js"
 A `tools` entry is either a **static value** returned as the tool result, or a
 **handler** `(args) => result` that reacts to the widget's input. An unknown tool
 rejects with a descriptive error that flows into the widget's own error state
-(TanStack Query `error`, `mcp-use` `isError`) rather than crashing the harness —
+(TanStack Query `error`, `mcp-use` `isError`) rather than crashing the harness,
 so you exercise the failure path too.
 
 ## The playground workflow
@@ -78,15 +78,15 @@ so you exercise the failure path too.
 [`examples/widget-playground/`](../../examples/widget-playground/) wraps the
 harness in a small Vite app:
 
-- **Sidebar** — pick a widget from [`stories.ts`](../../examples/widget-playground/stories.ts).
-- **Fixture data** — a live JSON editor for the `data` / `keys`. Typing
+- **Sidebar:** pick a widget from [`stories.ts`](../../examples/widget-playground/stories.ts).
+- **Fixture data:** a live JSON editor for the `data` / `keys`. Typing
   re-renders the preview; invalid JSON is reported and the last valid data stays
   on screen.
-- **Live preview** — the widget rendered through `WidgetFixtureHost`, with a
+- **Live preview:** the widget rendered through `WidgetFixtureHost`, with a
   brand switcher, a Dark switch (the host's colour scheme) and an
   English/German switch (the host's locale).
-- **Model context** — the serialized `<ModelContext>` the widget reports.
-- **Host activity** — the tool calls and host actions it triggered.
+- **Model context:** the serialized `<ModelContext>` the widget reports.
+- **Host activity:** the tool calls and host actions it triggered.
 
 Add a widget by appending a `Story` to `stories.ts`:
 
@@ -107,13 +107,13 @@ The harness is most useful when widgets are pure functions of their input. A
 widget that reads `keys["ns:thing"]` or takes a single `data` prop (via
 [`adaptDataWidget`](../concepts/widgets.md#per-instance-props)) is trivial to fix
 in fixtures; one that reaches into ambient host state is not. This is the same
-property that makes the [data-widget layer](../concepts/layered-adoption.md#b-data-widgets-adaptdatawidget-in-a-host)
+property that makes the [data-widget layer](../concepts/layered-adoption.md#b-data-widgets--adaptdatawidget-in-a-host)
 testable, so the fixture workflow and the layered-adoption story reinforce each
 other.
 
 ## See also
 
-- [Host portability](../concepts/host-portability.md) — the bridge the harness
+- [Host portability](../concepts/host-portability.md): the bridge the harness
   simulates.
-- [Widgets](../concepts/widgets.md) — the `WidgetProps` shape the harness builds.
+- [Widgets](../concepts/widgets.md): the `WidgetProps` shape the harness builds.
 - Source: [`packages/ui/src/app/widget-fixture.tsx`](../../packages/ui/src/app/widget-fixture.tsx).

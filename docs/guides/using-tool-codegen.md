@@ -4,7 +4,7 @@
 Query hooks from an MCP server's `tools/list`. Your module's steps and
 widgets import from `./generated/`, and the compiler catches tool-name
 typos, bad args, and schema drift at build time. The source endpoint can
-be any MCP server — your own server's tool surface or an external service
+be any MCP server: your own server's tool surface or an external service
 you want a typed client for.
 
 ## Install
@@ -38,7 +38,7 @@ Fields:
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `proxyName`   | The namespace prefix for the generated tool names and type names (`<proxyName>_<tool>` / `<ProxyName><Tool>Input`).                |
 | `upstreamUrl` | HTTP endpoint of the source MCP server the codegen snapshots.                                                                      |
-| `auth`        | `none` / `bearer` / `header`. oauth2 is not supported at build time — see below.                                                   |
+| `auth`        | `none` / `bearer` / `header`. oauth2 is not supported at build time (see below).                                                   |
 | `out`         | Relative or absolute output directory.                                                                                             |
 | `overrides`   | Per-tool `input` / `output` literal TS expressions that replace the generated type. Handy when the source omits an `outputSchema`. |
 
@@ -76,7 +76,7 @@ code != 0 if they differ. Perfect CI drift check.
 pnpm mcp-tool-codegen inspect --upstream https://source.example/mcp --token …
 ```
 
-Prints a Markdown table — name · description · input keys. Discovery with
+Prints a Markdown table (name · description · input keys). Discovery with
 no code generated.
 
 Auth flags: `--token <bearer>`, `--header <name> --header-value <value>`,

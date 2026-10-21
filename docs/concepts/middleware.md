@@ -6,7 +6,7 @@ can wire them unconditionally and let config decide.
 
 Both read the caller through `resolveCaller` (`packages/core/src/auth/caller.ts`):
 mcp-use 2 hands middleware the SDK `AuthInfo`, with the provider-mapped user
-under `ctx.auth.extra.user` — there is no `ctx.auth.user` in middleware.
+under `ctx.auth.extra.user`. There is no `ctx.auth.user` in middleware.
 
 The factories return generic middlewares (`OrgGateMiddlewareFn`,
 `RoleFilterMiddlewareFn`) that `server.use` accepts without a cast. The
@@ -43,7 +43,7 @@ createRoleFilterMiddleware(roleToModules: Record<string, string[]>): {
   server.use("mcp:tools/list", toolsList)
   server.use("mcp:tools/call", toolsCall)
   ```
-- `rules` — `{ roleName: [moduleName, ...] }`. A role listed as a key
+- `rules`: `{ roleName: [moduleName, ...] }`. A role listed as a key
   _restricts_ users with that role to the listed modules.
 - Users whose roles include _no_ key in the mapping → unrestricted. This
   is deliberate opt-in so adding a new role doesn't silently revoke tools.
@@ -56,12 +56,12 @@ createRoleFilterMiddleware(roleToModules: Record<string, string[]>): {
 
 Source: `packages/core/src/middleware/role-filter.ts`.
 
-## Caveat — server-internal calls bypass middleware
+## Caveat: server-internal calls bypass middleware
 
 When a pipeline step dispatches through the injected `callTool` closure, the
 closure resolves the call in-process and skips the MCP RPC
 surface. The role filter _doesn't_ apply. Step code is part of the trusted
-server, so the default is acceptable — add explicit role checks inside the
+server, so the default is acceptable; add explicit role checks inside the
 step if a step path must also be gated.
 
 ## Wiring via `createFrameworkApp`
@@ -76,9 +76,9 @@ await createFrameworkApp({
 })
 ```
 
-The factory skips each helper when its option is missing or empty — see
-`packages/core/src/tools/create-framework-app.ts:68-79`.
+The factory skips each helper when its option is missing or empty (see
+`packages/core/src/tools/create-framework-app.ts:68-79`).
 
 ## See also
 
-- [middleware-and-auth](../guides/middleware-and-auth.md) — full walkthrough.
+- [middleware-and-auth](../guides/middleware-and-auth.md): full walkthrough.

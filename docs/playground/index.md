@@ -2,7 +2,7 @@
 
 The docs, but clickable. <https://mcp-toolkit-playground.fly.dev/mcp> is a
 public toolkit host serving the two self-owned example modules (`tasks`,
-`orders`) with the builder enabled — so you can call a tool and watch a widget
+`orders`) with the builder enabled, so you can call a tool and watch a widget
 render, compose a multi-widget dashboard, chain a `render-view` pipeline, and
 save a dashboard, all without cloning anything.
 
@@ -22,7 +22,7 @@ call per stop. Each stop is a feature plus the concept doc behind it:
 | A tool that renders a widget | `buildSingleWidgetView`                      |
 | A composed view              | `buildComposedView` (multi-widget dashboard) |
 | A real pipeline              | `render-view` step chaining                  |
-| Break it — fail-soft         | per-step error isolation                     |
+| Break it: fail-soft          | per-step error isolation                     |
 | Builder & dashboards         | the visual builder + dashboard CRUD          |
 
 **[Take the guided tour](tour.md)**
@@ -30,23 +30,23 @@ call per stop. Each stop is a feature plus the concept doc behind it:
 ## Connect
 
 Open <https://mcp-toolkit-playground.fly.dev/mcp> in a browser and you land on
-mcp-use's built-in page — per-client install instructions and an "Open in
+mcp-use's built-in page: per-client install instructions and an "Open in
 Inspector" button that opens the hosted inspector already connected to the
 playground:
 
 ![The playground landing page: server description, connection URL, an Open in Inspector button, and per-client install instructions](./images/landing-page.png)
 
-- **Browser** — the "Open in Inspector" button above; nothing to install.
+- **Browser**: the "Open in Inspector" button above; nothing to install.
 - **Claude Code**:
 
   ```sh
   claude mcp add --transport http toolkit-playground https://mcp-toolkit-playground.fly.dev/mcp
   ```
 
-- **Cursor / VS Code** — one-click install links on the landing page.
+- **Cursor / VS Code**: one-click install links on the landing page.
 
 State is shared and in-memory. Whatever visitors create lives until the Fly
-machine restarts (it auto-stops when idle) — treat it as a scratchpad.
+machine restarts (it auto-stops when idle), so treat it as a scratchpad.
 
 To run your own copy, use `pnpm --filter @miragon/mcp-toolkit-examples start:playground`
 (boots the same host on `:3020` with the inspector); the entry is
