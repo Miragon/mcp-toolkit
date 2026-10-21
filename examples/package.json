@@ -32,24 +32,24 @@
   "dependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
     "@miragon/mcp-toolkit-ui": "workspace:*",
-    "lucide-react": "1.47.0",
-    "mcp-use": "2.7.3",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "zod": "4.6.5"
+    "lucide-react": "1.56.0",
+    "mcp-use": "2.9.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@mcp-use/client": "2.3.4",
+    "@mcp-use/client": "2.4.2",
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@tailwindcss/vite": "4.3.3",
-    "@types/node": "26.6.4",
+    "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "vite": "8.3.3",
-    "vitest": "4.1.11"
+    "vite": "8.3.4",
+    "vitest": "4.1.12"
   }
 }
