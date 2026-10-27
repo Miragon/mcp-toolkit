@@ -43,7 +43,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "mcp-use": "2.9.0",
+    "mcp-use": "2.11.0",
     "zod": "^4.4.0"
   },
   "devDependencies": {
@@ -53,7 +53,7 @@
     "@types/node": "26.6.5",
     "@vitest/coverage-v8": "4.1.12",
     "fast-check": "4.10.2",
-    "mcp-use": "2.9.0",
+    "mcp-use": "2.11.0",
     "typescript": "6.0.3",
     "vitest": "4.1.12",
     "zod": "4.6.7"
