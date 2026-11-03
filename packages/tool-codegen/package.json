@@ -47,18 +47,18 @@
     "@miragon/mcp-toolkit-core": "workspace:~"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/client": "2.4.0",
     "handlebars": "4.7.10",
     "json-schema-to-typescript": "16.0.0"
   },
   "devDependencies": {
     "@miragon/mcp-toolkit-core": "workspace:*",
-    "@stryker-mutator/core": "10.0.0",
-    "@stryker-mutator/vitest-runner": "10.0.0",
-    "@types/node": "26.6.5",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
+    "@types/node": "26.6.6",
     "@vitest/coverage-v8": "4.1.12",
     "fast-check": "4.10.2",
-    "mcp-use": "2.9.0",
+    "mcp-use": "2.12.0",
     "typescript": "6.0.3",
     "vitest": "4.1.12",
     "zod": "4.6.7"
