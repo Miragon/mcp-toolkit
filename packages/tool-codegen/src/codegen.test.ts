@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { z } from "zod"
 import { renderCodegen } from "./codegen.js"
 import type { CodegenConfig } from "./config.js"
 import type { ToolDescriptor } from "./fetch-tools.js"
@@ -309,6 +310,15 @@ describe("renderCodegen: types", () => {
         { type: "object", properties: {}, anyOf: [{ type: "object" }] },
         "export type TasksAInput = {}",
       ],
+      // Keywords only an array reads constrain no object.
+      ...[
+        { prefixItems: [{ type: "string" }], items: false, minItems: 1, maxItems: 1 },
+        { items: [{ type: "string" }], additionalItems: false, minItems: 1, maxItems: 1 },
+        { items: { type: "string" } },
+      ].map((array): [Record<string, unknown>, string] => [
+        { type: "object", ...array },
+        "export type TasksAInput = Record<string, never>",
+      ]),
     ]
     for (const [inputSchema, declaration] of schemas) {
       const { toolsFile } = await renderCodegen([{ name: "a", inputSchema }], config)
@@ -335,6 +345,159 @@ describe("renderCodegen: types", () => {
       expect(toolsFile, JSON.stringify(outputSchema)).toContain(`\n${declaration}\n`)
     }
   })
+
+  // zod 4 emits z.tuple in draft 2020-12's spelling, prefixItems and items: false, which
+  // json-schema-to-typescript alone types never[]. It writes minItems only when an element is
+  // required, and so does pydantic, which closes a tuple with maxItems instead of items: false.
+  it("types tuples in draft 2020-12's and draft-07's spelling as JSON Schema reads them", async () => {
+    const shape = z.object({
+      pair: z.tuple([z.string(), z.number()]),
+      rest: z.tuple([z.string()], z.boolean()),
+      last: z.tuple([z.string(), z.number().optional()]),
+      both: z.tuple([z.string().optional(), z.number().optional()]),
+      both2: z.tuple([z.string(), z.number().optional()], z.boolean()),
+      none: z.tuple([]),
+      choice: z.tuple([z.string(), z.union([z.number(), z.boolean()]).optional()]),
+    })
+    const expected = [
+      "{",
+      "  pair: [string, number]",
+      "  rest: [string, ...boolean[]]",
+      "  last: [string, number?]",
+      "  both: [string?, number?]",
+      "  both2: [string, number?, ...boolean[]]",
+      "  none: []",
+      "  choice: [string, (number | boolean)?]",
+      "}",
+    ].join("\n")
+    for (const target of ["draft-2020-12", "draft-7"] as const) {
+      const { toolsFile } = await renderCodegen(
+        [{ name: "a", inputSchema: z.toJSONSchema(shape, { target }) }],
+        config,
+      )
+      expect(toolsFile, target).toContain(`\nexport interface TasksAInput ${expected}\n`)
+    }
+
+    const string = { type: "string" }
+    const number = { type: "number" }
+    const arrays: [Record<string, unknown>, string][] = [
+      // closed by items: false (draft-07: additionalItems: false), else open
+      [{ prefixItems: [string], items: false, minItems: 1 }, "[string]"],
+      [{ prefixItems: [string], minItems: 1 }, "[string, ...unknown[]]"],
+      [{ prefixItems: [string], items: true, minItems: 1 }, "[string, ...unknown[]]"],
+      [{ prefixItems: [string], items: number, minItems: 1 }, "[string, ...number[]]"],
+      [{ prefixItems: [], items: false }, "[]"],
+      [{ prefixItems: [], items: string }, "[...string[]]"],
+      [{ items: [string], additionalItems: false, minItems: 1 }, "[string]"],
+      [{ items: [string], minItems: 1 }, "[string, ...unknown[]]"],
+      [{ items: [string], additionalItems: true, minItems: 1 }, "[string, ...unknown[]]"],
+      [{ items: [string], additionalItems: number, minItems: 1 }, "[string, ...number[]]"],
+      // 2020-12 has no items list and no additionalItems beside prefixItems
+      [{ prefixItems: [string], items: [number], minItems: 1 }, "[string, ...unknown[]]"],
+      [{ prefixItems: [true], additionalItems: false, minItems: 1 }, "[unknown, ...unknown[]]"],
+      // an element past minItems (default 0) is optional
+      [{ prefixItems: [string, number], items: false }, "[string?, number?]"],
+      [{ prefixItems: [string, number], items: false, minItems: 0 }, "[string?, number?]"],
+      [{ items: [string, number], additionalItems: false, minItems: 1 }, "[string, number?]"],
+      [{ prefixItems: [string, number], minItems: 1 }, "[string, number?, ...unknown[]]"],
+      [{ prefixItems: [string], items: false, minItems: 5 }, "[string]"],
+      // maxItems up to the listed elements closes the tuple and drops the elements past it
+      [{ prefixItems: [string, number], minItems: 2, maxItems: 2 }, "[string, number]"],
+      [{ prefixItems: [string, number], items: number, maxItems: 2 }, "[string?, number?]"],
+      [{ items: [string, number], minItems: 1, maxItems: 1 }, "[string]"],
+      [{ prefixItems: [string, number], maxItems: 0 }, "[]"],
+      [{ prefixItems: [string], minItems: 1, maxItems: 3 }, "[string, ...unknown[]]"],
+      // not a tuple: no bounds typed
+      [{ items: string, minItems: 2, maxItems: 2 }, "string[]"],
+      [{ items: false }, "never[]"],
+    ]
+    for (const [array, type] of arrays) {
+      const { toolsFile } = await renderCodegen(
+        [
+          {
+            name: "a",
+            inputSchema: {
+              type: "object",
+              properties: { t: { type: "array", ...array } },
+              required: ["t"],
+            },
+          },
+        ],
+        config,
+      )
+      expect(toolsFile, JSON.stringify(array)).toContain(`\n  t: ${type}\n`)
+    }
+  })
+
+  it("type-checks tuples in args and results, element by element", async () => {
+    const tuples = z.object({
+      pair: z.tuple([z.string(), z.number()]),
+      rest: z.tuple([z.string()], z.boolean()),
+      last: z.tuple([z.string(), z.number().optional()]),
+      nested: z.tuple([z.tuple([z.literal("x")]), z.object({ at: z.tuple([z.number()]) })]),
+    })
+    const { properties, required } = z.toJSONSchema(tuples)
+    const schema = {
+      type: "object",
+      properties: {
+        ...properties,
+        // Written by hand without items: further elements of any type are valid.
+        open: { type: "array", prefixItems: [{ type: "string" }], minItems: 1 },
+        // pydantic's tuple[int, str]: closed by maxItems.
+        closed: {
+          type: "array",
+          prefixItems: [{ type: "integer" }, { type: "string" }],
+          minItems: 2,
+          maxItems: 2,
+        },
+      },
+      required: [...(required ?? []), "open", "closed"],
+    }
+    const { toolsFile } = await renderCodegen(
+      [{ name: "move", inputSchema: schema, outputSchema: schema }],
+      { ...config, react: false },
+    )
+    const consumer = `
+import { createTasksClient, type TasksMoveInput } from "./tools.js"
+declare const callTool: import("@miragon/mcp-toolkit-tool-codegen-core").ToolCaller
+const client = createTasksClient(callTool)
+const ok: TasksMoveInput = {
+  pair: ["a", 1], rest: ["a"], last: ["a", 1], nested: [["x"], { at: [1] }], open: ["a"], closed: [1, "a"],
+}
+export async function use() {
+  const moved = await client.move({ ...ok, rest: ["a", true, false], open: ["a", 1, {}] })
+  const [name, count]: [string, number] = moved.pair
+  const flags: boolean[] = moved.rest.slice(1) as boolean[]
+  const at: number = moved.nested[1].at[0]
+  const maybe: number | undefined = moved.last[1]
+  const extra: unknown = moved.open[1]
+  // a valid shorter array
+  await client.move({ ...ok, last: ["a"] })
+  // @ts-expect-error -- an element past minItems may be missing from a result
+  const sure: number = moved.last[1]
+  // @ts-expect-error -- a closed tuple takes no third element
+  await client.move({ ...ok, pair: ["a", 1, 2] })
+  // @ts-expect-error -- nor does one with an optional element
+  await client.move({ ...ok, last: ["a", 1, 2] })
+  // @ts-expect-error -- nor one maxItems closes
+  await client.move({ ...ok, closed: [1, "a", 2] })
+  // @ts-expect-error -- an element up to minItems is required
+  await client.move({ ...ok, pair: ["a"] })
+  // @ts-expect-error -- each position has its own type
+  await client.move({ ...ok, pair: [1, "a"] })
+  // @ts-expect-error -- an optional element too
+  await client.move({ ...ok, last: ["a", "b"] })
+  // @ts-expect-error -- and one of an open tuple
+  await client.move({ ...ok, open: [1] })
+  // @ts-expect-error -- the elements after the listed ones have the rest's type
+  await client.move({ ...ok, rest: ["a", "b"] })
+  // @ts-expect-error -- a nested tuple is typed too
+  await client.move({ ...ok, nested: [["y"], { at: [1] }] })
+  return [name, count, flags, at, maybe, extra, sure]
+}
+`
+    expect(typeErrors({ "tools.ts": toolsFile, "consumer.ts": consumer })).toEqual([])
+  }, 30_000)
 
   it("rejects what an object input with required names but no properties does not accept", async () => {
     const { toolsFile } = await renderCodegen(

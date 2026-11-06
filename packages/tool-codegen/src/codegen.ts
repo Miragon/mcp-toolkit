@@ -35,10 +35,22 @@ const REACT_PACKAGE = "@miragon/mcp-toolkit-tool-codegen-react"
 /**
  * Fetches the server's tools/list and renders the generated files (nothing is
  * written; see `writeCodegenOutput`). The CLI's `generate`, as a function.
+ *
+ * Fails on an empty tools/list (every page read): a wrong path, another
+ * server or a token without the scope that shows the tools all answer with
+ * one, and files rendered from it would drop every method on the next
+ * regeneration.
  */
 export async function generateTools(config: CodegenConfig): Promise<CodegenResult> {
   const valid = validateConfig(config)
   const tools = await fetchTools({ url: valid.url, auth: valid.auth, headers: valid.headers })
+  if (tools.length === 0) {
+    throw new Error(
+      `the server at ${sourceOf(valid.url)} lists no tools, so nothing was generated. ` +
+        `Check that "url" names its MCP endpoint, path included, that the server registers its tools, ` +
+        `and that "auth" or "headers" carry the token or scope it needs to list them.`,
+    )
+  }
   return renderCodegen(tools, valid)
 }
 

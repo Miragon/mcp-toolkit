@@ -7,7 +7,7 @@ Every command and flag of `mcp-tool-codegen`, what it prints and which exit code
 <dl class="facts">
   <dt>Binary</dt><dd><code>mcp-tool-codegen</code></dd>
   <dt>Package</dt><dd><code>@miragon/mcp-toolkit-tool-codegen</code>, a dev dependency</dd>
-  <dt>Depends on</dt><dd><code>@modelcontextprotocol/client</code>, <code>handlebars</code> and <code>json-schema-to-typescript</code>; the core and React packages as optional peers of the same minor version</dd>
+  <dt>Depends on</dt><dd><code>@modelcontextprotocol/client</code>, <code>handlebars</code>, <code>json-schema-to-typescript</code> and <code>prettier</code>, which json-schema-to-typescript uses too; the core and React packages as optional peers of the same minor version</dd>
   <dt>Exit codes</dt><dd>0 done, 1 failure or drift, 2 usage error</dd>
 </dl>
 
@@ -68,8 +68,8 @@ help       Show this message.
 2. Connects to `url` over streamable HTTP with `auth` and `headers`, runs the initialize handshake,
    reads the complete `tools/list` (every page) and closes the connection. The MCP SDK checks the
    list's shape here and rejects, for example, a tool without a name.
-3. Checks the list: a tool listed twice and an override for a tool the server does not list fail
-   the run.
+3. Checks the list: an empty list, a tool listed twice and an override for a tool the server does
+   not list fail the run, with `--check` too.
 4. Sorts the tools by name and renders `tools.ts`, plus `hooks.tsx` with `react: true`
    ([Generated code](./generated-code.md)).
 5. Writes the files into `out`, or compares them with `--check`.
@@ -185,11 +185,11 @@ usage error.
 
 ## Exit codes
 
-| Code | Meaning          | When                                                                             |
-| ---- | ---------------- | -------------------------------------------------------------------------------- |
-| `0`  | Done             | `generate` wrote, `generate --check` found no drift, `inspect` printed, `help`   |
-| `1`  | Failure or drift | A config error, an unreachable server, a generation error, drift under `--check` |
-| `2`  | Usage error      | An unknown command or flag, a missing value, a flag given twice, a 2.x flag      |
+| Code | Meaning          | When                                                                                                 |
+| ---- | ---------------- | ---------------------------------------------------------------------------------------------------- |
+| `0`  | Done             | `generate` wrote, `generate --check` found no drift, `inspect` printed, `help`                       |
+| `1`  | Failure or drift | A config error, an unreachable server, an empty tool list, a generation error, drift under `--check` |
+| `2`  | Usage error      | An unknown command or flag, a missing value, a flag given twice, a 2.x flag                          |
 
 ## Usage errors
 
@@ -259,6 +259,7 @@ In the messages below, `...` stands for text left out on this page; the CLI prin
 | `invalid codegen config:` and one line per problem                                                                                                              | The config fails validation, see [Configuration](./configuration.md#validation).                                                              |
 | `cannot list the tools of <origin>: <reason>`                                                                                                                   | The connection, the handshake or `tools/list` failed. A refused connection adds the system code and `is the server running at that address?`. |
 | `cannot list the tools of <origin>: Invalid result for tools/list: ...`                                                                                         | The server's `tools/list` fails the MCP SDK's schema check, for example a tool without a name. The SDK's errors follow on the next lines.     |
+| `the server at <origin> lists no tools, so nothing was generated. Check that "url" names its MCP endpoint, ...`                                                 | `tools/list` is empty after every page: a wrong path, another server, or `auth` without the scope that shows the tools. Also under `--check`. |
 | `the server lists the tool "<name>" twice`                                                                                                                      | Two entries share a name.                                                                                                                     |
 | `"overrides" names tools the server does not list: <names>`                                                                                                     | An `overrides` key matches no tool.                                                                                                           |
 | `cannot generate code for the tool "<name>": its name has no ASCII letter or digit ...`                                                                         | No identifier can be built, see [Generated code](./generated-code.md#collisions).                                                             |
@@ -294,13 +295,13 @@ function writeCodegenOutput(
 function checkCodegenOutput(result: CodegenResult, outDir: string): Promise<CodegenDrift[]>
 ```
 
-| Export               | What it does                                                                                                                             |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `generateTools`      | Validates the config, reads `tools/list` and renders the files. Writes nothing.                                                          |
-| `renderCodegen`      | Renders the files from a tool list, without a network call. An entry without a name fails with `the server lists a tool without a name`. |
-| `fetchTools`         | Runs the handshake and returns the complete `tools/list` in the server's order.                                                          |
-| `writeCodegenOutput` | Writes the files and removes a stale generated `hooks.tsx`. A relative `outDir` resolves against the working directory.                  |
-| `checkCodegenOutput` | Compares as `generate --check` does; `[]` when up to date.                                                                               |
+| Export               | What it does                                                                                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generateTools`      | Validates the config, reads `tools/list` and renders the files. Writes nothing. Rejects an empty list, as `generate` does.                                  |
+| `renderCodegen`      | Renders the files from a tool list, without a network call, an empty list too. An entry without a name fails with `the server lists a tool without a name`. |
+| `fetchTools`         | Runs the handshake and returns the complete `tools/list` in the server's order.                                                                             |
+| `writeCodegenOutput` | Writes the files and removes a stale generated `hooks.tsx`. A relative `outDir` resolves against the working directory.                                     |
+| `checkCodegenOutput` | Compares as `generate --check` does; `[]` when up to date.                                                                                                  |
 
 | Type                | Shape                                                                                                                                                                 |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

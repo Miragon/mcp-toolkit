@@ -242,6 +242,213 @@ describe("hostile schemas", () => {
     30_000,
   )
 
+  // json2ts spells a tuple as the union of every length up to its own unless told otherwise: a
+  // 300-element draft-07 tuple (5 KB) made 0.7 MB of output, 20,000 elements gigabytes. The run
+  // takes about 1 s here and 4 to 7 s on a CI runner under coverage, so the bound and the timeout
+  // leave room for a slow runner; the quadratic spelling takes minutes or runs out of memory.
+  it("render a 20,000-element tuple in either spelling in output linear in its length", async () => {
+    const elements = 20_000
+    const list = Array.from({ length: elements }, () => ({ type: "string" }))
+    const started = performance.now()
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("huge", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              prefixed: { type: "array", prefixItems: list, items: false },
+              listed: { type: "array", items: list, additionalItems: false },
+            },
+          },
+        }),
+      ],
+      config,
+    )
+    expect(performance.now() - started).toBeLessThan(20_000)
+    expect(toolsFile.length).toBeLessThan(2 * elements * 20)
+    expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
+  }, 30_000)
+
+  it("render tuples nested 100 levels deep, and keep a tuple that contains itself named", async () => {
+    let nested: Record<string, unknown> = { type: "string" }
+    for (let level = 0; level < 100; level++) {
+      nested = { type: "array", prefixItems: [nested, { type: "number" }], items: false }
+    }
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("deep", { inputSchema: { type: "object", properties: { t: nested } } }),
+        tool("cycle", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              t: { type: "array", prefixItems: [{ type: "string" }, { $ref: "#/properties/t" }] },
+            },
+          },
+        }),
+      ],
+      config,
+    )
+    const deep = toolsFile.slice(toolsFile.indexOf("export interface EvilDeepInput {"))
+    const declaration = deep.slice(0, deep.indexOf("\n}\n"))
+    expect(declaration.match(/\[/g)).toHaveLength(100)
+    expect(declaration.match(/\bnumber\b/g)).toHaveLength(100)
+    expect(toolsFile).toContain(
+      "export type EvilCycleInputT = [string?, EvilCycleInputT?, ...unknown[]]",
+    )
+    expect(topLevelDeclarations(toolsFile, "tools.ts")).toEqual([
+      "EvilCycleInputT",
+      "EvilCycleInput",
+      "EvilCycleOutput",
+      "EvilDeepInput",
+      "EvilDeepOutput",
+      ...FIXED_NAMES,
+    ])
+    expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
+  }, 30_000)
+
+  it("ignore a prefixItems that is not a list", async () => {
+    const values = [
+      { type: "string" },
+      `string] export const pwned = 1; type Q = [`,
+      42,
+      null,
+      true,
+    ]
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("odd", {
+          inputSchema: {
+            type: "object",
+            properties: Object.fromEntries(
+              values.map((prefixItems, i) => [`t${i}`, { type: "array", prefixItems }]),
+            ),
+          },
+        }),
+      ],
+      config,
+    )
+    for (const [i] of values.entries()) expect(toolsFile).toContain(`  t${i}?: unknown[]\n`)
+    expect(codeOnly(toolsFile, "tools.ts")).not.toContain("pwned")
+  })
+
+  it("apply every schema rule inside prefixItems: raw text, comments, $refs", async () => {
+    const breakOut = "*/ export const pwned = 1; /*"
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("inside", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              t: {
+                type: "array",
+                prefixItems: [
+                  { tsType: injection },
+                  { type: "string", description: breakOut, title: "Pwned" },
+                  { $ref: "file:///etc/hosts" },
+                  { $ref: "#/$defs/Point" },
+                ],
+                items: { tsType: injection },
+              },
+              first: { $ref: "#/properties/t/prefixItems/1" },
+            },
+            $defs: { Point: { type: "object", properties: { x: { type: "number" } } } },
+          },
+        }),
+      ],
+      config,
+    )
+    expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
+    expect(codeOnly(toolsFile, "tools.ts")).not.toContain("pwned")
+    expect(toolsFile).toContain(
+      "  t?: [unknown?, EvilInsideInputTPrefixItems1?, unknown?, EvilInsideInputPoint?, ...unknown[]]\n",
+    )
+    expect(toolsFile).toContain("  first?: EvilInsideInputTPrefixItems1\n")
+    expect(topLevelDeclarations(toolsFile, "tools.ts")).toEqual([
+      "EvilInsideInputTPrefixItems1",
+      "EvilInsideInput",
+      "EvilInsideInputPoint",
+      "EvilInsideOutput",
+      ...FIXED_NAMES,
+    ])
+    expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
+  }, 30_000)
+
+  // A tuple's minItems and maxItems decide which elements are optional and whether it takes more.
+  // Anything but a non-negative integer counts as absent, and no value sizes the output: json2ts
+  // would expand a bounded array into a tuple (or a union of tuples) that long.
+  it("read minItems and maxItems as non-negative integers only, and never expand them", async () => {
+    const bounds: [unknown, unknown, string][] = [
+      [1e300, 1e300, "[string?, number?, ...unknown[]]"],
+      [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, "[string, number, ...unknown[]]"],
+      [-1, -2, "[string?, number?, ...unknown[]]"],
+      [1.5, 0.5, "[string?, number?, ...unknown[]]"],
+      ["2", "1", "[string?, number?, ...unknown[]]"],
+      [injection, `*/ ${injection} /*`, "[string?, number?, ...unknown[]]"],
+      [null, [1], "[string?, number?, ...unknown[]]"],
+      // maxItems below minItems: no array is valid; closed after maxItems' elements, all required
+      [3, 1, "[string]"],
+      [2, 0, "[]"],
+    ]
+    const pair = [{ type: "string" }, { type: "number" }]
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("bounds", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              ...Object.fromEntries(
+                bounds.map(([minItems, maxItems], i) => [
+                  `t${i}`,
+                  { type: "array", prefixItems: pair, minItems, maxItems },
+                ]),
+              ),
+              plain: { type: "array", items: { type: "string" }, minItems: 1e6, maxItems: 1e6 },
+            },
+          },
+        }),
+      ],
+      config,
+    )
+    for (const [i, [, , type]] of bounds.entries()) {
+      expect(toolsFile, String(i)).toContain(`  t${i}?: ${type}\n`)
+    }
+    expect(toolsFile).toContain("  plain?: string[]\n")
+    expect(toolsFile).not.toMatch(/@m(?:in|ax)Items/)
+    expect(codeOnly(toolsFile, "tools.ts")).not.toContain("pwned")
+    expect(toolsFile.length).toBeLessThan(4000)
+  })
+
+  // About 2 s on a CI runner under coverage; bound and timeout as for the 20,000 elements above.
+  it("render a 10,000-element tuple with bounds in output linear in its length", async () => {
+    const elements = 10_000
+    const list = Array.from({ length: elements }, () => ({ type: "string" }))
+    const started = performance.now()
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("bounded", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              t: { type: "array", prefixItems: list, items: { type: "number" }, minItems: 5_000 },
+              u: { type: "array", prefixItems: list, minItems: 2_500, maxItems: 7_500 },
+            },
+          },
+        }),
+      ],
+      config,
+    )
+    expect(performance.now() - started).toBeLessThan(10_000)
+    expect(toolsFile.length).toBeLessThan(2 * elements * 20)
+    expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
+    const [t = "", u = ""] = toolsFile.split("\n  u?: ")
+    expect(t.match(/\bstring,/g)).toHaveLength(5_000)
+    expect(t.match(/\bstring\?,/g)).toHaveLength(5_000)
+    expect(t).toContain("string?,\n    ...number[],\n  ]")
+    expect(u.match(/\bstring,/g)).toHaveLength(2_500)
+    expect(u.match(/\bstring\?,/g)).toHaveLength(5_000)
+    expect(u).toContain("string?,\n  ]\n}")
+  }, 30_000)
+
   // json2ts names an anonymous reference cycle after a property key, without the tool's prefix:
   // two tools sharing a recursive parameter (zod-to-json-schema's root-path refs) collided, and
   // a key named like a global the files use shadowed it.

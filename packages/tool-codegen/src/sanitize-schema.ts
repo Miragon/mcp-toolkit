@@ -10,8 +10,10 @@
  *   emit their value as raw TypeScript;
  * - `title`, `$id` and `id`, which would name top-level declarations after
  *   upstream text (and `$id` moves the base of `$ref` resolution);
- * - `minItems`/`maxItems` (a non-number value lands raw in a JSDoc tag, and a
- *   huge `minItems` expands into a huge tuple);
+ * - `minItems`/`maxItems` (a value that is not a number lands raw in a JSDoc
+ *   tag, and json2ts expands a huge one into a huge tuple), but a tuple's as
+ *   non-negative safe integers: draft07Tuples reads them and removes them
+ *   before json2ts sees the schema;
  * - every `$ref` that is not local to the schema (`#` or `#/…`): such a
  *   reference becomes `unknown` instead of a file read or an HTTP request;
  * - `enum`/`const` values that are not JSON primitives.
@@ -46,6 +48,8 @@ const KEYWORDS: Record<string, (value: unknown) => unknown> = {
   nullable: booleanOnly,
   additionalProperties: schemaOrBoolean,
   additionalItems: schemaOrBoolean,
+  // A tuple: draft 2020-12's `prefixItems`, or draft-07's `items` as a list.
+  prefixItems: schemaList,
   items: (value) => (Array.isArray(value) ? value.map(sanitizeNode) : schemaOrBoolean(value)),
   allOf: schemaList,
   anyOf: schemaList,
@@ -64,7 +68,22 @@ export function sanitizeSchema(schema: unknown): JsonObject {
     const value = sanitize(schema[keyword])
     if (value !== undefined) out[keyword] = value
   }
-  return declareRequired(out)
+  return declareRequired(tupleBounds(schema, out))
+}
+
+/**
+ * A tuple's `minItems` and `maxItems`, as non-negative safe integers (a larger
+ * one, such as `1e300`, is not exact and counts as absent): they decide
+ * which elements are optional and whether it takes more (see draft07Tuples).
+ * Any other array's bounds are not typed.
+ */
+function tupleBounds(schema: JsonObject, out: JsonObject): JsonObject {
+  if (!Array.isArray(out.prefixItems) && !Array.isArray(out.items)) return out
+  for (const keyword of ["minItems", "maxItems"]) {
+    const value = schema[keyword]
+    if (Number.isSafeInteger(value) && (value as number) >= 0) out[keyword] = value
+  }
+  return out
 }
 
 /**

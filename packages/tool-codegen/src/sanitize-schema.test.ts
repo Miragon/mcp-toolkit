@@ -17,6 +17,12 @@ describe("sanitizeSchema", () => {
           items: [{ type: "string" }, { type: "number" }],
           additionalItems: false,
         },
+        prefixed: {
+          type: "array",
+          prefixItems: [{ type: "string" }, { $ref: "#/$defs/Other" }],
+          items: { type: "boolean" },
+        },
+        closed: { type: "array", prefixItems: [true], items: false },
         choice: { anyOf: [{ type: "string" }, { $ref: "#/$defs/Other" }] },
         both: { allOf: [{ type: "object" }], oneOf: [true, false] },
       },
@@ -50,6 +56,7 @@ describe("sanitizeSchema", () => {
         type: "object",
         properties: { a: { ...hostile, type: "string" } },
         items: { ...hostile },
+        prefixItems: [{ ...hostile }],
         anyOf: [{ ...hostile }],
         additionalProperties: { ...hostile },
         $defs: { D: { ...hostile } },
@@ -58,10 +65,37 @@ describe("sanitizeSchema", () => {
       type: "object",
       properties: { a: { type: "string" } },
       items: {},
+      prefixItems: [{}],
+      // a tuple's bounds stay as integers, see below
+      maxItems: 1e9,
       anyOf: [{}],
       additionalProperties: {},
       $defs: { D: {} },
     })
+  })
+
+  // They decide which elements of a tuple are optional and whether it takes more (draft07Tuples).
+  it("keeps a tuple's minItems and maxItems as non-negative integers, and no other array's", () => {
+    const tuples = [
+      { type: "array", prefixItems: [true] },
+      { type: "array", items: [true] },
+    ]
+    for (const tuple of tuples) {
+      for (const bound of [0, 2, Number.MAX_SAFE_INTEGER]) {
+        const bounded = { ...tuple, minItems: bound, maxItems: bound }
+        expect(sanitizeSchema(bounded)).toEqual(bounded)
+      }
+      for (const bound of [-1, 1.5, "2", 1e300, null, true, [2], { n: 2 }]) {
+        expect(sanitizeSchema({ ...tuple, minItems: bound, maxItems: bound })).toEqual(tuple)
+      }
+    }
+    expect(sanitizeSchema({ items: { type: "string" }, minItems: 1, maxItems: 2 })).toEqual({
+      items: { type: "string" },
+    })
+    expect(sanitizeSchema({ prefixItems: { type: "string" }, minItems: 1, maxItems: 2 })).toEqual(
+      {},
+    )
+    expect(sanitizeSchema({ type: "array", minItems: 1, maxItems: 2 })).toEqual({ type: "array" })
   })
 
   it("keeps only local $refs", () => {
@@ -127,10 +161,12 @@ describe("sanitizeSchema", () => {
         additionalProperties: "x",
         additionalItems: 0,
         items: "string",
+        prefixItems: { type: "string" },
         patternProperties: null,
         $defs: "D",
       }),
     ).toEqual({})
+    expect(sanitizeSchema({ prefixItems: "*/ evil" })).toEqual({})
     expect(sanitizeSchema({ type: ["string", "*/", 1, "null"] })).toEqual({
       type: ["string", "null"],
     })
@@ -144,11 +180,13 @@ describe("sanitizeSchema", () => {
       sanitizeSchema({
         properties: { a: 5, b: "string", c: null, d: true, e: false },
         anyOf: [1, true],
+        prefixItems: ["string", null, false],
         items: true,
       }),
     ).toEqual({
       properties: { a: {}, b: {}, c: {}, d: true, e: false },
       anyOf: [{}, true],
+      prefixItems: [{}, {}, false],
       items: true,
     })
     expect(sanitizeSchema("not a schema")).toEqual({})

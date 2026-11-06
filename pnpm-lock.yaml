@@ -156,6 +156,9 @@ importers:
       json-schema-to-typescript:
         specifier: 16.0.0
         version: 16.0.0
+      prettier:
+        specifier: 3.9.10
+        version: 3.9.10
     devDependencies:
       '@miragon/mcp-toolkit-tool-codegen-core':
         specifier: workspace:*
@@ -181,9 +184,6 @@ importers:
       mcp-use:
         specifier: 2.12.2
         version: 2.12.2(@base-ui/react@1.9.0(@date-fns/tz@1.4.1)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@mcp-use/client@2.4.2(@modelcontextprotocol/server@2.3.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(@types/node@26.6.6)(class-variance-authority@0.7.1)(clsx@2.1.1)(esbuild@0.28.2)(express@5.2.1)(jiti@2.7.0)(markdown-to-jsx@9.10.2(react@19.3.1)(vue@3.5.34(typescript@6.0.3)))(motion@12.43.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-resizable-panels@4.12.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(sonner@2.0.7(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(tailwind-merge@3.7.0)(tsx@4.23.15)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(yaml@2.9.1)(zod@4.6.7)
-      prettier:
-        specifier: 3.9.10
-        version: 3.9.10
       typescript:
         specifier: 6.0.3
         version: 6.0.3

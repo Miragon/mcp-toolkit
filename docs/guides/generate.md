@@ -106,6 +106,15 @@ A tool without an `outputSchema` gets the output type `unknown`. Give the tool a
 the server, or set its type with an [override](#override-a-tool). Every export is listed in
 [Generated code](../reference/generated-code.md).
 
+A server that lists no tools fails the run, and the files in `out` stay as they are:
+
+```txt
+mcp-tool-codegen: the server at http://localhost:4000 lists no tools, so nothing was generated. Check that "url" names its MCP endpoint, path included, that the server registers its tools, and that "auth" or "headers" carry the token or scope it needs to list them.
+```
+
+Run [`inspect`](#2-look-at-what-the-server-lists) with the same URL and token to see what the
+server lists for them.
+
 ## Add React hooks
 
 Install the React package and TanStack Query, and set `react: true` in the config:
