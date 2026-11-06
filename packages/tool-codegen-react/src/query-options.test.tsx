@@ -133,7 +133,15 @@ describe("isRequestTimeout", () => {
   it.each([
     ["a plain Error with the SDK's message", new Error("Request timed out")],
     ["another SDK code", sdkError("SdkError", "CONNECTION_CLOSED", "Connection closed")],
-    ["an HTTP status as the code", sdkError("StreamableHTTPError", 504, "Gateway Timeout")],
+    [
+      "the v2 SDK's HTTP 504",
+      sdkError(
+        "SdkHttpError",
+        "CLIENT_HTTP_NOT_IMPLEMENTED",
+        "Error POSTing to endpoint: Gateway Timeout",
+      ),
+    ],
+    ["the v1 SDK's HTTP 504", sdkError("Error", 504, "Streamable HTTP error: Gateway Timeout")],
     ["the v1 code as a string", { code: "-32001" }],
     ["null", null],
     ["undefined", undefined],

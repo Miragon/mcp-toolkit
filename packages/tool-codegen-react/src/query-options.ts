@@ -52,7 +52,9 @@ export function toolQueryFn<TMap extends ToolMapOf<TMap>, TName extends ToolName
  * past `maxTotalTimeout`. The v2 SDK (`@modelcontextprotocol/client`, which ext-apps' `App` runs
  * on) rejects with an `SdkError` of code `"REQUEST_TIMEOUT"`, the v1 SDK
  * (`@modelcontextprotocol/sdk`) with an `McpError` of code `-32001`. Read from the code alone, so
- * the package needs no SDK and recognises the error of any copy of it.
+ * the package needs no SDK and recognises the error of any copy of it. Both SDKs give a call that
+ * its signal aborted the same code; the retry rule never sees one, since TanStack settles a
+ * cancelled query before it aborts the signal.
  */
 export function isRequestTimeout(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false

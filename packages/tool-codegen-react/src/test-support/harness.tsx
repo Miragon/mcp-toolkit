@@ -30,8 +30,8 @@ export function sdkError(name: string, code: string | number, message: string): 
 }
 
 /**
- * The request timeouts of the MCP SDK clients, as `@modelcontextprotocol/client` 2.3.1 and
- * `@modelcontextprotocol/sdk` 1.32.2 reject. The example's call-options test pins the v2 ones
+ * The request timeouts of the MCP SDK clients, as `@modelcontextprotocol/client` 2.3.1 and 2.4.0
+ * and `@modelcontextprotocol/sdk` 1.32.2 reject. The example's call-options test pins the v2 ones
  * against the real SDK.
  */
 export const REQUEST_TIMEOUTS: [label: string, error: Error][] = [

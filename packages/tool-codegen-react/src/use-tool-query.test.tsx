@@ -235,9 +235,17 @@ describe("useToolQuery retry", () => {
     },
   )
 
+  // The v2 SDK reports any failed POST under one string code, the v1 SDK under the HTTP status.
   it.each([
     ["a closed connection", sdkError("SdkError", "CONNECTION_CLOSED", "Connection closed")],
-    ["an HTTP 503", sdkError("StreamableHTTPError", 503, "Streamable HTTP error: Error POSTing")],
+    [
+      "the v2 SDK's HTTP 503",
+      sdkError("SdkHttpError", "CLIENT_HTTP_NOT_IMPLEMENTED", "Error POSTing to endpoint: busy"),
+    ],
+    [
+      "the v1 SDK's HTTP 503",
+      sdkError("Error", 503, "Streamable HTTP error: Error POSTing to endpoint: busy"),
+    ],
   ])("retries %s, which the next attempt may get past", async (_label, transient) => {
     const callTool = vi.fn<ToolCaller>(() => Promise.reject(transient))
     const { result } = renderToolHook(() => useGetTask("1"), {
