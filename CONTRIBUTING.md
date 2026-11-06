@@ -48,6 +48,13 @@ them, never lower them) and, on pull requests, the mutation tests of tool-codege
 tool-codegen-core (`pnpm test:mutation`). Pin `dependencies` and `devDependencies` to exact
 versions; only peers are ranged.
 
+pnpm resolves no version published less than 7 days ago, direct or transitive
+(`minimumReleaseAge` in `pnpm-workspace.yaml`). It is the window of Dependabot's npm cooldown, and
+the two stay equal: Dependabot runs pnpm under its cooldown, and pnpm 10 checks every version
+already in the lockfile against it, so one younger version in the lockfile stops every Dependabot
+update. A release you need sooner goes into `minimumReleaseAgeExclude` as `name@version`, with the
+reason, and comes out once it is 7 days old.
+
 ## Docs
 
 The docs site lives in `docs/`: a VitePress site, the workspace package
