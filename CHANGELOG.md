@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [4.0.0](https://github.com/Miragon/mcp-toolkit/compare/v3.1.1...v4.0.0) (2026-11-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* the CLI needs Node.js 22.18 or newer, and the React package needs react ^19.0.0 and @tanstack/react-query ^5.100.2. Update Node.js, move the app to React 19 and TanStack Query 5.100.2 or newer, install the 4.x packages, then run generate --check: the generator's dependencies are ranges now, so a newer locked Prettier can change the generated files. The page Migrating from 3.x on the docs site has the steps.
+
+### Features
+
+* require Node.js 22 and React 19, update all dependencies ([d774fcf](https://github.com/Miragon/mcp-toolkit/commit/d774fcf4500470702b362f88ef0eb09fa087eb29))
+
 ## [3.1.1](https://github.com/Miragon/mcp-toolkit/compare/v3.1.0...v3.1.1) (2026-11-06)
 
 
