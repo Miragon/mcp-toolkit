@@ -1,17 +1,16 @@
 dist/
 node_modules/
-pnpm-lock.yaml
+coverage/
+reports/
+.stryker-tmp/
+.mcp-use/
 *.tsbuildinfo
+.env*
+pnpm-lock.yaml
+
+# The generator's Handlebars templates: Prettier's Glimmer formatter would rewrite the code
+# they emit
 *.hbs
-docs/.vitepress/dist/
-docs/.vitepress/cache/
 
 # release-please manages CHANGELOG.md formatting
 CHANGELOG.md
-
-# Conductor workspace-local scratch space (gitignored, not ours to format)
-.context/
-
-# Vendored from Miragon/corporate-identity (miragon-brand); held byte-identical
-# by packages/ui/src/theme/cd-tokens.test.ts — never reformat.
-*.generated.css

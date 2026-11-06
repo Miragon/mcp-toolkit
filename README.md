@@ -1,120 +1,195 @@
-# @miragon/mcp-toolkit
+# mcp-toolkit
 
-Shared framework runtime and UI primitives for MCP servers built on top of [mcp-use](https://github.com/mcp-use/mcp-use).
+Typed calls to MCP tools, generated from the server's own `tools/list`. At build time the
+`mcp-tool-codegen` CLI reads an MCP server's tool list and writes TypeScript: an input and an
+output type per tool, a tool map keyed by the server's tool names, a typed client and, opt-in,
+React hooks. An unknown tool name or wrong arguments fail to compile. The generated client runs on a
+framework-free core package (Node, browsers, MCP Apps widgets); the hooks run on a React package
+over TanStack Query v5. Everything from the server is treated as untrusted input to the generator.
 
-This monorepo ships three packages that MCP server projects build on (currently Miragon AI):
+| Package                                                                    | Role                                                                                                                              | Runtime dependencies / peers                                                                                          |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen)             | Build-time CLI and generator (Node): `tools/list` → `tools.ts` and, with `react: true`, `hooks.tsx`. A dev dependency.            | `@modelcontextprotocol/client`, `handlebars`, `json-schema-to-typescript`                                             |
+| [`@miragon/mcp-toolkit-tool-codegen-core`](./packages/tool-codegen-core)   | Runtime of `tools.ts`: the `ToolCaller` contract, `createTypedCallTool`, result parsing, `ToolCallError`, `toolCallerFromClient`. | none                                                                                                                  |
+| [`@miragon/mcp-toolkit-tool-codegen-react`](./packages/tool-codegen-react) | Runtime of `hooks.tsx`: `ToolCallerProvider`, `useToolQuery`, `useToolMutation` on TanStack Query.                                | peers: `react` `^18 \|\| ^19`, `@tanstack/react-query` `^5.48`, `@miragon/mcp-toolkit-tool-codegen-core` (same minor) |
 
-| Package                                                        | Description                                                                                                                                                                                                                                                                                                                                                                |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@miragon/mcp-toolkit-core`](./packages/core)                 | Framework runtime: `AppPlugin` contract, `StepRegistry` / `WidgetRegistry`, pipeline executor, tool registrars, `renderView` + `getFrameworkManifest` helpers. No React, no DOM.                                                                                                                                                                                           |
-| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen) | Build-time codegen + runtime glue for type-safe MCP tool calls: `TypedCallTool` and a CLI (`mcp-tool-codegen`) that generates TypeScript types and React Query hooks from an MCP server's `tools/list`.                                                                                                                                                                    |
-| [`@miragon/mcp-toolkit-ui`](./packages/ui)                     | React UI in the Miragon design system (the default theme; white-label it through role tokens): primitives, composite components, TanStack Query hooks, MCP App shell (`McpToolkitApp` / `McpAppView` + `WidgetRenderer`, with built-in host auto-sizing) for bundling widgets into the app bundle served through mcp-use's native `ui://views/<name>.html` view resources. |
+[`examples/tasks`](./examples/tasks) runs the whole chain on one small MCP server: codegen, the
+typed client in Node, the hooks in a Vite React app, and tests as the drift gate.
 
-Every toolkit server is self-contained — its own tools, steps, widgets, and UI bundle; aggregating several MCP servers into one surface is an external MCP gateway's job (e.g. [agentgateway](https://agentgateway.dev)) — see the [architecture concept](./docs/concepts/architecture.md).
+## Quick start
 
-## Quickstart (in this repo)
-
-Zero install: the **[hosted playground](https://mcp-toolkit-playground.fly.dev/mcp)**
-serves the example modules live — open it in a browser for connect
-instructions and an auto-connected inspector, and follow the
-[guided tour](./docs/playground/tour.md) through tools → widgets → composed
-views → pipelines → builder.
-
-Locally, no npm auth needed — `pnpm install` links the workspace packages. The
-standard dev loop is the one mcp-use itself propagates — a plain mcp-use
-project with the toolkit installed on top, run through the mcp-use CLI:
+**1. Generate.** Install the generator and the core, point a config at your server and run the CLI:
 
 ```sh
-corepack enable                          # the repo pins pnpm via `packageManager`
-pnpm install                             # `prepare` scripts build the package dists
-pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone
-```
-
-That boots [`examples/standalone-host`](./examples/standalone-host) via
-`mcp-use dev`: views are built by the CLI with HMR, and the **built-in
-inspector** (the URL is printed on start, `…/mcp/inspector`) renders the
-widgets live — call `show_tasks_board` there and you have the full loop: an
-MCP tool returning a rendered widget. Edit a widget source and the view
-hot-reloads.
-
-The full three-module host (articles, tasks, orders — the `createFrameworkApp`
-**Node adapter** path with the visual builder) is:
-
-```sh
-cp examples/env.example examples/.env    # first time only
-pnpm --filter @miragon/mcp-toolkit-examples start
-```
-
-`start` builds the widget bundle and serves on `:3010` — connect a client to
-`http://localhost:3010/mcp` (the endpoint's landing page shows per-client
-install commands), or smoke-test from the shell:
-
-```sh
-curl -sX POST http://localhost:3010/mcp -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
-```
-
-For fixture-driven widget iteration without any server (edge states, theme
-matrix), the optional widget playground remains:
-
-```sh
-pnpm --filter @miragon/mcp-toolkit-examples dev:widget-playground
-```
-
-Where to next:
-
-- [`docs/playground/`](./docs/playground/index.md) — the guided tour through the
-  hosted playground; deploy config in [`deploy/playground/`](./deploy/playground/).
-- [`docs/getting-started.md`](./docs/getting-started.md) — the canonical
-  getting-started: run the examples, then build your own host + module.
-- [`examples/README.md`](./examples/README.md) — what each example proves,
-  every script, ports, and smoke tests.
-- [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) —
-  "Use this template" for your own project; auto-synced mirror of
-  [`templates/minimal-server`](./templates/minimal-server).
-- [`docs/`](./docs/README.md) — concepts, guides, API reference, recipes.
-
-## Using the packages in your own project
-
-The packages are published to the public [npm registry](https://www.npmjs.com/org/miragon) under the `@miragon` scope — no authentication or `.npmrc` needed to install them. Inside this monorepo none of this section applies.
-
-Install only what you need:
-
-```sh
-# Server-only consumer
-pnpm add @miragon/mcp-toolkit-core
-
-# Server + frontend shell
-pnpm add @miragon/mcp-toolkit-core @miragon/mcp-toolkit-ui
-
-# Plus type-safe tool-call codegen (CLI)
 pnpm add -D @miragon/mcp-toolkit-tool-codegen
+pnpm add @miragon/mcp-toolkit-tool-codegen-core
 ```
 
-Install the peers alongside: `mcp-use@2.9.0` (pinned exactly: a second copy breaks the widgets' host context) and `zod@^4.4.0`, plus `react@^19.2.0`, `react-dom@^19.2.0` and `tailwindcss@^4.3.0` for the UI package. Each package's `peerDependencies` is the authoritative list.
+```ts
+// codegen.config.ts
+import type { CodegenConfig } from "@miragon/mcp-toolkit-tool-codegen"
 
-The quickest start is the template repo [`Miragon/mcp-toolkit-starter`](https://github.com/Miragon/mcp-toolkit-starter) ("Use this template", or `gh repo create my-mcp-server --template Miragon/mcp-toolkit-starter`) — a self-contained mcp-use project with the toolkit on top: one module with its own tools, one widget, `views/` built and served by the mcp-use CLI, plus pinned versions and CI. It is an auto-synced mirror of [`templates/minimal-server`](./templates/minimal-server) in this repo.
+const config: CodegenConfig = {
+  name: "tasks", // names TasksToolMap, createTasksClient, useTasks<Tool>Query/Mutation
+  url: "http://localhost:4000/mcp", // the server's streamable HTTP endpoint
+  out: "./src/generated", // resolved against this file's directory
+}
 
-## Building UIs fast
+export default config
+```
 
-UIs are hand-built from the `@miragon/mcp-toolkit-ui` primitives — design quality is the point, so there is no auto-generated UI. They are prompted _on top of_ this base, so the base is the ground truth. A coding agent should reach for the repo's skills first, then the building blocks below:
+```sh
+pnpm exec mcp-tool-codegen generate          # write src/generated/tools.ts
+pnpm exec mcp-tool-codegen generate --check  # exit 1 when the committed files drift
+```
 
-- **Agent skills** — `.claude/skills/` encodes the house patterns with runnable snippets: [`build-mcp-server`](./.claude/skills/build-mcp-server/SKILL.md) (host + a module with its own tools + a widget, worked through the [`tasks` example](./examples/modules/tasks)), [`add-mcp-tool`](./.claude/skills/add-mcp-tool/SKILL.md) (one `createToolRegistrar` entry), [`build-mcp-widget`](./.claude/skills/build-mcp-widget/SKILL.md) (a widget against the UI base), [`compose-a-view`](./.claude/skills/compose-a-view/SKILL.md) (a multi-widget dashboard with `buildComposedView`, or a multi-step pipeline with `render-view`, worked through the [`orders` example](./examples/modules/orders)), and [`white-label-client`](./.claude/skills/white-label-client/SKILL.md) (theming tokens). Invoke the matching one before hand-rolling. Building on the toolkit from a consumer repo? Copy the skill directories into that repo's `.claude/skills/` so your coding agent gets the same ground truth.
-- **Component reference** — [`docs/reference/components.md`](./docs/reference/components.md) (and its machine-readable twin [`packages/ui/ui-catalog.json`](./packages/ui/ui-catalog.json)) is the LLM-readable catalog of every prompt-relevant component and hook: import path, props, and "when to use". The repo-specific [`build-mcp-widget` skill](./.claude/skills/build-mcp-widget/SKILL.md) walks the full authoring loop against it.
-- **Widget isolation** — `WidgetFixtureHost` (a "Storybook for MCP widgets") renders a widget with fixture data and a mocked host, no backend required. See the [`widget-playground`](./examples/widget-playground) example and the [developing-widgets-in-isolation guide](./docs/guides/developing-widgets-in-isolation.md).
-- **Host portability** — write a widget against `useHostBridge()` and it runs unchanged in the mcp-use host, ChatGPT (Apps SDK), or a standalone web app against an existing server. See the [`host-portability`](./examples/host-portability) example and the [host-portability concept](./docs/concepts/host-portability.md).
-- **White-label theming** — the default is the Miragon theme, and every primitive reads CSS-variable role tokens, so one `createTheme(...)` + `<ThemeProvider>` (or a few role overrides in CSS) re-skins a whole client UI (brand colour, radius, light/dark). Widgets prompted on top use the roles (`bg-card`, `text-link`, `ring-focus`, `rounded-md`, the `TONE_*` maps for status), never hard-coded colours or Tailwind palette classes, so they inherit the brand for free. See the [white-labeling guide](./docs/guides/white-labeling.md) and the playground's brand switcher.
-- **Layered adoption** — use only the parts you need: primitives + a standalone UI, data-widgets in a host, or the full pipeline/dashboard runtime. See the [layered-adoption concept](./docs/concepts/layered-adoption.md).
+Node.js loads a `.ts` config itself from 22.18 on (in a CommonJS package, name it
+`codegen.config.mts`). Commit the generated files. Auth, overrides and the CLI are described in the
+[tool-codegen README](./packages/tool-codegen/README.md).
 
-## Build
+**2. Call from anywhere with the core.** The generated client takes a `ToolCaller`: the MCP SDK v2
+client (`@modelcontextprotocol/client`, for the v1 SDK see the
+[core README](./packages/tool-codegen-core/README.md#with-the-mcp-sdk-client)), a widget host
+bridge or a test fake.
 
-```bash
+```sh
+pnpm add @modelcontextprotocol/client
+```
+
+```ts
+import { toolCallerFromClient } from "@miragon/mcp-toolkit-tool-codegen-core"
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client"
+import { createTasksClient } from "./generated/tools.js"
+
+const client = new Client({ name: "tasks-script", version: "1.0.0" })
+await client.connect(new StreamableHTTPClientTransport(new URL("http://localhost:4000/mcp")))
+
+const tasks = createTasksClient(toolCallerFromClient(client))
+const added = await tasks.addTask({ title: "Write the release notes" }) // typed input and output
+const { tasks: open } = await tasks.listTasks({ done: false })
+```
+
+A tool that answers `isError: true` makes the call reject with a `ToolCallError` carrying the
+tool's text. See the [core README](./packages/tool-codegen-core/README.md).
+
+**3. Use the React hooks.** Add the React package and TanStack Query, set `react: true` in the
+config and generate again: `hooks.tsx` joins `tools.ts`. The app brings its own
+`QueryClientProvider`; `ToolCallerProvider` supplies the caller (`null` until the connection
+stands, and the queries wait for it):
+
+```sh
+pnpm add @miragon/mcp-toolkit-tool-codegen-react @tanstack/react-query
+```
+
+```tsx
+import type { ToolCaller } from "@miragon/mcp-toolkit-tool-codegen-core"
+import { ToolCallerProvider } from "@miragon/mcp-toolkit-tool-codegen-react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { useTasksAddTaskMutation, useTasksListTasksQuery } from "./generated/hooks.js"
+
+const queryClient = new QueryClient()
+
+export function Tasks({ callTool }: { callTool: ToolCaller | null }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ToolCallerProvider callTool={callTool}>
+        <OpenTasks />
+      </ToolCallerProvider>
+    </QueryClientProvider>
+  )
+}
+
+function OpenTasks() {
+  const list = useTasksListTasksQuery({ done: false })
+  const addTask = useTasksAddTaskMutation() // on success, every "tasks" query is invalidated
+  if (list.isPending) return <p>Loading tasks</p>
+  if (list.isError) return <p>{list.error.message}</p>
+  return (
+    <>
+      <ul>
+        {list.data.tasks.map((task) => (
+          <li key={task.id}>{task.title}</li>
+        ))}
+      </ul>
+      <button onClick={() => addTask.mutate({ title: "Tag the release" })}>Add a task</button>
+    </>
+  )
+}
+```
+
+A tool annotated `readOnlyHint: true` gets a query hook; every other tool gets a mutation hook,
+since a query re-runs its tool on every refetch. See the
+[react README](./packages/tool-codegen-react/README.md).
+
+## Coming from 2.x
+
+- `@miragon/mcp-toolkit-core` and `@miragon/mcp-toolkit-ui` are no longer developed here. Their
+  published 2.x versions stay on npm. The docs site, the hosted playground and the starter
+  template are no longer built from this repository either.
+- `@miragon/mcp-toolkit-tool-codegen` 3.0 breaks:
+  - Config: `proxyName` is now `name` and `upstreamUrl` is now `url`; the old keys fail with a hint.
+    `out` resolves against the config file's directory, not the working directory.
+  - Tool names are no longer prefixed: the map is keyed by the server's own names (`"list_tasks"`,
+    not `"tasks_list_tasks"`), and so are `overrides`.
+  - `@miragon/mcp-toolkit-tool-codegen/runtime` is gone: `ToolShape`, `TypedCallTool` and the rest
+    of the runtime live in `@miragon/mcp-toolkit-tool-codegen-core`, which `tools.ts` now imports.
+  - Hooks are opt-in (`react: true`), import `@miragon/mcp-toolkit-tool-codegen-react` instead of
+    `@miragon/mcp-toolkit-ui`, and need a `ToolCallerProvider` under your `QueryClientProvider`.
+    Read-only tools get `use<Name><Tool>Query`, all others `use<Name><Tool>Mutation`.
+
+The full list, including the CLI flags, the renamed exports and the `QueryClient` defaults 2.x set,
+is in the tool-codegen README under
+[Migrating from 2.x](./packages/tool-codegen/README.md#migrating-from-2x).
+
+## Development
+
+Node.js 22.22.2 or newer (mcp-use's minimum, used by the example and the codegen tests) and pnpm
+10.32.1 (pinned in `packageManager`, `corepack enable` picks it up).
+
+```sh
 pnpm install
-pnpm -r run build
-pnpm -r run typecheck
-pnpm test
+pnpm build           # first: the packages resolve each other through their built dist
+pnpm typecheck
+pnpm test            # every package and the example (with its drift gate), and scripts/*.test.mjs
+pnpm lint
+pnpm format:check    # pnpm format writes
+pnpm check:exports   # publint and attw against the built packages
+pnpm test:mutation   # Stryker for tool-codegen and tool-codegen-core
 ```
 
-Docs site: `pnpm docs:dev` (local preview) / `pnpm docs:build`. Contributor
-workflow, module boundaries, and release process live in
-[`CONTRIBUTING.md`](./CONTRIBUTING.md).
+`pnpm test:coverage` runs the package tests against the coverage floors in each
+`vitest.config.ts`. [`CONTRIBUTING.md`](./CONTRIBUTING.md) lists the bar for a pull request.
+
+## Releases
+
+[release-please](https://github.com/googleapis/release-please) reads the Conventional Commits on
+`main` and keeps a Release PR open that bumps the three packages in lockstep and writes
+`CHANGELOG.md`. A breaking change needs `!` or a `BREAKING CHANGE:` footer on the commit that lands
+on `main`; the PR-title check also validates the subject of a single-commit PR, which GitHub uses as
+the squash title. Merging the Release PR tags `v<version>` and creates the GitHub release; then one
+publish job per package publishes it to npm with trusted publishing (OIDC, with provenance, no
+`NPM_TOKEN`), skipping a version that is already on npm. The jobs run in dependency order (core,
+then react, then the generator), so generated code never reaches npm ahead of its runtime.
+`.github/workflows/publish-npm-package.yml` packs a package in one job and publishes the tarball
+from another, the only one with the id-token, which runs no install, no build and no lifecycle
+script.
+
+Trusted publishing is configured per package on npmjs.com (Settings → Trusted publishing → GitHub
+Actions): this repository, the workflow `release-please.yml` (npm checks the calling workflow, not
+the reusable one) and the environment `npm`. `npm trust list @miragon/mcp-toolkit-tool-codegen`
+shows the configuration that works; copy it. The `npm` environment should allow `main` only and ask
+for a reviewer, which is what binds publishing to `main`. Dispatching `release-please.yml` with
+`dry_run` packs the three packages without publishing; `force_publish` (on `main` only) publishes
+the versions in `package.json` again after a failed run.
+
+A package that is not on npm yet has no trusted-publishing settings, and npm expires a new
+configuration that sees no publish within two days. For the first release of
+`@miragon/mcp-toolkit-tool-codegen-core` and `-react` (3.0.0), before merging its Release PR:
+
+1. Publish a placeholder of each by hand with pnpm (which rewrites the `workspace:` ranges), for
+   example with the version set to `0.0.0-bootstrap.0` locally and
+   `pnpm publish --access public --tag bootstrap`. npm may point `latest` at it until 3.0.0
+   replaces it.
+2. Configure each package's trusted publisher as above.
+3. Merge the Release PR within two days: its OIDC publish of 3.0.0 validates the configuration.
+   Do not publish 3.0.0 by hand.

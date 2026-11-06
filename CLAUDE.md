@@ -1,292 +1,139 @@
-# CLAUDE.md — `mcp-toolkit`
+# CLAUDE.md
 
-Project-specific guidance for AI agents and humans working in this repo.
+Guidance for agents working in this repo. It ships typed MCP tool calls: a build-time code
+generator and the two runtime packages its output imports, plus one example. User-facing docs are
+the READMEs: [`README.md`](README.md) and one per package.
 
-## Design-System (verbindlich)
+## Layout
 
-Alle UI- und Gestaltungsarbeit folgt dem Miragon-Design-System für Produkte. Quelle der
-Wahrheit ist die Skill `miragon-brand:modeler-tool-design` im Repo Miragon/corporate-identity.
-Sie lädt automatisch bei UI-Arbeit, wenn das Plugin installiert ist. Ohne Plugin den Guide direkt lesen:
-https://raw.githubusercontent.com/Miragon/corporate-identity/main/plugins/miragon-brand/skills/modeler-tool-design/assets/modeler-design-system.md
-Die Marken-Tokens kommen aus der Skill (`cd-tokens.generated.css`). Keine HEX-Werte forken.
-UI-Texte sind Deutsch, mit du-Ansprache.
+| Path                           | What it is                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/tool-codegen/`       | `@miragon/mcp-toolkit-tool-codegen`: the `mcp-tool-codegen` CLI and generator (Node, build time). `src/codegen.ts` renders, `src/declarations.ts` turns a tool's schema into types; `src/identifiers.ts`, `src/safe-text.ts`, `src/sanitize-schema.ts` and `src/schema-refs.ts` hold the security rules; `src/layout.ts` prints width-dependent lines as Prettier would; `templates/` holds the file skeletons |
+| `packages/tool-codegen-core/`  | `@miragon/mcp-toolkit-tool-codegen-core`: the runtime of the generated `tools.ts` (`ToolCaller`, `createTypedCallTool`, `parseToolResult`, `ToolCallError`, `toolCallerFromClient`)                                                                                                                                                                                                                            |
+| `packages/tool-codegen-react/` | `@miragon/mcp-toolkit-tool-codegen-react`: the runtime of the generated `hooks.tsx` (`ToolCallerProvider`, `useToolQuery`, `useToolMutation`, `toolQueryKey`, `toolQueryOptions`)                                                                                                                                                                                                                              |
+| `examples/tasks/`              | `@miragon/mcp-toolkit-example-tasks` (private): an mcp-use server, its committed generated client in `src/generated/`, a Node client, a Vite React app and the drift test                                                                                                                                                                                                                                      |
 
-How this repo applies it (the deviations for embedded chat widgets are decided and
-recorded in Miragon/miragon-ai's CLAUDE.md; don't undo them here):
+## Commands
 
-- **Miragon is the toolkit's default theme.** `packages/ui/src/theme/cd-tokens.generated.css`
-  is the skill's file, vendored unchanged below a marker line (re-copy it, never edit it;
-  `cd-tokens.test.ts` pins it byte for byte and against the TS mirror `CD_TOKENS`).
-  `packages/ui/src/theme.css` maps the role tokens onto `--cd-*`, light AND dark.
-- **Widgets follow the host theme** (`.dark` or `data-theme="dark"`), so there IS a dark
-  layer, built strictly from the CI dark-ground rules: `--cd-schwarz` ground with small
-  white lifts, white text, links `--cd-gruen`, buttons `--cd-blau` with white, focus
-  `--cd-blau-hell`, status in the `-hell` values without tinted fills, quiet text
-  `--cd-kontur`. No in-app theme switch. Diagram paper and its zoom chrome stay light
-  (`data-theme-mode="light"` marks such an island).
-- **The docs site and the starter wear it too.** The docs (`docs/.vitepress/theme/`) are
-  "Miragon MCP Toolkit" (the npm names stay `@miragon/mcp-toolkit-*`): the same vendored
-  token file, `custom.css` mapping VitePress' variables onto `--cd-*` (light on white with
-  tokens only, never a mixed grey; dark and the always-dark landing by the dark-ground
-  rules; focus ring `--cd-blau-link` / `--cd-blau-hell`), Geist via @fontsource, the CI's
-  wordmarks and the Komet favicon unchanged; `examples/test/docs-theme.test.ts` holds the
-  copies, every pair at AA in cascade order and the focus-ring rule against VitePress'.
-  The starter (`templates/minimal-server`) loads Geist by default and keeps its words in
-  an en/de catalog; its README shows the role override.
-- **UI texts follow the host locale (en/de).** German follows `brand-tone` fully; English
-  takes the transferable rules (sentence case, active voice, no em-dash connectors).
-- **Fonts:** the tokens name Geist / Geist Mono first; loading them is opt-in
-  (`@miragon/mcp-toolkit-ui/fonts.css` or `fontFaces({ baseUrl })`).
-- **Icons:** Lucide in `currentColor` (a status icon takes `TONE_ICON`). The stroke is
-  set ONCE, by `LucideProvider` with the constants of `lib/icon-stroke.ts`: 2.5 in
-  `McpAppView` (the toast stack included), 2 in dense bars (view toolbar, builder
-  toolbar, pipeline strip). No CSS `stroke-width` rule and no per-icon `strokeWidth`
-  in kit code (`lib/icon-stroke.test.ts`).
-- **Feedback and states** (`Toast`, `ErrorState`, `EmptyState`, the view's error and
-  step-error alerts) use the same tone model as everything else: status as edge, rim,
-  tint and icon, every word in the foreground; texts come from the en/de catalog
-  (`locale/messages-{en,de}.ts`), never from a component.
-- **Type scale** (CI §4, `lib/typography.ts`): `text-title` 28/700 (page title, the CI
-  h2), `text-section` 21/600 (CI h3), `text-body` 16/400/1.6 (running text: state and
-  toast descriptions), `text-dense` 14 (dense tables and controls: inputs, chips,
-  count pills, the inline alert box; the documented product exception, never running
-  text), `text-small` 13, the FLOOR (captions, one-line hints, meta rows).
-  Nothing renders below 13 px: no `text-xs`, no `text-[10px]`; a caption is
-  `MICRO_LABEL` (13 px semibold, normal case, never uppercase micro-labels). Merge
-  classes with the kit's `cn` (it knows the scale; plain tailwind-merge drops
-  `text-small` next to a text colour).
-- **ONE tone vocabulary:** `success | warning | danger | info | neutral`
-  (`TONE_VARIANTS`). Retired names (`critical`, `error`, `destructive`, …) map through
-  `resolveTone` (`TONE_ALIASES`). The props typed `ToneName` resolve it: `KpiCell`
-  `tone`/`trendTone`, `LivePill`, `StatusBadge`, `CountPill`, `WidgetHeader`
-  `iconTone`. `Toast`, `ErrorState` and `EmptyState` keep their own subset in the
-  types and, for a name that arrives untyped, resolve it at runtime with their default
-  as the fallback (never a crash); `Badge`/`Alert` variants are cva keys and take a
-  resolved tone. One red, one amber: no severity above `danger`. `Badge`/`Alert`
-  `destructive` are deprecated names of `danger`; `Button`'s `destructive` is an
-  action, not a tone, and stays. `TONE_TEXT` is the deprecated name of `TONE_INK`.
+```sh
+pnpm install
+pnpm build                    # first: the packages resolve each other through their built dist
+pnpm typecheck
+pnpm test                     # all packages, the example and scripts/*.test.mjs
+pnpm test:scripts             # node --test over scripts/: workflow and gate-script shape
+pnpm lint                     # pnpm lint:fix to autofix
+pnpm format:check             # pnpm format to write
+pnpm check:exports            # publint + attw on the built packages
+pnpm test:coverage            # package tests against their coverage floors
+pnpm test:mutation            # Stryker: tool-codegen and tool-codegen-core
+pnpm --filter @miragon/mcp-toolkit-tool-codegen test   # one package
+```
 
-**The role-token contract.** Every component, in this repo and in apps built on it,
-styles through these CSS variables (Tailwind utilities of the same name), never through
-raw colours or Tailwind palette classes:
+After a change to core's or react's public types, run `pnpm build` before typechecking the
+dependants: they read the built `.d.ts`.
 
-`--background --card --popover --muted --secondary --foreground --muted-foreground
---border --input --primary --primary-foreground --primary-hover --link --ring --focus
---success --warning --danger --info --success-soft --warning-soft --danger-soft
---info-soft --success-ink --warning-ink --danger-ink --info-ink --destructive
---radius-sm --radius-md --radius-lg --radius-pill --shadow-1 --shadow-2 --shadow-3
---scrim --motion-fast --motion-base --motion-slow --ease --font-sans --font-mono
---text-title --text-section --text-body --text-dense --text-small`
+## Dependency boundaries
 
-(`ROLE_TOKENS` in `packages/ui/src/theme/create-theme.ts`.) The tone model has three
-roles per tone: the colour (`--<tone>`: fill, dot, border, icon), the tint
-(`--<tone>-soft`) and the TEXT colour (`--<tone>-ink`). Status is never text in its own
-colour: success and warning reach only 1.67:1 / 1.83:1 on white; use the `TONE_*` maps
-in `lib/tone-utils.ts`, `text-link` for links (never `text-primary`) and `FOCUS_RING`
-for focus (`outline-hidden`, never `outline-none`: forced-colors mode keeps it).
-Text on a tint is the foreground (`TONE_SOFT` + `TONE_BORDER`; the ink is for a
-tone's words on a plain surface), and figures never take a tone colour: a count,
-KPI value or trend stays in the foreground next to a dot. Quiet text on the dark
-hover/secondary lifts drops below 4.5:1, so a surface switch to `bg-accent` or
-`bg-secondary` switches the text to that surface's foreground.
+ESLint enforces them (`eslint.config.mjs`, `no-restricted-imports` per file scope; a later
+flat-config block replaces an earlier block's value for the same rule, so each scope lists all
+its patterns).
 
-**How a consumer brands it.** Override ONLY role variables (in CSS after the toolkit
-import, or with `createTheme` + `ThemeProvider`), never `--cd-*` and never a component
-class. A brand needs no toolkit release. In CSS, use the selectors of `theme.css`: the
-light block on `:root, [data-theme-mode="light"]` (a light island inside a dark scope
-re-declares the toolkit's light roles, so a bare `:root` brand stops at it; a light scope
-in a light document re-declares nothing) and the dark block on
-`.dark, [data-theme="dark"], [data-theme-mode="dark"]`; set `--radius-sm/md/lg`
-themselves (a bare `--radius` reshapes them only through a theme). A host may set only
-the neutral roles (background, card, foreground, muted, border); primary, link, focus,
-the status tones and the input border stay brand decisions. A host's SEP-1865
-`--font-sans`/`--font-mono` collide with the font roles: `McpToolkitApp` moves them to
-`--host-font-*` (`adoptHostFontVariables`), the fallback slot behind Geist. Every new
-pair a component renders goes into the contrast test (`theme-css.test.ts`, text ≥ 4.5:1,
-non-text ≥ 3:1, both modes, default theme and every preset).
+- **core** is framework-free and has zero dependencies: no React, no `@tanstack/*`, no
+  `@modelcontextprotocol/*` (the SDK client is adapted structurally, `McpClientLike`), no Node
+  built-ins, no import of the other two packages. It compiles against the ES2022 lib alone
+  (`types: []`), so a DOM or Node global fails the build; `src/abort-signal.d.ts` names
+  `AbortSignal` without emitting it.
+- **react** builds on core with `react` and `@tanstack/react-query` (from 5.48, the first with a
+  function `enabled`) as peers. No Node built-ins, never the codegen package. The app owns the
+  `QueryClientProvider`; `ToolCallerProvider` only supplies the caller, per namespace (the hooks
+  look up their own; a provider without `namespace` serves the rest).
+- **codegen** is build-time only: runtime code never imports it (the example only as a type, plus
+  `codegen.config.ts` and the tests). The generated `tools.ts` imports only core, `hooks.tsx` only
+  react and `./tools.js`; `src/codegen.test.ts` pins a full rendered sample verbatim. Both runtime
+  packages are optional peers of codegen (`workspace:~`) and its devDependencies.
+- Generated code is type-checked in codegen's tests (`typeErrors` in
+  `packages/tool-codegen/src/test-support/typescript.ts`) against core's and react's built `.d.ts`,
+  resolved through codegen's node_modules, with `declaration: true` as a library would compile it.
+  So `pnpm build` comes before codegen's tests; the example's typecheck is the end-to-end gate.
 
-**Gates:** `examples/test/design-system.test.ts` (no palette or black/white utilities,
-no raw or named colours outside the theme files, no status/primary/destructive as text,
-no ink on a tint, no translucent text, no `outline-none`, a lifted surface switches its
-text, no text below 13 px (`text-xs`, an arbitrary `text-[…]`, a CSS `font-size` or a
-React `fontSize` under 13 px), no typed icon glyph (arrows, chevrons, ✓ ×, ⚠ ⚙, shapes,
-emoji) in `.tsx`/`.css`/`.html` or the toolkit catalogs; its exemptions, like those of
-`examples/test/example-ui-copy.test.ts`, live in `ratchets/design-exemptions.json`
-(empty: the builder holds the 13 px floor too), shrink-only by `scripts/check-ratchets.mjs`,
-and a stale entry fails the gate),
-`packages/ui/src/theme/{cd-tokens,theme-css}.test.ts` (drift, contract, contrast, the
-type scale),
-`components/tone-figures.test.tsx` (no coloured digits), `components/feedback-states.test.tsx`
-(the tone model of Toast, ErrorState, EmptyState; one live region), `lib/toast-model.test.ts`
-(a held toast resumes its remaining time, fake timers), `lib/tone-utils.test.ts` (the
-vocabulary and its aliases), `components/{KpiGrid,FilterBar,ListFooter,PagedListFooter,
-Pills,WidgetHeader}.test.tsx` (the lifted kit's a11y on SSR markup), `lib/icon-stroke.test.ts`
-(one stroke mechanism), `no-hardcoded-copy.test.ts` + `i18n-coverage.test.tsx` (no copy outside the catalog;
-no raw error in a toast, an ErrorState/EmptyState title or description, or an inline alert: the
-raw reason goes under the ErrorState's Details), `examples/test/docs-theme.test.ts` (the docs
-site's vendored tokens and logos, its mapping's colour discipline and contrast in every page state).
-`.miragon/brand.json` switches the brand-lint hook on for this repo.
+## Generator security (Miragon/mcp-toolkit#177)
 
-**One kit (miragon-ai forks).** The kit now carries what miragon-ai's
-`packages/core/widget-shell/src/ui` forked, so these forks can be deleted there (a
-consumer change in miragon-ai after the pin bump, M6; the mapping and the behaviour
-differences are in [`docs/reference/components.md`](docs/reference/components.md#replacing-a-forked-kit)):
-`kpi-grid.tsx` (→ `KpiGrid`, `KpiGridSkeleton`), `pills.tsx` (→ `LivePill`,
-`StatusBadge`, `CountPill`), `filter-bar.tsx` (→ `FilterBar`), `widget-header.tsx`
-(→ `WidgetHeader`), `paged-list-footer.tsx` (→ `PagedListFooter`), `tone-utils.ts`
-(→ the `TONE_*` maps, `TONE_VARIANTS`, `MICRO_LABEL`) and `cn.ts` (→ the kit's `cn`).
-Replace `cn.ts` FIRST: it is plain tailwind-merge, which reads a type-scale step
-(`text-title` … `text-small`) as a text colour, so merging `MICRO_LABEL` or a `text-*`
-step through it silently drops the colour or the size. Swap it for the kit's `cn`, or
-extend it with `extendTailwindMerge({ extend: { theme: { text: [...TYPE_STEPS] } } })`.
-New kit pieces land HERE, not in a consumer's fork.
+Everything in `tools/list` is untrusted: 2.x copied tool names into generated code unescaped, so
+a malicious server could inject code. Keep these rules and the tests that pin them:
 
-## Module boundaries
+- Identifiers come only from the `[A-Za-z0-9]` runs of a tool name or its
+  `overrides.<tool>.identifier` (a leading digit gets a `_`). An identifier collision (two tools, a
+  tool and an import or a TypeScript global the files use, a tool and the client's `call` or an
+  object member JavaScript looks up, such as `then` or `toJSON`) or a name without such characters
+  fails generation, naming the owners and the remedy (`NameRegistry`).
+- Server text reaches string positions only as JSON string literals (`jsString`; controls, format,
+  bidirectional, zero-width and every other default-ignorable character `\u`-escaped per UTF-16
+  unit, `escapeInvisible`); a property key stays quoted unless it is a plain ASCII identifier
+  (json2ts runs with Prettier's `quoteProps: "preserve"`).
+- Schemas are rebuilt from a keyword allowlist before json-schema-to-typescript sees them:
+  `tsType`, `tsEnumNames`, `title`, `$id`, `minItems`/`maxItems` are dropped at every depth.
+- Only local `$ref`s (`#`, `#/…`) survive, and `normalizeRefs` keeps one only when it walks
+  schema positions (own keys) to an object schema; everything else becomes `unknown`. Every target
+  but the root moves into the root `$defs` and a `$ref` with siblings becomes `allOf`, because
+  json2ts inlines any other target (and the copy it makes for a `$ref` with siblings) at every use:
+  exponential output, and unprefixed names for anonymous cycles. `compileSchema` fails on a
+  declared name without the tool's prefix. json2ts runs with
+  `$refOptions: { resolve: { external: false } }`, so no file is read and no URL called.
+- Descriptions cannot close a JSDoc or become a TypeScript directive (a line starting with `@`
+  never ends a comment's last line); the `Source:` header is the URL's origin only (a path may hold
+  an API key); the CLI replaces invisible characters in server text it prints (`terminalText`) and
+  marks every line of an error after the first with ` |`, so none can start a CI log line.
+- Config: no credentials in `url`, no line break, control or non-Latin-1 character in a header or
+  auth value (fetch would echo the secret); errors name the field, never the value.
+- Tests: `src/codegen.security.test.ts` (hostile names, schemas, text, header, `$ref` with a
+  control test that proves json2ts alone would read a file and call a server, the exponential
+  chains), `src/codegen.property.test.ts` (arbitrary input still parses and declares only its own
+  names), `src/identifiers.test.ts`, `src/safe-text.test.ts`, `src/sanitize-schema.test.ts`,
+  `src/schema-refs.test.ts`. A change that weakens a rule changes these tests in the same PR, with
+  the reason.
 
-Kept in sync with the same rule in `CONTRIBUTING.md`:
+## Query or mutation
 
-- `core/tools/*` may import the `mcp-use` server runtime (the root `mcp-use`
-  entry since 2.x). Anything in `core/src/*` outside `tools/` must stay
-  browser-bundle-safe (no `mcp-use` server runtime, no `node:*`).
-- `ui` may import browser-safe `core` runtime (anything in `core/src/*`
-  outside `tools/`) as well as `core` types — e.g. `normalizeLayout` from
-  `core/src/framework/layout-types.ts`. It must never import `core/tools`,
-  which pulls in the `mcp-use` server runtime.
-- The `ui` root barrel (`packages/ui/src/index.ts`) must stay free of
-  `mcp-use/react` value imports (they pull in the 2.x view runtime and its
-  ext-apps transitive). Symbols that import `mcp-use/react` as a value are
-  exported from the `./app` / `./hooks` subpaths, never the root.
-- `tool-codegen` is build-time. Don't import it from runtime code; widget
-  bundles import from `tool-codegen/runtime` (types only).
-- `core` is the bottom of the dependency graph — it must never import
-  `@miragon/mcp-toolkit-ui` (already enforced by the eslint boundary rules).
+A tool gets a query hook only when it is annotated `readOnlyHint: true`; every other tool gets a
+mutation hook. MCP's `readOnlyHint` defaults to `false`, and a query re-runs its tool on every
+mount, focus and invalidation, so an unannotated write must never become a query.
+`overrides.<tool>.hook` in the codegen config decides otherwise per tool.
 
-Baseline numbers and the gate roadmap for these rules live in
-[`FITNESS.md`](FITNESS.md).
+## Generated files
 
-## Building widgets / prompt-ready UI base
+`examples/tasks/src/generated/` is regenerated only with the CLI, never by hand: run `pnpm serve`
+and then `pnpm generate` in `examples/tasks` (without `TASKS_MCP_URL` set, so the `Source:` header
+keeps naming `http://localhost:4000`). `examples/tasks/test/codegen.test.ts` fails when the
+committed files differ from a fresh generation, compared as `generate --check` does: all but the
+`Source:` line. Output is deterministic: sorted by tool name, byte-identical on regeneration,
+Prettier-clean.
 
-UIs are **hand-built and prompted on top of** `@miragon/mcp-toolkit-ui` — they
-are not auto-generated. The base is the ground truth a coding agent prompts
-against, so reach for the existing building blocks instead of re-deriving them:
+## Quality gates
 
-- **Component catalog** — [`docs/reference/components.md`](docs/reference/components.md)
-  (human) and [`packages/ui/ui-catalog.json`](packages/ui/ui-catalog.json)
-  (machine, drift-guarded by `packages/ui/src/ui-catalog.test.ts`). Every
-  prompt-relevant component/hook: import path, props, when to use.
-- **Skill** — `.claude/skills/build-mcp-widget/SKILL.md` walks the full loop
-  (data contract → primitives → host-portable `useHostBridge` → iterate in the
-  playground → verify). Invoke it when building a widget or rendering a tool
-  result as UI.
-- **Iterate loop** — the standard loop is the mcp-use CLI: run
-  `pnpm --filter @miragon/mcp-toolkit-examples run dev:standalone` and exercise
-  the widget through the built-in inspector (`…/mcp/inspector`, HMR on the
-  widget sources; see [`examples/standalone-host`](examples/standalone-host/README.md)).
-  For fixture-driven isolation (edge states, theme matrix, no server), add a
-  `Story` to
-  [`examples/widget-playground/stories.ts`](examples/widget-playground/stories.ts)
-  and run `pnpm --filter @miragon/mcp-toolkit-examples run dev:widget-playground`
-  (`WidgetFixtureHost`).
-- **Reference widgets** —
-  [`OrderStatusCard`](examples/host-portability/OrderStatusCard.tsx) (host-portable)
-  and [`CustomerCard`](examples/widget-playground/CustomerCard.tsx).
+- Coverage floors sit inline in each package's `vitest.config.ts`. Raise them when coverage
+  rises; never lower them to get green.
+- Mutation testing (Stryker, `stryker.config.json`) covers tool-codegen and tool-codegen-core.
+  Each config's `thresholds.break` fails the run below it; core's is 100, so every new mutant
+  there must be killed.
+- The GitHub ruleset requires the checks `Typecheck + Build`, `Lint + Format`,
+  `Mutation diff gate` (`.github/workflows/ci.yml`) and `Validate PR title`
+  (`.github/workflows/pr-title.yml`). Keep those job names.
+- The root `test:coverage` and `test:mutation` name each package with its own `--filter`, never
+  `pnpm -r --if-present`, which goes green when a script is renamed away.
+  `scripts/release-config.test.mjs` (in `Lint + Format`) pins that, the publish order and the
+  id-token job's shape (no install, no build, no checkout, no cache), the read-only
+  `GITHUB_TOKEN`, the PR-title check of single commits and Dependabot's commit prefixes.
+- Tests pin behaviour, not lines. Type-level contracts (unknown tool names, wrong args) are
+  pinned with `expectTypeOf` and `@ts-expect-error`; `pnpm typecheck` checks them.
 
-## Skills
+## Conventions
 
-Repo-specific agent skills in `.claude/skills/` encode the house patterns with
-runnable snippets — invoke the matching one before hand-rolling:
-
-- **[`build-mcp-server`](.claude/skills/build-mcp-server/SKILL.md)** — stand up an
-  MCP server: a plain mcp-use project with `installToolkit` on top (standard),
-  or a host via `createFrameworkApp` (Node adapter), plus a module that
-  registers its **own** tools (`createToolRegistrar`) and a widget. The worked
-  example is the [`tasks` module](examples/modules/tasks/README.md).
-- **[`add-mcp-tool`](.claude/skills/add-mcp-tool/SKILL.md)** — add one tool to an
-  existing module: schema `.describe()`, annotations, `outputSchema`, pagination
-  envelope, app-only `*_data` feed (`visibility: "app"`).
-- **[`build-mcp-widget`](.claude/skills/build-mcp-widget/SKILL.md)** — build a
-  widget against `@miragon/mcp-toolkit-ui`: data contract → primitives →
-  host-portable `useHostBridge` → iterate in the playground → verify.
-- **[`compose-a-view`](.claude/skills/compose-a-view/SKILL.md)** — compose a
-  multi-widget dashboard (eager `buildComposedView`, the default) or chain tool
-  outputs through a multi-step pipeline (`render-view`, advanced). The worked
-  example is the [`orders` module](examples/modules/orders/README.md).
-- **[`white-label-client`](.claude/skills/white-label-client/SKILL.md)** — re-brand
-  a client UI with `createTheme` / `ThemeProvider` / `themePresets` and the
-  CSS-variable token contract (tokens, never hard-coded colours).
-
-## Testing policy
-
-We test what is supposed to be **stable** — the parts where silent drift hurts
-downstream consumers. Use Vitest. Colocate the test next to the source it
-covers (`foo.ts` → `foo.test.ts`). Machine-enforced gates for this policy live
-in [`FITNESS.md`](FITNESS.md).
-
-### MUST have tests
-
-- **Zod schemas** exported from any package (`*Schema`, `parse*Env`, `serialize*`).
-- **Pure utility functions** (no I/O, no side effects): parsers, normalizers,
-  path resolvers, naming helpers, layout transformers.
-- **Registry / contract semantics**: collision detection, lookup, filtering.
-- **Code generators' naming and output determinism** — the input → output
-  mapping is the build-time-↔-runtime contract.
-- **Fail-soft boundaries**: a function documented as "logs warning, doesn't
-  throw" needs a test proving it doesn't throw on the bad path.
-- **Every externally consumed surface is frozen by a golden**: the tools/list
-  wire shape (descriptions, annotations, schema texts, `_meta`), the
-  `get-framework-manifest` payload, each package's runtime export surface,
-  and the ui catalog (both directions). Goldens change ONLY via
-  `GOLDEN_UPDATE=1` locally + a committed, reviewed JSON diff — never by
-  hand-editing (`examples/test/golden/`, `examples/test/helpers/golden.ts`).
-- **Every example module ships a loopback smoke test** in `examples/test/`
-  (CONTRIBUTING.md: "the lightest-weight regression guard the toolkit has").
-- **Security / fail-soft middleware boundaries** get error-path tests
-  (org-gate is the reference case, phase 5b).
-
-### Deliberate non-goals (recorded renunciations, each with a revisit trigger)
-
-- **DOM/interaction tests (jsdom/@testing-library)** — SSR via
-  `renderToStaticMarkup` is the house path; the render-coverage ratchet
-  (phase 5c) is the compensating control, and the mutation score explicitly
-  does NOT measure this surface. Revisit when the builder API is declared
-  stable. Narrow exception (toolkit#176 review): WIRING that only runs in
-  effects — the view's tool-result observer, timers and re-runs, the data
-  hooks' real cache keys, a late transport, per-call mutation callbacks, the
-  bridge's model-context lines — is tested with its effects running, in
-  files that opt into `// @vitest-environment happy-dom` and render through
-  `src/render-effects.tsx` (`react-dom/client` + `act`). A `click()` only
-  where the wiring starts at a button (retry, refresh); no @testing-library,
-  no component interaction suites.
-- **Browser E2E against ChatGPT/mcp-use hosts** — host UIs are external; the
-  wire goldens + host-bridge unit tests are the boundary. Revisit if a host
-  regression escapes them.
-- **OAuth flows against a real IdP** — covered by the middleware error-path
-  tests plus a fake-provider contract over loopback
-  (`packages/core/src/tools/create-framework-app.auth.test.ts`: a real
-  `MCPServer` with `oauthCustomProvider`, driving the role filter, org gate,
-  dashboard isolation and pipeline caller over HTTP). Token issuance, JWKS
-  and refresh against a real IdP stay out. Revisit when the auth model
-  settles.
-- **Builder React components** (Workspace, PipelineStrip, CatalogueSheet, …)
-  — only their extracted pure parts (builder-model, builder-reducer) are
-  MUST-tested. Same revisit trigger as jsdom.
-
-### When you change tested code
-
-- Update the test in the same PR. If the contract genuinely changed, replace
-  the test with one that pins the new contract — don't delete it to make CI
-  green (enforced: `scripts/check-test-erosion.mjs`).
-- Don't loosen an assertion to dodge a failure. Either the code is wrong, or
-  the contract has shifted and the test should describe the new contract.
-  Focused/disabled tests and constant assertions are lint errors; an
-  `eslint-disable` inside a test needs a written reason.
-
-### When you add a new package or public export
-
-- New schema → new schema test.
-- New pure utility → new test.
-- New runtime export → the export-surface golden fails until you update it;
-  add the docs row (`docs/reference/api-*.md`) in the same PR.
-
-If you need to test a private helper, **export it** rather than reaching into
-the module. An explicit export is a clearer contract than a clever test.
+- ESM only; relative imports carry `.js`, also type imports (an ESLint selector enforces it).
+- `dependencies`/`devDependencies` are exact pins (`.npmrc` `save-exact=true`, checked in CI).
+  Peers are ranged: `react` and `@tanstack/react-query` with `^`, the workspace packages as
+  `workspace:~` ([`.claude/rules/package-json-fixed-versions.md`](.claude/rules/package-json-fixed-versions.md)).
+- The packages build without source or declaration maps: the tarball ships no `src/`
+  (`pnpm check:exports` fails on a packed map that points outside the tarball).
+- The three packages share one version. `CHANGELOG.md` belongs to release-please: never edit it.
+  Commits and PR titles follow Conventional Commits, which drive the release.
+- Code, comments and docs are English. Comments say why, not what.

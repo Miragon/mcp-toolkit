@@ -12,11 +12,12 @@ on:
       force_publish:
         type: boolean
         default: false
-        description: "Publish the versions currently in package.json even without a new release (recovers a failed publish)"
+        description: "Publish the versions currently in package.json even without a new release (recovers a failed publish; main only)"
 
+# The GITHUB_TOKEN only reads: release-please writes with the GitHub App's token, and the publish
+# jobs ask for the id-token themselves.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: release-please-${{ github.ref }}
@@ -46,39 +47,41 @@ jobs:
   # One publish job per package, each calling the reusable OIDC workflow. They
   # publish to the public npm registry with provenance; the reusable workflow
   # skips any package whose current version is already on npm, so a partial
-  # release can be safely re-run.
-  publish-core:
-    name: Publish core
+  # release can be safely re-run. They run in dependency order: the generated
+  # hooks import react, react imports core, and generated code must never be
+  # on npm ahead of its runtime. force_publish publishes main only.
+  publish-tool-codegen-core:
+    name: Publish tool-codegen-core
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish) }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish && github.ref == 'refs/heads/main') }}
     permissions:
       contents: read
       id-token: write
     uses: ./.github/workflows/publish-npm-package.yml
     with:
-      package: core
+      package: tool-codegen-core
+
+  publish-tool-codegen-react:
+    name: Publish tool-codegen-react
+    needs: [release-please, publish-tool-codegen-core]
+    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish && github.ref == 'refs/heads/main') }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish-npm-package.yml
+    with:
+      package: tool-codegen-react
 
   publish-tool-codegen:
     name: Publish tool-codegen
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish) }}
+    needs: [release-please, publish-tool-codegen-core, publish-tool-codegen-react]
+    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish && github.ref == 'refs/heads/main') }}
     permissions:
       contents: read
       id-token: write
     uses: ./.github/workflows/publish-npm-package.yml
     with:
       package: tool-codegen
-
-  publish-ui:
-    name: Publish ui
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_publish) }}
-    permissions:
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/publish-npm-package.yml
-    with:
-      package: ui
 
   # Manual fallback: `workflow_dispatch` with dry_run=true validates that the
   # three packages pack cleanly against the public npm registry, without
@@ -87,8 +90,12 @@ jobs:
     name: Dry-run publish
     if: github.event_name == 'workflow_dispatch' && inputs.dry_run
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
@@ -100,16 +107,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm -r run typecheck
+      # Build first: the workspace packages resolve each other through their built dist.
+      - run: pnpm build
 
-      - run: pnpm -r --if-present run test
+      - run: pnpm typecheck
 
-      - run: pnpm -r run build
+      - run: pnpm test
 
       - name: Pack (dry-run)
         run: |
           pnpm publish -r \
-            --filter "@miragon/mcp-toolkit-core" \
             --filter "@miragon/mcp-toolkit-tool-codegen" \
-            --filter "@miragon/mcp-toolkit-ui" \
+            --filter "@miragon/mcp-toolkit-tool-codegen-core" \
+            --filter "@miragon/mcp-toolkit-tool-codegen-react" \
             --access public --no-git-checks --dry-run

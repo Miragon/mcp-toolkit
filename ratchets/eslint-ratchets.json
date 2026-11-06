@@ -1,5 +1,0 @@
-{
-  "$comment": "Frozen over-budget files (FITNESS.md baseline 2026-08-11), value = measured, rounded UP to the next 10. SHRINK-ONLY: lower or remove entries, never raise or add — scripts/check-ratchets.mjs (phase 2b) enforces the direction; the single escape is the 'Ratchet-Exception: <reason>' commit trailer. To tighten after a refactor: pnpm fitness:tighten.",
-  "max-lines": {},
-  "complexity": {}
-}

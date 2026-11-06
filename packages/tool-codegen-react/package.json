@@ -1,0 +1,55 @@
+{
+  "name": "@miragon/mcp-toolkit-tool-codegen-react",
+  "version": "2.9.0",
+  "description": "React hooks for typed MCP tool calls on TanStack Query: ToolCallerProvider, useToolQuery and useToolMutation, the runtime of the hooks the codegen emits.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Miragon/mcp-toolkit.git",
+    "directory": "packages/tool-codegen-react"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "prepare": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@miragon/mcp-toolkit-tool-codegen-core": "workspace:~",
+    "@tanstack/react-query": "^5.48.0",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@miragon/mcp-toolkit-tool-codegen-core": "workspace:*",
+    "@tanstack/react-query": "5.104.2",
+    "@testing-library/react": "16.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitest/coverage-v8": "4.1.12",
+    "happy-dom": "21.0.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.12"
+  }
+}

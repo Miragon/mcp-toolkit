@@ -1,176 +1,53 @@
 # Contributing to `mcp-toolkit`
 
-Thanks for working on the toolkit. Read this top-to-bottom once — it
-covers the workspace layout, build/test loop, and the conventions the
-codebase enforces.
-
 ## External contributions
 
 We're currently not accepting pull requests from outside the team. We don't have the resources to fully review and validate external contributions, so we can't guarantee that a merged change keeps the project free of bugs, free of security vulnerabilities or malicious code, and consistent with requirements that make sense for it. Pull requests opened by external contributors will be closed.
 
 If you've found a bug or have an idea, please [open an issue](https://github.com/Miragon/mcp-toolkit/issues/new) instead. We read every one, and it's the best way to get something onto our radar.
 
-## Workspace
-
-pnpm monorepo (`pnpm-workspace.yaml`):
-
-```
-packages/
-├── core/             runtime + types + framework helpers + tool registrars
-├── ui/               React primitives + composed components + McpAppView
-└── tool-codegen/     CLI + runtime types + TypedCallTool helper
-
-examples/             standalone playground (not published)
-docs/                 reference + concepts + guides + recipes
-```
-
-`examples/` joins the workspace via `examples` in `pnpm-workspace.yaml` —
-its `workspace:*` deps resolve to the package sources, so any breakage
-in the packages surfaces in `examples` typecheck first.
-
 ## Setup
+
+You need Node.js 22.22.2 or newer and pnpm 10.32.1 (pinned in `packageManager`; `corepack enable`
+picks it up).
 
 ```sh
 pnpm install
-pnpm -r build         # run package build steps once
-pnpm -r typecheck
+pnpm build   # the packages resolve each other through their built dist
 ```
 
-Node 20+ (CI runs on 22 — `actions/setup-node@v6` with `node-version: 22`) and
-pnpm 10.32.1 (pinned in `packageManager`).
+The workspace holds the three packages under `packages/` and the example under `examples/tasks`.
+[`CLAUDE.md`](CLAUDE.md) describes the layout, the dependency boundaries between the packages and
+the generator's security rules; read it before changing the generator.
 
-## Daily loop
+## Before you open a pull request
 
 ```sh
-# Watch + iterate
-pnpm -r --parallel run dev          # if a package opts into a dev script
-
-# Check before pushing
-pnpm -r build
-pnpm -r typecheck
-pnpm test          # root alias for `pnpm -r --if-present run test`
-pnpm -r lint       # lint scripts run with --max-warnings 0 (matches lint-staged + CI)
+pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm format:check
+pnpm check:exports
 ```
 
-`prettier --write .` (or `pnpm format`) before commit; `lint-staged` runs
-it automatically via husky.
+All of it must pass; CI runs the same checks. `pnpm format` and `pnpm lint:fix` fix most format
+and lint findings, and the pre-commit hook runs both on the staged files. A change to the
+generator's output also needs the example regenerated: start `pnpm serve` in `examples/tasks`,
+run `pnpm generate` there and commit the result (its drift test fails otherwise). Keep the server
+on port 4000 and `TASKS_MCP_URL` unset, so the files' `// Source:` line stays the same; the drift
+check ignores that line, but a changed one is noise in review.
 
-## Examples-driven development
+mcp-use, the example's server framework, sends anonymized usage telemetry when the server handles
+a request (not under the tests, which run with `NODE_ENV=test`); set
+`MCP_USE_ANONYMIZED_TELEMETRY=false` to turn it off.
 
-Working on a `core` or `tool-codegen` change? Add or adapt a tiny
-scenario in `examples/` and exercise it:
+CI also runs the coverage floors (`pnpm test:coverage`, inline in each `vitest.config.ts`; raise
+them, never lower them) and, on pull requests, the mutation tests of tool-codegen and
+tool-codegen-core (`pnpm test:mutation`). Pin `dependencies` and `devDependencies` to exact
+versions; only peers are ranged.
 
-```sh
-pnpm --filter @miragon/mcp-toolkit-examples build:bundle
-pnpm --filter @miragon/mcp-toolkit-examples dev:host
-```
+## Commits and releases
 
-The `examples/` README documents the standard render-view flows. Adding
-a smoke test to `examples/` is the lightest-weight regression guard the
-toolkit has — use it.
-
-## Conventions
-
-### Fixed dependency versions
-
-Never use `^`, `~`, `>=`, or `*`. Pin exact versions in every
-`package.json`. To add a dep: `pnpm add <pkg>`, then copy the resolved
-version from `pnpm-lock.yaml` into `package.json`. See
-[`.claude/rules/package-json-fixed-versions.md`](.claude/rules/package-json-fixed-versions.md).
-
-### TypeScript
-
-- ESM only (`"type": "module"`). Use `.js` extensions in relative
-  imports — TS-emitted files reference compiled `.js`.
-- `tsconfig.base.json` is the single source of truth for compiler
-  options.
-- Public exports flow through each package's `src/index.ts`. Sub-paths
-  (e.g. `core/tools`, `ui/app`) are listed in the package `exports`
-  field — keep that map and `src/` layout in sync.
-
-### File / module boundaries
-
-- `core/tools/*` may import the `mcp-use` server runtime (the root
-  `mcp-use` entry since 2.x). Anything in `core/src/*` outside `tools/`
-  must stay browser-bundle-safe (no `mcp-use` server runtime, no
-  `node:*`).
-- `ui` may import browser-safe `core` runtime (anything in `core/src/*`
-  outside `tools/`) as well as `core` types — e.g. `normalizeLayout` from
-  `core/src/framework/layout-types.ts`. It must never import `core/tools`,
-  which pulls in the `mcp-use` server runtime.
-- `tool-codegen` is a build-time tool. Don't import it from runtime
-  code; widget bundles import from `tool-codegen/runtime` (types only).
-- `core` is the bottom of the dependency graph — it must never import
-  `@miragon/mcp-toolkit-ui` (enforced by the eslint boundary rules).
-
-Baseline numbers and the gate roadmap for these rules live in
-[`FITNESS.md`](FITNESS.md).
-
-### Comments
-
-The codebase keeps comments to the necessary minimum: the _why_, not
-the _what_. Don't add running commentary; well-named identifiers carry
-their own meaning. JSDoc on exported types/functions is fine when it
-captures hidden constraints.
-
-## Documentation
-
-Every public symbol lives in a `docs/reference/api-*.md` file with a
-signature and a one-line description. Every guide ends with a pointer
-into `examples/` for runnable code.
-
-Definition of done for a toolkit feature: code + types + at least one
-example exercise + docs entry. Don't merge a feature without the docs.
-
-## Releasing
-
-The packages publish to the public npm registry (`https://registry.npmjs.org`,
-scope `@miragon`, public access) via npm **trusted publishing** (OIDC): no
-`NPM_TOKEN` secret, and each publish carries a provenance attestation. All
-three packages share one version, tracked in the root `package.json`
-(release-please bumps them in lockstep). Releases are automated via
-[release-please](https://github.com/googleapis/release-please) driven by
-Conventional Commits — no changeset workflow.
-
-> Trusted publishing must be configured once per package on npmjs.com
-> (package → Settings → Trusted publishing → GitHub Actions: this repo +
-> `.github/workflows/publish-npm-package.yml`). Until a package exists on npm
-> it has no settings page, so the **very first** version of each package is
-> published manually from a maintainer's machine (`npm login`, then
-> `pnpm publish -r --filter @miragon/mcp-toolkit-core --filter @miragon/mcp-toolkit-tool-codegen --filter @miragon/mcp-toolkit-ui --access public --no-git-checks`).
-
-The flow (`.github/workflows/release-please.yml`):
-
-1. Merging Conventional Commits to `main` runs `release-please`, which opens
-   or updates a release PR aggregating the changes and bumping versions.
-   `release-please` runs under a **GitHub App token**
-   (`vars.RELEASE_APP_ID` + `secrets.RELEASE_APP_PRIVATE_KEY`) rather than the
-   default `GITHUB_TOKEN`, so the Release PR and release commit it pushes
-   trigger CI — commits made with the default `GITHUB_TOKEN` do not start a
-   follow-up workflow run, which would leave the Release PR's required
-   `Typecheck + Build` check forever pending.
-2. Merging that release PR makes `release-please` cut a GitHub release and
-   push a `v*` tag, setting its `release_created` output to `true`.
-3. The same workflow's `publish-core` / `publish-tool-codegen` / `publish-ui`
-   jobs are gated on `needs.release-please.outputs.release_created == 'true'`.
-   Each calls the reusable `.github/workflows/publish-npm-package.yml`, which
-   publishes one package to npm via OIDC (with `--provenance`) and **skips**
-   any package whose current version is already on npm — so a partially failed
-   release can be safely re-run by re-dispatching. They chain off the action
-   output rather than the `v*` tag for a deterministic, single publish per
-   release.
-
-Dispatching `release-please.yml` manually with `dry_run: true` runs the
-**dry-run** job only (no Release PR, no release): it typechecks, builds, and
-packs all three packages against the public registry to validate packaging
-without uploading.
-
-Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
-additive changes → `feat`, bug fixes → `fix`, observable breaking changes →
-`feat!`/`fix!` with a `BREAKING CHANGE:` footer.
-
-## See also
-
-- [`docs/README.md`](docs/README.md) — overall doc map.
-- [`docs/getting-started.md`](docs/getting-started.md) — minimal host snippet.
-- [`examples/README.md`](examples/README.md) — playground layout.
+Commit messages and pull request titles follow
+[Conventional Commits](https://www.conventionalcommits.org/): `feat` for additions, `fix` for bug
+fixes, `feat!`/`fix!` with a `BREAKING CHANGE:` footer for breaking changes. A scope can name
+the package (`feat(tool-codegen-react): …`). [release-please](https://github.com/googleapis/release-please)
+builds the version bump and `CHANGELOG.md` from them, so never edit the changelog by hand. The
+release flow is described in the [README](README.md#releases).
