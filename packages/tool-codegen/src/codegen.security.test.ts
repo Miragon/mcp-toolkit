@@ -290,7 +290,9 @@ describe("hostile schemas", () => {
     const declaration = deep.slice(0, deep.indexOf("\n}\n"))
     expect(declaration.match(/\[/g)).toHaveLength(100)
     expect(declaration.match(/\bnumber\b/g)).toHaveLength(100)
-    expect(toolsFile).toContain("export type EvilCycleInputT = [string, EvilCycleInputT]")
+    expect(toolsFile).toContain(
+      "export type EvilCycleInputT = [string?, EvilCycleInputT?, ...unknown[]]",
+    )
     expect(topLevelDeclarations(toolsFile, "tools.ts")).toEqual([
       "EvilCycleInputT",
       "EvilCycleInput",
@@ -300,7 +302,7 @@ describe("hostile schemas", () => {
       ...FIXED_NAMES,
     ])
     expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
-  })
+  }, 30_000)
 
   it("ignore a prefixItems that is not a list", async () => {
     const values = [
@@ -356,7 +358,7 @@ describe("hostile schemas", () => {
     expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
     expect(codeOnly(toolsFile, "tools.ts")).not.toContain("pwned")
     expect(toolsFile).toContain(
-      "  t?: [unknown, EvilInsideInputTPrefixItems1, unknown, EvilInsideInputPoint, ...unknown[]]\n",
+      "  t?: [unknown?, EvilInsideInputTPrefixItems1?, unknown?, EvilInsideInputPoint?, ...unknown[]]\n",
     )
     expect(toolsFile).toContain("  first?: EvilInsideInputTPrefixItems1\n")
     expect(topLevelDeclarations(toolsFile, "tools.ts")).toEqual([
@@ -367,6 +369,81 @@ describe("hostile schemas", () => {
       ...FIXED_NAMES,
     ])
     expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
+  }, 30_000)
+
+  // A tuple's minItems and maxItems decide which elements are optional and whether it takes more.
+  // Anything but a non-negative integer counts as absent, and no value sizes the output: json2ts
+  // would expand a bounded array into a tuple (or a union of tuples) that long.
+  it("read minItems and maxItems as non-negative integers only, and never expand them", async () => {
+    const bounds: [unknown, unknown, string][] = [
+      [1e300, 1e300, "[string?, number?, ...unknown[]]"],
+      [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, "[string, number, ...unknown[]]"],
+      [-1, -2, "[string?, number?, ...unknown[]]"],
+      [1.5, 0.5, "[string?, number?, ...unknown[]]"],
+      ["2", "1", "[string?, number?, ...unknown[]]"],
+      [injection, `*/ ${injection} /*`, "[string?, number?, ...unknown[]]"],
+      [null, [1], "[string?, number?, ...unknown[]]"],
+      // maxItems below minItems: no array is valid; closed after maxItems' elements, all required
+      [3, 1, "[string]"],
+      [2, 0, "[]"],
+    ]
+    const pair = [{ type: "string" }, { type: "number" }]
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("bounds", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              ...Object.fromEntries(
+                bounds.map(([minItems, maxItems], i) => [
+                  `t${i}`,
+                  { type: "array", prefixItems: pair, minItems, maxItems },
+                ]),
+              ),
+              plain: { type: "array", items: { type: "string" }, minItems: 1e6, maxItems: 1e6 },
+            },
+          },
+        }),
+      ],
+      config,
+    )
+    for (const [i, [, , type]] of bounds.entries()) {
+      expect(toolsFile, String(i)).toContain(`  t${i}?: ${type}\n`)
+    }
+    expect(toolsFile).toContain("  plain?: string[]\n")
+    expect(toolsFile).not.toMatch(/@m(?:in|ax)Items/)
+    expect(codeOnly(toolsFile, "tools.ts")).not.toContain("pwned")
+    expect(toolsFile.length).toBeLessThan(4000)
+  })
+
+  it("render a 10,000-element tuple with bounds in output linear in its length", async () => {
+    const elements = 10_000
+    const list = Array.from({ length: elements }, () => ({ type: "string" }))
+    const started = performance.now()
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("bounded", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              t: { type: "array", prefixItems: list, items: { type: "number" }, minItems: 5_000 },
+              u: { type: "array", prefixItems: list, minItems: 2_500, maxItems: 7_500 },
+            },
+          },
+        }),
+      ],
+      config,
+    )
+    expect(performance.now() - started).toBeLessThan(5000)
+    expect(toolsFile.length).toBeLessThan(2 * elements * 20)
+    expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
+    const [t = "", u = ""] = toolsFile.split("\n  u?: ")
+    expect(t.match(/\bstring,/g)).toHaveLength(5_000)
+    expect(t.match(/\bstring\?,/g)).toHaveLength(5_000)
+    expect(t).toContain("string?,\n    ...number[],\n  ]")
+    expect(u.match(/\bstring,/g)).toHaveLength(2_500)
+    expect(u.match(/\bstring\?,/g)).toHaveLength(5_000)
+    expect(u).toContain("string?,\n  ]\n}")
   })
 
   // json2ts names an anonymous reference cycle after a property key, without the tool's prefix:

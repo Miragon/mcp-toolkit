@@ -18,23 +18,24 @@ the text, drops it or fails the run with a message that names the tool. Your own
 `overrides.<tool>.input` and `output` are TypeScript you write, and the generator inserts them as
 written.
 
-| The server sends                                                             | The generator                                                                                    |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| a tool name with quotes, line breaks or code                                 | builds identifiers only from its `[A-Za-z0-9]` runs and writes the name only as a string literal |
-| invisible characters in a name (bidirectional overrides, zero-width spaces)  | writes them as `\u` escapes                                                                      |
-| invisible characters in a description                                        | drops them                                                                                       |
-| `*/` in a description                                                        | writes `*\/`, so the comment stays closed                                                        |
-| the description `@ts-ignore`                                                 | writes it as a comment of several lines, never one TypeScript reads as a directive               |
-| two tools that map to one identifier (`list-tasks` and `list_tasks`)         | fails and names both tools and the fix                                                           |
-| a tool named `then`, `toJSON`, `constructor`, `call` and similar             | fails: the client's own `call` or a member JavaScript looks up on every object has that name     |
-| a name without an ASCII letter or digit, a name twice, a tool without a name | fails                                                                                            |
-| `tsType`, `tsEnumNames`, `title`, `$id`, `minItems` or an unknown keyword    | drops it                                                                                         |
-| a `$ref` to a file, a URL or a relative path                                 | types it `unknown` and fetches nothing                                                           |
-| a chain of local `$ref`s or a recursive type                                 | declares each target once, named with the tool's prefix                                          |
-| a tuple of 20,000 elements                                                   | writes one tuple type, output that grows with the tuple's length only                            |
-| an empty `tools/list`                                                        | fails before anything is written                                                                 |
-| a URL that carries an API key in its path or query                           | writes only the origin into the `// Source:` header and its messages                             |
-| an error body with escape sequences or a line such as `::error`              | prints control characters as spaces and marks every line after the first                         |
+| The server sends                                                             | The generator                                                                                            |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| a tool name with quotes, line breaks or code                                 | builds identifiers only from its `[A-Za-z0-9]` runs and writes the name only as a string literal         |
+| invisible characters in a name (bidirectional overrides, zero-width spaces)  | writes them as `\u` escapes                                                                              |
+| invisible characters in a description                                        | drops them                                                                                               |
+| `*/` in a description                                                        | writes `*\/`, so the comment stays closed                                                                |
+| the description `@ts-ignore`                                                 | writes it as a comment of several lines, never one TypeScript reads as a directive                       |
+| two tools that map to one identifier (`list-tasks` and `list_tasks`)         | fails and names both tools and the fix                                                                   |
+| a tool named `then`, `toJSON`, `constructor`, `call` and similar             | fails: the client's own `call` or a member JavaScript looks up on every object has that name             |
+| a name without an ASCII letter or digit, a name twice, a tool without a name | fails                                                                                                    |
+| `tsType`, `tsEnumNames`, `title`, `$id` or an unknown keyword                | drops it                                                                                                 |
+| `minItems` or `maxItems` of `1e9`, `-1` or `"*/"`                            | reads a tuple's as a non-negative integer or not at all, drops the others, never writes a type that long |
+| a `$ref` to a file, a URL or a relative path                                 | types it `unknown` and fetches nothing                                                                   |
+| a chain of local `$ref`s or a recursive type                                 | declares each target once, named with the tool's prefix                                                  |
+| a tuple of 20,000 elements                                                   | writes one tuple type, output that grows with the tuple's length only                                    |
+| an empty `tools/list`                                                        | fails before anything is written                                                                         |
+| a URL that carries an API key in its path or query                           | writes only the origin into the `// Source:` header and its messages                                     |
+| an error body with escape sequences or a line such as `::error`              | prints control characters as spaces and marks every line after the first                                 |
 
 ## What a hostile tool list turns into
 
@@ -171,28 +172,36 @@ json-schema-to-typescript copies parts of a schema into the code as raw text and
 reading files and URLs. The generator therefore rebuilds each schema from the keywords that shape a
 TypeScript type, each checked for its JSON Schema shape, before json-schema-to-typescript sees it:
 
-| Kept keyword                                              | Kept when                                                    |
-| --------------------------------------------------------- | ------------------------------------------------------------ |
-| `type`                                                    | it names JSON Schema types (`string`, `object`, ...)         |
-| `enum`, `const`                                           | the values are JSON primitives                               |
-| `required`                                                | it is a list of strings, or draft 3's `true`                 |
-| `$ref`                                                    | it is local: `#` or `#/…`                                    |
-| `description`                                             | always, made safe for a comment                              |
-| `deprecated`, `nullable`                                  | it is a boolean                                              |
-| `properties`, `patternProperties`, `$defs`, `definitions` | it is a map of schemas, each rebuilt the same way            |
-| `items`, `additionalItems`, `additionalProperties`        | it is a schema or a boolean (`items` also a list of schemas) |
-| `allOf`, `anyOf`, `oneOf`, `prefixItems`                  | it is a list of schemas                                      |
+| Kept keyword                                              | Kept when                                                                                   |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `type`                                                    | it names JSON Schema types (`string`, `object`, ...)                                        |
+| `enum`, `const`                                           | the values are JSON primitives                                                              |
+| `required`                                                | it is a list of strings, or draft 3's `true`                                                |
+| `$ref`                                                    | it is local: `#` or `#/…`                                                                   |
+| `description`                                             | always, made safe for a comment                                                             |
+| `deprecated`, `nullable`                                  | it is a boolean                                                                             |
+| `properties`, `patternProperties`, `$defs`, `definitions` | it is a map of schemas, each rebuilt the same way                                           |
+| `items`, `additionalItems`, `additionalProperties`        | it is a schema or a boolean (`items` also a list of schemas)                                |
+| `allOf`, `anyOf`, `oneOf`, `prefixItems`                  | it is a list of schemas                                                                     |
+| `minItems`, `maxItems`                                    | the schema is a tuple (`prefixItems` or `items` as a list) and it is a non-negative integer |
 
 Every other keyword is dropped, notably `tsType` and `tsEnumNames` (json-schema-to-typescript emits
 their value as raw TypeScript), `title`, `$id` and `id` (they would name declarations after server
-text, and `$id` moves the base of `$ref` resolution), and `minItems` and `maxItems` (a value that is
-not a number lands raw in a JSDoc tag, and a huge `minItems` expands into a huge tuple). A schema
-that is not an object becomes `{}`.
+text, and `$id` moves the base of `$ref` resolution). A schema that is not an object becomes `{}`.
+
+`minItems` and `maxItems` stay on a tuple only, where they decide which elements are optional and
+whether further elements are allowed. The generator reads them and removes them before
+json-schema-to-typescript sees the schema, which would write a value that is not a number raw into
+a JSDoc tag and expand a large one into a tuple that long.
 
 A tuple, draft 2020-12's `prefixItems` or draft-07's `items` as a list, becomes one TypeScript
-tuple with every element required. json-schema-to-typescript would otherwise write the union of
-every length up to the tuple's own, `[] | [A] | [A, B]`, which grows with the square of the length:
-in 3.0.0 a draft-07 tuple of 300 elements, 5 KB of schema, made 0.7 MB of code. See
+tuple, `[A, B?]` with its elements past `minItems` optional. json-schema-to-typescript would
+otherwise write the union of every length from `minItems` up, `[] | [A] | [A, B]`, which grows with
+the square of the length: in 3.0.0 a draft-07 tuple of 300 elements, 5 KB of schema, made 0.7 MB
+of code. To mark an element optional, the generator puts a marker before and after it, which
+json-schema-to-typescript copies into its output unchanged; the generator then replaces the markers
+and formats the code with Prettier. The markers hold a random UUID drawn for each schema after the
+server has answered, so no key, value or description from the server can spell one. See
 [Generated code](./reference/generated-code.md#tuples) for the types.
 
 ## `$ref` handling
@@ -293,13 +302,21 @@ yourself with `parseToolResult(name, await callTool(name, args), { text: "raw" }
 [Core API](./reference/core.md#parsetoolresult). An `output: "string"` override does not change the
 decoding and is only right for text that never parses as JSON.
 
-### Optional tuple elements are typed as required
+### An optional tuple element accepts `undefined`
 
-A tuple's type lists every element as required, since the generator drops `minItems`. A tuple whose
-trailing elements may be left out, such as zod's `z.tuple([z.string(), z.number().optional()])`,
-is therefore typed `[string, number]`: an input must pass the number, and an output claims it is
-there. Set an `input` or `output` override for such a tool; see
-[Configuration](./reference/configuration.md#overrides).
+An element past a tuple's `minItems` is optional, `[string, number?]`, and TypeScript lets an
+optional element hold `undefined` unless your tsconfig sets `exactOptionalPropertyTypes`. An input
+`["a", undefined]` passes the compiler, and JSON sends it as `["a", null]`, which the server's input
+validation rejects unless the element allows `null`. Leave the element out instead: `["a"]`.
+
+### Tuple bounds past the listed elements are not typed
+
+A tuple's type has the elements its schema lists. A `minItems` larger than their number does not
+make further elements required, and a `maxItems` larger than their number does not limit the rest:
+`{ prefixItems: [A], items: C, minItems: 3, maxItems: 5 }` is typed `[A, ...C[]]`. Typing them
+would mean writing out a tuple as long as a number the server sends. Any other array's bounds are
+not typed either: `z.array(z.string()).min(1)` is `string[]`. The server's input validation rejects
+an array of the wrong length.
 
 ### React 18 is allowed but untested
 

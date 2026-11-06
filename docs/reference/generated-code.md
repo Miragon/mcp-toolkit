@@ -190,7 +190,7 @@ export type TasksClient = ReturnType<typeof createTasksClient>
 | An input `{ type: "object" }` with no properties, nothing required and `additionalProperties` absent or `false`  | `export type <T> = Record<string, never>`                                                                                                                                      |
 | An output `{ type: "object" }` with no properties, nothing required and `additionalProperties` absent or `false` | `Record<string, unknown>` with `additionalProperties` absent, `Record<string, never>` with `false`                                                                             |
 | An input or output `{ type: "object" }` with no properties and `additionalProperties: true` or a schema          | An interface with an index signature: `[k: string]: unknown` for `true`, the schema's type for a schema                                                                        |
-| A tuple: `prefixItems` (draft 2020-12, zod 4's `z.tuple`) or `items` as a list (draft-07)                        | A TypeScript tuple with every element required, `[A, B]`, or `[A, B, ...C[]]` with a schema for the elements after them, see [Tuples](#tuples)                                 |
+| A tuple: `prefixItems` (draft 2020-12, zod 4's `z.tuple`) or `items` as a list (draft-07)                        | A TypeScript tuple, its elements past `minItems` optional and further elements allowed unless the schema closes it: `[A, B?]`, `[A, B?, ...C[]]`, see [Tuples](#tuples)        |
 | Any other schema                                                                                                 | json-schema-to-typescript's interface or type alias; a property the schema does not declare is a type error unless `additionalProperties` allows it, descriptions become JSDoc |
 | The target of a `$ref`                                                                                           | Declared once as its own type, named after the input or output type and the target's path                                                                                      |
 
@@ -232,22 +232,29 @@ export interface MyAppMoveInputPoint {
 ### Tuples
 
 A tuple lists a schema per position: `prefixItems` in draft 2020-12, `items` as a list in draft-07.
-The schema for the elements after the listed ones is `items` beside `prefixItems`, or
-`additionalItems` beside an `items` list:
+The generated type reads it as JSON Schema does. An element past `minItems` may be missing, so it
+is optional; without `minItems`, every element is. Further elements are allowed unless the schema
+says otherwise, and typed by the schema for them: `items` beside `prefixItems`, or
+`additionalItems` beside an `items` list. For `minItems: 1`:
 
-| Elements after the listed ones | Generated type         |
-| ------------------------------ | ---------------------- |
-| `false`, or no schema for them | `[A, B]`               |
-| A schema `C`                   | `[A, B, ...C[]]`       |
-| `true`                         | `[A, B, ...unknown[]]` |
+| Elements after the listed ones                                        | Generated type          |
+| --------------------------------------------------------------------- | ----------------------- |
+| `false`, or a `maxItems` no larger than the number of listed elements | `[A, B?]`               |
+| A schema `C`                                                          | `[A, B?, ...C[]]`       |
+| `true`, or no schema for them                                         | `[A, B?, ...unknown[]]` |
 
-Every listed element is required, whatever `minItems` says: the generator drops `minItems`
-([Guarantees and limits](../guarantees.md#optional-tuple-elements-are-typed-as-required)). A
+A `maxItems` smaller than the number of listed elements also drops the elements past it. A
+`minItems` or `maxItems` that is not a non-negative integer counts as absent. A bound past the
+listed elements is not typed: `{ prefixItems: [A], items: C, minItems: 3 }` is `[A, ...C[]]`, just
+as `z.array(z.string()).min(3)` is `string[]`; see
+[Guarantees and limits](../guarantees.md#tuple-bounds-past-the-listed-elements-are-not-typed). A
 `$ref` may point into a tuple (`#/properties/at/prefixItems/0`); its target is declared once, as
 for any other path.
 
-A zod 4 server declares a parameter `z.tuple([z.string(), z.number()])` and another
-`z.tuple([z.string()], z.boolean())`, which reach `tools/list` as:
+zod 4 writes `minItems` for the required elements of a `z.tuple` and closes it with
+`items: false` unless it has a rest, so its tuples come out as declared. Parameters
+`z.tuple([z.string(), z.number()])`, `z.tuple([z.string(), z.number().optional()])` and
+`z.tuple([z.string()], z.boolean())` reach `tools/list` as:
 
 ```json
 {
@@ -256,6 +263,13 @@ A zod 4 server declares a parameter `z.tuple([z.string(), z.number()])` and anot
     "prefixItems": [{ "type": "string" }, { "type": "number" }],
     "items": false,
     "minItems": 2,
+    "maxItems": 2
+  },
+  "last": {
+    "type": "array",
+    "prefixItems": [{ "type": "string" }, { "type": "number" }],
+    "items": false,
+    "minItems": 1,
     "maxItems": 2
   },
   "flags": {
@@ -270,9 +284,15 @@ A zod 4 server declares a parameter `z.tuple([z.string(), z.number()])` and anot
 ```ts
 export interface MyAppMarkInput {
   pair: [string, number]
+  last: [string, number?]
   flags: [string, ...boolean[]]
 }
 ```
+
+pydantic closes a tuple with `maxItems` instead: `tuple[int, str]` is
+`{ "prefixItems": [...], "minItems": 2, "maxItems": 2 }`, typed `[number, string]`. A tuple that
+says nothing about further elements, such as `{ "prefixItems": [{ "type": "string" }] }` written by
+hand, is open: `[string?, ...unknown[]]`.
 
 ### When `args` is optional
 

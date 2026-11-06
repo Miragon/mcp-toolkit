@@ -54,7 +54,8 @@
   "dependencies": {
     "@modelcontextprotocol/client": "2.4.0",
     "handlebars": "4.7.10",
-    "json-schema-to-typescript": "16.0.0"
+    "json-schema-to-typescript": "16.0.0",
+    "prettier": "3.9.10"
   },
   "peerDependencies": {
     "@miragon/mcp-toolkit-tool-codegen-core": "workspace:~",
@@ -77,7 +78,6 @@
     "@vitest/coverage-v8": "4.1.12",
     "fast-check": "4.10.2",
     "mcp-use": "2.12.2",
-    "prettier": "3.9.10",
     "typescript": "6.0.3",
     "vitest": "4.1.12",
     "zod": "4.6.7"

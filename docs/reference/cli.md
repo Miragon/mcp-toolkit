@@ -7,7 +7,7 @@ Every command and flag of `mcp-tool-codegen`, what it prints and which exit code
 <dl class="facts">
   <dt>Binary</dt><dd><code>mcp-tool-codegen</code></dd>
   <dt>Package</dt><dd><code>@miragon/mcp-toolkit-tool-codegen</code>, a dev dependency</dd>
-  <dt>Depends on</dt><dd><code>@modelcontextprotocol/client</code>, <code>handlebars</code> and <code>json-schema-to-typescript</code>; the core and React packages as optional peers of the same minor version</dd>
+  <dt>Depends on</dt><dd><code>@modelcontextprotocol/client</code>, <code>handlebars</code>, <code>json-schema-to-typescript</code> and <code>prettier</code>, which json-schema-to-typescript uses too; the core and React packages as optional peers of the same minor version</dd>
   <dt>Exit codes</dt><dd>0 done, 1 failure or drift, 2 usage error</dd>
 </dl>
 
