@@ -27,8 +27,8 @@
     "@arethetypeswrong/cli": "0.18.5",
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "10.0.1",
-    "@vitest/eslint-plugin": "1.6.27",
-    "eslint": "10.12.0",
+    "@vitest/eslint-plugin": "1.6.28",
+    "eslint": "10.14.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "husky": "9.1.7",
     "js-yaml": "4.3.2",
@@ -36,7 +36,7 @@
     "prettier": "3.9.10",
     "publint": "0.3.25",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.71.2"
+    "typescript-eslint": "8.72.1"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
