@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [2.9.0](https://github.com/Miragon/mcp-toolkit/compare/v2.8.1...v2.9.0) (2026-10-30)
+
+
+### Features
+
+* **deps-dev:** bump happy-dom from 20.14.6 to 21.0.1 ([#206](https://github.com/Miragon/mcp-toolkit/issues/206)) ([2395541](https://github.com/Miragon/mcp-toolkit/commit/23955410944f53a7cfcccb808a8d9e4580b4d378))
+* **deps:** bump actions/create-github-app-token ([#201](https://github.com/Miragon/mcp-toolkit/issues/201)) ([b76a16d](https://github.com/Miragon/mcp-toolkit/commit/b76a16dfeaaad9ed902e97d75b639c6e672d5754))
+* **deps:** bump the github-actions group with 3 updates ([#198](https://github.com/Miragon/mcp-toolkit/issues/198)) ([01925dd](https://github.com/Miragon/mcp-toolkit/commit/01925dd3459edf1983bfefea341a2a34d56905a3))
+* **deps:** bump the npm-dependencies group across 1 directory with 22 updates ([#202](https://github.com/Miragon/mcp-toolkit/issues/202)) ([ba61ea1](https://github.com/Miragon/mcp-toolkit/commit/ba61ea1bfec1e4d82a0945dee7358f641c85604a))
+
 ## [2.8.1](https://github.com/Miragon/mcp-toolkit/compare/v2.8.0...v2.8.1) (2026-10-13)
 
 
