@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [3.0.0](https://github.com/Miragon/mcp-toolkit/compare/v2.9.0...v3.0.0) (2026-11-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* @miragon/mcp-toolkit-core and @miragon/mcp-toolkit-ui are no longer developed; their 2.x releases stay on npm. In the generator, `proxyName` is `name` and `upstreamUrl` is `url`, tool names are no longer prefixed, `@miragon/mcp-toolkit-tool-codegen/runtime` is gone (the runtime lives in -core), and hooks are opt-in, import -react instead of mcp-toolkit-ui and need a ToolCallerProvider. "Coming from 2.x" in the README lists every change.
+
+### Features
+
+* keep only tool-codegen, add its core and react runtime packages ([#211](https://github.com/Miragon/mcp-toolkit/issues/211)) ([706fae0](https://github.com/Miragon/mcp-toolkit/commit/706fae0e7264f89a61fd288180dfd5264eb35bca))
+
 ## [2.9.0](https://github.com/Miragon/mcp-toolkit/compare/v2.8.1...v2.9.0) (2026-10-30)
 
 
