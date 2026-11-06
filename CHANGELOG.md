@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [3.1.0](https://github.com/Miragon/mcp-toolkit/compare/v3.0.0...v3.1.0) (2026-11-06)
+
+
+### Features
+
+* **tool-codegen-core:** pass timeout and progress options to the tool call ([#221](https://github.com/Miragon/mcp-toolkit/issues/221)) ([b989ac0](https://github.com/Miragon/mcp-toolkit/commit/b989ac0ed49265abc0dd0804322cebcabf2ad748))
+
+
+### Bug Fixes
+
+* **deps:** bump the npm-dependencies group with 9 updates ([#223](https://github.com/Miragon/mcp-toolkit/issues/223)) ([00578f1](https://github.com/Miragon/mcp-toolkit/commit/00578f1198c6538d068695ff38f14f2a71ca2fdc))
+* **deps:** update the MCP client SDK and unblock Dependabot's npm updates ([#217](https://github.com/Miragon/mcp-toolkit/issues/217)) ([df9eb51](https://github.com/Miragon/mcp-toolkit/commit/df9eb511f8391361c2e1a3300006875011f3a66f))
+* **tool-codegen-react:** never retry a query whose call timed out ([b989ac0](https://github.com/Miragon/mcp-toolkit/commit/b989ac0ed49265abc0dd0804322cebcabf2ad748))
+* **tool-codegen:** type tuples and fail on an empty tools/list ([#219](https://github.com/Miragon/mcp-toolkit/issues/219)) ([4b73510](https://github.com/Miragon/mcp-toolkit/commit/4b735103100a88a38e1ea47cca3cf91b3f0e741e))
+
 ## [3.0.0](https://github.com/Miragon/mcp-toolkit/compare/v2.9.0...v3.0.0) (2026-11-06)
 
 
