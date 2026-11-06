@@ -98,12 +98,18 @@ a malicious server could inject code. Keep these rules and the tests that pin th
 - Descriptions cannot close a JSDoc or become a TypeScript directive (a line starting with `@`
   never ends a comment's last line); the `Source:` header is the URL's origin only (a path may hold
   an API key); the CLI replaces invisible characters in server text it prints (`terminalText`) and
-  marks every line of an error after the first with ` |`, so none can start a CI log line.
+  marks every line of an error after the first with ` |` (`logText`), so none can start a CI log
+  line. The MCP client SDK quotes the server in its console output (a tool it drops for an invalid
+  `x-mcp-header`, in the 2026-07-28 era): `fetchTools` names the 2025 negotiation mode instead of
+  taking the SDK's default, and routes what is printed in the fetch's async context through
+  `logText` to stderr (`withSdkOutputCleaned`).
 - Config: no credentials in `url`, no line break, control or non-Latin-1 character in a header or
   auth value (fetch would echo the secret); errors name the field, never the value.
 - Tests: `src/codegen.security.test.ts` (hostile names, schemas, text, header, `$ref` with a
   control test that proves json2ts alone would read a file and call a server, the exponential
-  chains, the 20,000-element tuples, hostile tuple bounds), `src/codegen.property.test.ts`
+  chains, the 20,000-element tuples, hostile tuple bounds), `src/fetch-tools.security.test.ts`
+  (what the SDK prints during the fetch, with a control test of its raw warning in the 2026-07-28
+  era and a mock of the SDK with its default flipped), `src/codegen.property.test.ts`
   (arbitrary input still parses and declares only its own names), `src/declarations.test.ts`,
   `src/identifiers.test.ts`, `src/safe-text.test.ts`, `src/sanitize-schema.test.ts`,
   `src/schema-refs.test.ts`. A change that weakens a rule changes these tests in the same PR, with

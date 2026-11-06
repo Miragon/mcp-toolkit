@@ -65,9 +65,10 @@ help       Show this message.
 
 1. Loads and validates the config ([Configuration](./configuration.md)). Nothing connects before
    the config is valid.
-2. Connects to `url` over streamable HTTP with `auth` and `headers`, runs the initialize handshake,
-   reads the complete `tools/list` (every page) and closes the connection. The MCP SDK checks the
-   list's shape here and rejects, for example, a tool without a name.
+2. Connects to `url` over streamable HTTP with `auth` and `headers`, runs the initialize handshake
+   of the 2025 protocol revisions, reads the complete `tools/list` (every page) and closes the
+   connection. The MCP SDK checks the list's shape here and rejects, for example, a tool without a
+   name.
 3. Checks the list: an empty list, a tool listed twice and an override for a tool the server does
    not list fail the run, with `--check` too.
 4. Sorts the tools by name and renders `tools.ts`, plus `hooks.tsx` with `react: true`
@@ -249,7 +250,8 @@ mcp-tool-codegen: cannot list the tools of http://localhost:4000: fetch failed (
 A message can carry the server's text (an HTTP error body, tool names, schema errors). The CLI
 turns invisible characters into spaces, cuts the message after 2,000 characters
 (`... (truncated)`) and indents every line after the first with two spaces, a `|` and a space, so
-no server text starts a line of the log.
+no server text starts a line of the log. What the MCP SDK prints while the tools are fetched, a
+warning or a debug line, goes the same way: to stderr, as `mcp-tool-codegen: <message>`.
 
 In the messages below, `...` stands for text left out on this page; the CLI prints the full message.
 

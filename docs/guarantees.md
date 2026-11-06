@@ -36,6 +36,7 @@ written.
 | an empty `tools/list`                                                        | fails before anything is written                                                                         |
 | a URL that carries an API key in its path or query                           | writes only the origin into the `// Source:` header and its messages                                     |
 | an error body with escape sequences or a line such as `::error`              | prints control characters as spaces and marks every line after the first                                 |
+| a tool name or schema text that the MCP SDK quotes in a warning              | prints what the SDK writes during the fetch the same way, on stderr                                      |
 
 ## What a hostile tool list turns into
 
@@ -255,6 +256,14 @@ Server text that reaches the terminal, in an error, the `inspect` table or the l
 message is cut at 2,000 characters, and every line after its first starts with two spaces, a `|` and
 a space. A server's error body can therefore neither send terminal escape sequences nor start a line
 of a CI log, such as a GitHub Actions `::error` command.
+
+The MCP SDK quotes the server in some of its own console messages: in the 2026-07-28 protocol
+revision it drops a tool whose `x-mcp-header` declaration is invalid and prints the tool's name and
+the declaration as the server sent them. The generator therefore speaks the 2025 revisions, set in
+its code rather than left to the SDK's default, so no tool is dropped without an error. Whatever
+the SDK prints while the tools are fetched, with any console method, goes to stderr as an error
+message would, `mcp-tool-codegen: ` before it and every further line marked; what the rest of your
+process prints meanwhile is left as it is.
 
 ## What the generator does not do
 

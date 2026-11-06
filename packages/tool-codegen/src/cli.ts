@@ -14,7 +14,7 @@ import {
 } from "./config.js"
 import { fetchTools, type CodegenAuth } from "./fetch-tools.js"
 import { checkCodegenOutput, writeCodegenOutput, type CodegenDrift } from "./output.js"
-import { terminalText } from "./safe-text.js"
+import { logText, terminalText } from "./safe-text.js"
 
 export type CliCommand =
   | { command: "help" }
@@ -197,27 +197,9 @@ export async function runCli(argv: readonly string[], io: CliIo = processIo): Pr
     if (command.command === "generate") return await runGenerate(command, io)
     return await runInspect(command, io)
   } catch (error) {
-    io.err(errorText(error instanceof Error ? error.message : String(error)))
+    io.err(logText(error instanceof Error ? error.message : String(error)))
     return 1
   }
-}
-
-/** The longest error message the CLI prints; a server's error page can be any size. */
-const MAX_ERROR_LENGTH = 2000
-
-/**
- * An error message for stderr. It can carry the server's text (an HTTP error body, tool names,
- * schema errors): invisible characters become spaces, the length is capped, and every line but
- * the first is marked as a continuation, so no server text starts a line of the log (a GitHub
- * Actions `::error` command, a fake "up to date").
- */
-function errorText(message: string): string {
-  const capped =
-    message.length > MAX_ERROR_LENGTH
-      ? `${message.slice(0, MAX_ERROR_LENGTH)}... (truncated)`
-      : message
-  const [first, ...rest] = capped.split(/\r\n?|\n/).map((line) => terminalText(line).trimEnd())
-  return [`mcp-tool-codegen: ${first}`, ...rest.map((line) => `  | ${line.trimStart()}`)].join("\n")
 }
 
 async function loadConfig(file: string): Promise<CodegenConfig> {
