@@ -60,8 +60,13 @@ jobs:
             echo "::error::$tag is not a release tag (v<version>)"
             exit 1
           fi
-          if gh api --silent "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag"; then
+          if lookup="$(gh api --silent "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" 2>&1)"; then
             ref="refs/tags/$tag"
+          elif [[ "$lookup" != *"(HTTP 404)"* ]]; then
+            # Only a 404 means "no such tag": an outage or a rate limit must not make the dry run
+            # pack the calling commit instead.
+            echo "::error::Could not look up the tag $tag: $lookup"
+            exit 1
           elif [ "$DRY_RUN" = "true" ]; then
             # A version without a tag yet (the Release PR's branch): the release tags its squash
             # merge, which holds this commit's tree while the Release PR is up to date with main.

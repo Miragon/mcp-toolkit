@@ -175,12 +175,20 @@ describe("publish-npm-package.yml", () => {
   }
 
   /** Runs the pack job's "Resolve the release tag" step against a stubbed `gh api`. */
-  const runResolveTag = ({ tag = "", dryRun = false, version = "3.0.1", tags = [] }) =>
+  const runResolveTag = ({
+    tag = "",
+    dryRun = false,
+    version = "3.0.1",
+    tags = [],
+    apiDown = false,
+  }) =>
     runStep(resolveTag, {
       files: { "package.json": JSON.stringify({ version }) },
-      // gh api --silent repos/<repo>/git/ref/tags/<tag>: found only for the tags in STUB_TAGS.
+      // gh api --silent repos/<repo>/git/ref/tags/<tag>: found only for the tags in STUB_TAGS;
+      // with STUB_API_DOWN every lookup fails with a server error.
       stubs: {
         gh:
+          '[ -n "$STUB_API_DOWN" ] && { echo "gh: Bad Gateway (HTTP 502)" >&2; exit 1; }\n' +
           'tag="${!#}"; tag="${tag##*/tags/}"\n' +
           'for t in $STUB_TAGS; do [ "$t" = "$tag" ] && exit 0; done\n' +
           'echo "gh: Not Found (HTTP 404)" >&2; exit 1\n',
@@ -191,6 +199,7 @@ describe("publish-npm-package.yml", () => {
         GITHUB_REPOSITORY: "Miragon/mcp-toolkit",
         GITHUB_SHA: "0123abcd",
         STUB_TAGS: tags.join(" "),
+        STUB_API_DOWN: apiDown ? "1" : "",
       },
     })
 
@@ -311,6 +320,15 @@ describe("publish-npm-package.yml", () => {
     const dryRun = runResolveTag({ version: "3.0.2", tags: ["v3.0.1"], dryRun: true })
     assert.equal(dryRun.status, 0)
     assert.deepEqual(dryRun.outputs, { tag: "v3.0.2", ref: "0123abcd" })
+  })
+
+  it("stops on a failed tag lookup that is not a 404, dry run included", () => {
+    for (const dryRun of [false, true]) {
+      const run = runResolveTag({ version: "3.0.2", tags: ["v3.0.2"], dryRun, apiDown: true })
+      assert.notEqual(run.status, 0, `dryRun=${dryRun}`)
+      assert.deepEqual(run.outputs, {}, `dryRun=${dryRun}`)
+      assert.match(run.log, /Could not look up the tag v3\.0\.2: .*HTTP 502/)
+    }
   })
 
   it("refuses a tag that is not v<version>", () => {
