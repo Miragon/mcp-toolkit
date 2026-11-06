@@ -310,6 +310,15 @@ describe("renderCodegen: types", () => {
         { type: "object", properties: {}, anyOf: [{ type: "object" }] },
         "export type TasksAInput = {}",
       ],
+      // Keywords only an array reads constrain no object.
+      ...[
+        { prefixItems: [{ type: "string" }], items: false, minItems: 1, maxItems: 1 },
+        { items: [{ type: "string" }], additionalItems: false, minItems: 1, maxItems: 1 },
+        { items: { type: "string" } },
+      ].map((array): [Record<string, unknown>, string] => [
+        { type: "object", ...array },
+        "export type TasksAInput = Record<string, never>",
+      ]),
     ]
     for (const [inputSchema, declaration] of schemas) {
       const { toolsFile } = await renderCodegen([{ name: "a", inputSchema }], config)

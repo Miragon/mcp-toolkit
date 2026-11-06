@@ -221,11 +221,18 @@ const EMPTY_OBJECT_KEYS = new Set([
   "additionalProperties",
 ])
 
+/**
+ * Keywords only an array reads. Beside `type: "object"` they constrain
+ * nothing, so an object schema with them is still empty, not one for json2ts,
+ * which would type it `{}`.
+ */
+const ARRAY_KEYWORDS = new Set(["prefixItems", "items", "additionalItems", "minItems", "maxItems"])
+
 /** `{ type: "object" }` without properties: `Record<string, never>`, not the `{}` that accepts any value. */
 function isEmptyObjectSchema(schema: JsonObject): boolean {
   return (
     schema.type === "object" &&
-    Object.keys(schema).every((key) => EMPTY_OBJECT_KEYS.has(key)) &&
+    Object.keys(schema).every((key) => EMPTY_OBJECT_KEYS.has(key) || ARRAY_KEYWORDS.has(key)) &&
     (schema.properties === undefined ||
       (isJsonObject(schema.properties) && Object.keys(schema.properties).length === 0)) &&
     (schema.additionalProperties === undefined || schema.additionalProperties === false) &&
