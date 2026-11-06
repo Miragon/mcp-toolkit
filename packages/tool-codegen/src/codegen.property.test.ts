@@ -1,101 +1,194 @@
-import { describe, expect, it } from "vitest"
+import { fileURLToPath } from "node:url"
 import fc from "fast-check"
-import { renderCodegen, toPascalCase, type CodegenConfig } from "./codegen.js"
-import type { UpstreamToolDescriptor } from "./fetch-tools.js"
+import * as prettier from "prettier"
+import ts from "typescript"
+import { describe, expect, it } from "vitest"
+import { renderCodegen } from "./codegen.js"
+import type { CodegenConfig } from "./config.js"
+import type { ToolDescriptor } from "./fetch-tools.js"
+import { pascalCase } from "./identifiers.js"
+import { syntaxErrors, topLevelDeclarations } from "./test-support/typescript.js"
 
-// Deterministic PRNG: a property failure in CI must replay identically on the
-// next run, never appear as a fresh random draw (FITNESS.md phase 5c).
-fc.configureGlobal({ seed: 42, numRuns: 100 })
+// Deterministic PRNG: a property failure in CI replays identically on the next run.
+fc.configureGlobal({ seed: 42, numRuns: 40 })
 
-describe("toPascalCase (property)", () => {
-  // Bug class guarded: the generated type/hook names (BillingApiGetInvoiceInput,
-  // useBillingApiGetInvoice, …) must be valid TS identifiers for every
-  // well-formed tool name — a separator or lowercase leak here emits
-  // uncompilable generated files.
-  it("emits an identifier-safe PascalCase name for well-formed tool names", () => {
-    const wellFormedName = fc.stringMatching(/^[a-z][a-z0-9]{0,5}([-_ ][a-z0-9]{1,6}){0,3}$/)
-    fc.assert(
-      fc.property(wellFormedName, (name) => {
-        expect(toPascalCase(name)).toMatch(/^[A-Z][A-Za-z0-9]*$/)
-      }),
-    )
-  })
+const config: CodegenConfig = {
+  name: "app",
+  url: "https://example.com/mcp",
+  out: "out",
+  react: true,
+}
 
-  // Bug class guarded: separators surviving into an emitted identifier, and
-  // non-fixpoint renaming (a second pass producing a different name) breaking
-  // the build-time ↔ runtime naming contract across regenerations.
-  it("strips every separator and is idempotent for arbitrary strings", () => {
-    fc.assert(
-      fc.property(fc.string(), (input) => {
-        const out = toPascalCase(input)
-        expect(out).not.toMatch(/[-_\s]/)
-        expect(toPascalCase(out)).toBe(out)
-      }),
-    )
-  })
+const byName = (a: ToolDescriptor, b: ToolDescriptor) =>
+  a.name < b.name ? -1 : a.name > b.name ? 1 : 0
 
-  it("pins the degenerate inputs to their ACTUAL (documented-by-test) output", () => {
-    // Empty / separator-only names collapse to "" (the caller's problem, but a
-    // deterministic one), and leading digits survive un-prefixed — so a
-    // digits-first tool name yields a NON-identifier: callers own the
-    // "tool names start with a letter" precondition.
-    expect(toPascalCase("")).toBe("")
-    expect(toPascalCase("-- __")).toBe("")
-    expect(toPascalCase("42")).toBe("42")
-    expect(toPascalCase("9-lives")).toBe("9Lives")
-  })
-})
+/** Deterministic Fisher–Yates driven by a fast-check-supplied seed. */
+function shuffle<T>(items: readonly T[], seed: number): T[] {
+  const out = [...items]
+  let state = seed + 1
+  for (let i = out.length - 1; i > 0; i--) {
+    state = (state * 48271) % 2147483647
+    const j = state % (i + 1)
+    ;[out[i], out[j]] = [out[j] as T, out[i] as T]
+  }
+  return out
+}
+
+const plainName = fc.stringMatching(/^[a-z][a-z0-9]{0,6}([-_][a-z0-9]{1,6}){0,2}$/)
+
+/**
+ * Tools whose names map to distinct identifiers; a collision, a name without
+ * identifier characters and a tool named like the client's `call` are their
+ * own, tested, errors.
+ */
+function toolList(
+  name: fc.Arbitrary<string>,
+  tool: (name: string) => fc.Arbitrary<ToolDescriptor>,
+) {
+  return fc
+    .uniqueArray(name, { minLength: 1, maxLength: 3, selector: pascalCase })
+    .filter((names) => names.every((entry) => !["", "Call"].includes(pascalCase(entry))))
+    .chain((names) => fc.tuple(...names.map(tool)))
+}
 
 describe("renderCodegen (property)", () => {
-  const config: CodegenConfig = {
-    proxyName: "billing-api",
-    upstreamUrl: "https://billing.example/mcp",
-    out: "out",
-  }
-
-  const toolNameArb = fc.stringMatching(/^[a-z][a-z0-9]{0,6}(-[a-z0-9]{1,6}){0,2}$/)
-  const toolArb: fc.Arbitrary<UpstreamToolDescriptor> = toolNameArb.map((name) => ({
-    name,
-    inputSchema: { type: "object", properties: { id: { type: "string" } } },
-  }))
-  // tools/list names are unique per server — duplicates would make ordering
-  // among equals unobservable and are not a real upstream shape.
-  const toolsArb = fc.uniqueArray(toolArb, { maxLength: 4, selector: (tool) => tool.name })
-
-  /** Deterministic Fisher–Yates driven by a fast-check-supplied seed. */
-  function shuffle<T>(items: readonly T[], seed: number): T[] {
-    const out = [...items]
-    let state = seed + 1
-    for (let i = out.length - 1; i > 0; i--) {
-      state = (state * 48271) % 2147483647
-      const j = state % (i + 1)
-      const swap = out[i] as T
-      out[i] = out[j] as T
-      out[j] = swap
-    }
-    return out
-  }
-
-  // Bug class guarded: the committed generated files are byte-compared in CI
-  // (generate --check, the codegen-drift test). Any upstream tools/list order
-  // leaking into the rendered output would flap those gates on every
-  // regeneration — this is the strongest form of the published determinism
-  // contract, over arbitrary tool lists and arbitrary permutations.
-  it("renders byte-identical output for every permutation of the tool list", async () => {
-    await fc.assert(
-      fc.asyncProperty(toolsArb, fc.nat(1000), async (tools, seed) => {
-        const shuffled = shuffle(tools, seed)
-        const fromOriginal = await renderCodegen(tools, config)
-        const fromShuffled = await renderCodegen(shuffled, config)
-        expect(fromShuffled.toolsFile).toBe(fromOriginal.toolsFile)
-        expect(fromShuffled.hooksFile).toBe(fromOriginal.hooksFile)
-        expect(fromShuffled.tools.map((tool) => tool.name)).toEqual(
-          fromOriginal.tools.map((tool) => tool.name),
-        )
+  // Bug class guarded: `generate --check` byte-compares the committed files;
+  // a tools/list order leaking into the output would flap it on every run.
+  it("renders byte-identical output for every order of the same tools", async () => {
+    const tools = toolList(plainName, (name) =>
+      fc.record({
+        name: fc.constant(name),
+        inputSchema: fc.constant({ type: "object", properties: { id: { type: "string" } } }),
+        annotations: fc.record({ readOnlyHint: fc.boolean() }),
       }),
-      // json-schema-to-typescript runs per tool per render — keep the run
-      // count modest so the suite stays fast; the seed keeps it deterministic.
-      { numRuns: 25 },
+    )
+    await fc.assert(
+      fc.asyncProperty(tools, fc.nat(1000), async (list, seed) => {
+        const original = await renderCodegen(list, config)
+        const shuffled = await renderCodegen(shuffle(list, seed), config)
+        expect(shuffled).toEqual(original)
+      }),
+      { numRuns: 20 },
+    )
+  })
+
+  // Bug class guarded: #177, a hostile tools/list injecting code into the
+  // generated files through a name, a description or a property key.
+  it("emits code that parses and declares exactly its own names, whatever the server sends", async () => {
+    const hostileText = fc
+      .array(
+        fc.oneof(
+          fc.constantFrom(
+            '"',
+            "'",
+            "`",
+            "*/",
+            "/*",
+            "\n",
+            "\r\n",
+            "\\",
+            "${",
+            "]",
+            "}",
+            "<",
+            "__proto__",
+          ),
+          fc.constantFrom(String.fromCharCode(0x2028), String.fromCharCode(0x202e), "ü", "工"),
+          fc.string({ unit: "binary", maxLength: 3 }),
+          fc.stringMatching(/^[A-Za-z0-9]{1,4}$/),
+        ),
+        { maxLength: 6 },
+      )
+      .map((parts) => parts.join(""))
+    const tools = toolList(hostileText, (name) =>
+      fc.record({
+        name: fc.constant(name),
+        description: hostileText,
+        inputSchema: fc.uniqueArray(hostileText, { maxLength: 3 }).chain((keys) =>
+          fc.tuple(...keys.map(() => hostileText)).map((descriptions) => ({
+            type: "object",
+            properties: Object.fromEntries(
+              keys.map((key, i) => [key, { type: "string", description: descriptions[i] }]),
+            ),
+          })),
+        ),
+        annotations: fc.record({ readOnlyHint: fc.boolean() }),
+      }),
+    )
+    await fc.assert(
+      fc.asyncProperty(tools, async (list) => {
+        const { toolsFile, hooksFile = "" } = await renderCodegen(list, config)
+        const sorted = [...list].sort(byName)
+        expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
+        expect(syntaxErrors(hooksFile, "hooks.tsx")).toEqual([])
+        expect(topLevelDeclarations(toolsFile, "tools.ts")).toEqual([
+          ...sorted.flatMap(({ name }) => [
+            `App${pascalCase(name)}Input`,
+            `App${pascalCase(name)}Output`,
+          ]),
+          "AppToolMap",
+          "AppToolName",
+          "AppCallTool",
+          "createAppClient",
+          "AppClient",
+        ])
+        const queries = sorted.filter((tool) => tool.annotations?.readOnlyHint === true)
+        expect(topLevelDeclarations(hooksFile, "hooks.tsx")).toHaveLength(
+          sorted.length + (queries.length > 0 ? 1 : 0),
+        )
+        expect(toolMapKeys(toolsFile)).toEqual(sorted.map(({ name }) => name))
+      }),
+    )
+  })
+
+  // Bug class guarded: committed generated code failing the consumer's
+  // Prettier gate, for any length of tool name (the layout is width-aware).
+  it("emits Prettier-clean files for well-formed tools of any name length", async () => {
+    const options = {
+      ...(await prettier.resolveConfig(fileURLToPath(import.meta.url))),
+      parser: "typescript",
+    }
+    const longName = fc.stringMatching(/^[a-z][a-z0-9]{0,40}([-_][a-z0-9]{1,30}){0,3}$/)
+    const tools = toolList(longName, (name) =>
+      fc.record({
+        name: fc.constant(name),
+        description: fc.option(fc.lorem({ maxCount: 12 }), { nil: undefined }),
+        inputSchema: fc.boolean().map((required) => ({
+          type: "object",
+          properties: { query: { type: "string" }, limit: { type: "number" } },
+          ...(required ? { required: ["query"] } : {}),
+        })),
+        outputSchema: fc.option(
+          fc.constant({ type: "object", properties: { ok: { type: "boolean" } } }),
+          {
+            nil: undefined,
+          },
+        ),
+        annotations: fc.record({ readOnlyHint: fc.boolean() }),
+      }),
+    )
+    const clientName = fc.stringMatching(/^[a-z][a-z0-9]{0,30}(-[a-z0-9]{1,12})?$/)
+    await fc.assert(
+      fc.asyncProperty(tools, clientName, async (list, name) => {
+        const { toolsFile, hooksFile = "" } = await renderCodegen(list, { ...config, name })
+        expect(await prettier.format(toolsFile, options)).toBe(toolsFile)
+        expect(await prettier.format(hooksFile, options)).toBe(hooksFile)
+      }),
+      { numRuns: 60 },
     )
   })
 })
+
+/** The keys of the generated tool map, as TypeScript reads them. */
+function toolMapKeys(toolsFile: string): string[] {
+  const source = ts.createSourceFile("tools.ts", toolsFile, ts.ScriptTarget.ES2022, true)
+  const map = source.statements.find(
+    (statement): statement is ts.InterfaceDeclaration =>
+      ts.isInterfaceDeclaration(statement) && statement.name.text === "AppToolMap",
+  )
+  return (map?.members ?? []).map((member) =>
+    member.name && (ts.isStringLiteral(member.name) || ts.isIdentifier(member.name))
+      ? member.name.text
+      : "<computed>",
+  )
+}

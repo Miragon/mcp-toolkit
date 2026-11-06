@@ -1,399 +1,198 @@
+import { builtinModules } from "node:module"
+import { defineConfig } from "eslint/config"
 import js from "@eslint/js"
 import tseslint from "typescript-eslint"
 import reactHooks from "eslint-plugin-react-hooks"
 import vitest from "@vitest/eslint-plugin"
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments"
-import eslintRatchets from "./ratchets/eslint-ratchets.json" with { type: "json" }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared fitness-gate building blocks (see FITNESS.md).
-//
-// Flat-config trap: when several config blocks match the same file, a later
-// block's value for a rule REPLACES the earlier one — it does not merge.
-// Every composed rule below therefore declares its FULL value per file scope,
-// built from these shared arrays, so no scope silently loses a gate.
-// ─────────────────────────────────────────────────────────────────────────────
+// Flat-config trap: when several blocks match a file, a later block's value for a rule REPLACES
+// the earlier one, it does not merge. no-restricted-syntax and no-restricted-imports are
+// therefore declared in full for every file scope, built from the arrays below.
 
-// Relative imports carry the compiled extension (ESM output references .js).
-// tsc with moduleResolution "bundler" cannot enforce this; this selector can.
-const extensionMessage =
-  'Relative imports carry the compiled extension in this ESM repo: "./foo" → "./foo.js" (also for type imports).'
-const noExtensionlessRelativeImports = [
+const TEST_FILES = ["**/*.test.ts", "**/*.test.tsx"]
+
+// Relative imports carry the compiled extension (the ESM output references .js). tsc with
+// moduleResolution "bundler" cannot enforce this; the selector can.
+const relativeImportsCarryExtension = [
   "ImportDeclaration",
   "ExportNamedDeclaration",
   "ExportAllDeclaration",
   "ImportExpression",
 ].map((node) => ({
   selector: `${node}[source.value=/^\\.\\.?\\u002F/]:not([source.value=/\\.(js|json|css)$/])`,
-  message: extensionMessage,
+  message:
+    'Relative imports carry the compiled extension in this ESM repo: "./foo" → "./foo.js" (also for type imports).',
 }))
 
-// mcp-use owns the _meta.ui namespace and overwrites it on tools/list — a
-// hand-stamped key silently disappears.
-const metaUiMessage =
-  "Never stamp _meta.ui.* by hand — mcp-use owns that namespace and overwrites it on tools/list. Emit it natively via the tool's view/visibility fields; use appsSdkMeta(...) for the openai/* half."
-const noHandStampedMetaUi = [
-  'Property[key.name="_meta"] > ObjectExpression > Property[key.name="ui"]',
-  'Property[key.name="_meta"] > ObjectExpression > Property[key.value=/^ui(\\u002F|$)/]',
-  'Property[key.value="_meta"] > ObjectExpression > Property[key.name="ui"]',
-  'Property[key.value="_meta"] > ObjectExpression > Property[key.value=/^ui(\\u002F|$)/]',
-].map((selector) => ({ selector, message: metaUiMessage }))
-
-const baseSyntaxRestrictions = [...noExtensionlessRelativeImports, ...noHandStampedMetaUi]
-
-// Widget host discipline: a widget reaches the host ONLY through
-// useHostBridge() (host-portability contract), decodes tool results only via
-// parseToolResult, and styles only with theme tokens (white-label contract).
-const paletteRegex =
-  "/(^|[\\s\"'`])(bg|text|border|ring|fill|stroke|from|via|to)-(red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone)-[0-9]/"
-const paletteMessage =
-  "Hard-coded Tailwind palette colours break white-labeling — use theme tokens (text-primary, bg-card, text-muted-foreground, …) or the tone system (TONE_SOFT/TONE_DOT/TONE_TEXT) from @miragon/mcp-toolkit-ui."
-const noMcpUseReactInWidgets = {
-  selector: 'ImportDeclaration[source.value="mcp-use/react"][importKind!="type"]',
+const constantExpect = {
+  selector:
+    "CallExpression[callee.name='expect'][arguments.0.type='Literal'][arguments.0.regex=undefined]",
   message:
-    "Widgets reach the host ONLY through useHostBridge() from @miragon/mcp-toolkit-ui/app — never mcp-use/react (its hooks throw outside a bootstrapView mount).",
+    "expect(<literal>) asserts a constant: it can never fail. Assert real behaviour or delete the line.",
 }
-const widgetSyntaxRestrictions = [
-  noMcpUseReactInWidgets,
-  {
-    selector: 'MemberExpression[object.name="window"][property.name="openai"]',
-    message:
-      "Never touch window.openai directly — useHostBridge() abstracts the host (createChatGptHostBridge wraps window.openai defensively).",
-  },
-  {
-    selector: 'CallExpression[callee.object.name="window"][callee.property.name="open"]',
-    message:
-      "Never call window.open directly in a widget — use openExternal(url) from useHostBridge().",
-  },
-  {
-    selector: 'MemberExpression[computed=true][property.value=0][object.property.name="content"]',
-    message:
-      "Never decode a tool result via content[0].text — use parseToolResult / parseViewToolResult from @miragon/mcp-toolkit-ui.",
-  },
-  {
-    selector: `JSXAttribute[name.name="className"] Literal[value=${paletteRegex}]`,
-    message: paletteMessage,
-  },
-  {
-    selector: `JSXAttribute[name.name="className"] TemplateElement[value.raw=${paletteRegex}]`,
-    message: paletteMessage,
-  },
-  {
-    selector: 'JSXAttribute[name.name="className"] Literal[value=/rounded-\\[/]',
-    message:
-      "Arbitrary radius values break the token contract — use the rounded-sm/md/lg/xl tokens.",
-  },
-  {
-    selector: 'JSXAttribute[name.name="style"] Literal[value=/#[0-9a-fA-F]{3}/]',
-    message: paletteMessage,
-  },
+
+// Every Node built-in, bare (`fs`, `fs/promises`) or `node:`-prefixed.
+const nodeBuiltinNames = [
+  ...new Set(
+    builtinModules.filter((name) => !name.startsWith("node:")).map((name) => name.split("/")[0]),
+  ),
 ]
+const noNodeBuiltins = (pkg) => ({
+  regex: `^(node:|(${nodeBuiltinNames.join("|")})(/|$))`,
+  message: `${pkg} runs in browsers and MCP Apps widgets: no Node built-in modules.`,
+})
 
-// no-restricted-imports entries shared between the ui blocks (see the
-// flat-config trap note above — each block re-declares the full set).
-const banCoreTools = {
-  name: "@miragon/mcp-toolkit-core/tools",
-  message:
-    "ui must never import core/tools — it pulls the mcp-use server runtime into the browser graph.",
-}
-const banModelContext = {
-  name: "mcp-use/react",
-  importNames: ["ModelContext"],
-  message:
-    "ModelContext from mcp-use/react throws outside a bootstrapView mount. Use HostModelContext from @miragon/mcp-toolkit-ui/app.",
-  allowTypeImports: true,
-}
-const banToolCodegenPattern = {
-  group: ["@miragon/mcp-toolkit-tool-codegen"],
-  message: "tool-codegen is build-time. Runtime code imports only its /runtime types.",
-  allowTypeImports: true,
-}
-
-// ── Ratchet metrics (FITNESS.md, phase 2) ──
-// Budgets for NEW code: cyclomatic complexity 15, 400 effective lines.
-// Files over budget at introduction are frozen at their measured value in
-// ratchets/eslint-ratchets.json — SHRINK-ONLY: entries may be lowered or
-// removed, never raised or added (enforced by scripts/check-ratchets.mjs in
-// phase 2b). Fix the file (split it — the builder-model/builder-reducer
-// extraction is the house pattern), don't touch the budget.
-const COMPLEXITY_BUDGET = 15
-const MAX_EFFECTIVE_LINES = 400
-const maxLinesOptions = (max) => ["error", { max, skipBlankLines: true, skipComments: true }]
-// scripts/tighten-ratchets.mjs re-measures with the overrides disabled so the
-// global budgets report the true current values.
-const measuringRatchets = process.env.FITNESS_RATCHET_MEASURE === "1"
-const ratchetedFiles = measuringRatchets
-  ? []
-  : [
-      ...new Set([
-        ...Object.keys(eslintRatchets["max-lines"]),
-        ...Object.keys(eslintRatchets.complexity),
-      ]),
-    ]
-const ratchetOverrides = ratchetedFiles.map((file) => ({
-  files: [file],
-  rules: {
-    ...(file in eslintRatchets["max-lines"]
-      ? { "max-lines": maxLinesOptions(eslintRatchets["max-lines"][file]) }
-      : {}),
-    ...(file in eslintRatchets.complexity
-      ? { complexity: ["error", { max: eslintRatchets.complexity[file] }] }
-      : {}),
-  },
-}))
-
-export default tseslint.config(
-  // examples/test/fixtures holds pre-built JS stand-ins (mcp-app.js) that the
-  // project service cannot type — data, not code.
-  // .mcp-use/ + mcp-env.d.ts are generated by the mcp-use CLI build
-  // (check-standalone-dist gate) — tool output, never linted.
+export default defineConfig(
   {
-    ignores: [
-      "**/dist/**",
-      "**/node_modules/**",
-      "examples/test/fixtures/**",
-      "**/.mcp-use/**",
-      "**/mcp-env.d.ts",
-    ],
+    ignores: ["**/dist/", "**/node_modules/", "**/coverage/", "**/reports/", "**/.stryker-tmp/"],
   },
 
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
 
-  // Type-aware parser config for all TS files
   {
     languageOptions: {
       parserOptions: {
+        // Config files at a package root sit outside the package's tsconfig (include: src). An
+        // example's tsconfig includes its own config files; listing them here as well would make
+        // typescript-eslint refuse the double match.
         projectService: {
-          allowDefaultProject: [
-            "*.config.*s",
-            "packages/*/*.config.*s",
-            "docs/.vitepress/*.ts",
-            "docs/.vitepress/theme/*.ts",
-          ],
+          allowDefaultProject: ["packages/*/*.config.ts"],
         },
         tsconfigRootDir: import.meta.dirname,
       },
     },
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/consistent-type-imports": [
         "error",
         { prefer: "type-imports", fixStyle: "inline-type-imports" },
       ],
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "no-restricted-syntax": ["error", ...relativeImportsCarryExtension],
     },
   },
 
-  // templates/ is a standalone consumer project outside the pnpm workspace —
-  // its deps aren't installed here, so type-aware linting can't resolve them
-  // (it is typechecked and built in its mirror repo's CI, mcp-toolkit-starter).
-  // The syntax-level fitness gates below DO apply; `pnpm lint:templates` runs
-  // them (templates is outside the workspace, so `pnpm -r run lint` never
-  // reaches it).
+  // Node scripts (eslint.config.mjs, scripts/*.mjs): no tsconfig covers them, so they are
+  // linted without type information, against the Node globals they use; their output is the
+  // console.
   {
-    files: ["templates/**/*.{ts,tsx}"],
+    files: ["**/*.{js,mjs,cjs}"],
     extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { globals: { console: "readonly", process: "readonly" } },
+    rules: { "no-console": "off" },
   },
 
-  // React hooks rules — UI package only
   {
-    files: ["packages/ui/src/**/*.{ts,tsx}"],
+    files: ["packages/tool-codegen-react/src/**/*.{ts,tsx}", "examples/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
-    rules: reactHooks.configs["recommended-latest"].rules,
+    rules: reactHooks.configs.flat.recommended.rules,
   },
 
-  // ── Module-boundary enforcement (mirrors CLAUDE.md "Module boundaries") ──
-  // These eslint rules match literal import specifiers, which gives instant
-  // in-editor feedback but silently degrades when an upstream entrypoint is
-  // renamed (the pre-#127 failure). The dependency-cruiser configs
-  // (.dependency-cruiser.cjs / .dependency-cruiser.dist.cjs) hold the
-  // resolved-path + transitive versions of the same boundaries and are the
-  // authoritative gate.
+  // ── Package boundaries (runtime code; tests may import whatever they exercise) ──
 
-  // core: browser-bundle-safe outside tools/, and no reverse dependency on ui.
-  // (tools/ is a server-only subpath kept out of the root barrel; a value
-  // import of the mcp-use server runtime anywhere else would leak it into the
-  // browser graph. Since 2.x that runtime is the ROOT `mcp-use` entry — the
-  // `mcp-use/server` subpath this rule used to name no longer exists.)
+  // core: framework-free and dependency-free, so it runs in browsers, widgets and Node alike.
   {
-    files: ["packages/core/src/**/*.ts"],
-    ignores: ["packages/core/src/tools/**", "**/*.test.ts"],
+    files: ["packages/tool-codegen-core/src/**/*.ts"],
+    ignores: TEST_FILES,
     rules: {
-      "@typescript-eslint/no-restricted-imports": [
+      "no-restricted-imports": [
         "error",
         {
-          paths: [
-            {
-              name: "mcp-use",
-              message:
-                "core/src outside tools/ must stay browser-bundle-safe. Value-import mcp-use (the 2.x server runtime) only from core/tools (type-only imports are fine).",
-              allowTypeImports: true,
-            },
-          ],
           patterns: [
             {
-              group: ["@miragon/mcp-toolkit-ui", "@miragon/mcp-toolkit-ui/*"],
-              message: "core is the bottom of the dependency graph; core must not import ui.",
+              regex: "^(react|react-dom)(/|$)",
+              message:
+                "tool-codegen-core is framework-free: React code belongs in tool-codegen-react.",
             },
-            banToolCodegenPattern,
+            {
+              regex: "^@tanstack/",
+              message:
+                "tool-codegen-core is framework-free: TanStack Query belongs in tool-codegen-react.",
+            },
+            {
+              regex: "^@modelcontextprotocol/",
+              message:
+                "tool-codegen-core has zero dependencies: adapt an MCP client structurally (McpClientLike), never import the SDK.",
+            },
+            noNodeBuiltins("tool-codegen-core"),
+            {
+              regex: "^@miragon/mcp-toolkit-tool-codegen(-react)?(/|$)",
+              message:
+                "tool-codegen-core is the bottom of the graph: it never imports the codegen CLI or the React hooks.",
+            },
           ],
         },
       ],
     },
   },
 
-  // ui: never reach into core/tools (pulls the mcp-use server runtime) or
-  // build-time tool-codegen; never the throwing native ModelContext.
+  // react: browser code over core; the generator is a build-time Node package.
   {
-    files: ["packages/ui/src/**/*.{ts,tsx}"],
-    ignores: ["**/*.test.ts", "**/*.test.tsx", "packages/ui/src/index.ts"],
+    files: ["packages/tool-codegen-react/src/**/*.{ts,tsx}"],
+    ignores: TEST_FILES,
     rules: {
-      "@typescript-eslint/no-restricted-imports": [
-        "error",
-        { paths: [banCoreTools, banModelContext], patterns: [banToolCodegenPattern] },
-      ],
-    },
-  },
-
-  // …except the one module that BUILDS HostModelContext (and the view's
-  // model-context channel) from the native one.
-  {
-    files: ["packages/ui/src/app/model-context.tsx"],
-    rules: {
-      "@typescript-eslint/no-restricted-imports": [
-        "error",
-        { paths: [banCoreTools], patterns: [banToolCodegenPattern] },
-      ],
-    },
-  },
-
-  // ui root barrel: must stay free of ALL mcp-use/react value imports (they
-  // pull the 2.x view runtime and its ext-apps transitive). Such symbols ship
-  // from ./app / ./hooks, never the root.
-  {
-    files: ["packages/ui/src/index.ts"],
-    rules: {
-      "@typescript-eslint/no-restricted-imports": [
+      "no-restricted-imports": [
         "error",
         {
-          paths: [
-            banCoreTools,
+          patterns: [
+            noNodeBuiltins("tool-codegen-react"),
             {
-              name: "mcp-use/react",
+              regex: "^@miragon/mcp-toolkit-tool-codegen(/|$)",
               message:
-                "The ui root barrel must not value-import mcp-use/react. Export such symbols from the ./app or ./hooks subpaths instead.",
-              allowTypeImports: true,
+                "tool-codegen is build-time (Node): the hooks take their runtime from @miragon/mcp-toolkit-tool-codegen-core.",
             },
           ],
-          patterns: [banToolCodegenPattern],
         },
       ],
     },
   },
 
-  // examples: same build-time and ModelContext discipline as the packages.
-  // (Tests are exempt: the drift/gate tests import tool-codegen on purpose.)
+  // examples: the generator runs at build time only (codegen.config.ts, the drift tests).
   {
     files: ["examples/**/*.{ts,tsx}"],
-    ignores: ["examples/test/**", "**/*.test.ts", "**/*.test.tsx"],
+    ignores: [...TEST_FILES, "examples/*/test/**", "examples/*/codegen.config.ts"],
     rules: {
-      "@typescript-eslint/no-restricted-imports": [
+      "no-restricted-imports": [
         "error",
-        { paths: [banModelContext], patterns: [banToolCodegenPattern] },
+        {
+          patterns: [
+            {
+              regex: "^@miragon/mcp-toolkit-tool-codegen(/|$)",
+              allowTypeImports: true,
+              message:
+                "tool-codegen is a build-time devDependency: runtime code imports the generated client, tool-codegen-core and tool-codegen-react.",
+            },
+          ],
+        },
       ],
     },
   },
 
-  // templates views are widget code shipped to consumers: full widget
-  // discipline plus the browser-graph import bans.
+  // ── Size budgets for runtime source ──
   {
-    files: ["templates/**/views/**/*.{ts,tsx}"],
+    files: ["packages/*/src/**/*.{ts,tsx}", "examples/*/src/**/*.{ts,tsx}"],
+    ignores: TEST_FILES,
     rules: {
-      "@typescript-eslint/no-restricted-imports": [
-        "error",
-        { paths: [banCoreTools, banModelContext], patterns: [banToolCodegenPattern] },
-      ],
+      complexity: ["error", { max: 15 }],
+      "max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],
     },
   },
 
-  // ── Syntax-level fitness gates ──
-  // Base restrictions for all first-party source (tests exempt: they assert
-  // wire shapes like _meta["ui/resourceUri"] on purpose).
+  // ── Tests: no focused or skipped tests, no assertion-free tests, every disable explained ──
   {
-    files: ["packages/*/src/**/*.{ts,tsx}", "examples/**/*.{ts,tsx}", "templates/**/*.{ts,tsx}"],
-    ignores: ["**/*.test.ts", "**/*.test.tsx", "examples/test/**"],
-    rules: {
-      "no-restricted-syntax": ["error", ...baseSyntaxRestrictions],
-    },
-  },
-
-  // Widget scopes get the base restrictions PLUS host/styling discipline.
-  // (Full re-declaration — a later block replaces, never merges.)
-  {
-    files: [
-      "examples/modules/*/widgets/**/*.{ts,tsx}",
-      "examples/host-portability/OrderStatusCard.tsx",
-      "examples/widget-playground/CustomerCard.tsx",
-      "examples/widget-playground/MetricsShowcase.tsx",
-      "templates/**/views/**/*.{ts,tsx}",
-    ],
-    rules: {
-      "no-restricted-syntax": ["error", ...baseSyntaxRestrictions, ...widgetSyntaxRestrictions],
-    },
-  },
-
-  // The starter's view ENTRIES (`views/<tool>/view.tsx`) are the components
-  // the mcp-use CLI mounts through bootstrapView, so mcp-use/react's view hooks
-  // work there: they hand the host's locale to a LocaleProvider, as
-  // examples/standalone-host does. Everything they render (`views/shared/`)
-  // keeps the full widget discipline, the host-import ban included.
-  {
-    files: ["templates/**/views/*/view.tsx"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...baseSyntaxRestrictions,
-        ...widgetSyntaxRestrictions.filter((r) => r !== noMcpUseReactInWidgets),
-      ],
-    },
-  },
-
-  // ── Anti-erosion gates for test files (FITNESS.md, phase 5a) ──
-  // A flaky assertion is an invitation to weaken it; a skipped test is a
-  // deleted test with better optics. Focused/disabled tests and constant
-  // assertions are errors, and every eslint-disable inside a test needs a
-  // written reason (`-- <why>`), so each escape is visible in the diff.
-  {
-    files: ["**/*.test.ts", "**/*.test.tsx"],
+    files: TEST_FILES,
     plugins: { vitest, "@eslint-community/eslint-comments": eslintComments },
     rules: {
       "vitest/no-focused-tests": "error",
       "vitest/no-disabled-tests": "error",
-      "vitest/expect-expect": "error",
-      "@eslint-community/eslint-comments/require-description": ["error", { ignore: [] }],
-      "no-restricted-syntax": [
+      // Type tests assert with expectTypeOf (tsc checks them in `pnpm typecheck`).
+      "vitest/expect-expect": [
         "error",
-        {
-          selector:
-            "CallExpression[callee.name='expect'][arguments.0.type='Literal'][arguments.0.regex=undefined]",
-          message:
-            "expect(<literal>) asserts a constant — it can never fail and only inflates counts. Assert real behaviour or delete the line.",
-        },
+        { assertFunctionNames: ["expect", "expectTypeOf", "assertType"] },
       ],
+      "@eslint-community/eslint-comments/require-description": ["error", { ignore: [] }],
+      "no-restricted-syntax": ["error", ...relativeImportsCarryExtension, constantExpect],
     },
   },
-
-  // ── Ratchet metric budgets (see the constants above) ──
-  // Data files are exempt, not frozen: stories.ts is fixture data
-  // (ui-catalog.json is JSON and never linted).
-  {
-    files: ["packages/*/src/**/*.{ts,tsx}", "examples/**/*.{ts,tsx}", "templates/**/*.{ts,tsx}"],
-    ignores: ["**/*.test.ts", "**/*.test.tsx", "examples/widget-playground/stories.ts"],
-    rules: {
-      complexity: ["error", { max: COMPLEXITY_BUDGET }],
-      "max-lines": maxLinesOptions(MAX_EFFECTIVE_LINES),
-    },
-  },
-  ...ratchetOverrides,
 )

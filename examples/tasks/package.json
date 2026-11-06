@@ -1,0 +1,45 @@
+{
+  "name": "@miragon/mcp-toolkit-example-tasks",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example: generate a typed client for an MCP server and call it from Node and from React.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "serve": "tsx src/server.ts",
+    "generate": "mcp-tool-codegen generate",
+    "generate:check": "mcp-tool-codegen generate --check",
+    "node-client": "tsx src/node-client.ts",
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@miragon/mcp-toolkit-tool-codegen-core": "workspace:*",
+    "@miragon/mcp-toolkit-tool-codegen-react": "workspace:*",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@tanstack/react-query": "5.104.2",
+    "mcp-use": "2.9.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "happy-dom": "21.0.1",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "vite": "8.3.4",
+    "vitest": "4.1.12"
+  }
+}

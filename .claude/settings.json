@@ -12,9 +12,7 @@
     ]
   },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
     "claude-mem@thedotmack": true
   }
 }

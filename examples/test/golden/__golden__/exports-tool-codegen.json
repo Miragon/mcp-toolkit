@@ -1,3 +1,0 @@
-{
-  ".": ["fetchUpstreamTools", "generateTools", "renderCodegen", "writeCodegenOutput"]
-}
