@@ -3,6 +3,7 @@
   "version": "3.0.0",
   "description": "Framework-free runtime for typed MCP tool calls: the ToolCaller contract, the typed call and client the codegen emits, and tool-result parsing. No React, no Node APIs.",
   "license": "MIT",
+  "homepage": "https://miragon.github.io/mcp-toolkit/reference/core",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Miragon/mcp-toolkit.git",
