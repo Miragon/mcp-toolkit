@@ -88,7 +88,27 @@ export function withOriginsOnly(text: string): string {
   return text.replace(URL_IN_TEXT, (found) => (URL.canParse(found) ? sourceOf(found) : "<url>"))
 }
 
-/** Server text for a terminal: every invisible character but `\n` becomes a space. */
+/**
+ * Server text for a terminal: every invisible character but `\n` becomes a space, and `##[` is
+ * split. `::error` is a GitHub Actions command only at the start of a line, but the runner still
+ * reads the older `##[error]`, `##[add-mask]` or `##[add-matcher]` anywhere in one.
+ */
 export function terminalText(text: string): string {
-  return text.replace(INVISIBLE, (char) => (char === "\n" ? char : " "))
+  return text.replace(INVISIBLE, (char) => (char === "\n" ? char : " ")).replaceAll("##[", "## [")
+}
+
+/** The longest message the CLI prints; a server's error page can be any size. */
+const MAX_LOG_LENGTH = 2000
+
+/**
+ * A message for stderr that can carry the server's text (an HTTP error body, tool names, schema
+ * errors, what the MCP client SDK prints about a tool): invisible characters become spaces, the
+ * length is capped, and every line but the first is marked as a continuation, so no server text
+ * starts a line of the log (a GitHub Actions `::error` command, a fake "up to date").
+ */
+export function logText(message: string): string {
+  const capped =
+    message.length > MAX_LOG_LENGTH ? `${message.slice(0, MAX_LOG_LENGTH)}... (truncated)` : message
+  const [first, ...rest] = capped.split(/\r\n?|\n/).map((line) => terminalText(line).trimEnd())
+  return [`mcp-tool-codegen: ${first}`, ...rest.map((line) => `  | ${line.trimStart()}`)].join("\n")
 }

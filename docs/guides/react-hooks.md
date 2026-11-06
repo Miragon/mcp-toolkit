@@ -295,7 +295,10 @@ const prefetchTask = (context: ToolQueryContext, id: string) =>
 
 Name the tool map and the tool as type parameters, as the generated hooks do; the namespace is the
 config's `name`. Unlike a query hook, these options do not wait for a caller: with `callTool: null`
-the query fails with a `NoToolCallerError`, so run it once the provider has a caller.
+the query fails with a `NoToolCallerError`, so run it once the provider has a caller. They also
+carry the retry rule below where `prefetchQuery`, `fetchQuery` and `ensureQueryData` would not retry
+a plain query: in the browser, a tool prefetch that fails for any other reason retries 3 times.
+Spread them with `retry: false` to fail at once.
 
 ## Connect several servers
 
@@ -377,12 +380,15 @@ A query without its own `retry` option never retries:
 - a `NoToolCallerError`: once a caller arrives, the query starts by itself.
 - the MCP SDK's request timeout, `SdkError: Request timed out` or
   `SdkError: Maximum total timeout exceeded` (code `REQUEST_TIMEOUT`; the v1 SDK's `McpError` with
-  code `-32001` too): each retry would wait the whole timeout again, so a query with
-  `callOptions: { timeout: 300_000 }` and TanStack's 3 retries would stay pending for about 20
-  minutes.
+  code `-32001` and one of those two messages too): each retry would wait the whole timeout again,
+  so a query with `callOptions: { timeout: 300_000 }` and TanStack's 3 retries would stay pending
+  for about 20 minutes. An error the server sends with the code `-32001`, such as
+  `Session not found`, is not a timeout and is retried.
 
 Any other failure, such as a dropped connection, is retried as the `QueryClient` says for the
-query's key (`setQueryDefaults`, then `defaultOptions.queries.retry`), 3 times when it says nothing.
+query's key (`setQueryDefaults`, then `defaultOptions.queries.retry`). When it says nothing, the
+query keeps TanStack's own default: 3 retries in the browser, none on the server, such as a
+prefetch for a server render.
 A `retry` option on the query decides alone, for a `ToolCallError` and a timeout too. Mutations keep
 TanStack's default: no retry.
 

@@ -7,7 +7,12 @@ import {
   type ToolName,
   type ToolOutput,
 } from "@miragon/mcp-toolkit-tool-codegen-core"
-import type { QueryClient, QueryFunction, UseQueryOptions } from "@tanstack/react-query"
+import {
+  isServer,
+  type QueryClient,
+  type QueryFunction,
+  type UseQueryOptions,
+} from "@tanstack/react-query"
 import { callToolTyped } from "./call-tool.js"
 import { isNoToolCallerError } from "./provider.js"
 import { toolQueryKey, type ToolCallQueryKey, type ToolQueryKey } from "./query-key.js"
@@ -48,26 +53,48 @@ export function toolQueryFn<TMap extends ToolMapOf<TMap>, TName extends ToolName
 }
 
 /**
+ * The messages of the v1 SDK's own request timeouts, `timeout` and `maxTotalTimeout`, as its
+ * `McpError` spells them.
+ */
+const V1_TIMEOUT_MESSAGES: ReadonlySet<unknown> = new Set([
+  "MCP error -32001: Request timed out",
+  "MCP error -32001: Maximum total timeout exceeded",
+])
+
+/**
  * True for the MCP SDK's request timeout: the call's `timeout` ran out, or progress kept it alive
  * past `maxTotalTimeout`. The v2 SDK (`@modelcontextprotocol/client`, which ext-apps' `App` runs
- * on) rejects with an `SdkError` of code `"REQUEST_TIMEOUT"`, the v1 SDK
- * (`@modelcontextprotocol/sdk`) with an `McpError` of code `-32001`. Read from the code alone, so
- * the package needs no SDK and recognises the error of any copy of it. Both SDKs give a call that
- * its signal aborted the same code; the retry rule never sees one, since TanStack settles a
+ * on) rejects with an `SdkError` of code `"REQUEST_TIMEOUT"`, a string no server error carries.
+ * The v1 SDK (`@modelcontextprotocol/sdk`) rejects with an `McpError` of code `-32001`, the code
+ * it also gives an error a server sends with it (v2's convention for an unknown session), so a
+ * v1 error counts only with the message of one of its own timeouts. Read from the code and the
+ * message alone, so the package needs no SDK and recognises the error of any copy of it, also of
+ * one up to 1.5.0, whose `McpError` does not set its `name`. Both SDKs give a call that its
+ * signal aborted the timeout's code; the retry rule never sees one, since TanStack settles a
  * cancelled query before it aborts the signal.
  */
 export function isRequestTimeout(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false
-  const { code } = error as { code?: unknown }
-  return code === "REQUEST_TIMEOUT" || code === -32001
+  const { code, message } = error as { code?: unknown; message?: unknown }
+  if (code === "REQUEST_TIMEOUT") return true
+  return code === -32001 && V1_TIMEOUT_MESSAGES.has(message)
 }
+
+/**
+ * TanStack's retry when nothing sets one: 3 in the browser, none on the server, where a failed
+ * render should not wait for retries. `isServer` is TanStack's own reading (no `window`, or
+ * Deno), exported by every 5.x version. It is deprecated from 5.91 on for `environmentManager`,
+ * which can override it, but the peer range starts below that, so an override is not read here.
+ */
+const tanstackDefaultRetry = () => (isServer ? 0 : 3)
 
 /**
  * The retry of a tool query: never for a `ToolCallError` (asking the tool again gets the same
  * answer), a `NoToolCallerError` (a caller that arrives later starts the query by itself) or a
  * request timeout (each retry waits the whole timeout again: with `callOptions.timeout` at five
  * minutes, TanStack's 3 retries would keep the query pending for twenty), else as the
- * QueryClient's defaults for the key say. Read at failure time, so those defaults stay in charge.
+ * QueryClient's defaults for the key say, and without them as TanStack's own default. Read at
+ * failure time, so those defaults stay in charge.
  */
 export function toolQueryRetry(queryClient: QueryClient, queryKey: ToolQueryKey) {
   return (failureCount: number, error: Error): boolean => {
@@ -77,7 +104,7 @@ export function toolQueryRetry(queryClient: QueryClient, queryKey: ToolQueryKey)
     const retry =
       queryClient.getQueryDefaults(queryKey).retry ??
       queryClient.getDefaultOptions().queries?.retry ??
-      3
+      tanstackDefaultRetry()
     if (typeof retry === "function") return retry(failureCount, error)
     return typeof retry === "number" ? failureCount < retry : retry
   }

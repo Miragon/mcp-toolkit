@@ -35,7 +35,8 @@ written.
 | a tuple of 20,000 elements                                                   | writes one tuple type, output that grows with the tuple's length only                                    |
 | an empty `tools/list`                                                        | fails before anything is written                                                                         |
 | a URL that carries an API key in its path or query                           | writes only the origin into the `// Source:` header and its messages                                     |
-| an error body with escape sequences or a line such as `::error`              | prints control characters as spaces and marks every line after the first                                 |
+| an error body with escape sequences or a line such as `::error`              | prints control characters as spaces, marks every line after the first, splits every `##[`                |
+| a tool name or schema text that the MCP SDK quotes in a warning              | prints what the SDK writes during the fetch the same way, on stderr                                      |
 
 ## What a hostile tool list turns into
 
@@ -188,6 +189,12 @@ TypeScript type, each checked for its JSON Schema shape, before json-schema-to-t
 Every other keyword is dropped, notably `tsType` and `tsEnumNames` (json-schema-to-typescript emits
 their value as raw TypeScript), `title`, `$id` and `id` (they would name declarations after server
 text, and `$id` moves the base of `$ref` resolution). A schema that is not an object becomes `{}`.
+`properties`, `patternProperties` and `additionalProperties` are also dropped next to a `type` that
+names no `object`: JSON Schema applies them to objects only, and json-schema-to-typescript would
+intersect them with the type. For the same reason a schema without `type` that has both object and
+array keywords gets `type: ["object", "array"]`, typed as the union of the two, unless its object
+keywords type nothing (no entries, `additionalProperties: false`): that object type would be `{}`,
+which takes any value.
 
 `minItems` and `maxItems` stay on a tuple only, where they decide which elements are optional and
 whether further elements are allowed. The generator reads them and removes them before
@@ -217,7 +224,10 @@ fetched.
 
 Every reference target but the root (`#`) moves into the root `$defs` and is declared once, as a
 type named with the tool's type name and the target's path. A chain of references therefore cannot
-double the output per level, and a schema cannot declare a name of its own choosing.
+double the output per level, and a schema cannot declare a name of its own choosing. A `type` list
+next to `allOf`, `anyOf` or `oneOf` becomes a further branch of `allOf`, and a list names each type
+once, since json-schema-to-typescript repeats those keywords per type: deep nesting cannot double
+the output either.
 
 ## Comments
 
@@ -251,10 +261,19 @@ break, a control character or a character beyond Latin-1 fails with a message th
 never the value.
 
 Server text that reaches the terminal, in an error, the `inspect` table or the line diff of
-`generate --check`, has every invisible character but the line break replaced by a space. An error
-message is cut at 2,000 characters, and every line after its first starts with two spaces, a `|` and
-a space. A server's error body can therefore neither send terminal escape sequences nor start a line
-of a CI log, such as a GitHub Actions `::error` command.
+`generate --check`, has every invisible character but the line break replaced by a space and every
+`##[` written `## [`. An error message is cut at 2,000 characters, and every line after its first
+starts with two spaces, a `|` and a space. A server's error body can therefore neither send terminal
+escape sequences nor start a line of a CI log, such as a GitHub Actions `::error` command, nor place
+the runner's older `##[error]` form, which it reads anywhere in a line.
+
+The MCP SDK quotes the server in some of its own console messages: in the 2026-07-28 protocol
+revision it drops a tool whose `x-mcp-header` declaration is invalid and prints the tool's name and
+the declaration as the server sent them. The generator therefore speaks the 2025 revisions, set in
+its code rather than left to the SDK's default, so no tool is dropped without an error. Whatever
+the SDK prints while the tools are fetched, with any console method, goes to stderr as an error
+message would, `mcp-tool-codegen: ` before it and every further line marked; what the rest of your
+process prints meanwhile is left as it is.
 
 ## What the generator does not do
 

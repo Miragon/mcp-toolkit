@@ -100,6 +100,20 @@ describe("toolQueryOptions", () => {
     },
   )
 
+  it.each([
+    ["the v2 SDK", sdkError("ProtocolError", -32001, "Session not found")],
+    ["the v1 SDK", sdkError("McpError", -32001, "MCP error -32001: Session not found")],
+  ])(
+    "retries a server's error with the code -32001 from %s as the client's defaults say",
+    async (_label, error) => {
+      const queryClient = createQueryClient({ retry: 2, retryDelay: 0 })
+      const callTool = vi.fn<ToolCaller>(() => Promise.reject(error))
+
+      await expect(queryClient.fetchQuery(getTask(callTool, queryClient))).rejects.toBe(error)
+      expect(callTool).toHaveBeenCalledTimes(3)
+    },
+  )
+
   it("retries any other failure as the client's defaults say", async () => {
     const queryClient = createQueryClient({ retry: 2, retryDelay: 0 })
     const callTool = vi.fn<ToolCaller>(() => Promise.reject(new Error("socket hang up")))
@@ -142,6 +156,16 @@ describe("isRequestTimeout", () => {
       ),
     ],
     ["the v1 SDK's HTTP 504", sdkError("Error", 504, "Streamable HTTP error: Gateway Timeout")],
+    // A server's own error with the code -32001, such as v2's "Session not found".
+    ["the v2 SDK's server error -32001", sdkError("ProtocolError", -32001, "Session not found")],
+    [
+      "the v1 SDK's server error -32001",
+      sdkError("McpError", -32001, "MCP error -32001: Session not found"),
+    ],
+    [
+      "the v1 SDK's timeout message with another code",
+      sdkError("McpError", -32000, "MCP error -32001: Request timed out"),
+    ],
     ["the v1 code as a string", { code: "-32001" }],
     ["null", null],
     ["undefined", undefined],

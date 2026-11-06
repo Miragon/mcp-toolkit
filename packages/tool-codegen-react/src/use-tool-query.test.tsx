@@ -258,7 +258,7 @@ describe("useToolQuery retry", () => {
     expect(callTool).toHaveBeenCalledTimes(4)
   })
 
-  it("retries any other failure 3 times when the client sets no retry", async () => {
+  it("retries any other failure 3 times in the browser when the client sets no retry", async () => {
     const callTool = failing()
     const { result } = renderToolHook(() => useGetTask("1", { retryDelay: 0 }), {
       callTool,

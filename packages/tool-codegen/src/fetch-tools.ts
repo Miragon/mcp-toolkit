@@ -1,6 +1,8 @@
+import { AsyncLocalStorage } from "node:async_hooks"
 import { createRequire } from "node:module"
+import { format } from "node:util"
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client"
-import { sourceOf, withOriginsOnly } from "./safe-text.js"
+import { logText, sourceOf, withOriginsOnly } from "./safe-text.js"
 
 /** Static auth for the build-time handshake. */
 export type CodegenAuth =
@@ -70,17 +72,81 @@ function failureOf(error: unknown): string {
     : text
 }
 
+/** The console methods that print a message; the MCP client SDK writes through them. */
+const CONSOLE_METHODS = ["debug", "error", "info", "log", "trace", "warn"] as const
+
+type Print = (...data: unknown[]) => void
+
+/** The console's printing methods, which the routing replaces by name. */
+const printing: Record<(typeof CONSOLE_METHODS)[number], Print> = console
+
+/** Set in the async context of a fetch: what is printed there is the SDK's. */
+const inFetch = new AsyncLocalStorage<true>()
+/** The fetches running; the first routes the console, the last restores it. */
+let fetches = 0
+let restoreConsole = (): void => undefined
+
+/**
+ * Prints what is logged in a fetch's async context through `logText`, on stderr: the SDK quotes
+ * the server in its messages (it names a tool it drops by its raw name, and the declaration that
+ * made it drop the tool), and a line of server text must not start a line of a CI log. Other
+ * code's output passes as it was. Returns what restores the console's methods, each only while
+ * it is still the one routed here.
+ */
+function routeConsole(): () => void {
+  const warn = printing.warn
+  const routed = CONSOLE_METHODS.map((method) => {
+    const original = printing[method]
+    const route: Print = (...data) => {
+      if (inFetch.getStore()) warn.call(console, logText(format(...data)))
+      else original.apply(console, data)
+    }
+    printing[method] = route
+    return { method, original, route }
+  })
+  return () => {
+    for (const { method, original, route } of routed) {
+      if (printing[method] === route) printing[method] = original
+    }
+  }
+}
+
+/**
+ * Runs `fetch` with the console routed as `routeConsole` says, also when several fetches
+ * overlap. Exported for tests.
+ */
+export async function withSdkOutputCleaned<T>(fetch: () => Promise<T>): Promise<T> {
+  if (fetches++ === 0) restoreConsole = routeConsole()
+  try {
+    return await inFetch.run(true, fetch)
+  } finally {
+    if (--fetches === 0) restoreConsole()
+  }
+}
+
 /**
  * Connects to an MCP server over streamable HTTP, performs the initialize
  * handshake and returns its complete tools/list (every page), in the server's
  * order. Build-time only: the connection is closed before it returns. A failure
- * names the server by its origin, never its path, query or credentials.
+ * names the server by its origin, never its path, query or credentials, and
+ * what the SDK prints meanwhile reaches stderr cleaned like an error message.
  */
 export async function fetchTools(options: FetchToolsOptions): Promise<ToolDescriptor[]> {
+  return await withSdkOutputCleaned(() => listTools(options))
+}
+
+async function listTools(options: FetchToolsOptions): Promise<ToolDescriptor[]> {
   const transport = new StreamableHTTPClientTransport(new URL(options.url), {
     requestInit: { headers: requestHeaders(options) },
   })
-  const client = new Client({ name: "mcp-tool-codegen", version })
+  // The 2025 handshake, named rather than left to the SDK's default, which the SDK calls a
+  // one-line flip. In the 2026-07-28 era, listTools drops every tool with an invalid
+  // x-mcp-header: the generated files would lose it without an error, and the SDK prints its raw
+  // name and declaration with console.warn (withSdkOutputCleaned catches that too).
+  const client = new Client(
+    { name: "mcp-tool-codegen", version },
+    { versionNegotiation: { mode: "legacy" } },
+  )
   try {
     await client.connect(transport)
     const { tools } = await client.listTools()

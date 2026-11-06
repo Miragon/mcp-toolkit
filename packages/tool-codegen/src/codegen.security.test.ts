@@ -242,6 +242,51 @@ describe("hostile schemas", () => {
     30_000,
   )
 
+  // A 300-byte schema of 14 levels used to abort V8: json2ts copies a node with a type list per
+  // type, siblings included, and each copy prints the composition again. 10 levels stay well
+  // within the heap, at about 10 MB if the output doubles per level again.
+  it.each([
+    ["a type list next to anyOf", { type: ["string", "number"] }, "anyOf"],
+    ["a type list next to oneOf", { type: ["object", "array"] }, "oneOf"],
+    ["a type list next to allOf", { type: ["array", "null"] }, "allOf"],
+    [
+      "object and array keywords without a type next to anyOf",
+      { properties: { a: { type: "string" } }, items: { type: "string" } },
+      "anyOf",
+    ],
+  ])("render %s nested 10 levels deep in output linear in its depth", async (_label, node, key) => {
+    let nested: Record<string, unknown> = { type: "string" }
+    for (let level = 0; level < 10; level++) nested = { ...node, [key]: [nested] }
+    const { toolsFile } = await renderCodegen(
+      [tool("nested", { inputSchema: { type: "object", properties: { t: nested } } })],
+      config,
+    )
+    expect(toolsFile.length).toBeLessThan(10_000)
+    expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
+  })
+
+  // json2ts builds one union member per entry of a type list and prints each to compare them, which
+  // takes time with the square of the schema's size: about 15 s for this one if it repeats a type.
+  it("render a type list that repeats a type 20,000 times as one type", async () => {
+    const properties = Object.fromEntries(
+      Array.from({ length: 1000 }, (_, at) => [`p${at}`, { type: "string" }]),
+    )
+    const started = performance.now()
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("repeated", {
+          inputSchema: {
+            type: "object",
+            properties: { t: { type: Array<string>(20_000).fill("object"), properties } },
+          },
+        }),
+      ],
+      config,
+    )
+    expect(performance.now() - started).toBeLessThan(5000)
+    expect(toolsFile).toContain("p999?: string")
+  }, 60_000)
+
   // json2ts spells a tuple as the union of every length up to its own unless told otherwise: a
   // 300-element draft-07 tuple (5 KB) made 0.7 MB of output, 20,000 elements gigabytes. The run
   // takes about 1 s here and 4 to 7 s on a CI runner under coverage, so the bound and the timeout

@@ -149,17 +149,25 @@ function useToolQuery<
 - Leaves `initialData` without effect on the type: `data` stays possibly `undefined`, where
   `useQuery` narrows it to defined.
 
-| Behaviour  | Rule                                                                                                                                                                                                                                                                                                                                          |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Waiting    | While the provider has no caller, the query is disabled on top of `options.enabled` (`status: "pending"`, `fetchStatus: "idle"`) and starts once a caller arrives. `enabled` as a boolean or a function still applies.                                                                                                                        |
-| Cancelling | TanStack's `AbortSignal` goes to the caller, so a query that unmounts or is cancelled mid-call aborts the request.                                                                                                                                                                                                                            |
-| Call       | `options.callOptions` (`timeout`, `onprogress`, `resetTimeoutOnProgress`, `maxTotalTimeout`) go to the caller with that signal, on every fetch. They are not part of the key, and they take no `signal`: the query's own one would replace it.                                                                                                |
-| Retry      | Without `options.retry`: a `ToolCallError`, a `NoToolCallerError` or a request timeout (below) never retries; any other failure retries as the `QueryClient` says for the key (`setQueryDefaults`, then `defaultOptions.queries.retry`), 3 times when it says nothing. Read at failure time. With `options.retry`, that option decides alone. |
-| Key        | TanStack hashes the key by value, so args built anew on every render are fine.                                                                                                                                                                                                                                                                |
+| Behaviour  | Rule                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Waiting    | While the provider has no caller, the query is disabled on top of `options.enabled` (`status: "pending"`, `fetchStatus: "idle"`) and starts once a caller arrives. `enabled` as a boolean or a function still applies.                                                                                                                                                                                                     |
+| Cancelling | TanStack's `AbortSignal` goes to the caller, so a query that unmounts or is cancelled mid-call aborts the request.                                                                                                                                                                                                                                                                                                         |
+| Call       | `options.callOptions` (`timeout`, `onprogress`, `resetTimeoutOnProgress`, `maxTotalTimeout`) go to the caller with that signal, on every fetch. They are not part of the key, and they take no `signal`: the query's own one would replace it.                                                                                                                                                                             |
+| Retry      | Without `options.retry`: a `ToolCallError`, a `NoToolCallerError` or a request timeout (below) never retries; any other failure retries as the `QueryClient` says for the key (`setQueryDefaults`, then `defaultOptions.queries.retry`), and as TanStack's default when it says nothing: 3 times, on the server (TanStack's `isServer`) not at all. Read at failure time. With `options.retry`, that option decides alone. |
+| Key        | TanStack hashes the key by value, so args built anew on every render are fine.                                                                                                                                                                                                                                                                                                                                             |
+
+The server is what TanStack's `isServer` says: no `window`, or Deno. An override through
+`environmentManager.setIsServer` (TanStack Query 5.91 and later) is not read; in a runtime that
+needs one, set `defaultOptions.queries.retry` on the `QueryClient`.
 
 A request timeout is the MCP SDK's error for a call that ran past its `timeout` or, kept alive by
 progress, past its `maxTotalTimeout`: an `SdkError` with code `REQUEST_TIMEOUT` from the v2 SDK, an
-`McpError` with code `-32001` from the v1 SDK. The hook recognises it by the code, without the SDK.
+`McpError` with code `-32001` and the message `MCP error -32001: Request timed out` or
+`MCP error -32001: Maximum total timeout exceeded` from the v1 SDK. The hook recognises it by that
+code and message, without the SDK. An error the server sends with the code `-32001` (the v2 SDK's
+convention for `Session not found`) is not a timeout: the v1 SDK gives it the same code and name,
+but the server's message.
 A retry would wait the whole timeout again: with `callOptions: { timeout: 300_000 }`, TanStack's 3
 retries would keep the query pending for about 20 minutes. To retry timeouts anyway, pass `retry`.
 
@@ -307,6 +315,9 @@ function toolQueryOptions<TMap extends ToolMapOf<TMap>, TName extends ToolName<T
 - Fails the query as [`useToolQuery`](#usetoolquery) does, with one difference: with
   `callTool: null` the query does not wait, it fails with a
   [`NoToolCallerError`](#notoolcallererror), which is not retried.
+- Keeps that retry rule in `prefetchQuery`, `fetchQuery` and `ensureQueryData` too, which do not
+  retry a plain query: in the browser, a failure other than those retries 3 times unless the
+  `QueryClient` or a spread `retry` says otherwise.
 - Leaves the caller and the client to you: outside a component pass them in, inside one take them
   from [`useToolCaller`](#usetoolcaller) and `useQueryClient()`.
 

@@ -369,6 +369,84 @@ describe("normalizeRefs: chains, cycles and sibling keywords", () => {
     })
   })
 
+  // json2ts copies a node with a type list per type, siblings included: as costly as the above.
+  it("moves a type list next to a composition into a last branch of allOf", () => {
+    const listed = { type: ["object", "array"], properties: { a: { type: "string" } } }
+    const prepare = (node: unknown) => prepared(object({ node })).properties as { node: unknown }
+    expect(
+      prepare({
+        ...listed,
+        items: { type: "string" },
+        minItems: 1,
+        prefixItems: [true],
+        anyOf: [{}],
+      }).node,
+    ).toEqual({
+      allOf: [
+        { anyOf: [{}] },
+        { ...listed, items: { type: "string" }, minItems: 1, prefixItems: [true] },
+      ],
+    })
+    expect(prepare({ ...listed, oneOf: [{}], description: "d", deprecated: true }).node).toEqual({
+      description: "d",
+      deprecated: true,
+      allOf: [{ oneOf: [{}] }, listed],
+    })
+    expect(
+      prepare({
+        ...listed,
+        allOf: [true],
+        anyOf: [{ description: "a" }],
+        oneOf: [{ description: "o" }],
+      }).node,
+    ).toEqual({
+      allOf: [true, { anyOf: [{ description: "a" }] }, { oneOf: [{ description: "o" }] }, listed],
+    })
+    expect(prepare({ ...listed, allOf: [{ required: ["a"] }], required: ["b"] }).node).toEqual({
+      allOf: [
+        { required: ["a"] },
+        { ...listed, properties: { ...listed.properties, b: {} }, required: ["b"] },
+      ],
+    })
+    // Without `type`, the union of object and array keywords takes the same way.
+    expect(
+      prepare({ properties: listed.properties, items: { type: "string" }, anyOf: [{}] }).node,
+    ).toEqual({ allOf: [{ anyOf: [{}] }, { ...listed, items: { type: "string" } }] })
+    expect(
+      prepare({ type: ["object", "array"], additionalProperties: true, items: true, allOf: [{}] })
+        .node,
+    ).toEqual({
+      allOf: [{}, { type: ["object", "array"], additionalProperties: true, items: true }],
+    })
+    // The draft 3 flag speaks for the node's place in its parent.
+    expect(prepare({ type: ["string", "null"], required: true, anyOf: [{}] }).node).toEqual({
+      required: true,
+      allOf: [{ anyOf: [{}] }, { type: ["string", "null"] }],
+    })
+    // A $ref with siblings has become a composition by then, and the root keeps its $defs.
+    expect(
+      prepared({
+        type: ["object", "null"],
+        $ref: "#/$defs/A",
+        $defs: { A: { type: ["string", "null"], anyOf: [{ $ref: "#/$defs/A" }] } },
+      }),
+    ).toEqual({
+      allOf: [{ $ref: "#/$defs/A" }, { type: ["object", "null"] }],
+      $defs: {
+        A: { allOf: [{ anyOf: [{ $ref: "#/$defs/A" }] }, { type: ["string", "null"] }] },
+      },
+    })
+  })
+
+  it("leaves a type list alone without a composition, and one type next to a composition", () => {
+    const untouched = [
+      { type: ["string", "null"], description: "d", enum: ["a", null] },
+      { type: ["object"], anyOf: [{}] },
+      { type: "object", anyOf: [{}], allOf: [{}], oneOf: [{}] },
+    ]
+    for (const node of untouched) expect(prepared(node)).toEqual(node)
+  })
+
   it("drops a $ref of a schema to itself", () => {
     expect(prepared(object({ a: { $ref: "#/properties/a", type: "string" } }))).toEqual({
       type: "object",

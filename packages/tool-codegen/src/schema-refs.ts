@@ -19,6 +19,12 @@
  * - A `$ref` with sibling keywords becomes `allOf: [{ $ref }]` next to them:
  *   json2ts copies the target for such a `$ref` and inlines the copy, which
  *   doubles the output per level just the same.
+ * - A `type` list next to `allOf`, `anyOf` or `oneOf` moves into a last branch
+ *   of `allOf`, with what it types: json2ts copies a node with a `type` list into
+ *   one union member per type, siblings included, and each member prints the
+ *   composition again, which multiplies the output per level. `anyOf` and `oneOf`
+ *   get a branch of their own, since json2ts crashes on a cycle through the
+ *   `allOf` of a node that has any other keyword it types.
  *
  * Every `$ref` left is `#` or `#/$defs/<key>` with an [A-Za-z0-9] key, the root
  * `$defs` hold exactly the referenced targets, and no `$defs` or `definitions`
@@ -158,6 +164,37 @@ function nodesOf(node: JsonObject, name: string): [JsonObject, string][] {
   ]
 }
 
+const COMPOSITIONS = new Set(["allOf", "anyOf", "oneOf"])
+
+/**
+ * What stays on a node when its `type` list moves into a branch of `allOf`: its notes, and the
+ * draft 3 flag `required: true`, which speaks for the node's place in its parent.
+ */
+function staysOnTheNode([keyword, value]: [string, unknown]): boolean {
+  return (
+    keyword === "description" ||
+    keyword === "deprecated" ||
+    (keyword === "required" && value === true)
+  )
+}
+
+/** The node as branches of `allOf`, if a composition is next to its `type` list. */
+function typeListAsBranch(node: JsonObject): JsonObject {
+  const { type, allOf, anyOf, oneOf } = node
+  if (!Array.isArray(type) || type.length < 2) return node
+  if (allOf === undefined && anyOf === undefined && oneOf === undefined) return node
+  const entries = Object.entries(node).filter(([keyword]) => !COMPOSITIONS.has(keyword))
+  return {
+    ...Object.fromEntries(entries.filter(staysOnTheNode)),
+    allOf: [
+      ...((allOf as unknown[] | undefined) ?? []),
+      ...(anyOf === undefined ? [] : [{ anyOf }]),
+      ...(oneOf === undefined ? [] : [{ oneOf }]),
+      Object.fromEntries(entries.filter((entry) => !staysOnTheNode(entry))),
+    ],
+  }
+}
+
 /** Rewrites the `$ref`s of a sanitised schema; see the module comment. */
 export function normalizeRefs(root: JsonObject): JsonObject {
   const targetOf = targetFinder(root)
@@ -197,12 +234,12 @@ export function normalizeRefs(root: JsonObject): JsonObject {
       }
     }
     const target = targetOf(node.$ref)
-    if (target === undefined || target === node) return out
+    if (target === undefined || target === node) return typeListAsBranch(out)
     if (Object.keys(out).length === 0) return { $ref: refTo(target) }
-    return {
+    return typeListAsBranch({
       ...out,
       allOf: [...((out.allOf as unknown[] | undefined) ?? []), { $ref: refTo(target) }],
-    }
+    })
   }
 
   const out = rebuild(root)
