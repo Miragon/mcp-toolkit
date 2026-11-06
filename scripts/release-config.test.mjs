@@ -1,8 +1,8 @@
 /**
  * The shape of the release path that no other check sees: the publish workflows, the PR-title
  * gate that guards the commit subject release-please reads, Dependabot's commit prefixes and its
- * cooldown, the root gate scripts and the scope of the required mutation gate. Run with
- * `pnpm test:scripts` (node --test).
+ * cooldown, the root gate scripts, the required mutation gate and the nightly mutation run. Run
+ * with `pnpm test:scripts` (node --test).
  */
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
@@ -21,7 +21,6 @@ import path from "node:path"
 import { after, describe, it } from "node:test"
 import { fileURLToPath } from "node:url"
 import * as yaml from "js-yaml"
-import { inMutationScope } from "./mutation-scope.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const read = (file) => readFileSync(path.join(root, file), "utf8")
@@ -29,6 +28,17 @@ const workflow = (name) => yaml.load(read(`.github/workflows/${name}`))
 const steps = (job) => job.steps ?? []
 const isCheckout = (step) => step.uses?.startsWith("actions/checkout@")
 const npmPublish = (job) => steps(job).find((step) => /\bnpm publish\b/.test(step.run ?? ""))
+const commands = (job) => steps(job).flatMap((step) => step.run ?? [])
+const artifactUpload = (job) =>
+  steps(job).find((step) => step.uses?.startsWith("actions/upload-artifact@"))
+/** Fails on what would keep a gate green without running its commands or despite their failure. */
+const assertFailureFailsJob = (job) => {
+  assert.equal(job["continue-on-error"], undefined)
+  for (const step of steps(job)) {
+    assert.equal(step["continue-on-error"], undefined, step.run ?? step.uses)
+    if (step.run) assert.equal(step.if, undefined, step.run)
+  }
+}
 const rootScripts = JSON.parse(read("package.json")).scripts
 const packageDirs = Object.fromEntries(
   readdirSync(path.join(root, "packages")).map((dir) => [
@@ -59,6 +69,47 @@ after(() => {
 const isolatedEnv = Object.fromEntries(
   Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
 )
+
+/**
+ * Runs a step's script in a scratch checkout holding `files`, with the commands in `stubs`
+ * (name → bash script) first on the PATH; returns its exit status, outputs and log.
+ */
+const runStep = (step, { files, stubs, env }) => {
+  const dir = scratch()
+  const [bin, checkout, runnerTemp] = ["bin", "checkout", "runner-temp"].map((name) => {
+    mkdirSync(path.join(dir, name))
+    return path.join(dir, name)
+  })
+  for (const [name, script] of Object.entries(stubs)) {
+    writeFileSync(path.join(bin, name), `#!/usr/bin/env bash\n${script}`)
+    chmodSync(path.join(bin, name), 0o755)
+  }
+  for (const [file, content] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(checkout, file)), { recursive: true })
+    writeFileSync(path.join(checkout, file), content)
+  }
+  writeFileSync(path.join(dir, "step.sh"), step.run)
+  const output = path.join(dir, "output")
+  writeFileSync(output, "")
+  // bash -e is how GitHub runs a step without a shell of its own.
+  const run = spawnSync("bash", ["-e", path.join(dir, "step.sh")], {
+    cwd: checkout,
+    encoding: "utf8",
+    env: {
+      PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+      GITHUB_OUTPUT: output,
+      RUNNER_TEMP: runnerTemp,
+      ...env,
+    },
+  })
+  const outputs = Object.fromEntries(
+    readFileSync(output, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => line.split("=")),
+  )
+  return { status: run.status, outputs, log: run.stdout + run.stderr }
+}
 
 describe("release-please.yml", () => {
   const { permissions, jobs } = workflow("release-please.yml")
@@ -132,47 +183,6 @@ describe("publish-npm-package.yml", () => {
   )
   const resolveTag = steps(jobs.pack).find((step) => step.id === "release")
   const packStep = steps(jobs.pack).find((step) => step.id === "pack")
-
-  /**
-   * Runs a step's script in a scratch checkout holding `files`, with the commands in `stubs`
-   * (name → bash script) first on the PATH; returns its exit status, outputs and log.
-   */
-  const runStep = (step, { files, stubs, env }) => {
-    const dir = scratch()
-    const [bin, checkout, runnerTemp] = ["bin", "checkout", "runner-temp"].map((name) => {
-      mkdirSync(path.join(dir, name))
-      return path.join(dir, name)
-    })
-    for (const [name, script] of Object.entries(stubs)) {
-      writeFileSync(path.join(bin, name), `#!/usr/bin/env bash\n${script}`)
-      chmodSync(path.join(bin, name), 0o755)
-    }
-    for (const [file, content] of Object.entries(files)) {
-      mkdirSync(path.dirname(path.join(checkout, file)), { recursive: true })
-      writeFileSync(path.join(checkout, file), content)
-    }
-    writeFileSync(path.join(dir, "step.sh"), step.run)
-    const output = path.join(dir, "output")
-    writeFileSync(output, "")
-    // bash -e is how GitHub runs a step without a shell of its own.
-    const run = spawnSync("bash", ["-e", path.join(dir, "step.sh")], {
-      cwd: checkout,
-      encoding: "utf8",
-      env: {
-        PATH: `${bin}${path.delimiter}${process.env.PATH}`,
-        GITHUB_OUTPUT: output,
-        RUNNER_TEMP: runnerTemp,
-        ...env,
-      },
-    })
-    const outputs = Object.fromEntries(
-      readFileSync(output, "utf8")
-        .split("\n")
-        .filter(Boolean)
-        .map((line) => line.split("=")),
-    )
-    return { status: run.status, outputs, log: run.stdout + run.stderr }
-  }
 
   /** Runs the pack job's "Resolve the release tag" step against a stubbed `gh api`. */
   const runResolveTag = ({
@@ -430,11 +440,40 @@ describe("the root gate scripts", () => {
         assert.ok(packages[name]?.scripts?.[gate], `${name} defines ${gate}`)
     }
   })
+
+  // Else a package's new Stryker config would never run: test:mutation is all CI runs of it.
+  it("leave no package with a Stryker config out of test:mutation", () => {
+    const strykerConfigs = Object.values(packageDirs)
+      .map((dir) => `${dir}/stryker.config.json`)
+      .filter((file) => existsSync(path.join(root, file)))
+    assert.deepEqual(
+      strykerConfigs.sort(),
+      gatedPackages("test:mutation", "test:mutation")
+        .map((name) => `${packageDirs[name]}/stryker.config.json`)
+        .sort(),
+    )
+  })
+
+  // Stryker fails a run only below thresholds.break, and never with a break of null: the threshold
+  // and the script are what let a mutation gate go red. The generator's break may rise.
+  it("run Stryker itself, with a break of 100 in core and at least 95 in the generator", () => {
+    const codegen = "@miragon/mcp-toolkit-tool-codegen"
+    const core = "@miragon/mcp-toolkit-tool-codegen-core"
+    const stryker = (name) => JSON.parse(read(`${packageDirs[name]}/stryker.config.json`))
+    assert.equal(stryker(core).thresholds.break, 100)
+    const codegenBreak = stryker(codegen).thresholds.break
+    assert.ok(codegenBreak >= 95, `the generator's break is ${codegenBreak}`)
+    for (const name of [codegen, core]) {
+      assert.equal(packages[name].scripts["test:mutation"], "stryker run", name)
+      // Where the workflows upload it from, which only warns on a missing file.
+      assert.equal(stryker(name).jsonReporter.fileName, "reports/mutation/mutation.json", name)
+    }
+  })
 })
 
 describe("ci.yml", () => {
   const ci = workflow("ci.yml")
-  const { changes, mutation } = ci.jobs
+  const { mutation } = ci.jobs
 
   // The ruleset requires these checks by job name.
   it("keeps the names of the required checks", () => {
@@ -479,148 +518,148 @@ describe("ci.yml", () => {
     }
   })
 
-  it("skips the mutation gate only on the changes job's explicit false", () => {
-    assert.deepEqual([mutation.needs].flat(), ["changes"])
-    assert.equal(
-      mutation.if,
-      "${{ github.event_name == 'pull_request' && !cancelled() && needs.changes.outputs.mutation != 'false' }}",
-    )
-    assert.equal(changes.outputs?.mutation, "${{ steps.scope.outputs.mutation }}")
+  // The generator's suite takes about 35 minutes; it runs in mutation-nightly.yml.
+  it("runs core's mutation tests alone on every pull request, with no scope job and no build", () => {
+    assert.equal(ci.jobs.changes, undefined)
+    assert.equal(mutation.needs, undefined)
+    assert.equal(mutation.if, "github.event_name == 'pull_request'")
+    assert.deepEqual(commands(mutation), [
+      "pnpm install --frozen-lockfile",
+      "pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-tool-codegen-core run test:mutation",
+    ])
   })
 
-  it("decides the scope on the pull request's whole diff against its base", () => {
-    const checkout = steps(changes).find(isCheckout)
-    assert.equal(checkout.with?.["fetch-depth"], 2)
-    assert.equal(checkout.with?.ref, undefined, "the merge commit, whose first parent is the base")
-    const scope = steps(changes).find((step) => step.id === "scope")
-    assert.equal(scope.run, 'node scripts/mutation-scope.mjs HEAD^1 HEAD >> "$GITHUB_OUTPUT"')
+  // Either would leave the required check green with every mutant alive.
+  it("lets nothing skip core's mutation tests or ignore their failure", () => {
+    assertFailureFailsJob(mutation)
+  })
+
+  it("uploads core's mutation report, after a failed run too", () => {
+    const upload = artifactUpload(mutation)
+    assert.equal(upload.if, "${{ !cancelled() }}")
+    assert.equal(upload.with?.path, "packages/tool-codegen-core/reports/mutation/mutation.json")
   })
 })
 
-describe("mutation-scope.mjs", () => {
-  const script = path.join(root, "scripts/mutation-scope.mjs")
-  const mutated = gatedPackages("test:mutation", "test:mutation").map((name) => packageDirs[name])
+describe("mutation-nightly.yml", () => {
+  const nightly = workflow("mutation-nightly.yml")
+  const { decide, mutation } = nightly.jobs
+  const decision = steps(decide).find((step) => step.id === "decide")
 
-  /** Runs the script in a fresh git repository: one commit with `before`, one after `change`. */
-  const scopeOfCommit = (before, change) => {
-    const dir = scratch()
-    const git = (...args) => {
-      const config = {
-        "user.name": "test",
-        "user.email": "test@example.com",
-        "commit.gpgsign": "false",
-        "core.hooksPath": "/dev/null",
-      }
-      const flags = Object.entries(config).flatMap(([key, value]) => ["-c", `${key}=${value}`])
-      const run = spawnSync("git", [...flags, ...args], { cwd: dir, env: isolatedEnv })
-      assert.equal(run.status, 0, `git ${args.join(" ")}: ${run.stderr}`)
-    }
-    git("init", "--quiet")
-    for (const [file, content] of Object.entries(before)) {
-      mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
-      writeFileSync(path.join(dir, file), content)
-    }
-    git("add", ".")
-    git("commit", "--quiet", "-m", "before")
-    change(git, dir)
-    git("commit", "--quiet", "--all", "-m", "change")
-    return spawnSync(process.execPath, [script, "HEAD^1", "HEAD"], {
-      cwd: dir,
-      encoding: "utf8",
-      env: isolatedEnv,
+  /** Runs the decision against a stubbed `gh`, which knows this call and no other. */
+  const runDecision = ({ event, sha = "0123abcd", lastSuccess, ghDown = false }) =>
+    runStep(decision, {
+      files: {},
+      stubs: {
+        gh:
+          '[ "$*" = "run list --workflow mutation-nightly.yml --branch main --status success --limit 1 --json headSha" ] ||\n' +
+          '  { echo "gh: unexpected arguments: $*" >&2; exit 2; }\n' +
+          '[ -n "$STUB_GH_DOWN" ] && { echo "gh: Bad Gateway (HTTP 502)" >&2; exit 1; }\n' +
+          'echo "$STUB_RUNS"\n',
+      },
+      env: {
+        GITHUB_EVENT_NAME: event,
+        GITHUB_SHA: sha,
+        // gh's own answer: an empty list when no run matches.
+        STUB_RUNS: JSON.stringify(lastSuccess ? [{ headSha: lastSuccess }] : []),
+        STUB_GH_DOWN: ghDown ? "1" : "",
+      },
     })
-  }
 
-  it("reaches what the gate mutates, what its tests read, the toolchain and the gate", () => {
-    assert.deepEqual(mutated, ["packages/tool-codegen", "packages/tool-codegen-core"])
-    const strykerConfigs = Object.values(packageDirs)
-      .map((dir) => `${dir}/stryker.config.json`)
-      .filter((file) => existsSync(path.join(root, file)))
-    assert.deepEqual(
-      strykerConfigs.sort(),
-      mutated.map((dir) => `${dir}/stryker.config.json`).sort(),
-    )
-    for (const file of [
-      ...mutated.flatMap((dir) => [
-        `${dir}/src/index.ts`,
-        `${dir}/src/index.test.ts`,
-        `${dir}/package.json`,
-        `${dir}/vitest.config.ts`,
-        `${dir}/tsconfig.json`,
-      ]),
-      ...strykerConfigs,
-      "packages/tool-codegen/templates/tools.ts.hbs",
-      "packages/tool-codegen-react/src/hooks.tsx",
-      "packages/tool-codegen-react/package.json",
-      "package.json",
-      "pnpm-lock.yaml",
-      "pnpm-workspace.yaml",
-      "tsconfig.base.json",
-      ".github/workflows/ci.yml",
-      "scripts/mutation-scope.mjs",
-    ]) {
-      assert.ok(inMutationScope([file]), file)
-    }
+  // A pull request or a push would bring back the cost the workflow exists to move off them.
+  it("runs on the schedule and by dispatch only, off the top of the hour", () => {
+    assert.deepEqual(Object.keys(nightly.on).sort(), ["schedule", "workflow_dispatch"])
+    assert.deepEqual(nightly.on.schedule, [{ cron: "17 2 * * *" }])
   })
 
-  it("leaves out the docs, the example, the READMEs and the other workflows", () => {
-    assert.equal(inMutationScope([]), false)
-    for (const file of [
-      "docs/index.md",
-      "docs/package.json",
-      "examples/tasks/src/server.ts",
-      "examples/tasks/package.json",
-      "README.md",
-      "CONTRIBUTING.md",
-      "CLAUDE.md",
-      "packages/tool-codegen/README.md",
-      "packages/tool-codegen-core/LICENSE",
-      ".github/workflows/release-please.yml",
-      ".github/workflows/publish-npm-package.yml",
-      "scripts/release-config.test.mjs",
-      "eslint.config.mjs",
-    ]) {
-      assert.equal(inMutationScope([file]), false, file)
-    }
+  it("lets the GITHUB_TOKEN only read, the decision job only the runs", () => {
+    assert.deepEqual(nightly.permissions, { contents: "read" })
+    assert.deepEqual(decide.permissions, { actions: "read" })
+    assert.equal(mutation.permissions, undefined)
   })
 
-  it("prints the scope of a diff", () => {
-    const outOfScope = scopeOfCommit({ "docs/index.md": "a" }, (_, dir) =>
-      writeFileSync(path.join(dir, "docs/index.md"), "b"),
-    )
-    assert.equal(outOfScope.stdout, "mutation=false\n")
-    const inScope = scopeOfCommit({ "packages/tool-codegen/src/a.ts": "a" }, (_, dir) =>
-      writeFileSync(path.join(dir, "packages/tool-codegen/src/a.ts"), "b"),
-    )
-    assert.equal(inScope.stdout, "mutation=true\n")
-  })
-
-  it("counts a file moved out of a mutated package", () => {
-    const before = { "packages/tool-codegen/src/a.ts": "a\n".repeat(20), "docs/index.md": "b" }
-    const run = scopeOfCommit(before, (git) => {
-      git("mv", "packages/tool-codegen/src/a.ts", "docs/a.ts")
+  // A dispatch must not throw away the 35 minutes of a night that is still running.
+  it("queues a run behind a running one, never cancels it", () => {
+    assert.deepEqual(nightly.concurrency, {
+      group: "mutation-nightly",
+      "cancel-in-progress": false,
     })
-    assert.equal(run.stdout, "mutation=true\n")
   })
 
-  // Without -z git prints such a path quoted ("packages/…\303\244.hbs"), which no pattern matches.
-  it("counts a path with a non-ASCII character in a mutated package", () => {
-    const run = scopeOfCommit({ "docs/index.md": "a" }, (git, dir) => {
-      mkdirSync(path.join(dir, "packages/tool-codegen/templates"), { recursive: true })
-      writeFileSync(path.join(dir, "packages/tool-codegen/templates/ä.hbs"), "b")
-      git("add", ".")
+  it("gives the suites 60 minutes", () => {
+    assert.equal(mutation["timeout-minutes"], 60)
+  })
+
+  it("skips the suites only on the decision's explicit false", () => {
+    assert.deepEqual([mutation.needs].flat(), ["decide"])
+    assert.equal(mutation.if, "${{ !cancelled() && needs.decide.outputs.run != 'false' }}")
+    assert.equal(decide.outputs?.run, "${{ steps.decide.outputs.run }}")
+  })
+
+  it("builds, then runs the root test:mutation script with no token left in the checkout", () => {
+    assert.deepEqual(commands(mutation), [
+      "pnpm install --frozen-lockfile",
+      "pnpm build",
+      "pnpm test:mutation",
+    ])
+    assert.equal(steps(mutation).find(isCheckout).with?.["persist-credentials"], false)
+    const setupNode = steps(mutation).find((step) => step.uses?.startsWith("actions/setup-node@"))
+    assert.equal(setupNode.with?.["node-version"], 26)
+  })
+
+  // A run that ignores a failure stays green, and the next night would skip at its commit.
+  it("lets nothing skip the suites or ignore a failure, the decision's included", () => {
+    assertFailureFailsJob(decide)
+    assertFailureFailsJob(mutation)
+  })
+
+  it("uploads the mutation reports, after a failed run too", () => {
+    const upload = artifactUpload(mutation)
+    assert.equal(upload.if, "${{ !cancelled() }}")
+    assert.equal(upload.with?.path, "packages/*/reports/mutation/mutation.json")
+  })
+
+  it("decides without a checkout or an install, with gh told its token and repository", () => {
+    assert.ok(!steps(decide).some(isCheckout), "no checkout")
+    assert.doesNotMatch(decision.run, /\b(?:pnpm|npm|yarn|npx)\b/)
+    // Without a checkout gh fails on a missing GH_REPO: "failed to determine base repo".
+    assert.deepEqual(decision.env, {
+      GH_TOKEN: "${{ github.token }}",
+      GH_REPO: "${{ github.repository }}",
     })
-    assert.equal(run.stdout, "mutation=true\n")
   })
 
-  // ci.yml reads a missing output as "run the gate".
-  it("prints nothing and fails when git fails", () => {
-    const run = spawnSync(process.execPath, [script, "no-such-rev", "HEAD"], {
-      cwd: scratch(),
-      encoding: "utf8",
-      env: isolatedEnv,
+  it("skips a scheduled night only at the commit of the last successful run", () => {
+    const same = runDecision({ event: "schedule", sha: "aaa111", lastSuccess: "aaa111" })
+    assert.equal(same.status, 0, same.log)
+    assert.deepEqual(same.outputs, { run: "false" })
+    const other = runDecision({ event: "schedule", sha: "bbb222", lastSuccess: "aaa111" })
+    assert.equal(other.status, 0, other.log)
+    assert.deepEqual(other.outputs, { run: "true" })
+  })
+
+  it("runs a scheduled night when no run has succeeded yet", () => {
+    const first = runDecision({ event: "schedule" })
+    assert.equal(first.status, 0, first.log)
+    assert.deepEqual(first.outputs, { run: "true" })
+  })
+
+  it("always runs a dispatch, at the last successful commit too", () => {
+    const run = runDecision({ event: "workflow_dispatch", sha: "aaa111", lastSuccess: "aaa111" })
+    assert.equal(run.status, 0, run.log)
+    assert.deepEqual(run.outputs, { run: "true" })
+  })
+
+  // No output at all, which the mutation job reads as "run": the night runs and stays visibly red.
+  it("fails the step and prints no output when gh fails", () => {
+    const run = runDecision({
+      event: "schedule",
+      sha: "aaa111",
+      lastSuccess: "aaa111",
+      ghDown: true,
     })
     assert.notEqual(run.status, 0)
-    assert.equal(run.stdout, "")
+    assert.deepEqual(run.outputs, {})
+    assert.match(run.log, /HTTP 502/)
   })
 })

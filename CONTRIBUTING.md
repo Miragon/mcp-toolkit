@@ -12,7 +12,8 @@ You need Node.js 26.13.0 or newer, the newest LTS line (the root `engines`), and
 (`npm install --global pnpm`), which switches to the 11.28.10 pinned in `packageManager`. Node.js 26
 no longer ships Corepack, and pnpm 10 cannot make the switch: it stops with
 `Failed to switch pnpm to v11.28.10`. CI runs the tests on Node.js 22 as well, the oldest line the
-published packages support.
+published packages support. `pnpm test` also needs `bash` and `jq` on your `PATH`:
+`scripts/release-config.test.mjs` runs the workflows' shell steps.
 
 ```sh
 pnpm install
@@ -48,12 +49,26 @@ a request (not under the tests, which run with `NODE_ENV=test`); set
 
 CI runs these checks on Node.js 22 and 26, the oldest line the packages support and the newest
 LTS, with the coverage floors (`pnpm test:coverage`, inline in each `vitest.config.ts`; raise them,
-never lower them) and, on pull requests, the mutation tests of tool-codegen and tool-codegen-core
-(`pnpm test:mutation`, about 30 minutes on CI). The required check `Mutation diff gate` runs them only
-when a pull request changes what they mutate or read: the three packages but their READMEs and
-licenses, the root `package.json`, the lockfile and the workspace and compiler configs, `ci.yml`
-and `scripts/mutation-scope.mjs`, which holds that list. Otherwise the job is skipped, which the
-check counts as passed.
+never lower them).
+
+Every pull request runs the mutation tests of tool-codegen-core, which take seconds and must kill
+every mutant. That is the required check `Mutation diff gate`, a name the repository ruleset holds
+although the job no longer looks at a diff. No pull request runs the mutation tests of
+tool-codegen, which take about 35 minutes: `.github/workflows/mutation-nightly.yml` runs both
+packages (`pnpm test:mutation`) nightly and on dispatch. A night goes red when the generator scores
+below its `thresholds.break` of 95, not on every surviving mutant. A night skips only when `main`
+still is the commit of the last successful run, so a failed night stays red every night until it is
+fixed.
+A red night blocks no merge and opens no issue. GitHub notifies the user who created the workflow
+or, after them, whoever last changed its cron syntax or re-enabled it, provided they have
+notifications for Actions turned on; everyone else sees a red night only in the Actions tab. In a
+public repository like this one, GitHub also disables a schedule after 60 days without repository
+activity; re-enable the workflow in the Actions tab.
+
+Before you merge a risky change to the generator, run its mutation tests yourself: `pnpm build`,
+then `pnpm test:mutation`, or dispatch the workflow. `gh workflow run mutation-nightly.yml --ref main`
+checks what `main` holds, `--ref <your-branch>` your unmerged change. A run on a branch never lets a
+night skip: the decision reads only the runs on `main`.
 
 What a consumer installs is a range, everything else an exact pin. The `dependencies` and
 `peerDependencies` of a published package take `^` (the workspace packages `workspace:~`), so npm

@@ -29,7 +29,8 @@ pnpm lint                     # pnpm lint:fix to autofix
 pnpm format:check             # pnpm format to write
 pnpm check:exports            # publint + attw on the built packages
 pnpm test:coverage            # package tests against their coverage floors
-pnpm test:mutation            # Stryker: tool-codegen and tool-codegen-core
+pnpm test:mutation            # Stryker: tool-codegen and tool-codegen-core, about 35 minutes on CI
+pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-tool-codegen-core run test:mutation   # core alone, seconds
 pnpm --filter @miragon/mcp-toolkit-tool-codegen test   # one package
 ```
 
@@ -146,7 +147,14 @@ Prettier-clean.
   rises; never lower them to get green.
 - Mutation testing (Stryker, `stryker.config.json`) covers tool-codegen and tool-codegen-core.
   Each config's `thresholds.break` fails the run below it; core's is 100, so every new mutant
-  there must be killed.
+  there must be killed, the generator's 95. Core's run takes seconds and is the required check
+  `Mutation diff gate` on every pull request; the name no longer fits and stays because the ruleset
+  requires it. The generator's run takes about 35 minutes, so no pull request runs it:
+  `.github/workflows/mutation-nightly.yml` runs the root `test:mutation` nightly and on dispatch.
+  A red night blocks no merge, and it stays red until it is fixed, since a night skips only when
+  `main` still is the commit of the last successful run. Before merging a risky generator change,
+  run `pnpm build`, then `pnpm test:mutation`, or dispatch the workflow
+  (`gh workflow run mutation-nightly.yml --ref <branch>`).
 - The GitHub ruleset requires the checks `Typecheck + Build`, `Lint + Format`,
   `Mutation diff gate` (`.github/workflows/ci.yml`) and `Validate PR title`
   (`.github/workflows/pr-title.yml`). Keep those job names. The tests run in the matrix job `test`
@@ -156,16 +164,15 @@ Prettier-clean.
   lowest Node.js its `engines` allow and against its dependencies' lower bounds, and the React
   package's against its peers' lower bounds. A
   required job is scoped with a job-level `if`, never a workflow-level `paths` filter: a check
-  whose workflow never starts stays pending, a skipped job counts as passed. `Mutation diff gate`
-  runs when a pull request touches `scripts/mutation-scope.mjs`'s list (the `changes` job); add a
-  path there when the mutated packages' tests start to read it.
+  whose workflow never starts stays pending, a skipped job counts as passed.
 - The root `test:coverage` and `test:mutation` name each package with its own `--filter`, never
   `pnpm -r --if-present`, which goes green when a script is renamed away.
   `scripts/release-config.test.mjs` (in `Lint + Format`) pins that, the publish order and the
   id-token job's shape (no install, no build, no checkout, no cache), the release tag the pack job
   builds, the dry run through the real publish command, the read-only `GITHUB_TOKEN`, the
-  mutation gate's scope, the PR-title check of single commits, Dependabot's commit prefixes and
-  its npm cooldown, which equals pnpm's `minimumReleaseAge` in `pnpm-workspace.yaml`.
+  pull-request mutation gate (core alone), the nightly mutation workflow and its decision to skip a
+  night, both mutation thresholds, the PR-title check of single commits, Dependabot's commit
+  prefixes and its npm cooldown, which equals pnpm's `minimumReleaseAge` in `pnpm-workspace.yaml`.
 - Tests pin behaviour, not lines. Type-level contracts (unknown tool names, wrong args) are
   pinned with `expectTypeOf` and `@ts-expect-error`; `pnpm typecheck` checks them.
 
