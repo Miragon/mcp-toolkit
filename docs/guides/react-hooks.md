@@ -377,9 +377,10 @@ A query without its own `retry` option never retries:
 - a `NoToolCallerError`: once a caller arrives, the query starts by itself.
 - the MCP SDK's request timeout, `SdkError: Request timed out` or
   `SdkError: Maximum total timeout exceeded` (code `REQUEST_TIMEOUT`; the v1 SDK's `McpError` with
-  code `-32001` too): each retry would wait the whole timeout again, so a query with
-  `callOptions: { timeout: 300_000 }` and TanStack's 3 retries would stay pending for about 20
-  minutes.
+  code `-32001` and one of those two messages too): each retry would wait the whole timeout again,
+  so a query with `callOptions: { timeout: 300_000 }` and TanStack's 3 retries would stay pending
+  for about 20 minutes. An error the server sends with the code `-32001`, such as
+  `Session not found`, is not a timeout and is retried.
 
 Any other failure, such as a dropped connection, is retried as the `QueryClient` says for the
 query's key (`setQueryDefaults`, then `defaultOptions.queries.retry`), 3 times when it says nothing.

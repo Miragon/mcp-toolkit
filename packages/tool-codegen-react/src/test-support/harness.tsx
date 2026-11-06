@@ -41,6 +41,10 @@ export const REQUEST_TIMEOUTS: [label: string, error: Error][] = [
     sdkError("SdkError", "REQUEST_TIMEOUT", "Maximum total timeout exceeded"),
   ],
   ["the v1 SDK's timeout", sdkError("McpError", -32001, "MCP error -32001: Request timed out")],
+  [
+    "the v1 SDK's maxTotalTimeout",
+    sdkError("McpError", -32001, "MCP error -32001: Maximum total timeout exceeded"),
+  ],
 ]
 
 /**

@@ -48,18 +48,30 @@ export function toolQueryFn<TMap extends ToolMapOf<TMap>, TName extends ToolName
 }
 
 /**
+ * The messages of the v1 SDK's own request timeouts, `timeout` and `maxTotalTimeout`, as its
+ * `McpError` spells them.
+ */
+const V1_TIMEOUT_MESSAGES: ReadonlySet<unknown> = new Set([
+  "MCP error -32001: Request timed out",
+  "MCP error -32001: Maximum total timeout exceeded",
+])
+
+/**
  * True for the MCP SDK's request timeout: the call's `timeout` ran out, or progress kept it alive
  * past `maxTotalTimeout`. The v2 SDK (`@modelcontextprotocol/client`, which ext-apps' `App` runs
- * on) rejects with an `SdkError` of code `"REQUEST_TIMEOUT"`, the v1 SDK
- * (`@modelcontextprotocol/sdk`) with an `McpError` of code `-32001`. Read from the code alone, so
- * the package needs no SDK and recognises the error of any copy of it. Both SDKs give a call that
- * its signal aborted the same code; the retry rule never sees one, since TanStack settles a
- * cancelled query before it aborts the signal.
+ * on) rejects with an `SdkError` of code `"REQUEST_TIMEOUT"`, a string no server error carries.
+ * The v1 SDK (`@modelcontextprotocol/sdk`) rejects with an `McpError` of code `-32001`, the code
+ * it also gives an error a server sends with it (v2's convention for an unknown session), so a
+ * v1 error counts only with the message of one of its own timeouts. Read from the error's shape
+ * alone, so the package needs no SDK and recognises the error of any copy of it. Both SDKs give a
+ * call that its signal aborted the timeout's code; the retry rule never sees one, since TanStack
+ * settles a cancelled query before it aborts the signal.
  */
 export function isRequestTimeout(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false
-  const { code } = error as { code?: unknown }
-  return code === "REQUEST_TIMEOUT" || code === -32001
+  const { code, name, message } = error as { code?: unknown; name?: unknown; message?: unknown }
+  if (code === "REQUEST_TIMEOUT") return true
+  return code === -32001 && name === "McpError" && V1_TIMEOUT_MESSAGES.has(message)
 }
 
 /**

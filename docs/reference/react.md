@@ -159,7 +159,11 @@ function useToolQuery<
 
 A request timeout is the MCP SDK's error for a call that ran past its `timeout` or, kept alive by
 progress, past its `maxTotalTimeout`: an `SdkError` with code `REQUEST_TIMEOUT` from the v2 SDK, an
-`McpError` with code `-32001` from the v1 SDK. The hook recognises it by the code, without the SDK.
+`McpError` with code `-32001` and the message `MCP error -32001: Request timed out` or
+`MCP error -32001: Maximum total timeout exceeded` from the v1 SDK. The hook recognises it by that
+shape, without the SDK. An error the server sends with the code `-32001` (the v2 SDK's convention
+for `Session not found`) is not a timeout: the v1 SDK gives it the same code and name, but the
+server's message.
 A retry would wait the whole timeout again: with `callOptions: { timeout: 300_000 }`, TanStack's 3
 retries would keep the query pending for about 20 minutes. To retry timeouts anyway, pass `retry`.
 
