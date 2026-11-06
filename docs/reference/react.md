@@ -165,9 +165,9 @@ A request timeout is the MCP SDK's error for a call that ran past its `timeout` 
 progress, past its `maxTotalTimeout`: an `SdkError` with code `REQUEST_TIMEOUT` from the v2 SDK, an
 `McpError` with code `-32001` and the message `MCP error -32001: Request timed out` or
 `MCP error -32001: Maximum total timeout exceeded` from the v1 SDK. The hook recognises it by that
-shape, without the SDK. An error the server sends with the code `-32001` (the v2 SDK's convention
-for `Session not found`) is not a timeout: the v1 SDK gives it the same code and name, but the
-server's message.
+code and message, without the SDK. An error the server sends with the code `-32001` (the v2 SDK's
+convention for `Session not found`) is not a timeout: the v1 SDK gives it the same code and name,
+but the server's message.
 A retry would wait the whole timeout again: with `callOptions: { timeout: 300_000 }`, TanStack's 3
 retries would keep the query pending for about 20 minutes. To retry timeouts anyway, pass `retry`.
 
@@ -315,6 +315,9 @@ function toolQueryOptions<TMap extends ToolMapOf<TMap>, TName extends ToolName<T
 - Fails the query as [`useToolQuery`](#usetoolquery) does, with one difference: with
   `callTool: null` the query does not wait, it fails with a
   [`NoToolCallerError`](#notoolcallererror), which is not retried.
+- Keeps that retry rule in `prefetchQuery`, `fetchQuery` and `ensureQueryData` too, which do not
+  retry a plain query: in the browser, a failure other than those retries 3 times unless the
+  `QueryClient` or a spread `retry` says otherwise.
 - Leaves the caller and the client to you: outside a component pass them in, inside one take them
   from [`useToolCaller`](#usetoolcaller) and `useQueryClient()`.
 

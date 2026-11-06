@@ -295,7 +295,10 @@ const prefetchTask = (context: ToolQueryContext, id: string) =>
 
 Name the tool map and the tool as type parameters, as the generated hooks do; the namespace is the
 config's `name`. Unlike a query hook, these options do not wait for a caller: with `callTool: null`
-the query fails with a `NoToolCallerError`, so run it once the provider has a caller.
+the query fails with a `NoToolCallerError`, so run it once the provider has a caller. They also
+carry the retry rule below where `prefetchQuery`, `fetchQuery` and `ensureQueryData` would not retry
+a plain query: in the browser, a tool prefetch that fails for any other reason retries 3 times.
+Spread them with `retry: false` to fail at once.
 
 ## Connect several servers
 

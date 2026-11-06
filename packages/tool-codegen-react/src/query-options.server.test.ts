@@ -23,10 +23,14 @@ function getTask(callTool: ToolCaller, queryClient: QueryClient) {
 }
 
 describe("a tool query on the server", () => {
+  // Through the query itself: fetchQuery sets `retry: false` of its own, in a browser too, so it
+  // would show nothing about the server. In a browser, this query runs 4 times.
   it("runs where TanStack sees a server, which retries no query by default (the control)", async () => {
     expect(isServer).toBe(true)
+    const queryClient = serverClient()
     const queryFn = vi.fn(() => Promise.reject(new Error("socket hang up")))
-    await expect(serverClient().fetchQuery({ queryKey: ["plain"], queryFn })).rejects.toThrow()
+    const query = queryClient.getQueryCache().build(queryClient, { queryKey: ["plain"], queryFn })
+    await expect(query.fetch()).rejects.toThrow()
     expect(queryFn).toHaveBeenCalledOnce()
   })
 

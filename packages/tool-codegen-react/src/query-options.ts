@@ -67,23 +67,24 @@ const V1_TIMEOUT_MESSAGES: ReadonlySet<unknown> = new Set([
  * on) rejects with an `SdkError` of code `"REQUEST_TIMEOUT"`, a string no server error carries.
  * The v1 SDK (`@modelcontextprotocol/sdk`) rejects with an `McpError` of code `-32001`, the code
  * it also gives an error a server sends with it (v2's convention for an unknown session), so a
- * v1 error counts only with the message of one of its own timeouts. Read from the error's shape
- * alone, so the package needs no SDK and recognises the error of any copy of it. Both SDKs give a
- * call that its signal aborted the timeout's code; the retry rule never sees one, since TanStack
- * settles a cancelled query before it aborts the signal.
+ * v1 error counts only with the message of one of its own timeouts. Read from the code and the
+ * message alone, so the package needs no SDK and recognises the error of any copy of it, also of
+ * one up to 1.5.0, whose `McpError` does not set its `name`. Both SDKs give a call that its
+ * signal aborted the timeout's code; the retry rule never sees one, since TanStack settles a
+ * cancelled query before it aborts the signal.
  */
 export function isRequestTimeout(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false
-  const { code, name, message } = error as { code?: unknown; name?: unknown; message?: unknown }
+  const { code, message } = error as { code?: unknown; message?: unknown }
   if (code === "REQUEST_TIMEOUT") return true
-  return code === -32001 && name === "McpError" && V1_TIMEOUT_MESSAGES.has(message)
+  return code === -32001 && V1_TIMEOUT_MESSAGES.has(message)
 }
 
 /**
  * TanStack's retry when nothing sets one: 3 in the browser, none on the server, where a failed
  * render should not wait for retries. `isServer` is TanStack's own reading (no `window`, or
- * Deno), exported by every 5.x version; `environmentManager`, which can override it, exists only
- * from 5.91 on, so an override through it is not read here.
+ * Deno), exported by every 5.x version. It is deprecated from 5.91 on for `environmentManager`,
+ * which can override it, but the peer range starts below that, so an override is not read here.
  */
 const tanstackDefaultRetry = () => (isServer ? 0 : 3)
 

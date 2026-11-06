@@ -163,10 +163,6 @@ describe("isRequestTimeout", () => {
       sdkError("McpError", -32001, "MCP error -32001: Session not found"),
     ],
     [
-      "the v1 SDK's timeout message under another name",
-      sdkError("Error", -32001, "MCP error -32001: Request timed out"),
-    ],
-    [
       "the v1 SDK's timeout message with another code",
       sdkError("McpError", -32000, "MCP error -32001: Request timed out"),
     ],
