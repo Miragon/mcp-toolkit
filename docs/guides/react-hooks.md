@@ -4,7 +4,7 @@ Read and write your server's tools from React components with the generated quer
 hooks, cached, deduplicated and refetched by TanStack Query.
 
 **Requirements:** a codegen config and a generated `tools.ts`
-([Generate typed tools](./generate.md)), React 18 or 19, TanStack Query 5 from 5.48 on.
+([Generate typed tools](./generate.md)), React 19, TanStack Query 5 from 5.100.2 on.
 
 The code on this page comes from the Vite app in
 [`examples/tasks/src/react`](https://github.com/Miragon/mcp-toolkit/tree/main/examples/tasks/src/react).
@@ -18,12 +18,13 @@ The generated `hooks.tsx` imports the React package, which runs on TanStack Quer
 package:
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-react@3 @miragon/mcp-toolkit-tool-codegen-core@3 @tanstack/react-query
+pnpm add @miragon/mcp-toolkit-tool-codegen-react@4 @miragon/mcp-toolkit-tool-codegen-core@4 @tanstack/react-query
 ```
 
-The React package's peers are `react` `^18 || ^19`, `@tanstack/react-query` `^5.48` (the first
-release whose `enabled` takes a function) and the core of the same minor version. Keep the generator
-on that minor version too. The three packages now show under `dependencies` in your `package.json`.
+The React package's peers are `react` `^19.0.0`, `@tanstack/react-query` `^5.100.2` (the lowest
+release its tests and type tests pass against) and the core of the same minor version. Keep the
+generator on that minor version too. The three packages now show under `dependencies` in your
+`package.json`.
 
 ## 2. Generate the hooks
 
@@ -267,7 +268,7 @@ const addTask = useTasksAddTaskMutation({
 hook runs with: the key, the call with TanStack's abort signal and the retry rule. A `callOptions`
 entry in the last argument gives the call a timeout or a progress callback, as in a query hook.
 Use it where TanStack takes options instead of a hook: `useSuspenseQuery`, `useQueries`,
-`prefetchQuery` and `ensureQueryData`.
+`fetchQuery`, `prefetchQuery` and `ensureQueryData`.
 
 ```tsx
 import {

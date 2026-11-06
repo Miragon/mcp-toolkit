@@ -80,6 +80,11 @@ In every case, run `pnpm generate`, review the diff and commit it. Exit code 1 a
 server could not be reached, listed no tools or the config is invalid; the message says which.
 Exit code 2 is a wrong command line.
 
+A drift without a change on the server can come from your lockfile: the generator's Prettier and
+json-schema-to-typescript are ranges your lockfile resolves, and a newer version there can format
+or name a type differently. Keep the lockfile committed, so the check runs on the versions you
+reviewed.
+
 ## 3. Run the check in CI
 
 When the server lives in the same repository, start it in the job and run the check against it.
@@ -106,7 +111,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start the MCP server

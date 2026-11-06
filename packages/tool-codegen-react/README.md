@@ -11,7 +11,7 @@ server's queries on success.
 ## Install
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-react@3 @miragon/mcp-toolkit-tool-codegen-core@3 @tanstack/react-query
+pnpm add @miragon/mcp-toolkit-tool-codegen-react@4 @miragon/mcp-toolkit-tool-codegen-core@4 @tanstack/react-query
 ```
 
 ## Usage
@@ -39,8 +39,9 @@ function OpenTasks() {
 
 ## Requirements
 
-- Peers: `react` `^18 || ^19` (the tests run on React 19), `@tanstack/react-query` `^5.48` and
+- Peers: `react` `^19.0.0`, `@tanstack/react-query` `^5.100.2` and
   `@miragon/mcp-toolkit-tool-codegen-core` of the same minor version as this package.
+  CI runs the tests against the lowest version of each range and the version in the lockfile.
 - A `QueryClientProvider` above the hooks, which your app renders: this package creates no
   `QueryClient`.
 - ESM only.

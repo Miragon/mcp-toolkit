@@ -3,8 +3,8 @@
 Every key of the codegen config file, how `mcp-tool-codegen generate` loads the file and where it
 writes the generated code.
 
-**Requirements:** Node.js 22.18 or newer for a `.ts` config. A `.mjs` config loads on every
-Node.js the CLI runs on (20 or newer).
+**Requirements:** Node.js 22.18 or newer, the CLI's minimum, which loads every config format
+below.
 
 <dl class="facts">
   <dt>File</dt><dd><code>codegen.config.ts</code> in the working directory, or the file <code>--config</code> names</dd>
@@ -182,14 +182,14 @@ export default {
 - A TypeScript config goes through Node.js's built-in type stripping: only erasable TypeScript
   (type imports, annotations, `satisfies`), no enums, namespaces or parameter properties.
 
-| File extension | Loads                                                                                                          |
-| -------------- | -------------------------------------------------------------------------------------------------------------- |
-| `.ts`          | Node.js 22.18 or newer, not in a package with `"type": "commonjs"`                                             |
-| `.mts`         | Node.js 22.18 or newer, in every package                                                                       |
-| `.cts`         | Node.js 22.18 or newer, in every package, with `module.exports = { ... }`, which Node.js hands over as default |
-| `.js`          | not in a package with `"type": "commonjs"`                                                                     |
-| `.mjs`         | in every package                                                                                               |
-| `.cjs`         | in every package, with `module.exports = { ... }`, which Node.js hands over as default                         |
+| File extension | Loads                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------- |
+| `.ts`          | not in a package with `"type": "commonjs"`                                             |
+| `.mts`         | in every package                                                                       |
+| `.cts`         | in every package, with `module.exports = { ... }`, which Node.js hands over as default |
+| `.js`          | not in a package with `"type": "commonjs"`                                             |
+| `.mjs`         | in every package                                                                       |
+| `.cjs`         | in every package, with `module.exports = { ... }`, which Node.js hands over as default |
 
 In a package without a `"type"` field, Node.js loads a `.ts` or `.js` config with ES module syntax
 after a `MODULE_TYPELESS_PACKAGE_JSON` warning; `"type": "module"` silences it.

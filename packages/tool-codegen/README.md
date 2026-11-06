@@ -11,8 +11,8 @@ Everything the server sends is treated as untrusted input.
 ## Install
 
 ```sh
-pnpm add -D @miragon/mcp-toolkit-tool-codegen@3
-pnpm add @miragon/mcp-toolkit-tool-codegen-core@3
+pnpm add -D @miragon/mcp-toolkit-tool-codegen@4
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@4
 ```
 
 ## Usage
@@ -41,9 +41,8 @@ example `toolCallerFromClient(client)` from the core package over a connected MC
 
 ## Requirements
 
-- Node.js 20 or newer for the CLI. A `.ts` config needs Node.js 22.18 or newer; on older versions
-  use a `.mjs` config, and in a `"type": "commonjs"` package name it `codegen.config.mts` and pass
-  `--config codegen.config.mts`.
+- Node.js 22.18 or newer for the CLI, the first that loads a `.ts` config. In a
+  `"type": "commonjs"` package, name it `codegen.config.mts` and pass `--config codegen.config.mts`.
 - An MCP server that answers over streamable HTTP.
 - The generator, the core and the React package on the same minor version: the generator writes
   code against the runtime of its own release and declares both as optional peers.

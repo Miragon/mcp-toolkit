@@ -9,9 +9,9 @@ controls and what it leads to; a minimal `tools/list` or config that shows it he
 
 ## Supported versions
 
-Fixes go into the latest 3.x release of `@miragon/mcp-toolkit-tool-codegen`,
-`@miragon/mcp-toolkit-tool-codegen-core` and `@miragon/mcp-toolkit-tool-codegen-react`. 2.x gets
-none, `@miragon/mcp-toolkit-core` and `@miragon/mcp-toolkit-ui` included.
+Fixes go into the latest 4.x release of `@miragon/mcp-toolkit-tool-codegen`,
+`@miragon/mcp-toolkit-tool-codegen-core` and `@miragon/mcp-toolkit-tool-codegen-react`. 3.x and 2.x
+get none, `@miragon/mcp-toolkit-core` and `@miragon/mcp-toolkit-ui` included.
 
 ## Scope
 

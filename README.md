@@ -9,11 +9,11 @@ compile, and the generator treats everything the server sends as untrusted.
 
 **Documentation: <https://miragon.github.io/mcp-toolkit/>**
 
-| Package                                                                    | What it is                                                                                                                          | Install as                                                                                                         |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen)             | The `mcp-tool-codegen` CLI and generator (Node.js): `tools/list` to `tools.ts` and, with `react: true`, `hooks.tsx`                 | dev dependency                                                                                                     |
-| [`@miragon/mcp-toolkit-tool-codegen-core`](./packages/tool-codegen-core)   | Runtime of `tools.ts`: the `ToolCaller` contract, typed calls, result parsing, `ToolCallError`. Node.js, browsers, MCP Apps widgets | dependency, no dependencies of its own                                                                             |
-| [`@miragon/mcp-toolkit-tool-codegen-react`](./packages/tool-codegen-react) | Runtime of `hooks.tsx`: `ToolCallerProvider`, `useToolQuery` and `useToolMutation` on TanStack Query                                | dependency, peers `react` 18 or 19, `@tanstack/react-query` `^5.48` and the core package of the same minor version |
+| Package                                                                    | What it is                                                                                                                          | Install as                                                                                                      |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [`@miragon/mcp-toolkit-tool-codegen`](./packages/tool-codegen)             | The `mcp-tool-codegen` CLI and generator (Node.js): `tools/list` to `tools.ts` and, with `react: true`, `hooks.tsx`                 | dev dependency                                                                                                  |
+| [`@miragon/mcp-toolkit-tool-codegen-core`](./packages/tool-codegen-core)   | Runtime of `tools.ts`: the `ToolCaller` contract, typed calls, result parsing, `ToolCallError`. Node.js, browsers, MCP Apps widgets | dependency, no dependencies of its own                                                                          |
+| [`@miragon/mcp-toolkit-tool-codegen-react`](./packages/tool-codegen-react) | Runtime of `hooks.tsx`: `ToolCallerProvider`, `useToolQuery` and `useToolMutation` on TanStack Query                                | dependency, peers `react` 19, `@tanstack/react-query` `^5.100.2` and the core package of the same minor version |
 
 [`examples/tasks`](./examples/tasks) runs the whole chain on one small MCP server: codegen, the
 typed client in Node.js, the hooks in a Vite React app, and a test as the drift gate.
@@ -23,8 +23,8 @@ typed client in Node.js, the hooks in a Vite React app, and a test as the drift 
 Install the generator and the runtime, and point a config at your server:
 
 ```sh
-pnpm add -D @miragon/mcp-toolkit-tool-codegen@3
-pnpm add @miragon/mcp-toolkit-tool-codegen-core@3 @modelcontextprotocol/client
+pnpm add -D @miragon/mcp-toolkit-tool-codegen@4
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@4 @modelcontextprotocol/client
 ```
 
 ```ts
@@ -40,7 +40,8 @@ const config: CodegenConfig = {
 export default config
 ```
 
-Node.js loads a `.ts` config from 22.18 on; for older versions or a CommonJS package, see
+The CLI needs Node.js 22.18 or newer, the first that loads a `.ts` config; for a CommonJS
+package, see
 [Generate typed tools](https://miragon.github.io/mcp-toolkit/guides/generate#load-the-config-on-older-nodejs-or-in-commonjs).
 
 `generate` reads the server's `tools/list` and writes `src/generated/tools.ts`:

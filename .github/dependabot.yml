@@ -14,6 +14,12 @@ updates:
       prefix-development: "chore"
       include: "scope"
     open-pull-requests-limit: 10
+    # Without a strategy Dependabot treats this private root as an app (its log: "Requirements update
+    # strategy bump_versions") and raises the lower bound of a range on every update, here the
+    # generator's caret dependencies, which narrows what a consumer can dedupe. This keeps a range
+    # that already admits the new version and moves the lockfile; an exact pin admits only itself, so
+    # it still moves. The "Lower bounds" job in ci.yml tests the ranges' floors.
+    versioning-strategy: increase-if-necessary
     # One window for every update type, equal to pnpm's minimumReleaseAge (pnpm-workspace.yaml):
     # Dependabot hands a cooldown longer than pnpm's window to pnpm as the minimum release age, and
     # pnpm checks the versions already in the lockfile against it, so a longer one fails every
@@ -23,16 +29,15 @@ updates:
     cooldown:
       default-days: 7
     ignore:
-      # Hold vitest on 4.x until @stryker-mutator/vitest-runner supports
-      # vitest 5. Runner 10.0.0 filters each mutant run by space-joined test
-      # names, while vitest 5 matches testNamePattern against " > "-joined
-      # full names: every mutant run executes 0 tests and "survives", so the
-      # required mutation gate reads ~0 (a sweep fell from 75.77 to 2.32
-      # after the 5.0 bump in #169). Drop this once a runner release
-      # supports vitest 5 and the mutation gate on the bump PR is green.
-      - dependency-name: "vitest"
+      # The Node.js types stay on the major of the oldest Node.js line the published packages
+      # support (engines.node of the generator), so the code cannot use a newer API by accident.
+      # Move them with that lower bound.
+      - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
-      - dependency-name: "@vitest/coverage-v8"
+      # Hold TypeScript on 6.x: typescript-eslint 8 supports typescript <6.1.0, and the generator's
+      # typeErrors test support uses the classic compiler API (createProgram, transpileModule),
+      # which the typescript 7 package no longer exports. Drop this once both have moved.
+      - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
       # The docs site's pins (docs/package.json) are the versions the Miragon docs kit is built
       # and tested with. They move only with a release of the kit, by hand, as CONTRIBUTING.md

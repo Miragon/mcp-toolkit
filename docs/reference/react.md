@@ -7,9 +7,9 @@ what it takes, what it returns and how it fails.
   <dt>Package</dt>
   <dd><code>@miragon/mcp-toolkit-tool-codegen-react</code></dd>
   <dt>Install</dt>
-  <dd><code>pnpm add @miragon/mcp-toolkit-tool-codegen-react@3 @miragon/mcp-toolkit-tool-codegen-core@3 @tanstack/react-query</code></dd>
+  <dd><code>pnpm add @miragon/mcp-toolkit-tool-codegen-react@4 @miragon/mcp-toolkit-tool-codegen-core@4 @tanstack/react-query</code></dd>
   <dt>Peers</dt>
-  <dd><code>react</code> <code>^18.0.0 || ^19.0.0</code>, <code>@tanstack/react-query</code> <code>^5.48.0</code> (the first release whose <code>enabled</code> takes a function), <code>@miragon/mcp-toolkit-tool-codegen-core</code> of the same minor version</dd>
+  <dd><code>react</code> <code>^19.0.0</code>, <code>@tanstack/react-query</code> <code>^5.100.2</code> (the first release whose <code>fetchQuery</code> takes what <code>toolQueryOptions</code> returns), <code>@miragon/mcp-toolkit-tool-codegen-core</code> of the same minor version; CI runs the tests against the lowest version of each range too</dd>
   <dt>Needs</dt>
   <dd>a <code>QueryClientProvider</code> above the hooks, which your app renders: the package creates no <code>QueryClient</code></dd>
   <dt>Module</dt>
@@ -310,8 +310,8 @@ function toolQueryOptions<TMap extends ToolMapOf<TMap>, TName extends ToolName<T
 - Returns `{ queryKey, queryFn, retry }` with the key, the call (with `context.callOptions` and
   TanStack's abort signal) and the retry rule of [`useToolQuery`](#usetoolquery), for what takes
   options instead of a hook:
-  `useSuspenseQuery`, `useQueries`, `queryClient.prefetchQuery` and `ensureQueryData`. Spread it to
-  add options: `{ ...toolQueryOptions(...), staleTime: 60_000 }`.
+  `useSuspenseQuery`, `useQueries`, `queryClient.fetchQuery`, `prefetchQuery` and
+  `ensureQueryData`. Spread it to add options: `{ ...toolQueryOptions(...), staleTime: 60_000 }`.
 - Fails the query as [`useToolQuery`](#usetoolquery) does, with one difference: with
   `callTool: null` the query does not wait, it fails with a
   [`NoToolCallerError`](#notoolcallererror), which is not retried.
@@ -542,5 +542,4 @@ TanStack's query options with the key and the query function always set: what
 - [Use the React hooks](../guides/react-hooks.md): the provider, the generated hooks, invalidation
   and suspense in an app.
 - [Core API](./core.md): the `ToolCaller`, `ToolCallError` and the parse rules under every hook.
-- [Guarantees and limits](../guarantees.md): what the hooks leave open, such as `initialData` and
-  React 18.
+- [Guarantees and limits](../guarantees.md): what the hooks leave open, such as `initialData`.

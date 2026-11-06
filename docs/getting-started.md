@@ -4,8 +4,7 @@ Generate typed TypeScript for the example MCP server of this repository, make a 
 call from Node.js and watch the compiler reject a wrong argument.
 
 **Requirements:** Node.js 22.22.2 or later, the minimum of the example server this guide runs
-(the CLI alone runs on Node.js 20 and loads a `.ts` config from 22.18 on), pnpm
-(`corepack enable` provides it) and git.
+(the CLI alone needs 22.18 or later), pnpm 11 or later (`npm install --global pnpm`) and git.
 
 ::: tip With your own MCP server
 Skip step 1, use your server's streamable HTTP endpoint as `url` and pick your own `name`. Steps 2
@@ -33,7 +32,9 @@ pnpm serve
 Tasks MCP server listening on http://localhost:4000/mcp
 ```
 
-Leave this terminal open: the server keeps running and logs every request. It starts with an
+On a Node.js older than 26.13, the install warns `Unsupported engine: wanted: {"node":">=26.13.0"}`.
+That is the toolchain this repository is developed on; the example runs without it. Leave this
+terminal open: the server keeps running and logs every request. It starts with an
 empty task list each time. mcp-use, the framework under the server, sends anonymized usage
 telemetry; `MCP_USE_ANONYMIZED_TELEMETRY=false pnpm serve` turns it off.
 
@@ -46,8 +47,8 @@ and the MCP SDK client connects to the server:
 ```sh
 mkdir tasks-client && cd tasks-client
 echo '{ "name": "tasks-client", "private": true, "type": "module" }' > package.json
-pnpm add -D @miragon/mcp-toolkit-tool-codegen@3 typescript
-pnpm add @miragon/mcp-toolkit-tool-codegen-core@3 @modelcontextprotocol/client
+pnpm add -D @miragon/mcp-toolkit-tool-codegen@4 typescript
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@4 @modelcontextprotocol/client
 ```
 
 `"type": "module"` lets Node.js load the config and the script below as ES modules. `inspect`
@@ -210,9 +211,14 @@ Another process holds port 4000. Start the server with `PORT=4001 pnpm serve` an
 `http://localhost:4001/mcp` in the config and in `src/main.ts`.
 :::
 
+::: details `Failed to switch pnpm to v11.28.10`
+A pnpm 10 cannot switch to the pnpm 11 this repository pins. Update it with
+`npm install --global pnpm` and run the command again.
+:::
+
 ::: details `Node.js loads a .ts config from version 22.18 on` with `Unknown file extension ".ts"`
-The CLI runs on a Node.js older than 22.18, which cannot load `codegen.config.ts`. Update
-Node.js, or use one of the other config formats in
+The CLI runs on a Node.js older than 22.18, below its engines range, which cannot load
+`codegen.config.ts`. Update Node.js, or use one of the other config formats in
 [Generate typed tools](./guides/generate.md#load-the-config-on-older-nodejs-or-in-commonjs).
 :::
 

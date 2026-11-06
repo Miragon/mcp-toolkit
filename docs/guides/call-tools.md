@@ -4,7 +4,7 @@ Call your MCP server's tools with typed arguments and typed results: through the
 over an MCP client in Node and the browser, or through the host in an MCP Apps widget.
 
 **Requirements:** a generated `tools.ts` ([Generate typed tools](./generate.md)); for the MCP SDK
-client in Node, Node.js 20 or newer.
+client in Node, Node.js 22 or newer, the oldest line Node.js still supports.
 
 ::: tip
 In a React app, the generated hooks make these calls for you:
@@ -24,7 +24,7 @@ The generated `tools.ts` imports the core package, and the MCP SDK v2 client con
 (`examples/tasks` has both):
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-core@3 @modelcontextprotocol/client
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@4 @modelcontextprotocol/client
 ```
 
 Keep the core on the same minor version as the generator that wrote `tools.ts`. The core has no

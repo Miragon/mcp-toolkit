@@ -381,6 +381,12 @@ describe("dependabot.yml", () => {
     assert.deepEqual(byEcosystem["github-actions"]["commit-message"], { prefix: "ci" })
   })
 
+  // The default treats the private root as an app and raises the lower bound of every published
+  // range on every update.
+  it("keeps a published range that already admits the new version", () => {
+    assert.equal(byEcosystem.npm["versioning-strategy"], "increase-if-necessary")
+  })
+
   // Dependabot runs pnpm with a cooldown longer than pnpm's own window as the minimum release age,
   // and pnpm checks every locked version against it: every update fails on a version that window
   // let into the lockfile. A shorter cooldown is dead config, since Dependabot raises it to pnpm's
@@ -437,6 +443,30 @@ describe("ci.yml", () => {
     assert.equal(ci.jobs.build.name, "Typecheck + Build")
     assert.equal(ci.jobs.quality.name, "Lint + Format")
     assert.equal(mutation.name, "Mutation diff gate")
+  })
+
+  // A matrix names its checks per leg, so the required name belongs to a job that needs them all.
+  it("passes the required build check only when every Node.js leg passed", () => {
+    const { build, test } = ci.jobs
+    assert.ok(test.strategy.matrix.node.length >= 2)
+    assert.equal(test.name, "Typecheck + Build (Node.js ${{ matrix.node }})")
+    assert.equal(build.needs, "test")
+    // A skipped job counts as passed: the job must run after a failed leg too.
+    assert.equal(build.if, "${{ !cancelled() }}")
+    const [check] = steps(build)
+    assert.equal(check.env?.RESULT, "${{ needs.test.result }}")
+    for (const [result, status] of [
+      ["success", 0],
+      ["failure", 1],
+      ["cancelled", 1],
+      ["skipped", 1],
+    ]) {
+      const run = spawnSync("bash", ["-e", "-c", check.run], {
+        encoding: "utf8",
+        env: { ...isolatedEnv, RESULT: result },
+      })
+      assert.equal(run.status, status, result)
+    }
   })
 
   // A required check whose workflow never starts stays pending and blocks the merge.

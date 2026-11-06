@@ -49,13 +49,13 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.18.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "2.4.0",
-    "handlebars": "4.7.10",
-    "json-schema-to-typescript": "16.0.0",
-    "prettier": "3.9.10"
+    "@modelcontextprotocol/client": "^2.4.0",
+    "handlebars": "^4.7.10",
+    "json-schema-to-typescript": "^16.0.0",
+    "prettier": "^3.9.10"
   },
   "peerDependencies": {
     "@miragon/mcp-toolkit-tool-codegen-core": "workspace:~",
@@ -74,12 +74,12 @@
     "@miragon/mcp-toolkit-tool-codegen-react": "workspace:*",
     "@stryker-mutator/core": "10.1.1",
     "@stryker-mutator/vitest-runner": "10.1.1",
-    "@types/node": "26.6.6",
-    "@vitest/coverage-v8": "4.1.12",
+    "@types/node": "22.20.5",
+    "@vitest/coverage-v8": "5.0.5",
     "fast-check": "4.10.2",
     "mcp-use": "2.12.2",
     "typescript": "6.0.3",
-    "vitest": "4.1.12",
+    "vitest": "5.0.5",
     "zod": "4.6.7"
   }
 }
