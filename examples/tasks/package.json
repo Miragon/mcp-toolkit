@@ -23,7 +23,7 @@
     "@miragon/mcp-toolkit-tool-codegen-core": "workspace:*",
     "@miragon/mcp-toolkit-tool-codegen-react": "workspace:*",
     "@modelcontextprotocol/client": "2.4.0",
-    "@tanstack/react-query": "5.104.2",
+    "@tanstack/react-query": "5.105.0",
     "mcp-use": "2.12.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -32,14 +32,14 @@
   "devDependencies": {
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@testing-library/react": "16.3.3",
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
-    "happy-dom": "21.0.1",
+    "happy-dom": "21.0.4",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "vite": "8.3.4",
+    "vite": "8.3.5",
     "vitest": "4.1.12"
   }
 }
