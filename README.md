@@ -23,8 +23,8 @@ typed client in Node.js, the hooks in a Vite React app, and a test as the drift 
 Install the generator and the runtime, and point a config at your server:
 
 ```sh
-pnpm add -D @miragon/mcp-toolkit-tool-codegen
-pnpm add @miragon/mcp-toolkit-tool-codegen-core @modelcontextprotocol/client
+pnpm add -D @miragon/mcp-toolkit-tool-codegen@3
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@3 @modelcontextprotocol/client
 ```
 
 ```ts
@@ -87,7 +87,8 @@ config file's directory instead of the working directory, the tool map and `over
 server's own tool names, the runtime moved to `@miragon/mcp-toolkit-tool-codegen-core`, and
 the hooks are opt-in on `@miragon/mcp-toolkit-tool-codegen-react`.
 [Migrating from 2.x](https://miragon.github.io/mcp-toolkit/migrating-from-2x) walks through every
-step, including the CLI flags and the renamed exports.
+step, including the CLI flags and the renamed exports. The 2.x docs, including core and ui, are in
+the repository at the tag [`v2.9.0`](https://github.com/Miragon/mcp-toolkit/tree/v2.9.0/docs).
 
 ## Contributing
 

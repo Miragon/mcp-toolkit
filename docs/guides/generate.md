@@ -15,13 +15,15 @@ The examples on this page use the server of `examples/tasks`, started as in
 The generator is a dev dependency. The code it writes imports the core package at run time:
 
 ```sh
-pnpm add -D @miragon/mcp-toolkit-tool-codegen
-pnpm add @miragon/mcp-toolkit-tool-codegen-core
+pnpm add -D @miragon/mcp-toolkit-tool-codegen@3
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@3
 ```
 
 Keep the generator and its runtime packages on the same minor version. The generator writes code
 against the runtime API of its own release and declares the runtime packages as optional peers
-(`~` its version), so your package manager reports a mismatch.
+(`~` its version), so your package manager reports a mismatch. The `@3` in each command pins the
+major: a package manager that holds back fresh releases (a minimum release age) could otherwise
+install the previous major of one package next to the current major of another.
 
 ## 2. Look at what the server lists
 
@@ -109,7 +111,7 @@ the server, or set its type with an [override](#override-a-tool). Every export i
 Install the React package and TanStack Query, and set `react: true` in the config:
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-react @tanstack/react-query react
+pnpm add @miragon/mcp-toolkit-tool-codegen-react@3 @tanstack/react-query react
 ```
 
 ```ts{5}

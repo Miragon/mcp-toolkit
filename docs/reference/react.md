@@ -7,7 +7,7 @@ what it takes, what it returns and how it fails.
   <dt>Package</dt>
   <dd><code>@miragon/mcp-toolkit-tool-codegen-react</code></dd>
   <dt>Install</dt>
-  <dd><code>pnpm add @miragon/mcp-toolkit-tool-codegen-react @miragon/mcp-toolkit-tool-codegen-core @tanstack/react-query</code></dd>
+  <dd><code>pnpm add @miragon/mcp-toolkit-tool-codegen-react@3 @miragon/mcp-toolkit-tool-codegen-core@3 @tanstack/react-query</code></dd>
   <dt>Peers</dt>
   <dd><code>react</code> <code>^18.0.0 || ^19.0.0</code>, <code>@tanstack/react-query</code> <code>^5.48.0</code> (the first release whose <code>enabled</code> takes a function), <code>@miragon/mcp-toolkit-tool-codegen-core</code> of the same minor version</dd>
   <dt>Needs</dt>

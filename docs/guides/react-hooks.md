@@ -18,7 +18,7 @@ The generated `hooks.tsx` imports the React package, which runs on TanStack Quer
 package:
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-react @miragon/mcp-toolkit-tool-codegen-core @tanstack/react-query
+pnpm add @miragon/mcp-toolkit-tool-codegen-react@3 @miragon/mcp-toolkit-tool-codegen-core@3 @tanstack/react-query
 ```
 
 The React package's peers are `react` `^18 || ^19`, `@tanstack/react-query` `^5.48` (the first

@@ -11,8 +11,8 @@ Everything the server sends is treated as untrusted input.
 ## Install
 
 ```sh
-pnpm add -D @miragon/mcp-toolkit-tool-codegen
-pnpm add @miragon/mcp-toolkit-tool-codegen-core
+pnpm add -D @miragon/mcp-toolkit-tool-codegen@3
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@3
 ```
 
 ## Usage

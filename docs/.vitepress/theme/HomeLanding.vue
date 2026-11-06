@@ -11,8 +11,11 @@ import { engines, version } from "../../../packages/tool-codegen/package.json"
 import data from "./landing-data.json"
 import LandingStage from "./LandingStage.vue"
 
-const generator = "@miragon/mcp-toolkit-tool-codegen"
-const core = "@miragon/mcp-toolkit-tool-codegen-core"
+// The major of this release, pinned in every command: a package manager that holds fresh releases
+// back would otherwise mix the previous major of one package with the current one of the other.
+const major = version.split(".")[0]
+const generator = `@miragon/mcp-toolkit-tool-codegen@${major}`
+const core = `@miragon/mcp-toolkit-tool-codegen-core@${major}`
 // The generator runs at build time (a dev dependency), the generated code imports the core.
 const installs = [
   { name: "pnpm", prompt: "$", lines: [`pnpm add -D ${generator}`, `pnpm add ${core}`] },
