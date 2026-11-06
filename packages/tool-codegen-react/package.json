@@ -2,6 +2,7 @@
   "name": "@miragon/mcp-toolkit-tool-codegen-react",
   "version": "2.9.0",
   "description": "React hooks for typed MCP tool calls on TanStack Query: ToolCallerProvider, useToolQuery and useToolMutation, the runtime of the hooks the codegen emits.",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Miragon/mcp-toolkit.git",
