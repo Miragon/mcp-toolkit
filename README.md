@@ -93,7 +93,8 @@ the repository at the tag [`v2.9.0`](https://github.com/Miragon/mcp-toolkit/tree
 ## Contributing
 
 We don't accept pull requests from outside the team; please
-[open an issue](https://github.com/Miragon/mcp-toolkit/issues/new) for a bug or an idea.
+[open an issue](https://github.com/Miragon/mcp-toolkit/issues/new) for a bug or an idea, and report a
+vulnerability privately as [`SECURITY.md`](./SECURITY.md) describes.
 [`CONTRIBUTING.md`](./CONTRIBUTING.md) has the setup, the checks a change passes and the release
 flow.
 
