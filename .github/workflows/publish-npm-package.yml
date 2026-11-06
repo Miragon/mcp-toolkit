@@ -91,7 +91,9 @@ jobs:
           name: npm-${{ inputs.package }}
           path: tarball
 
+      # The leading ./ is load-bearing: npm reads "tarball/<file>.tgz" as the GitHub repository
+      # tarball/<file>.tgz and tries to clone it.
       - name: Publish ${{ needs.pack.outputs.tarball }}
         env:
           TARBALL: ${{ needs.pack.outputs.tarball }}
-        run: npm publish "tarball/$TARBALL" --provenance --access public --ignore-scripts
+        run: npm publish "./tarball/$TARBALL" --provenance --access public --ignore-scripts
