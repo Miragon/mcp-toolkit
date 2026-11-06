@@ -22,7 +22,7 @@
   "dependencies": {
     "@miragon/mcp-toolkit-tool-codegen-core": "workspace:*",
     "@miragon/mcp-toolkit-tool-codegen-react": "workspace:*",
-    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/client": "2.4.0",
     "@tanstack/react-query": "5.104.2",
     "mcp-use": "2.9.0",
     "react": "19.3.1",
