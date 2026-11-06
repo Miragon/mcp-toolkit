@@ -68,7 +68,32 @@ export function sanitizeSchema(schema: unknown): JsonObject {
     const value = sanitize(schema[keyword])
     if (value !== undefined) out[keyword] = value
   }
-  return declareRequired(tupleBounds(schema, out))
+  return declareRequired(tupleBounds(schema, keywordsForItsTypes(out)))
+}
+
+/** The keywords that shape an object type, and those that shape an array type. */
+const OBJECT_KEYWORDS = ["properties", "patternProperties", "additionalProperties"]
+const ARRAY_KEYWORDS = ["items", "prefixItems"]
+
+/**
+ * JSON Schema applies object keywords to objects only and array keywords to arrays only, but
+ * json2ts intersects the types of every kind of keyword a schema has: `{ properties, items }`
+ * became `{ a?: string } & string[]`, a type neither a valid object nor a valid array has. So a
+ * schema without `type` that has both kinds gets `type: ["object", "array"]`, which json2ts
+ * types as the union of the two; one whose `type` names no object loses its object keywords,
+ * which json2ts reads on the root and on a `$defs` target whatever the `type` says.
+ */
+function keywordsForItsTypes(schema: JsonObject): JsonObject {
+  const has = (keywords: string[]) => keywords.some((keyword) => Object.hasOwn(schema, keyword))
+  if (schema.type === undefined) {
+    return has(OBJECT_KEYWORDS) && has(ARRAY_KEYWORDS)
+      ? { type: ["object", "array"], ...schema }
+      : schema
+  }
+  if ([schema.type].flat().includes("object")) return schema
+  return Object.fromEntries(
+    Object.entries(schema).filter(([keyword]) => !OBJECT_KEYWORDS.includes(keyword)),
+  )
 }
 
 /**

@@ -76,7 +76,9 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   (json2ts's code is formatted with Prettier's `quoteProps: "preserve"`).
 - Schemas are rebuilt from a keyword allowlist before json-schema-to-typescript sees them:
   `tsType`, `tsEnumNames`, `title`, `$id` are dropped at every depth, `minItems`/`maxItems` too
-  except on a tuple, where only a non-negative safe integer stays.
+  except on a tuple, where only a non-negative safe integer stays. json2ts intersects the types of
+  object and array keywords, so object keywords next to a `type` without `object` are dropped, and
+  a schema without `type` that has both kinds gets `type: ["object", "array"]` (a union).
 - Only local `$ref`s (`#`, `#/…`) survive, and `normalizeRefs` keeps one only when it walks
   schema positions (own keys) to an object schema; everything else becomes `unknown`. Every target
   but the root moves into the root `$defs` and a `$ref` with siblings becomes `allOf`, because

@@ -189,6 +189,10 @@ TypeScript type, each checked for its JSON Schema shape, before json-schema-to-t
 Every other keyword is dropped, notably `tsType` and `tsEnumNames` (json-schema-to-typescript emits
 their value as raw TypeScript), `title`, `$id` and `id` (they would name declarations after server
 text, and `$id` moves the base of `$ref` resolution). A schema that is not an object becomes `{}`.
+`properties`, `patternProperties` and `additionalProperties` are also dropped next to a `type` that
+names no `object`: JSON Schema applies them to objects only, and json-schema-to-typescript would
+intersect them with the type. For the same reason a schema without `type` that has both object and
+array keywords gets `type: ["object", "array"]`, typed as the union of the two.
 
 `minItems` and `maxItems` stay on a tuple only, where they decide which elements are optional and
 whether further elements are allowed. The generator reads them and removes them before

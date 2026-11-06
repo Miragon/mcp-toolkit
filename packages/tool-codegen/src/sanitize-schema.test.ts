@@ -184,6 +184,8 @@ describe("sanitizeSchema", () => {
         items: true,
       }),
     ).toEqual({
+      // object and array keywords without a type, see below
+      type: ["object", "array"],
       properties: { a: {}, b: {}, c: {}, d: true, e: false },
       anyOf: [{}, true],
       prefixItems: [{}, {}, false],
@@ -222,6 +224,56 @@ describe("sanitizeSchema", () => {
       { type: "object", required: ["id"], patternProperties: { "^i": { type: "string" } } },
     ]
     for (const schema of untouched) expect(sanitizeSchema(schema)).toEqual(schema)
+  })
+
+  // json2ts intersects the types of an object's and an array's keywords; JSON Schema applies each
+  // to its own type only.
+  it("types a schema without type that has object and array keywords as either", () => {
+    const tuple = { prefixItems: [{ type: "string" }] }
+    const both = [
+      { properties: { a: { type: "string" } }, ...tuple },
+      { properties: { a: { type: "string" } }, items: [{ type: "string" }] },
+      { properties: { a: { type: "string" } }, items: { type: "string" } },
+      { patternProperties: { "^a": { type: "string" } }, ...tuple },
+      { additionalProperties: { type: "string" }, ...tuple },
+    ]
+    for (const schema of both) {
+      expect(sanitizeSchema(schema)).toEqual({ type: ["object", "array"], ...schema })
+    }
+    expect(
+      sanitizeSchema({ type: "object", properties: { x: both[0] }, $defs: { d: both[1] } }),
+    ).toEqual({
+      type: "object",
+      properties: { x: { type: ["object", "array"], ...both[0] } },
+      $defs: { d: { type: ["object", "array"], ...both[1] } },
+    })
+    const either = [
+      { properties: { a: { type: "string" } } },
+      { ...tuple, additionalItems: false, required: ["a"] },
+      { items: { type: "string" }, required: ["a"] },
+      { ...tuple, nullable: true },
+    ]
+    for (const schema of either) expect(sanitizeSchema(schema)).toEqual(schema)
+  })
+
+  it("drops object keywords where the type names no object, and leaves the rest alone", () => {
+    const object = {
+      properties: { a: { type: "string" } },
+      patternProperties: { "^a": { type: "string" } },
+      additionalProperties: false,
+    }
+    const array = { items: [{ type: "string" }], minItems: 1, maxItems: 1 }
+    for (const type of ["array", "string", ["array", "null"]]) {
+      expect(sanitizeSchema({ type, ...object, ...array, required: ["a"] })).toEqual({
+        type,
+        ...array,
+        required: ["a"],
+      })
+    }
+    for (const type of ["object", ["object", "array"], ["null", "object"]]) {
+      const schema = { type, ...object, ...array }
+      expect(sanitizeSchema(schema)).toEqual(schema)
+    }
   })
 
   it("keeps a __proto__ property an own key instead of a prototype", () => {

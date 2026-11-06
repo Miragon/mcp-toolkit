@@ -499,6 +499,55 @@ export async function use() {
     expect(typeErrors({ "tools.ts": toolsFile, "consumer.ts": consumer })).toEqual([])
   }, 30_000)
 
+  // JSON Schema applies object keywords to objects and array keywords to arrays; json2ts
+  // intersected them, a type that took neither a valid object nor a valid array.
+  it("type-checks a schema with object and array keywords as an object or an array", async () => {
+    const schema = {
+      type: "object",
+      properties: {
+        // No type: an object with an optional `a`, or a tuple of one string.
+        either: {
+          properties: { a: { type: "string" } },
+          prefixItems: [{ type: "string" }],
+          items: false,
+        },
+        list: { $ref: "#/$defs/list" },
+      },
+      required: ["either", "list"],
+      $defs: {
+        // json2ts declares a $defs target by name, where it read properties beside any type.
+        list: { type: "array", items: { type: "string" }, properties: { a: { type: "number" } } },
+      },
+    }
+    const { toolsFile } = await renderCodegen(
+      [{ name: "shape", inputSchema: schema, outputSchema: schema }],
+      { ...config, react: false },
+    )
+    const consumer = `
+import { createTasksClient } from "./tools.js"
+declare const callTool: import("@miragon/mcp-toolkit-tool-codegen-core").ToolCaller
+const client = createTasksClient(callTool)
+export async function use() {
+  await client.shape({ either: { a: "x" }, list: ["x"] })
+  const shaped = await client.shape({ either: ["x"], list: [] })
+  const a: string | undefined = Array.isArray(shaped.either) ? shaped.either[0] : shaped.either.a
+  const items: string[] = shaped.list
+  // @ts-expect-error -- the object's property keeps its type
+  await client.shape({ either: { a: 1 }, list: [] })
+  // @ts-expect-error -- and so does the tuple's element
+  await client.shape({ either: [1], list: [] })
+  // @ts-expect-error -- the tuple is closed
+  await client.shape({ either: ["x", "y"], list: [] })
+  // @ts-expect-error -- the array's items keep theirs
+  await client.shape({ either: [], list: [1] })
+  // @ts-expect-error -- and its stray properties type nothing
+  await client.shape({ either: [], list: { a: 1 } })
+  return [a, items]
+}
+`
+    expect(typeErrors({ "tools.ts": toolsFile, "consumer.ts": consumer })).toEqual([])
+  }, 30_000)
+
   it("rejects what an object input with required names but no properties does not accept", async () => {
     const { toolsFile } = await renderCodegen(
       [
