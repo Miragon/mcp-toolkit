@@ -57,6 +57,12 @@ The docs site lives in `docs/`: a VitePress site, the workspace package
 Node.js range, so a release deploys the site again). The pages are the Markdown files in `docs/`; navigation and sidebar are in
 `docs/.vitepress/config.ts`. Dependabot leaves the docs pins alone: they move with a kit release.
 
+The 2.x site had other pages under the same base. Each one has a redirect stub in `docs/public/`
+at the path it was served from, which sends the reader to the page that took over its topic or to
+its file at the tag `v2.9.0`, and the 404 page names that tag (`docs/.vitepress/theme/Layout.vue`).
+`scripts/docs-redirects.test.mjs` fails when a stub points at a page that no longer exists or
+shadows one: rename or remove a page, and update the stubs that point at it.
+
 The site is the one home of the user documentation. The READMEs, which npm shows, only say what a
 package is, show one example and link to the site. A change users see (a config key, a CLI flag
 or message, an export, a requirement) updates the pages in the same pull request, and a README only
