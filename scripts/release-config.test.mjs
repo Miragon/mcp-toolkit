@@ -83,6 +83,13 @@ describe("publish-npm-package.yml", () => {
     }
   })
 
+  // Without ./ npm takes "tarball/<file>.tgz" for a GitHub owner/repo and runs git ls-remote
+  // (the failed 3.0.0 publish).
+  it("publishes the tarball by a ./ path, never a bare relative one", () => {
+    const publish = steps(jobs.publish).find((step) => /\bnpm publish\b/.test(step.run ?? ""))
+    assert.match(publish.run, /\bnpm publish "\.\//)
+  })
+
   it("keeps no token in the pack job's checkout", () => {
     const checkout = steps(jobs.pack).find((step) => step.uses?.startsWith("actions/checkout@"))
     assert.equal(checkout.with?.["persist-credentials"], false)
