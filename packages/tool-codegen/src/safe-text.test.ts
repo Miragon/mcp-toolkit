@@ -154,6 +154,29 @@ describe("terminalText", () => {
     )
     expect(terminalText(`ok${char(0xe0041)}${char(0x3164)}`)).toBe("ok  ")
   })
+
+  // The runner reads this older command form anywhere in a line (actions/runner, ActionCommand.cs).
+  it("splits every ##[, also one an invisible character was to hide", () => {
+    expect(terminalText("| ##[error]a | ###[add-mask]b ##[group]c")).toBe(
+      "| ## [error]a | ### [add-mask]b ## [group]c",
+    )
+    expect(terminalText(`#${char(0x200b)}#[error]a ##${char(0x200b)}[debug]b`)).toBe(
+      "# #[error]a ## [debug]b",
+    )
+  })
+
+  it("leaves no ##[ in any text", () => {
+    const piece = fc.constantFrom("#", "[", "]", "##[", "error", "\n", char(0x200b), char(0x1b))
+    fc.assert(
+      fc.property(
+        fc.array(piece).map((pieces) => pieces.join("")),
+        (text) => {
+          expect(terminalText(text)).not.toContain("##[")
+          expect(logText(text)).not.toContain("##[")
+        },
+      ),
+    )
+  })
 })
 
 describe("logText", () => {

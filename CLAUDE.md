@@ -104,6 +104,7 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   never ends a comment's last line); the `Source:` header is the URL's origin only (a path may hold
   an API key); the CLI replaces invisible characters in server text it prints (`terminalText`) and
   marks every line of an error after the first with ` |` (`logText`), so none can start a CI log
+  line; `terminalText` also splits `##[`, the runner's older command form, which works anywhere in a
   line. The MCP client SDK quotes the server in its console output (a tool it drops for an invalid
   `x-mcp-header`, in the 2026-07-28 era): `fetchTools` names the 2025 negotiation mode instead of
   taking the SDK's default, and routes what is printed in the fetch's async context through

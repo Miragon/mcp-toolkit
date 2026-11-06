@@ -248,7 +248,8 @@ mcp-tool-codegen: cannot list the tools of http://localhost:4000: fetch failed (
 ```
 
 A message can carry the server's text (an HTTP error body, tool names, schema errors). The CLI
-turns invisible characters into spaces, cuts the message after 2,000 characters
+turns invisible characters into spaces, writes every `##[` as `## [` (a GitHub Actions runner reads
+that form as a command anywhere in a line), cuts the message after 2,000 characters
 (`... (truncated)`) and indents every line after the first with two spaces, a `|` and a space, so
 no server text starts a line of the log. What the MCP SDK prints while the tools are fetched, a
 warning or a debug line, goes the same way: to stderr, as `mcp-tool-codegen: <message>`.

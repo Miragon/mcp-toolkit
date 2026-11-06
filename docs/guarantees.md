@@ -35,7 +35,7 @@ written.
 | a tuple of 20,000 elements                                                   | writes one tuple type, output that grows with the tuple's length only                                    |
 | an empty `tools/list`                                                        | fails before anything is written                                                                         |
 | a URL that carries an API key in its path or query                           | writes only the origin into the `// Source:` header and its messages                                     |
-| an error body with escape sequences or a line such as `::error`              | prints control characters as spaces and marks every line after the first                                 |
+| an error body with escape sequences or a line such as `::error`              | prints control characters as spaces, marks every line after the first, splits every `##[`                |
 | a tool name or schema text that the MCP SDK quotes in a warning              | prints what the SDK writes during the fetch the same way, on stderr                                      |
 
 ## What a hostile tool list turns into
@@ -261,10 +261,11 @@ break, a control character or a character beyond Latin-1 fails with a message th
 never the value.
 
 Server text that reaches the terminal, in an error, the `inspect` table or the line diff of
-`generate --check`, has every invisible character but the line break replaced by a space. An error
-message is cut at 2,000 characters, and every line after its first starts with two spaces, a `|` and
-a space. A server's error body can therefore neither send terminal escape sequences nor start a line
-of a CI log, such as a GitHub Actions `::error` command.
+`generate --check`, has every invisible character but the line break replaced by a space and every
+`##[` written `## [`. An error message is cut at 2,000 characters, and every line after its first
+starts with two spaces, a `|` and a space. A server's error body can therefore neither send terminal
+escape sequences nor start a line of a CI log, such as a GitHub Actions `::error` command, nor place
+the runner's older `##[error]` form, which it reads anywhere in a line.
 
 The MCP SDK quotes the server in some of its own console messages: in the 2026-07-28 protocol
 revision it drops a tool whose `x-mcp-header` declaration is invalid and prints the tool's name and

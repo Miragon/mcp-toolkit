@@ -203,7 +203,7 @@ describe("runCli", () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "codegen-cli-"))
     try {
       const body =
-        "upstream unavailable\n::error file=src/main.ts::rotate it\r\nup to date: 3 tools"
+        "upstream unavailable ##[add-mask]key\n::error file=src/main.ts::rotate it\r\nup to date: 3 tools"
       await fs.writeFile(path.join(dir, "throws.mjs"), `throw new Error(${JSON.stringify(body)})\n`)
       await fs.writeFile(path.join(dir, "long.mjs"), `throw new Error("x".repeat(5000))\n`)
       const io = captureIo(dir)
@@ -212,7 +212,7 @@ describe("runCli", () => {
 
       const [thrown = "", long = ""] = io.stderr
       expect(thrown.split("\n")).toEqual([
-        `mcp-tool-codegen: cannot load ${path.join(dir, "throws.mjs")}: upstream unavailable`,
+        `mcp-tool-codegen: cannot load ${path.join(dir, "throws.mjs")}: upstream unavailable ## [add-mask]key`,
         "  | ::error file=src/main.ts::rotate it",
         "  | up to date: 3 tools",
       ])
