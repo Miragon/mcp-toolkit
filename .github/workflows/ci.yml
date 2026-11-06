@@ -149,40 +149,14 @@ jobs:
       # The workflow and package-script shape the release depends on (scripts/*.test.mjs).
       - run: pnpm test:scripts
 
-  # Which gates a pull request's diff reaches. The jobs read it in a job-level if, never through a
-  # workflow-level paths filter: a required check whose workflow never starts stays pending, while
-  # a job skipped by its if reports success.
-  changes:
-    name: Changes
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    outputs:
-      mutation: ${{ steps.scope.outputs.mutation }}
-    steps:
-      # The pull request's merge commit and its parents: HEAD^1 is the base branch, so
-      # HEAD^1..HEAD is what the pull request changes.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 26
-
-      - id: scope
-        run: node scripts/mutation-scope.mjs HEAD^1 HEAD >> "$GITHUB_OUTPUT"
-
-  # The job name is kept because the repository ruleset requires the check "Mutation diff gate".
-  # The diff decides whether it runs, not what it mutates: a pull request that changes what the
-  # suites mutate or read (scripts/mutation-scope.mjs) runs the full Stryker suites of
-  # tool-codegen and tool-codegen-core, each named in the root test:mutation script (a missing
-  # script fails it), never a diff-scoped selection. Only an explicit "false" from the changes
-  # job skips it, so a failed changes job runs the suites.
+  # Core's Stryker suite, on every pull request: it takes seconds and its threshold is 100. The
+  # generator's takes about 35 minutes, so it runs in mutation-nightly.yml and no pull request runs
+  # it. The job's name no longer fits, since it looks at no diff; it stays because the repository
+  # ruleset requires the check "Mutation diff gate" by name. No pnpm build: core has no dependencies
+  # and the suite reads only its sources (it passes with no dist in the workspace).
   mutation:
     name: Mutation diff gate
-    needs: changes
-    if: ${{ github.event_name == 'pull_request' && !cancelled() && needs.changes.outputs.mutation != 'false' }}
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -196,16 +170,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      - run: pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-tool-codegen-core run test:mutation
 
-      - run: pnpm test:mutation
-
-      - name: Upload mutation reports
+      - name: Upload mutation report
         # runs on failure too: a red run is when the report is needed; !cancelled() (not
         # always()) so a cancelled run doesn't spawn the upload
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mutation-reports
-          path: packages/*/reports/mutation/mutation.json
+          path: packages/tool-codegen-core/reports/mutation/mutation.json
           if-no-files-found: warn

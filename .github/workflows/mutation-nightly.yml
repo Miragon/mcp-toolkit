@@ -1,0 +1,84 @@
+name: Mutation (nightly)
+
+# The whole root test:mutation script, generator and core. The generator's Stryker suite takes about
+# 35 minutes, too long for every pull request (owner decision), so it runs only here: no pull request
+# runs it, and this workflow is no required check, so a red night blocks no merge. Core's suite also
+# gates every pull request ("Mutation diff gate" in ci.yml).
+on:
+  schedule:
+    # Off the top of the hour: GitHub names the start of every hour as a load that delays schedules.
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-nightly
+  cancel-in-progress: false
+
+jobs:
+  # A night skips only when main still is the commit of the last successful run. No time window: a
+  # failed night must stay red every night until it is fixed, and a window would turn it into a
+  # passing skip the next night. A dispatch always runs.
+  decide:
+    name: Decide whether to run
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      # gh reads the repository from GH_REPO, since this job has no checkout. Two assignments, no
+      # pipe: a step's bash -e sees no failure at the head of a pipeline.
+      - id: decide
+        name: Compare with the last successful run on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          run=true
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            runs="$(gh run list --workflow mutation-nightly.yml --branch main --status success --limit 1 --json headSha)"
+            last_sha="$(jq -r '.[0].headSha // empty' <<<"$runs")"
+            if [ "$last_sha" = "$GITHUB_SHA" ]; then run=false; fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+  # Only an explicit "false" skips it, so a failed decision still runs the suites.
+  mutation:
+    name: Mutation (generator and core)
+    needs: decide
+    if: ${{ !cancelled() && needs.decide.outputs.run != 'false' }}
+    runs-on: ubuntu-latest
+    # The generator's run alone took 33.5 minutes on CI.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build first: the generator's tests type-check generated code against the built .d.ts.
+      - run: pnpm build
+
+      - run: pnpm test:mutation
+
+      - name: Upload mutation reports
+        # runs on failure too: a red run is when the report is needed; !cancelled() (not
+        # always()) so a cancelled run doesn't spawn the upload
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-reports
+          path: packages/*/reports/mutation/mutation.json
+          if-no-files-found: warn
