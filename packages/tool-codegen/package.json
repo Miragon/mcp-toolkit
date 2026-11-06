@@ -1,6 +1,6 @@
 {
   "name": "@miragon/mcp-toolkit-tool-codegen",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Build-time codegen for typed MCP tool calls: a CLI that turns an MCP server's tools/list into TypeScript types, a typed client and (opt-in) React hooks.",
   "keywords": [
     "mcp",

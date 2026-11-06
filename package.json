@@ -1,6 +1,6 @@
 {
   "name": "mcp-toolkit",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
   "description": "Typed MCP tool calls: a codegen CLI over an MCP server's tools/list, a framework-free runtime and React hooks",
   "packageManager": "pnpm@10.32.1",
