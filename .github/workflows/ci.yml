@@ -51,24 +51,26 @@ jobs:
       - run: pnpm check:exports
 
   # The repository ruleset requires the check "Typecheck + Build" by name, and a matrix names its
-  # checks per leg. This job carries the name and passes only when every leg passed; !cancelled()
-  # runs it after a failed leg too, since a skipped job would count as passed.
+  # checks per leg. This job carries the name and passes only when every leg and the lower bounds
+  # passed, so Dependabot's auto-merge, which waits for required checks only, waits for them all;
+  # !cancelled() runs it after a failed leg too, since a skipped job would count as passed.
   build:
     name: Typecheck + Build
-    needs: test
+    needs: [test, lower-bounds]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
-      - name: Every Node.js leg passed
+      - name: Every Node.js leg and the lower bounds passed
         env:
-          RESULT: ${{ needs.test.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          LOWER_BOUNDS_RESULT: ${{ needs.lower-bounds.result }}
         run: |
-          if [ "$RESULT" != success ]; then
-            echo "::error::A Node.js leg of \"Typecheck + Build\" ended with $RESULT."
+          if [ "$TEST_RESULT" != success ] || [ "$LOWER_BOUNDS_RESULT" != success ]; then
+            echo "::error::\"Typecheck + Build\": Node.js legs $TEST_RESULT, lower bounds $LOWER_BOUNDS_RESULT."
             exit 1
           fi
 
-  # Not required. The lowest versions the published ranges admit: the generator's tests on the
+  # The lowest versions the published ranges admit: the generator's tests on the
   # first Node.js its engines range allows (22.18 loads the default codegen.config.ts) and against
   # the lower bound of each of its dependencies, which the lockfile moves past (Dependabot keeps
   # the ranges), and the React package's tests and type tests against the lower bound of each peer

@@ -152,7 +152,7 @@ Prettier-clean.
   (`.github/workflows/pr-title.yml`). Keep those job names. The tests run in the matrix job `test`
   on Node.js 22 (the oldest line the published packages support) and 26 (the newest LTS, the root
   `engines` and every other job's Node.js); the job `build` carries the required name and passes
-  only when every leg passed. `Lower bounds` (not required) runs the generator's tests on the
+  only when every leg and `Lower bounds` passed. `Lower bounds` runs the generator's tests on the
   lowest Node.js its `engines` allow and against its dependencies' lower bounds, and the React
   package's against its peers' lower bounds. A
   required job is scoped with a job-level `if`, never a workflow-level `paths` filter: a check
@@ -177,7 +177,8 @@ Prettier-clean.
   and the private packages' dependencies are exact pins (`saveExact` in `pnpm-workspace.yaml`, so
   write a published range by hand). Dependabot leaves a range that admits the new version
   (`versioning-strategy: increase-if-necessary`), so a lower bound moves by hand, with the versions
-  of the `Lower bounds` job. `scripts/dependency-ranges.test.mjs` and the pin action in
+  of the `Lower bounds` job. Its pull requests are `chore(deps)` and cut no release; one that changes
+  a published range gets a releasing title by hand. `scripts/dependency-ranges.test.mjs` and the pin action in
   `Lint + Format` check both
   ([`.claude/rules/package-json-fixed-versions.md`](.claude/rules/package-json-fixed-versions.md)).
 - TypeScript stays on 6.x: typescript-eslint 8 supports `<6.1.0`, and `typeErrors` uses the classic

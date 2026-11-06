@@ -62,11 +62,15 @@ can share them with the app's own copies; pnpm saves exact versions (`saveExact`
 the private packages stay exact pins, and the lockfile pins what CI tests.
 `scripts/dependency-ranges.test.mjs` fails on an exact version where a range belongs and the other
 way round. Dependabot keeps a range that already admits the new version and moves the lockfile
-(`versioning-strategy: increase-if-necessary`), so a lower bound moves only by hand. The job
-`Lower bounds` (not required) runs the generator's tests on the lowest Node.js its `engines` allow
-and against the lowest version of each of its dependencies, and the React package's tests and type
-tests against the lowest version of each peer range; raise a lower bound in `package.json` and that
-job's versions together.
+(`versioning-strategy: increase-if-necessary`), so a lower bound moves only by hand. Its pull
+requests are `chore(deps)` and cut no release, since nothing a consumer installs changes. One that
+changes a published range needs a releasing title before it merges: `fix(deps):` for a lower bound
+you raise, say to force a security fix on every install, and for a runtime dependency's major,
+`feat!:` if that major changes what consumers get. The job `Lower bounds`, part of the required
+`Typecheck + Build`, runs the generator's tests on the lowest Node.js its `engines` allow and
+against the lowest version of each of its dependencies, and the React package's tests and type tests
+against the lowest version of each peer range; raise a lower bound in `package.json` and that job's
+versions together.
 
 pnpm resolves no version published less than 7 days ago, direct or transitive
 (`minimumReleaseAge` in `pnpm-workspace.yaml`). It is the window of Dependabot's npm cooldown, and

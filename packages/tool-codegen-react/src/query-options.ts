@@ -8,7 +8,7 @@ import {
   type ToolOutput,
 } from "@miragon/mcp-toolkit-tool-codegen-core"
 import {
-  isServer,
+  environmentManager,
   type QueryClient,
   type QueryFunction,
   type UseQueryOptions,
@@ -82,11 +82,10 @@ export function isRequestTimeout(error: unknown): boolean {
 
 /**
  * TanStack's retry when nothing sets one: 3 in the browser, none on the server, where a failed
- * render should not wait for retries. `isServer` is TanStack's own reading (no `window`, or
- * Deno), exported by every 5.x version. It is deprecated from 5.91 on for `environmentManager`,
- * which can override it, but the peer range starts below that, so an override is not read here.
+ * render should not wait for retries. `environmentManager` is what TanStack's own retryer reads
+ * (no `window`, or Deno, unless `setIsServer` overrides it).
  */
-const tanstackDefaultRetry = () => (isServer ? 0 : 3)
+const tanstackDefaultRetry = () => (environmentManager.isServer() ? 0 : 3)
 
 /**
  * The retry of a tool query: never for a `ToolCallError` (asking the tool again gets the same

@@ -7,7 +7,8 @@ versions it needs and changes nothing else.
 for the React package.
 
 The config, the CLI's commands and flags, the generated code and the APIs of the core and React
-packages stay as they are in 3.1. What changes:
+packages stay as they are in 3.1.1, the last 3.x release. It stays on npm for a project that cannot
+move yet, and gets no further fixes. What changes:
 
 | What                                         | 3.x                                            | 4.0                                                                                 |
 | -------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -53,7 +54,7 @@ packages as optional peers of its own minor version.
 
 ## 4. Check the generated files
 
-The generated code is the same as with 3.1. Run the drift check against your server to confirm it:
+The generated code is the same as with 3.1.1. Run the drift check against your server to confirm it:
 
 ```sh
 pnpm exec mcp-tool-codegen generate --check

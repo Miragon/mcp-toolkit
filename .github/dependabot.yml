@@ -8,10 +8,12 @@ updates:
     labels:
       - "dependencies"
     # Without a prefix Dependabot writes feat(deps): release-please would cut a minor release of
-    # all three packages for a dev-only bump. A runtime dependency is a fix, a dev one a chore.
+    # all three packages. A chore cuts none, which is right for what these pull requests do: a
+    # dev pin or, with the strategy below, a lockfile move inside a published range, so nothing a
+    # consumer installs changes. One that changes a published range, a runtime dependency's major,
+    # gets a releasing title by hand (CONTRIBUTING.md).
     commit-message:
-      prefix: "fix"
-      prefix-development: "chore"
+      prefix: "chore"
       include: "scope"
     open-pull-requests-limit: 10
     # Without a strategy Dependabot treats this private root as an app (its log: "Requirements update
