@@ -4,10 +4,12 @@ import { renderHook, waitFor } from "@testing-library/react"
 import { Suspense, type ReactNode } from "react"
 import { describe, expect, it, vi } from "vitest"
 import { NoToolCallerError } from "./provider.js"
-import { toolQueryOptions } from "./query-options.js"
+import { isRequestTimeout, toolQueryOptions } from "./query-options.js"
 import {
   createQueryClient,
   renderToolHook,
+  REQUEST_TIMEOUTS,
+  sdkError,
   structured,
   toolError,
   type Task,
@@ -87,6 +89,17 @@ describe("toolQueryOptions", () => {
     )
   })
 
+  it.each(REQUEST_TIMEOUTS)(
+    "never retries %s, whatever the client's defaults",
+    async (_label, timeout) => {
+      const queryClient = createQueryClient({ retry: 3, retryDelay: 0 })
+      const callTool = vi.fn<ToolCaller>(() => Promise.reject(timeout))
+
+      await expect(queryClient.fetchQuery(getTask(callTool, queryClient))).rejects.toBe(timeout)
+      expect(callTool).toHaveBeenCalledOnce()
+    },
+  )
+
   it("retries any other failure as the client's defaults say", async () => {
     const queryClient = createQueryClient({ retry: 2, retryDelay: 0 })
     const callTool = vi.fn<ToolCaller>(() => Promise.reject(new Error("socket hang up")))
@@ -109,5 +122,23 @@ describe("toolQueryOptions", () => {
     })
 
     await waitFor(() => expect(result.current).toEqual(readme))
+  })
+})
+
+describe("isRequestTimeout", () => {
+  it.each(REQUEST_TIMEOUTS)("is true for %s", (_label, timeout) => {
+    expect(isRequestTimeout(timeout)).toBe(true)
+  })
+
+  it.each([
+    ["a plain Error with the SDK's message", new Error("Request timed out")],
+    ["another SDK code", sdkError("SdkError", "CONNECTION_CLOSED", "Connection closed")],
+    ["an HTTP status as the code", sdkError("StreamableHTTPError", 504, "Gateway Timeout")],
+    ["the v1 code as a string", { code: "-32001" }],
+    ["null", null],
+    ["undefined", undefined],
+    ["a string", "REQUEST_TIMEOUT"],
+  ])("is false for %s", (_label, value) => {
+    expect(isRequestTimeout(value)).toBe(false)
   })
 })

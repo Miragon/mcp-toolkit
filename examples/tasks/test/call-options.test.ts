@@ -3,8 +3,13 @@ import {
   type ToolCallProgress,
   type TypedCallTool,
 } from "@miragon/mcp-toolkit-tool-codegen-core"
+import {
+  toolQueryOptions,
+  type ToolQueryCallOptions,
+} from "@miragon/mcp-toolkit-tool-codegen-react"
+import { QueryClient } from "@tanstack/react-query"
 import { MCPServer } from "mcp-use"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import { connectMcp, type McpConnection } from "../src/mcp-connection.js"
 
@@ -104,5 +109,34 @@ describe("tool call options over the MCP SDK", () => {
     const options = { timeout: 2_000, maxTotalTimeout: 50, onprogress: () => undefined }
 
     await expect(call("wait", { steps: 3, stepMs: 60 }, options)).resolves.toEqual({ steps: 3 })
+  })
+
+  // The React hooks recognise the SDK's own timeout error by its code: a retry would wait as long
+  // again, so the query fails after one call although the client's defaults retry 3 times.
+  it.each<[string, ToolQueryCallOptions, WaitMap["wait"]["input"]]>([
+    ["timeout", { timeout: 150 }, { steps: 4, stepMs: 100 }],
+    [
+      "maxTotalTimeout",
+      {
+        timeout: 200,
+        resetTimeoutOnProgress: true,
+        maxTotalTimeout: 250,
+        onprogress: () => undefined,
+      },
+      { steps: 6, stepMs: 60 },
+    ],
+  ])("never retries a tool query whose call ran past its %s", async (_label, callOptions, args) => {
+    const callTool = vi.fn(connection.callTool)
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: 3, retryDelay: 0 } },
+    })
+    const query = toolQueryOptions<WaitMap, "wait">("wait", "wait", args, {
+      callTool,
+      queryClient,
+      callOptions,
+    })
+
+    await expect(queryClient.fetchQuery(query)).rejects.toMatchObject({ code: "REQUEST_TIMEOUT" })
+    expect(callTool).toHaveBeenCalledOnce()
   })
 })

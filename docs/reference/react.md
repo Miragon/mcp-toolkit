@@ -154,8 +154,14 @@ function useToolQuery<
 | Waiting    | While the provider has no caller, the query is disabled on top of `options.enabled` (`status: "pending"`, `fetchStatus: "idle"`) and starts once a caller arrives. `enabled` as a boolean or a function still applies.                                                                                                                        |
 | Cancelling | TanStack's `AbortSignal` goes to the caller, so a query that unmounts or is cancelled mid-call aborts the request.                                                                                                                                                                                                                            |
 | Call       | `options.callOptions` (`timeout`, `onprogress`, `resetTimeoutOnProgress`, `maxTotalTimeout`) go to the caller with that signal, on every fetch. They are not part of the key, and they take no `signal`: the query's own one would replace it.                                                                                                |
-| Retry      | Without `options.retry`: a `ToolCallError` or a `NoToolCallerError` never retries; any other failure retries as the `QueryClient` says for the key (`setQueryDefaults`, then `defaultOptions.queries.retry`), 3 times when it says nothing. Read at failure time. With `options.retry`, that option decides alone, for a `ToolCallError` too. |
+| Retry      | Without `options.retry`: a `ToolCallError`, a `NoToolCallerError` or a request timeout (below) never retries; any other failure retries as the `QueryClient` says for the key (`setQueryDefaults`, then `defaultOptions.queries.retry`), 3 times when it says nothing. Read at failure time. With `options.retry`, that option decides alone. |
 | Key        | TanStack hashes the key by value, so args built anew on every render are fine.                                                                                                                                                                                                                                                                |
+
+A request timeout is the MCP SDK's error for a call that ran past its `timeout` or, kept alive by
+progress, past its `maxTotalTimeout`: an `SdkError` with code `REQUEST_TIMEOUT` from the v2 SDK, an
+`McpError` with code `-32001` from the v1 SDK. The hook recognises it by the code, without the SDK.
+A retry would wait the whole timeout again: with `callOptions: { timeout: 300_000 }`, TanStack's 3
+retries would keep the query pending for about 20 minutes. To retry timeouts anyway, pass `retry`.
 
 ```tsx
 import { useToolQuery } from "@miragon/mcp-toolkit-tool-codegen-react"
@@ -500,7 +506,8 @@ interface ToolQueryContext {
 What a tool query runs with outside a component, the last argument of
 [`toolQueryOptions`](#toolqueryoptions). `callTool: null` fails the query with a
 [`NoToolCallerError`](#notoolcallererror); `queryClient`'s retry defaults decide failures other than
-the tool's own answer; `callOptions` go to the call as in [`useToolQuery`](#usetoolquery).
+the tool's own answer and a request timeout; `callOptions` go to the call as in
+[`useToolQuery`](#usetoolquery).
 
 ### `ToolQueryOptions`
 

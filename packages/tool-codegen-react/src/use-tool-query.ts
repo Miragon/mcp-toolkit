@@ -12,7 +12,7 @@ import {
 } from "@tanstack/react-query"
 import { useToolCaller } from "./provider.js"
 import { toolQueryKey, type ToolQueryKey } from "./query-key.js"
-import { retryUnlessToolError, toolQueryFn, type ToolQueryCallOptions } from "./query-options.js"
+import { toolQueryFn, toolQueryRetry, type ToolQueryCallOptions } from "./query-options.js"
 
 /**
  * Every `useQuery` option except the two the hook owns, `queryKey` and `queryFn`, plus the tool
@@ -34,8 +34,9 @@ export type UseToolQueryOptions<TOutput, TSelected = TOutput> = Omit<
  * - Hands `options.callOptions` and TanStack's `AbortSignal` to the caller, so an unmounted or
  *   cancelled query aborts the call.
  * - Without `options.retry`, never retries a `ToolCallError` (the tool ran and answered
- *   `isError`) or a `NoToolCallerError`; any other failure retries as the QueryClient's defaults
- *   for the key say, 3 times when they say nothing.
+ *   `isError`), a `NoToolCallerError` or the MCP SDK's request timeout (a retry would wait the
+ *   whole timeout again); any other failure retries as the QueryClient's defaults for the key
+ *   say, 3 times when they say nothing.
  */
 export function useToolQuery<
   TMap extends ToolMapOf<TMap>,
@@ -56,7 +57,7 @@ export function useToolQuery<
     ...queryOptions,
     queryKey,
     queryFn: toolQueryFn<TMap, TName>(callTool, name, args, callOptions),
-    retry: queryOptions.retry ?? retryUnlessToolError(queryClient, queryKey),
+    retry: queryOptions.retry ?? toolQueryRetry(queryClient, queryKey),
     // Only ever set to false: an `enabled: undefined` would shadow the QueryClient's defaults.
     ...(callTool === null ? { enabled: false } : {}),
   })
