@@ -244,9 +244,10 @@ says otherwise, and typed by the schema for them: `items` beside `prefixItems`, 
 | `true`, or no schema for them                                         | `[A, B?, ...unknown[]]` |
 
 A `maxItems` smaller than the number of listed elements also drops the elements past it. A
-`minItems` or `maxItems` that is not a non-negative integer counts as absent. A bound past the
-listed elements is not typed: `{ prefixItems: [A], items: C, minItems: 3 }` is `[A, ...C[]]`, just
-as `z.array(z.string()).min(3)` is `string[]`; see
+`minItems` or `maxItems` that is not a non-negative integer up to `Number.MAX_SAFE_INTEGER` counts
+as absent, `-1`, `1.5`, `"2"` and `1e300` alike. A bound past the listed elements is not typed:
+`{ prefixItems: [A], items: C, minItems: 3 }` is `[A, ...C[]]`, just as `z.array(z.string()).min(3)`
+is `string[]`; see
 [Guarantees and limits](../guarantees.md#tuple-bounds-past-the-listed-elements-are-not-typed). A
 `$ref` may point into a tuple (`#/properties/at/prefixItems/0`); its target is declared once, as
 for any other path.

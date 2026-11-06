@@ -162,7 +162,7 @@ function tuplesIn(schema: JsonObject, frame: Frame): JsonObject {
   if (!Array.isArray(listed)) return out
   // 2020-12 has no `additionalItems` and no `items` list: next to `prefixItems` they mean nothing.
   const rest = listed === prefixItems ? items : additionalItems
-  // sanitizeSchema keeps `minItems` and `maxItems` only as non-negative integers.
+  // sanitizeSchema keeps `minItems` and `maxItems` only as non-negative safe integers.
   const max = maxItems as number | undefined
   const elements: unknown[] = listed.slice(0, max)
   const required = Math.min((minItems as number | undefined) ?? 0, elements.length)

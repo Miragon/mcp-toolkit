@@ -12,8 +12,8 @@
  *   upstream text (and `$id` moves the base of `$ref` resolution);
  * - `minItems`/`maxItems` (a value that is not a number lands raw in a JSDoc
  *   tag, and json2ts expands a huge one into a huge tuple), but a tuple's as
- *   non-negative integers: draft07Tuples reads them and removes them before
- *   json2ts sees the schema;
+ *   non-negative safe integers: draft07Tuples reads them and removes them
+ *   before json2ts sees the schema;
  * - every `$ref` that is not local to the schema (`#` or `#/…`): such a
  *   reference becomes `unknown` instead of a file read or an HTTP request;
  * - `enum`/`const` values that are not JSON primitives.
@@ -72,7 +72,8 @@ export function sanitizeSchema(schema: unknown): JsonObject {
 }
 
 /**
- * A tuple's `minItems` and `maxItems`, as non-negative integers: they decide
+ * A tuple's `minItems` and `maxItems`, as non-negative safe integers (a larger
+ * one, such as `1e300`, is not exact and counts as absent): they decide
  * which elements are optional and whether it takes more (see draft07Tuples).
  * Any other array's bounds are not typed.
  */

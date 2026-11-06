@@ -172,18 +172,18 @@ json-schema-to-typescript copies parts of a schema into the code as raw text and
 reading files and URLs. The generator therefore rebuilds each schema from the keywords that shape a
 TypeScript type, each checked for its JSON Schema shape, before json-schema-to-typescript sees it:
 
-| Kept keyword                                              | Kept when                                                                                   |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `type`                                                    | it names JSON Schema types (`string`, `object`, ...)                                        |
-| `enum`, `const`                                           | the values are JSON primitives                                                              |
-| `required`                                                | it is a list of strings, or draft 3's `true`                                                |
-| `$ref`                                                    | it is local: `#` or `#/…`                                                                   |
-| `description`                                             | always, made safe for a comment                                                             |
-| `deprecated`, `nullable`                                  | it is a boolean                                                                             |
-| `properties`, `patternProperties`, `$defs`, `definitions` | it is a map of schemas, each rebuilt the same way                                           |
-| `items`, `additionalItems`, `additionalProperties`        | it is a schema or a boolean (`items` also a list of schemas)                                |
-| `allOf`, `anyOf`, `oneOf`, `prefixItems`                  | it is a list of schemas                                                                     |
-| `minItems`, `maxItems`                                    | the schema is a tuple (`prefixItems` or `items` as a list) and it is a non-negative integer |
+| Kept keyword                                              | Kept when                                                                                                                   |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `type`                                                    | it names JSON Schema types (`string`, `object`, ...)                                                                        |
+| `enum`, `const`                                           | the values are JSON primitives                                                                                              |
+| `required`                                                | it is a list of strings, or draft 3's `true`                                                                                |
+| `$ref`                                                    | it is local: `#` or `#/…`                                                                                                   |
+| `description`                                             | always, made safe for a comment                                                                                             |
+| `deprecated`, `nullable`                                  | it is a boolean                                                                                                             |
+| `properties`, `patternProperties`, `$defs`, `definitions` | it is a map of schemas, each rebuilt the same way                                                                           |
+| `items`, `additionalItems`, `additionalProperties`        | it is a schema or a boolean (`items` also a list of schemas)                                                                |
+| `allOf`, `anyOf`, `oneOf`, `prefixItems`                  | it is a list of schemas                                                                                                     |
+| `minItems`, `maxItems`                                    | the schema is a tuple (`prefixItems` or `items` as a list) and it is a non-negative integer up to `Number.MAX_SAFE_INTEGER` |
 
 Every other keyword is dropped, notably `tsType` and `tsEnumNames` (json-schema-to-typescript emits
 their value as raw TypeScript), `title`, `$id` and `id` (they would name declarations after server

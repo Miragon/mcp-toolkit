@@ -76,7 +76,7 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   (json2ts's code is formatted with Prettier's `quoteProps: "preserve"`).
 - Schemas are rebuilt from a keyword allowlist before json-schema-to-typescript sees them:
   `tsType`, `tsEnumNames`, `title`, `$id` are dropped at every depth, `minItems`/`maxItems` too
-  but on a tuple, where only a non-negative integer stays.
+  except on a tuple, where only a non-negative safe integer stays.
 - Only local `$ref`s (`#`, `#/…`) survive, and `normalizeRefs` keeps one only when it walks
   schema positions (own keys) to an object schema; everything else becomes `unknown`. Every target
   but the root moves into the root `$defs` and a `$ref` with siblings becomes `allOf`, because
@@ -90,10 +90,11 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   `items: false`/`additionalItems: false` or a `maxItems` up to the listed elements closes it, and
   no bound is expanded. It consumes `minItems`/`maxItems`, and json2ts runs with
   `ignoreMinAndMaxItems` anyway: without it, json2ts spells a tuple as the union of every length,
-  output that grows with the square of the length. An optional element is framed by two `tsType` markers holding a UUID drawn per
-  compile (the only `tsType` json2ts sees); json2ts runs with `format: false`,
-  `markOptionalElements` turns `open, B, close` into `(B)?` and `compileSchema` runs Prettier with
-  json2ts's own options. A marker left over is a syntax error, so Prettier fails the run.
+  output that grows with the square of the length. An optional element is framed by two `tsType`
+  markers holding a UUID drawn per compile (the only `tsType` json2ts sees); json2ts runs with
+  `format: false`, `markOptionalElements` turns `open, B, close` into `(B)?` and `compileSchema`
+  runs Prettier with json2ts's own options. A marker left over is a syntax error, so Prettier fails
+  the run.
 - Descriptions cannot close a JSDoc or become a TypeScript directive (a line starting with `@`
   never ends a comment's last line); the `Source:` header is the URL's origin only (a path may hold
   an API key); the CLI replaces invisible characters in server text it prints (`terminalText`) and
@@ -102,10 +103,11 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   auth value (fetch would echo the secret); errors name the field, never the value.
 - Tests: `src/codegen.security.test.ts` (hostile names, schemas, text, header, `$ref` with a
   control test that proves json2ts alone would read a file and call a server, the exponential
-  chains, the 20,000-element tuples, hostile tuple bounds), `src/codegen.property.test.ts` (arbitrary input still parses
-  and declares only its own names), `src/declarations.test.ts`, `src/identifiers.test.ts`,
-  `src/safe-text.test.ts`, `src/sanitize-schema.test.ts`, `src/schema-refs.test.ts`. A change that
-  weakens a rule changes these tests in the same PR, with the reason.
+  chains, the 20,000-element tuples, hostile tuple bounds), `src/codegen.property.test.ts`
+  (arbitrary input still parses and declares only its own names), `src/declarations.test.ts`,
+  `src/identifiers.test.ts`, `src/safe-text.test.ts`, `src/sanitize-schema.test.ts`,
+  `src/schema-refs.test.ts`. A change that weakens a rule changes these tests in the same PR, with
+  the reason.
 
 ## Query or mutation
 
