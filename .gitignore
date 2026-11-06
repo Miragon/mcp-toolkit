@@ -10,3 +10,7 @@ reports
 .DS_Store
 *.log
 .claude/logs/
+
+# The docs site's build output and cache (VitePress)
+docs/.vitepress/dist/
+docs/.vitepress/cache/

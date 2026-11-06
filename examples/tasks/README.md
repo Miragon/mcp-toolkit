@@ -1,6 +1,7 @@
 # Example: tasks
 
-One small MCP server and the whole tool-codegen chain on it:
+One small MCP server and the whole [tool-codegen](https://miragon.github.io/mcp-toolkit/) chain on
+it:
 
 1. `src/server.ts` is an [mcp-use](https://github.com/mcp-use/mcp-use) server with four task tools.
    Each declares an input and an output schema and answers with `structuredContent`; the read-only
@@ -116,7 +117,8 @@ by the tool map, for the `QueryClient`'s `getQueryData` and `setQueryData`.
    token. Leave out `react: true` for `tools.ts` alone.
 2. Give your tools an `outputSchema` and return `structuredContent`; without one the output type
    is `unknown`. Mark read-only tools with `readOnlyHint: true`.
-3. Run `mcp-tool-codegen generate` and commit the output. Keep a drift check: either
+3. Run `mcp-tool-codegen generate` and commit the output.
+   [Keep a drift check](https://miragon.github.io/mcp-toolkit/guides/check-in-ci): either
    `mcp-tool-codegen generate --check` against a running server, or a test like
    `test/codegen.test.ts` that boots your server in process.
 4. Install the runtime the generated code imports: `@miragon/mcp-toolkit-tool-codegen-core`, and

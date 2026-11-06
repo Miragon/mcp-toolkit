@@ -1,8 +1,11 @@
 # CLAUDE.md
 
 Guidance for agents working in this repo. It ships typed MCP tool calls: a build-time code
-generator and the two runtime packages its output imports, plus one example. User-facing docs are
-the READMEs: [`README.md`](README.md) and one per package.
+generator and the two runtime packages its output imports, plus one example. User-facing docs live
+on the docs site in `docs/` (<https://miragon.github.io/mcp-toolkit/>). The READMEs
+([`README.md`](README.md) and one per package) say what a package is, show one example and link
+there; a change users see updates the site's pages in the same pull request (see
+[`CONTRIBUTING.md`](CONTRIBUTING.md#docs)).
 
 ## Layout
 
@@ -12,6 +15,7 @@ the READMEs: [`README.md`](README.md) and one per package.
 | `packages/tool-codegen-core/`  | `@miragon/mcp-toolkit-tool-codegen-core`: the runtime of the generated `tools.ts` (`ToolCaller`, `createTypedCallTool`, `parseToolResult`, `ToolCallError`, `toolCallerFromClient`)                                                                                                                                                                                                                            |
 | `packages/tool-codegen-react/` | `@miragon/mcp-toolkit-tool-codegen-react`: the runtime of the generated `hooks.tsx` (`ToolCallerProvider`, `useToolQuery`, `useToolMutation`, `toolQueryKey`, `toolQueryOptions`)                                                                                                                                                                                                                              |
 | `examples/tasks/`              | `@miragon/mcp-toolkit-example-tasks` (private): an mcp-use server, its committed generated client in `src/generated/`, a Node client, a Vite React app and the drift test                                                                                                                                                                                                                                      |
+| `docs/`                        | `@miragon/mcp-toolkit-docs` (private): the VitePress docs site on GitHub Pages; `docs/.vitepress/miragon/` is the vendored Miragon docs kit, never edited (see [`CONTRIBUTING.md`](CONTRIBUTING.md#docs))                                                                                                                                                                                                      |
 
 ## Commands
 

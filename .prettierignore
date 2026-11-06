@@ -14,3 +14,8 @@ pnpm-lock.yaml
 
 # release-please manages CHANGELOG.md formatting
 CHANGELOG.md
+
+# The Miragon docs kit, vendored byte for byte from Miragon/corporate-identity in its own style:
+# check.mjs fails on a reformatted copy. VitePress' cache is build output.
+docs/.vitepress/miragon/
+docs/.vitepress/cache/

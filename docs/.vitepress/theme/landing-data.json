@@ -1,0 +1,77 @@
+{
+  "$comment": "Written by docs/shots/landing-data.ts from a real run. Do not edit by hand.",
+  "toolsList": {
+    "tools": 4,
+    "bytes": 2963,
+    "tool": "add-task",
+    "entry": [
+      "{",
+      "  \"name\": \"add-task\",",
+      "  \"description\": \"Adds an open task and returns it.\",",
+      "  \"inputSchema\": {",
+      "    \"type\": \"object\",",
+      "    \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",",
+      "    \"properties\": {",
+      "      \"title\": {",
+      "        \"type\": \"string\",",
+      "        \"minLength\": 1,",
+      "        \"description\": \"What there is to do.\"",
+      "      }",
+      "    },",
+      "    \"required\": [\"title\"]",
+      "  },",
+      "  \"annotations\": { \"destructiveHint\": false },",
+      "  \"outputSchema\": { … \"id\", \"title\", \"done\" … }",
+      "}"
+    ]
+  },
+  "toolsTs": {
+    "file": "src/generated/tools.ts",
+    "lines": 144,
+    "excerpts": [
+      {
+        "from": 12,
+        "lines": [
+          "export interface TasksAddTaskInput {",
+          "  /**",
+          "   * What there is to do.",
+          "   */",
+          "  title: string",
+          "}"
+        ]
+      },
+      {
+        "from": 102,
+        "lines": [
+          "export interface TasksToolMap {",
+          "  \"add-task\": {",
+          "    input: TasksAddTaskInput",
+          "    output: TasksAddTaskOutput",
+          "  }"
+        ]
+      },
+      {
+        "from": 129,
+        "lines": [
+          "    /** Adds an open task and returns it. */",
+          "    addTask: (args: TasksAddTaskInput, options?: ToolCallOptions) =>",
+          "      call(\"add-task\", args, options),"
+        ]
+      }
+    ]
+  },
+  "why": {
+    "names": 4,
+    "fields": 17,
+    "places": 21,
+    "configLines": 8,
+    "command": "mcp-tool-codegen generate",
+    "commandChars": 25
+  },
+  "steps": {
+    "generate": "mcp-tool-codegen generate",
+    "call": "tasks.addTask({ title })",
+    "render": "useTasksListTasksQuery()",
+    "check": "mcp-tool-codegen generate --check"
+  }
+}

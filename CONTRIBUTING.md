@@ -8,23 +8,28 @@ If you've found a bug or have an idea, please [open an issue](https://github.com
 
 ## Setup
 
-You need Node.js 22.22.2 or newer and pnpm 10.32.1 (pinned in `packageManager`; `corepack enable`
-picks it up).
+You need Node.js 22.22.2 or newer (mcp-use's minimum, which the example and the codegen tests run
+on) and pnpm 10.32.1 (pinned in `packageManager`; `corepack enable` picks it up).
 
 ```sh
 pnpm install
-pnpm build   # the packages resolve each other through their built dist
+pnpm build   # first: the packages resolve each other through their built dist
 ```
 
-The workspace holds the three packages under `packages/` and the example under `examples/tasks`.
+The workspace holds the three packages under `packages/`, the example under `examples/tasks` and
+the docs site under `docs/`.
 [`CLAUDE.md`](CLAUDE.md) describes the layout, the dependency boundaries between the packages and
 the generator's security rules; read it before changing the generator.
 
 ## Before you open a pull request
 
 ```sh
-pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm format:check
-pnpm check:exports
+pnpm build           # first: the packages resolve each other through their built dist
+pnpm typecheck
+pnpm test            # every package, the example with its drift gate, and scripts/*.test.mjs
+pnpm lint
+pnpm format:check
+pnpm check:exports   # publint and attw against the built packages
 ```
 
 All of it must pass; CI runs the same checks. `pnpm format` and `pnpm lint:fix` fix most format
@@ -43,11 +48,88 @@ them, never lower them) and, on pull requests, the mutation tests of tool-codege
 tool-codegen-core (`pnpm test:mutation`). Pin `dependencies` and `devDependencies` to exact
 versions; only peers are ranged.
 
-## Commits and releases
+## Docs
+
+The docs site lives in `docs/`: a VitePress site, the workspace package
+`@miragon/mcp-toolkit-docs`, published to <https://miragon.github.io/mcp-toolkit/> by
+`.github/workflows/docs.yml` on every push to `main` that touches `docs/`, `pnpm-lock.yaml`,
+`pnpm-workspace.yaml` or the generator's `package.json` (the landing page shows its version and
+Node.js range, so a release deploys the site again). The pages are the Markdown files in `docs/`; navigation and sidebar are in
+`docs/.vitepress/config.ts`. Dependabot leaves the docs pins alone: they move with a kit release.
+
+The site is the one home of the user documentation. The READMEs, which npm shows, only say what a
+package is, show one example and link to the site. A change users see (a config key, a CLI flag
+or message, an export, a requirement) updates the pages in the same pull request, and a README only
+when its example or requirements change. Package READMEs link the site with absolute
+`https://miragon.github.io/mcp-toolkit/...` URLs, since npm does not resolve relative links.
+
+```sh
+pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-docs dev     # dev server on http://localhost:5173
+pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-docs build   # fails on a dead link; the root pnpm build runs it too
+DOCS_BASE=/mcp-toolkit/ pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-docs build   # as the workflow builds it
+node docs/.vitepress/miragon/check.mjs                             # the vendored docs kit is unchanged
+```
+
+`docs/.vitepress/miragon/` and `docs/public/logo/` are the Miragon docs kit, vendored byte for
+byte from [Miragon/corporate-identity](https://github.com/Miragon/corporate-identity) (skill
+`docs-site`): theme, colours, fonts, Mermaid and the legal row. Never edit them; `check.mjs` fails
+on any change (the Docs workflow runs it), and Prettier and ESLint skip the kit. To lift the kit to
+a new release, compare it against a clone of corporate-identity at the new tag:
+
+```sh
+node docs/.vitepress/miragon/check.mjs --ci ../corporate-identity
+```
+
+When it reports an outdated, new or removed file, copy the kit again from the clone's
+`plugins/miragon-brand/skills/docs-site/assets/` (`miragon/` to `docs/.vitepress/miragon/` after
+deleting the old folder, `logo/*.svg` to `docs/public/logo/`), run `check.mjs` and build. Carry
+changed pins from `assets/vorlagen/package.json` there into `docs/package.json`, and the vite
+override and the mermaid peer rule into `pnpm-workspace.yaml`, then run `pnpm install`. When only
+the versions in `manifest.json` differ, the kit is unchanged and there is nothing to do.
+
+## Commits
 
 Commit messages and pull request titles follow
 [Conventional Commits](https://www.conventionalcommits.org/): `feat` for additions, `fix` for bug
-fixes, `feat!`/`fix!` with a `BREAKING CHANGE:` footer for breaking changes. A scope can name
-the package (`feat(tool-codegen-react): …`). [release-please](https://github.com/googleapis/release-please)
-builds the version bump and `CHANGELOG.md` from them, so never edit the changelog by hand. The
-release flow is described in the [README](README.md#releases).
+fixes. A breaking change needs `!` (`feat!`, `fix!`) or a `BREAKING CHANGE:` footer on the commit
+that lands on `main`. A scope can name the package (`feat(tool-codegen-react): …`). The PR-title
+check also validates the subject of a single-commit pull request, which GitHub uses as the squash
+title. [release-please](https://github.com/googleapis/release-please) builds the version bump and
+`CHANGELOG.md` from the commits, so never edit the changelog by hand.
+
+## Releases
+
+release-please reads the Conventional Commits on `main` and keeps a Release PR open that bumps the
+three packages in lockstep and writes `CHANGELOG.md`. Merging the Release PR tags `v<version>` and
+creates the GitHub release; then one publish job per package publishes it to npm with trusted
+publishing (OIDC, with provenance, no `NPM_TOKEN`), skipping a version that is already on npm. The
+jobs run in dependency order (core, then react, then the generator), so generated code never
+reaches npm ahead of its runtime. `.github/workflows/publish-npm-package.yml` packs a package in
+one job and publishes the tarball from another, the only one with the id-token, which runs no
+install, no build and no lifecycle script.
+
+Dispatching `release-please.yml` with `dry_run` packs the three packages without publishing;
+`force_publish` (on `main` only) publishes the versions in `package.json` again after a failed
+run.
+
+### Trusted publishing
+
+Trusted publishing is configured per package on npmjs.com (Settings → Trusted publishing → GitHub
+Actions): this repository, the workflow `release-please.yml` (npm checks the calling workflow, not
+the reusable one) and the environment `npm`. `npm trust list @miragon/mcp-toolkit-tool-codegen`
+shows the configuration that works; copy it. The `npm` environment should allow `main` only and ask
+for a reviewer, which is what binds publishing to `main`.
+
+### The first release of a new package
+
+A package that is not on npm yet has no trusted-publishing settings, and npm expires a new
+configuration that sees no publish within two days. For the first release of
+`@miragon/mcp-toolkit-tool-codegen-core` and `-react` (3.0.0), before merging its Release PR:
+
+1. Publish a placeholder of each by hand with pnpm (which rewrites the `workspace:` ranges), for
+   example with the version set to `0.0.0-bootstrap.0` locally and
+   `pnpm publish --access public --tag bootstrap`. npm may point `latest` at it until 3.0.0
+   replaces it.
+2. Configure each package's trusted publisher as above.
+3. Merge the Release PR within two days: its OIDC publish of 3.0.0 validates the configuration.
+   Do not publish 3.0.0 by hand.

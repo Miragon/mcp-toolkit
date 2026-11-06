@@ -6,8 +6,8 @@ name: Publish npm package
 # The job that holds the id-token runs no package manager and no code of this repository: the
 # pack job installs, builds and packs without that permission, and the publish job only uploads
 # the tarball, with lifecycle scripts off. npm checks the CALLING workflow, so each package's
-# trusted publisher on npmjs.com names release-please.yml and the environment npm (README,
-# "Releases").
+# trusted publisher on npmjs.com names release-please.yml and the environment npm
+# (CONTRIBUTING.md, "Trusted publishing").
 on:
   workflow_call:
     inputs:
