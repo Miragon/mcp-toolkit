@@ -20,7 +20,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { after, describe, it } from "node:test"
 import { fileURLToPath } from "node:url"
-import yaml from "js-yaml"
+import * as yaml from "js-yaml"
 import { inMutationScope } from "./mutation-scope.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
