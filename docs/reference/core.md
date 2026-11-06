@@ -27,7 +27,8 @@ what it takes, what it returns and how it fails.
 | [`ToolCallError`](#toolcallerror)                   | class    | the tool ran and answered `isError: true`                |
 | [`ToolCaller`](#toolcaller)                         | type     | calls a tool by name and resolves with its raw result    |
 | [`ToolCallResult`](#toolcallresult)                 | type     | the part of an MCP `CallToolResult` the runtime reads    |
-| [`ToolCallOptions`](#toolcalloptions)               | type     | the options of one call: `signal`                        |
+| [`ToolCallOptions`](#toolcalloptions)               | type     | the options of one call: signal, timeouts, progress      |
+| [`ToolCallProgress`](#toolcallprogress)             | type     | one progress notification of a running call              |
 | [`McpClientLike`](#mcpclientlike)                   | type     | the client shape `toolCallerFromClient` takes            |
 | [`TypedCallTool`](#typedcalltool)                   | type     | a tool call typed by a tool map                          |
 | [`ToolShape`](#toolshape)                           | type     | one entry of a tool map: `{ input; output }`             |
@@ -93,7 +94,9 @@ function toolCallerFromClient(client: McpClientLike): ToolCaller
 | `client`  | [`McpClientLike`](#mcpclientlike) | a connected MCP client, such as `Client` from `@modelcontextprotocol/client` |
 
 - Returns a [`ToolCaller`](#toolcaller) that maps each call onto
-  `client.callTool({ name, arguments: args }, options)`, the abort signal included.
+  `client.callTool({ name, arguments: args }, options)`, the
+  [`ToolCallOptions`](#toolcalloptions) handed on as given. They carry the SDK's own names, so the
+  SDK implements the signal, the timeouts and the progress callback.
 - Rejects with whatever `client.callTool` rejects with.
 - Leaves connecting and closing the client to you. The package does not depend on the MCP SDK: any
   object of the shape fits.
@@ -222,8 +225,9 @@ type ToolCaller = (
 ```
 
 Calls the tool `name` with `args` and resolves with its raw result. A tool that reports a failure
-resolves with `isError: true`; only a transport or protocol failure rejects. It hands
-`options.signal` to the transport, so an aborted signal cancels the request.
+resolves with `isError: true`; only a transport or protocol failure rejects. It hands `options` to
+the transport, so an aborted signal cancels the request and a timeout fails it. A caller other than
+`toolCallerFromClient` honours the options it supports.
 [`toolCallerFromClient`](#toolcallerfromclient) makes one from an MCP client; a widget host bridge
 or a test fake can be one too. [`createTypedCallTool`](#createtypedcalltool), the generated
 `create<Name>Client` and the React package's `ToolCallerProvider` take it.
@@ -246,10 +250,42 @@ Structural, so the MCP SDK's `CallToolResult` and a widget host's tool result fi
 ```ts
 interface ToolCallOptions {
   signal?: AbortSignal
+  timeout?: number
+  onprogress?: (progress: ToolCallProgress) => void
+  resetTimeoutOnProgress?: boolean
+  maxTotalTimeout?: number
 }
 ```
 
-`signal` cancels the call. The runtime hands it to the transport untouched and never reads it.
+The per-request options of the MCP SDK client (`RequestOptions` in `@modelcontextprotocol/client`),
+by name and meaning. The runtime hands them to the caller untouched and reads none of them;
+[`toolCallerFromClient`](#toolcallerfromclient) passes them to the SDK, which implements them.
+
+| Option                   | Meaning                                                                                                        | SDK default |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
+| `signal`                 | Cancels the call.                                                                                              | none        |
+| `timeout`                | Milliseconds to wait for the result; then the call rejects with `Request timed out`.                           | `60000`     |
+| `onprogress`             | Receives each progress notification the server sends for this call. Setting it asks the server for them.       | none        |
+| `resetTimeoutOnProgress` | Starts `timeout` again with every progress notification. Needs `onprogress`: without it the server sends none. | `false`     |
+| `maxTotalTimeout`        | Milliseconds the call may take in all, progress or not; then it rejects with `Maximum total timeout exceeded`. | no limit    |
+
+A tool that runs longer than a minute needs a `timeout`, or progress notifications with
+`resetTimeoutOnProgress`; see
+[Give a long call more time](../guides/call-tools.md#give-a-long-call-more-time).
+
+### `ToolCallProgress`
+
+```ts
+interface ToolCallProgress {
+  progress: number
+  total?: number
+  message?: string
+}
+```
+
+One `notifications/progress` of a running call, as `onprogress` receives it: the progress so far,
+which grows with every notification, the total when the server knows it, and a message when it
+sends one.
 
 ### `McpClientLike`
 

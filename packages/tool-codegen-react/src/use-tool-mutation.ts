@@ -1,4 +1,5 @@
 import type {
+  ToolCallOptions,
   ToolInput,
   ToolMapOf,
   ToolName,
@@ -43,6 +44,11 @@ export type UseToolMutationOptions<
    * server. `false` invalidates nothing.
    */
   invalidates?: false | readonly ToolQueryKeyPrefix<TMap>[]
+  /**
+   * The options of every call `mutate` makes: timeouts, progress, and a signal, since a mutation
+   * has none of its own (once it is aborted, every later `mutate` fails at once).
+   */
+  callOptions?: ToolCallOptions
 }
 
 /**
@@ -72,7 +78,7 @@ export function useToolMutation<
 > {
   const callTool = useToolCaller(namespace)
   const queryClient = useQueryClient()
-  const { invalidates, onSuccess, ...mutationOptions } = options ?? {}
+  const { invalidates, onSuccess, callOptions, ...mutationOptions } = options ?? {}
 
   return useMutation<
     ToolOutput<TMap, TName>,
@@ -81,7 +87,7 @@ export function useToolMutation<
     TOnMutateResult
   >({
     ...mutationOptions,
-    mutationFn: (args) => callToolTyped<TMap, TName>(callTool, name, args ?? {}),
+    mutationFn: (args) => callToolTyped<TMap, TName>(callTool, name, args ?? {}, callOptions),
     onSuccess: async (data, args, onMutateResult, context) => {
       // Not awaited: the default covers every query of the server, and one of them failing at
       // the transport would hold the mutation pending through all of its retries.

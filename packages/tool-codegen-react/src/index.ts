@@ -11,7 +11,12 @@ export {
   type ToolQueryKey,
   type ToolQueryKeyPrefix,
 } from "./query-key.js"
-export { toolQueryOptions, type ToolQueryContext, type ToolQueryOptions } from "./query-options.js"
+export {
+  toolQueryOptions,
+  type ToolQueryCallOptions,
+  type ToolQueryContext,
+  type ToolQueryOptions,
+} from "./query-options.js"
 export { useToolQuery, type UseToolQueryOptions } from "./use-tool-query.js"
 export {
   useToolMutation,

@@ -178,6 +178,19 @@ export async function use() {
   return [created, listed, viaCall, wrongName, count]
 }
 
+export async function useCallOptions(signal: AbortSignal) {
+  const slow = { timeout: 120_000, onprogress: ({ progress, total }: { progress: number; total?: number }) => void [progress, total] }
+  await client.createTask({ title: "Export" }, { ...slow, signal, resetTimeoutOnProgress: true, maxTotalTimeout: 600_000 })
+  await client.listTasks({}, slow)
+  await client.call("list_tasks", {}, { timeout: 5_000 })
+  // @ts-expect-error -- the timeout is milliseconds
+  await client.listTasks({}, { timeout: "60s" })
+  useTasksListTasksQuery({}, { callOptions: slow })
+  // @ts-expect-error -- the query owns the signal
+  useTasksListTasksQuery({}, { callOptions: { signal } })
+  useTasksCreateTaskMutation({ callOptions: { ...slow, signal } })
+}
+
 export function useCache(queryClient: ToolQueryContext["queryClient"]) {
   const listed: { tasks: string[] } | undefined = queryClient.getQueryData(tasksQueryKey("list_tasks", {}))
   // @ts-expect-error -- a cache key names a tool of the map

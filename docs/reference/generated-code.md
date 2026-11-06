@@ -172,7 +172,9 @@ export type TasksClient = ReturnType<typeof createTasksClient>
 
 - `args` defaults to `{}` when `{}` is a valid input, see
   [When `args` is optional](#when-args-is-optional).
-- `options.signal` cancels the call.
+- `options` is a [`ToolCallOptions`](./core.md#toolcalloptions): `signal` cancels the call,
+  `timeout`, `onprogress`, `resetTimeoutOnProgress` and `maxTotalTimeout` go to the MCP SDK as its
+  own request options.
 - `createTypedCallTool` decodes each result: `structuredContent` when present, else the first text
   block, read as JSON when it parses as JSON. A result with `isError: true` rejects with a
   `ToolCallError` ([Core API](./core.md)).

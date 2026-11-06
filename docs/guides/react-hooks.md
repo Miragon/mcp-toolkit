@@ -148,7 +148,9 @@ no required property) and then every `useQuery` option except `queryKey` and `qu
 TanStack's `UseQueryResult`. With `select`, the hook infers the type of `data`:
 `useTasksListTasksQuery({ done: false }, { select: (data) => data.tasks.length })` gives a number.
 `enabled` applies on top of waiting for the caller. TanStack's abort signal goes to the caller, so a
-query that unmounts mid-call cancels the request.
+query that unmounts mid-call cancels the request. `callOptions` give the call a timeout or a
+progress callback, `useTasksListTasksQuery({}, { callOptions: { timeout: 120_000 } })`; see
+[Give a long call more time](./call-tools.md#give-a-long-call-more-time).
 
 ## 4. Add a task with a mutation hook
 
@@ -190,9 +192,9 @@ function AddTaskForm() {
 
 Type a title and press **Add task**: the task shows up in the list, and the field is empty again.
 
-The hook takes every `useMutation` option except `mutationFn`, plus `invalidates`, and returns
-TanStack's `UseMutationResult`. For a tool whose input has no required property, `mutate()` sends
-`{}`. `useToolCaller()` returns `null` while the provider has no caller; the form disables its
+The hook takes every `useMutation` option except `mutationFn`, plus `invalidates` and
+`callOptions` (the call options of every `mutate`, a `signal` included), and returns TanStack's
+`UseMutationResult`. For a tool whose input has no required property, `mutate()` sends `{}`. `useToolCaller()` returns `null` while the provider has no caller; the form disables its
 button with it, because a mutation without a caller rejects with a `NoToolCallerError`.
 
 ## Invalidate only what changed
@@ -260,7 +262,8 @@ const addTask = useTasksAddTaskMutation({
 ## Suspend or prefetch with toolQueryOptions
 
 `toolQueryOptions(namespace, tool, args, { callTool, queryClient })` returns the options a query
-hook runs with: the key, the call with TanStack's abort signal and the retry rule. Use it where
+hook runs with: the key, the call with TanStack's abort signal and the retry rule. A `callOptions`
+entry in the last argument gives the call a timeout or a progress callback, as in a query hook. Use it where
 TanStack takes options instead of a hook: `useSuspenseQuery`, `useQueries`, `prefetchQuery` and
 `ensureQueryData`.
 

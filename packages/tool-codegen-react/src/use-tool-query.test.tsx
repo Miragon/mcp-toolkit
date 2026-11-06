@@ -140,6 +140,46 @@ describe("useToolQuery", () => {
     expect(signal?.aborted).toBe(true)
   })
 
+  it("hands callOptions to the caller next to TanStack's signal, and keeps them out of the key", async () => {
+    const callTool = taskCaller()
+    const onprogress = vi.fn()
+    const { result, queryClient } = renderToolHook(
+      () => useGetTask("1", { callOptions: { timeout: 120_000, onprogress } }),
+      { callTool },
+    )
+
+    await waitFor(() => expect(result.current.data).toEqual(readme))
+
+    expect(callTool).toHaveBeenCalledExactlyOnceWith(
+      "get_task",
+      { id: "1" },
+      { timeout: 120_000, onprogress, signal: expect.any(AbortSignal) as unknown },
+    )
+    const [cached] = queryClient.getQueryCache().getAll()
+    expect(cached?.queryKey).toEqual(
+      toolQueryKey<TestToolMap, "get_task">("tasks", "get_task", { id: "1" }),
+    )
+    expect(cached?.options).not.toHaveProperty("callOptions")
+  })
+
+  it("keeps TanStack's signal when callOptions carry one anyway", async () => {
+    const foreign = new AbortController().signal
+    const callTool = taskCaller()
+    const { result } = renderToolHook(
+      () =>
+        useGetTask("1", {
+          callOptions: { signal: foreign } as UseToolQueryOptions<Task>["callOptions"],
+        }),
+      { callTool },
+    )
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    const signal = callTool.mock.calls[0]?.[2]?.signal
+    expect(signal).toBeInstanceOf(AbortSignal)
+    expect(signal).not.toBe(foreign)
+  })
+
   it("maps the output with select and caches the output itself", async () => {
     const callTool = vi.fn<ToolCaller>(() => Promise.resolve(structured([readme, ship])))
     const { result, queryClient } = renderToolHook(

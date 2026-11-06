@@ -1,4 +1,4 @@
-import type { ToolShape } from "@miragon/mcp-toolkit-tool-codegen-core"
+import type { ToolCallOptions, ToolShape } from "@miragon/mcp-toolkit-tool-codegen-core"
 import {
   QueryClient,
   useSuspenseQuery,
@@ -7,7 +7,11 @@ import {
 } from "@tanstack/react-query"
 import { describe, expectTypeOf, it } from "vitest"
 import { toolQueryKey, type ToolQueryKeyPrefix } from "./query-key.js"
-import { toolQueryOptions } from "./query-options.js"
+import {
+  toolQueryOptions,
+  type ToolQueryCallOptions,
+  type ToolQueryContext,
+} from "./query-options.js"
 import type { Task, TestToolMap } from "./test-support/harness.js"
 import { useToolMutation, type UseToolMutationOptions } from "./use-tool-mutation.js"
 import { useToolQuery, type UseToolQueryOptions } from "./use-tool-query.js"
@@ -104,6 +108,35 @@ describe("useToolQuery types", () => {
     expectTypeOf<UseToolQueryOptions<Task>>().toHaveProperty("enabled")
   })
 
+  it("takes the call's options but the signal, which the query owns", () => {
+    expectTypeOf<UseToolQueryOptions<Task>["callOptions"]>().toEqualTypeOf<
+      Omit<ToolCallOptions, "signal"> | undefined
+    >()
+    function useCallOptions(signal: AbortSignal) {
+      useToolQuery<TestToolMap, "get_task">(
+        "tasks",
+        "get_task",
+        { id: "1" },
+        {
+          callOptions: {
+            timeout: 120_000,
+            onprogress: ({ progress, total, message }) => void [progress, total, message],
+            resetTimeoutOnProgress: true,
+            maxTotalTimeout: 600_000,
+          },
+        },
+      )
+      useToolQuery<TestToolMap, "get_task">(
+        "tasks",
+        "get_task",
+        { id: "1" },
+        // @ts-expect-error TanStack aborts the query's call; a signal of its own would not be heard
+        { callOptions: { signal } },
+      )
+    }
+    expectTypeOf(useCallOptions).toBeFunction()
+  })
+
   it("rejects a map with an index signature, whose keys would admit any tool name", () => {
     interface LegacyMap extends Record<string, ToolShape> {
       get_task: { input: { id: string }; output: Task }
@@ -157,6 +190,13 @@ describe("query key types", () => {
       ).data
     }
     expectTypeOf(useTask).returns.toEqualTypeOf<Task>()
+  })
+
+  it("takes the call's options but the signal in the context of toolQueryOptions", () => {
+    expectTypeOf<ToolQueryContext["callOptions"]>().toEqualTypeOf<
+      ToolQueryCallOptions | undefined
+    >()
+    expectTypeOf<ToolQueryCallOptions>().toEqualTypeOf<Omit<ToolCallOptions, "signal">>()
   })
 })
 
@@ -239,5 +279,19 @@ describe("useToolMutation types", () => {
       })
     }
     expectTypeOf(useInvalidations).toBeFunction()
+  })
+
+  it("takes the call's options, a signal included", () => {
+    expectTypeOf<CreateTaskOptions["callOptions"]>().toEqualTypeOf<ToolCallOptions | undefined>()
+    function useCallOptions(signal: AbortSignal) {
+      useToolMutation<TestToolMap, "create_task">("tasks", "create_task", {
+        callOptions: { signal, timeout: 300_000, onprogress: ({ progress }) => void progress },
+      })
+      useToolMutation<TestToolMap, "create_task">("tasks", "create_task", {
+        // @ts-expect-error the timeout is milliseconds, a number
+        callOptions: { timeout: "5m" },
+      })
+    }
+    expectTypeOf(useCallOptions).toBeFunction()
   })
 })

@@ -54,6 +54,25 @@ describe("toolQueryOptions", () => {
     )
   })
 
+  it("hands the context's callOptions to the call, next to the query's abort signal", async () => {
+    const callTool = vi.fn<ToolCaller>(() => Promise.resolve(structured(readme)))
+    const queryClient = createQueryClient()
+    const options = toolQueryOptions<TestToolMap, "get_task">(
+      "tasks",
+      "get_task",
+      { id: "1" },
+      { callTool, queryClient, callOptions: { timeout: 5_000, resetTimeoutOnProgress: true } },
+    )
+
+    expect(await queryClient.fetchQuery(options)).toEqual(readme)
+    expect(options.queryKey).toEqual(getTask(callTool).queryKey)
+    expect(callTool).toHaveBeenCalledExactlyOnceWith(
+      "get_task",
+      { id: "1" },
+      { timeout: 5_000, resetTimeoutOnProgress: true, signal: expect.any(AbortSignal) as unknown },
+    )
+  })
+
   it("never retries a ToolCallError or a NoToolCallerError, whatever the client's defaults", async () => {
     const queryClient = createQueryClient({ retry: 3, retryDelay: 0 })
     const callTool = vi.fn<ToolCaller>(() => Promise.resolve(toolError("No task 1")))

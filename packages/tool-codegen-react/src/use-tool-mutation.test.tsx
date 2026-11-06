@@ -81,6 +81,27 @@ describe("useToolMutation", () => {
     expect(callTool).toHaveBeenCalledExactlyOnceWith("create_task", { title: "Ship it" }, undefined)
   })
 
+  it("hands callOptions to every call mutate makes, a signal included", async () => {
+    const callTool = vi.fn<ToolCaller>(() => Promise.resolve(structured(created)))
+    const callOptions = {
+      signal: new AbortController().signal,
+      timeout: 300_000,
+      onprogress: vi.fn(),
+      maxTotalTimeout: 600_000,
+    }
+    const { result } = renderToolHook(() => useCreateTask({ callOptions, invalidates: false }), {
+      callTool,
+    })
+
+    await act(() => result.current.mutateAsync({ title: "Ship it" }))
+    await act(() => result.current.mutateAsync({ title: "Tag it" }))
+
+    expect(callTool.mock.calls).toEqual([
+      ["create_task", { title: "Ship it" }, callOptions],
+      ["create_task", { title: "Tag it" }, callOptions],
+    ])
+  })
+
   it("invalidates every query of its namespace by default", async () => {
     const { result, queryClient } = await renderTasksScreen()
 

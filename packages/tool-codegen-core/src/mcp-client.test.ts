@@ -16,7 +16,7 @@ class FakeClient {
 
   callTool(
     params: Params & { _meta?: Record<string, unknown> },
-    options?: Options & { timeout?: number; onprogress?: (progress: unknown) => void },
+    options?: Options & { toolDefinition?: unknown },
   ): Promise<FakeResult> {
     this.calls.push({ params, options })
     return this.respond(params)
@@ -43,6 +43,23 @@ describe("toolCallerFromClient", () => {
     expect(client.calls[0]?.params).toEqual({ name: "get_order", arguments: args })
     expect(client.calls[0]?.params.arguments).toBe(args)
     expect(client.calls[0]?.options).toBe(options)
+  })
+
+  it("hands the timeouts and the progress callback to the client under the SDK's names", async () => {
+    const client = new FakeClient(() => Promise.resolve({ content: [] }))
+    const progress: unknown[] = []
+    const options = {
+      timeout: 120_000,
+      onprogress: (update: { progress: number }) => progress.push(update),
+      resetTimeoutOnProgress: true,
+      maxTotalTimeout: 600_000,
+    }
+
+    await toolCallerFromClient(client)("export", {}, options)
+
+    expect(client.calls[0]?.options).toBe(options)
+    client.calls[0]?.options?.onprogress?.({ progress: 1, total: 2 })
+    expect(progress).toEqual([{ progress: 1, total: 2 }])
   })
 
   it("passes no options when the call has none", async () => {

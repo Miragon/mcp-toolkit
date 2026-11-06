@@ -66,8 +66,9 @@ pnpm exec tsx call.ts
 This is the MCP `CallToolResult` as the server sent it: the example server answers with
 `structuredContent` and the same data as JSON text. A tool that fails resolves with `isError: true`;
 only a transport or protocol failure rejects. `toolCallerFromClient` hands the name, the arguments
-and the abort signal to `client.callTool({ name, arguments }, { signal })`. It takes any object with
-that method (`McpClientLike`), so the core does not depend on the SDK.
+and the call's options (abort signal, timeouts, progress callback) to
+`client.callTool({ name, arguments }, options)`. It takes any object with that method
+(`McpClientLike`), so the core does not depend on the SDK.
 
 ## 3. Call tools through the typed client
 
@@ -155,8 +156,8 @@ title, and the call rejects with a `ToolCallError` whose message reads
 
 ## Cancel a call
 
-Each method of the client takes `{ signal }` after its arguments (`call` takes it third), and the
-caller hands it to the transport:
+Each method of the client takes options after its arguments (`call` takes them third), and the
+caller hands them to the transport. `signal` cancels the call:
 
 ```ts
 const { tasks: open } = await tasks.listTasks(
@@ -169,6 +170,38 @@ A cancelled call rejects with the client's own error, never with a `ToolCallErro
 client rejects with an `SdkError`:
 `SdkError: TimeoutError: The operation was aborted due to timeout` when the timeout fires,
 `SdkError: AbortError: This operation was aborted` for a signal you abort yourself.
+
+## Give a long call more time
+
+The MCP SDK fails a call after 60 seconds without a result, with `SdkError: Request timed out`. Give
+a slow tool more with `timeout`, in milliseconds:
+
+```ts
+const { tasks: all } = await tasks.listTasks({}, { timeout: 300_000 })
+```
+
+A tool that reports progress can keep its call alive instead: `onprogress` asks the server for
+progress notifications and receives each one, `resetTimeoutOnProgress` starts the timeout again
+with each, and `maxTotalTimeout` caps the whole call:
+
+```ts
+const { tasks: all } = await tasks.listTasks(
+  {},
+  {
+    timeout: 30_000,
+    resetTimeoutOnProgress: true,
+    maxTotalTimeout: 600_000,
+    onprogress: ({ progress, total, message }) => console.log(progress, total, message),
+  },
+)
+```
+
+The example server's tools answer at once and send no progress, so there `onprogress` never runs and
+only `timeout` counts; a tool that reports progress (in mcp-use, `ctx.reportProgress`) has each step
+logged. A call past `maxTotalTimeout` rejects with `SdkError: Maximum total timeout exceeded`. The
+options carry the SDK's own names and meanings
+([`ToolCallOptions`](../reference/core.md#toolcalloptions)); a caller other than
+`toolCallerFromClient`, such as a widget host bridge, honours what it supports.
 
 ## In the browser
 

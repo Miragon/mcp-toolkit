@@ -11,7 +11,10 @@ export interface McpClientLike {
   ): Promise<ToolCallResult>
 }
 
-/** A {@link ToolCaller} over an MCP client: `tools/call` with the name, args and abort signal. */
+/**
+ * A {@link ToolCaller} over an MCP client: `tools/call` with the name and args, and the
+ * {@link ToolCallOptions} (signal, timeouts, progress) handed to the client as given.
+ */
 export function toolCallerFromClient(client: McpClientLike): ToolCaller {
   return (name, args, options) => client.callTool({ name, arguments: args }, options)
 }
