@@ -555,6 +555,46 @@ export async function use() {
     expect(typeErrors({ "tools.ts": toolsFile, "consumer.ts": consumer })).toEqual([])
   }, 30_000)
 
+  // json2ts crashes on a cycle through the allOf of a node that has another keyword it types, so
+  // a type list beside a composition must leave the node nothing but allOf.
+  it("type-checks a recursive type list next to a composition", async () => {
+    const node = {
+      type: ["object", "null"],
+      anyOf: [{ type: "object", required: ["id"] }, { type: "null" }],
+      properties: { id: { type: "string" }, next: { $ref: "#/$defs/node" } },
+    }
+    const { toolsFile } = await renderCodegen(
+      [
+        {
+          name: "walk",
+          inputSchema: {
+            type: "object",
+            properties: { start: { $ref: "#/$defs/node" } },
+            required: ["start"],
+            $defs: { node },
+          },
+        },
+      ],
+      { ...config, react: false },
+    )
+    const consumer = `
+import { createTasksClient } from "./tools.js"
+declare const callTool: import("@miragon/mcp-toolkit-tool-codegen-core").ToolCaller
+const client = createTasksClient(callTool)
+export async function use() {
+  await client.walk({ start: null })
+  await client.walk({ start: { id: "a", next: { id: "b", next: null } } })
+  // @ts-expect-error -- anyOf requires the id on an object
+  await client.walk({ start: {} })
+  // @ts-expect-error -- at every level of the cycle
+  await client.walk({ start: { id: "a", next: { next: null } } })
+  // @ts-expect-error -- and the listed types still hold
+  await client.walk({ start: "a" })
+}
+`
+    expect(typeErrors({ "tools.ts": toolsFile, "consumer.ts": consumer })).toEqual([])
+  }, 30_000)
+
   it("rejects what an object input with required names but no properties does not accept", async () => {
     const { toolsFile } = await renderCodegen(
       [

@@ -22,7 +22,9 @@
  * - A `type` list next to `allOf`, `anyOf` or `oneOf` moves into a last branch
  *   of `allOf`, with what it types: json2ts copies a node with a `type` list into
  *   one union member per type, siblings included, and each member prints the
- *   composition again, which multiplies the output per level.
+ *   composition again, which multiplies the output per level. `anyOf` and `oneOf`
+ *   get a branch of their own, since json2ts crashes on a cycle through the
+ *   `allOf` of a node that has any other keyword it types.
  *
  * Every `$ref` left is `#` or `#/$defs/<key>` with an [A-Za-z0-9] key, the root
  * `$defs` hold exactly the referenced targets, and no `$defs` or `definitions`
@@ -162,23 +164,33 @@ function nodesOf(node: JsonObject, name: string): [JsonObject, string][] {
   ]
 }
 
-/** What stays on a node when its `type` list moves into a branch of `allOf`. */
-const BESIDE_TYPE_LIST = new Set(["allOf", "anyOf", "oneOf", "description", "deprecated"])
+const COMPOSITIONS = new Set(["allOf", "anyOf", "oneOf"])
 
-/** The node with its `type` list in a branch of `allOf`, if a composition is next to it. */
+/**
+ * What stays on a node when its `type` list moves into a branch of `allOf`: its notes, and the
+ * draft 3 flag `required: true`, which speaks for the node's place in its parent.
+ */
+function staysOnTheNode([keyword, value]: [string, unknown]): boolean {
+  return (
+    keyword === "description" ||
+    keyword === "deprecated" ||
+    (keyword === "required" && value === true)
+  )
+}
+
+/** The node as branches of `allOf`, if a composition is next to its `type` list. */
 function typeListAsBranch(node: JsonObject): JsonObject {
   const { type, allOf, anyOf, oneOf } = node
   if (!Array.isArray(type) || type.length < 2) return node
   if (allOf === undefined && anyOf === undefined && oneOf === undefined) return node
-  // The draft 3 flag `required: true` speaks for the node's place in its parent, so it stays.
-  const stays = ([keyword, value]: [string, unknown]) =>
-    BESIDE_TYPE_LIST.has(keyword) || (keyword === "required" && value === true)
-  const entries = Object.entries(node)
+  const entries = Object.entries(node).filter(([keyword]) => !COMPOSITIONS.has(keyword))
   return {
-    ...Object.fromEntries(entries.filter(stays)),
+    ...Object.fromEntries(entries.filter(staysOnTheNode)),
     allOf: [
       ...((allOf as unknown[] | undefined) ?? []),
-      Object.fromEntries(entries.filter((entry) => !stays(entry))),
+      ...(anyOf === undefined ? [] : [{ anyOf }]),
+      ...(oneOf === undefined ? [] : [{ oneOf }]),
+      Object.fromEntries(entries.filter((entry) => !staysOnTheNode(entry))),
     ],
   }
 }

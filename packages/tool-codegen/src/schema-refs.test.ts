@@ -382,14 +382,25 @@ describe("normalizeRefs: chains, cycles and sibling keywords", () => {
         anyOf: [{}],
       }).node,
     ).toEqual({
-      anyOf: [{}],
-      allOf: [{ ...listed, items: { type: "string" }, minItems: 1, prefixItems: [true] }],
+      allOf: [
+        { anyOf: [{}] },
+        { ...listed, items: { type: "string" }, minItems: 1, prefixItems: [true] },
+      ],
     })
     expect(prepare({ ...listed, oneOf: [{}], description: "d", deprecated: true }).node).toEqual({
-      oneOf: [{}],
       description: "d",
       deprecated: true,
-      allOf: [listed],
+      allOf: [{ oneOf: [{}] }, listed],
+    })
+    expect(
+      prepare({
+        ...listed,
+        allOf: [true],
+        anyOf: [{ description: "a" }],
+        oneOf: [{ description: "o" }],
+      }).node,
+    ).toEqual({
+      allOf: [true, { anyOf: [{ description: "a" }] }, { oneOf: [{ description: "o" }] }, listed],
     })
     expect(prepare({ ...listed, allOf: [{ required: ["a"] }], required: ["b"] }).node).toEqual({
       allOf: [
@@ -400,7 +411,7 @@ describe("normalizeRefs: chains, cycles and sibling keywords", () => {
     // Without `type`, the union of object and array keywords takes the same way.
     expect(
       prepare({ properties: listed.properties, items: { type: "string" }, anyOf: [{}] }).node,
-    ).toEqual({ anyOf: [{}], allOf: [{ ...listed, items: { type: "string" } }] })
+    ).toEqual({ allOf: [{ anyOf: [{}] }, { ...listed, items: { type: "string" } }] })
     expect(
       prepare({ type: ["object", "array"], additionalProperties: true, items: true, allOf: [{}] })
         .node,
@@ -410,8 +421,7 @@ describe("normalizeRefs: chains, cycles and sibling keywords", () => {
     // The draft 3 flag speaks for the node's place in its parent.
     expect(prepare({ type: ["string", "null"], required: true, anyOf: [{}] }).node).toEqual({
       required: true,
-      anyOf: [{}],
-      allOf: [{ type: ["string", "null"] }],
+      allOf: [{ anyOf: [{}] }, { type: ["string", "null"] }],
     })
     // A $ref with siblings has become a composition by then, and the root keeps its $defs.
     expect(
@@ -423,7 +433,7 @@ describe("normalizeRefs: chains, cycles and sibling keywords", () => {
     ).toEqual({
       allOf: [{ $ref: "#/$defs/A" }, { type: ["object", "null"] }],
       $defs: {
-        A: { anyOf: [{ $ref: "#/$defs/A" }], allOf: [{ type: ["string", "null"] }] },
+        A: { allOf: [{ anyOf: [{ $ref: "#/$defs/A" }] }, { type: ["string", "null"] }] },
       },
     })
   })

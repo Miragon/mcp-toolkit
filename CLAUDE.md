@@ -86,8 +86,9 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   json2ts inlines any other target (and the copy it makes for a `$ref` with siblings) at every use:
   exponential output, and unprefixed names for anonymous cycles. A `type` list next to `allOf`,
   `anyOf` or `oneOf` becomes a last `allOf` branch and names each type once, because json2ts copies
-  such a node per type, siblings included: exponential too. `compileSchema` fails on a
-  declared name without the tool's prefix. json2ts runs with
+  such a node per type, siblings included: exponential too. `anyOf` and `oneOf` then get a branch of
+  their own, because json2ts crashes on a cycle through the `allOf` of a node with another keyword it
+  types. `compileSchema` fails on a declared name without the tool's prefix. json2ts runs with
   `$refOptions: { resolve: { external: false } }`, so no file is read and no URL called.
 - A tuple reaches json2ts in draft-07's spelling: `draft07Tuples` turns 2020-12's `prefixItems`
   into an `items` list after `normalizeRefs` (which walks `prefixItems` like `allOf`) and reads
