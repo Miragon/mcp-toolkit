@@ -19,6 +19,10 @@
  * - A `$ref` with sibling keywords becomes `allOf: [{ $ref }]` next to them:
  *   json2ts copies the target for such a `$ref` and inlines the copy, which
  *   doubles the output per level just the same.
+ * - A `type` list next to `allOf`, `anyOf` or `oneOf` moves into a last branch
+ *   of `allOf`, with what it types: json2ts copies a node with a `type` list into
+ *   one union member per type, siblings included, and each member prints the
+ *   composition again, which multiplies the output per level.
  *
  * Every `$ref` left is `#` or `#/$defs/<key>` with an [A-Za-z0-9] key, the root
  * `$defs` hold exactly the referenced targets, and no `$defs` or `definitions`
@@ -158,6 +162,27 @@ function nodesOf(node: JsonObject, name: string): [JsonObject, string][] {
   ]
 }
 
+/** What stays on a node when its `type` list moves into a branch of `allOf`. */
+const BESIDE_TYPE_LIST = new Set(["allOf", "anyOf", "oneOf", "description", "deprecated"])
+
+/** The node with its `type` list in a branch of `allOf`, if a composition is next to it. */
+function typeListAsBranch(node: JsonObject): JsonObject {
+  const { type, allOf, anyOf, oneOf } = node
+  if (!Array.isArray(type) || type.length < 2) return node
+  if (allOf === undefined && anyOf === undefined && oneOf === undefined) return node
+  // The draft 3 flag `required: true` speaks for the node's place in its parent, so it stays.
+  const stays = ([keyword, value]: [string, unknown]) =>
+    BESIDE_TYPE_LIST.has(keyword) || (keyword === "required" && value === true)
+  const entries = Object.entries(node)
+  return {
+    ...Object.fromEntries(entries.filter(stays)),
+    allOf: [
+      ...((allOf as unknown[] | undefined) ?? []),
+      Object.fromEntries(entries.filter((entry) => !stays(entry))),
+    ],
+  }
+}
+
 /** Rewrites the `$ref`s of a sanitised schema; see the module comment. */
 export function normalizeRefs(root: JsonObject): JsonObject {
   const targetOf = targetFinder(root)
@@ -197,12 +222,12 @@ export function normalizeRefs(root: JsonObject): JsonObject {
       }
     }
     const target = targetOf(node.$ref)
-    if (target === undefined || target === node) return out
+    if (target === undefined || target === node) return typeListAsBranch(out)
     if (Object.keys(out).length === 0) return { $ref: refTo(target) }
-    return {
+    return typeListAsBranch({
       ...out,
       allOf: [...((out.allOf as unknown[] | undefined) ?? []), { $ref: refTo(target) }],
-    }
+    })
   }
 
   const out = rebuild(root)

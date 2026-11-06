@@ -76,19 +76,31 @@ const OBJECT_KEYWORDS = ["properties", "patternProperties", "additionalPropertie
 const ARRAY_KEYWORDS = ["items", "prefixItems"]
 
 /**
+ * Whether the object keywords give an object type a member. Without one it is `{}`, which takes
+ * any value but null, so in a union it would switch off the check of the other side.
+ */
+function typesAnObject({ properties, patternProperties, additionalProperties }: JsonObject) {
+  return (
+    [properties, patternProperties].some(
+      (map) => isJsonObject(map) && Object.keys(map).length > 0,
+    ) ||
+    (additionalProperties !== undefined && additionalProperties !== false)
+  )
+}
+
+/**
  * JSON Schema applies object keywords to objects only and array keywords to arrays only, but
  * json2ts intersects the types of every kind of keyword a schema has: `{ properties, items }`
  * became `{ a?: string } & string[]`, a type neither a valid object nor a valid array has. So a
  * schema without `type` that has both kinds gets `type: ["object", "array"]`, which json2ts
- * types as the union of the two; one whose `type` names no object loses its object keywords,
- * which json2ts reads on the root and on a `$defs` target whatever the `type` says.
+ * types as the union of the two, if its object keywords type anything; one whose `type` names no
+ * object loses its object keywords, which json2ts reads on the root and on a `$defs` target
+ * whatever the `type` says. `normalizeRefs` moves a `type` list away from a composition next to it.
  */
 function keywordsForItsTypes(schema: JsonObject): JsonObject {
-  const has = (keywords: string[]) => keywords.some((keyword) => Object.hasOwn(schema, keyword))
   if (schema.type === undefined) {
-    return has(OBJECT_KEYWORDS) && has(ARRAY_KEYWORDS)
-      ? { type: ["object", "array"], ...schema }
-      : schema
+    const typesAnArray = ARRAY_KEYWORDS.some((keyword) => Object.hasOwn(schema, keyword))
+    return typesAnArray && typesAnObject(schema) ? { type: ["object", "array"], ...schema } : schema
   }
   if ([schema.type].flat().includes("object")) return schema
   return Object.fromEntries(
@@ -158,8 +170,9 @@ function schemaMap(value: unknown, sanitizeKey: (key: string) => string): JsonOb
 
 function sanitizeType(type: unknown): string | string[] | undefined {
   if (!Array.isArray(type)) return JSON_TYPES.has(type) ? (type as string) : undefined
-  const known = type.filter((entry): entry is string => JSON_TYPES.has(entry))
-  return known.length > 0 ? known : undefined
+  // Each type once: json2ts builds one union member per entry, whose schema it prints to compare.
+  const known = new Set(type.filter((entry): entry is string => JSON_TYPES.has(entry)))
+  return known.size > 0 ? [...known] : undefined
 }
 
 /** Draft 4+ `required: [names]`, or the draft 3 property flag `required: true`. */

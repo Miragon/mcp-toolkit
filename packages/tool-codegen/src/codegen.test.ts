@@ -512,6 +512,8 @@ export async function use() {
           items: false,
         },
         list: { $ref: "#/$defs/list" },
+        // No object type of its own: the union `{} | string[]` would take any value but null.
+        strings: { additionalProperties: false, items: { type: "string" } },
       },
       required: ["either", "list"],
       $defs: {
@@ -532,6 +534,11 @@ export async function use() {
   const shaped = await client.shape({ either: ["x"], list: [] })
   const a: string | undefined = Array.isArray(shaped.either) ? shaped.either[0] : shaped.either.a
   const items: string[] = shaped.list
+  await client.shape({ either: [], list: [], strings: ["x"] })
+  // @ts-expect-error -- its items keep their type
+  await client.shape({ either: [], list: [], strings: [1] })
+  // @ts-expect-error -- a stray property on an array types nothing
+  shaped.list.a
   // @ts-expect-error -- the object's property keeps its type
   await client.shape({ either: { a: 1 }, list: [] })
   // @ts-expect-error -- and so does the tuple's element

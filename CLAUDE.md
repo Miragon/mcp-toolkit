@@ -78,12 +78,15 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   `tsType`, `tsEnumNames`, `title`, `$id` are dropped at every depth, `minItems`/`maxItems` too
   except on a tuple, where only a non-negative safe integer stays. json2ts intersects the types of
   object and array keywords, so object keywords next to a `type` without `object` are dropped, and
-  a schema without `type` that has both kinds gets `type: ["object", "array"]` (a union).
+  a schema without `type` that has both kinds gets `type: ["object", "array"]` (a union), unless the
+  object side would be `{}`, which takes any value.
 - Only local `$ref`s (`#`, `#/…`) survive, and `normalizeRefs` keeps one only when it walks
   schema positions (own keys) to an object schema; everything else becomes `unknown`. Every target
   but the root moves into the root `$defs` and a `$ref` with siblings becomes `allOf`, because
   json2ts inlines any other target (and the copy it makes for a `$ref` with siblings) at every use:
-  exponential output, and unprefixed names for anonymous cycles. `compileSchema` fails on a
+  exponential output, and unprefixed names for anonymous cycles. A `type` list next to `allOf`,
+  `anyOf` or `oneOf` becomes a last `allOf` branch and names each type once, because json2ts copies
+  such a node per type, siblings included: exponential too. `compileSchema` fails on a
   declared name without the tool's prefix. json2ts runs with
   `$refOptions: { resolve: { external: false } }`, so no file is read and no URL called.
 - A tuple reaches json2ts in draft-07's spelling: `draft07Tuples` turns 2020-12's `prefixItems`

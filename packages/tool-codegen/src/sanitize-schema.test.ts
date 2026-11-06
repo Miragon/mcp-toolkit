@@ -171,6 +171,9 @@ describe("sanitizeSchema", () => {
       type: ["string", "null"],
     })
     expect(sanitizeSchema({ type: ["*/"] })).toEqual({})
+    expect(sanitizeSchema({ type: ["null", "string", "null", "string"] })).toEqual({
+      type: ["null", "string"],
+    })
     expect(sanitizeSchema({ required: ["a", 1, "b"] })).toEqual({ required: ["a", "b"] })
     expect(sanitizeSchema({ required: false })).toEqual({})
   })
@@ -252,8 +255,17 @@ describe("sanitizeSchema", () => {
       { ...tuple, additionalItems: false, required: ["a"] },
       { items: { type: "string" }, required: ["a"] },
       { ...tuple, nullable: true },
+      // The object type would be `{}`, which takes any value: `{} | string[]` also takes [1].
+      { properties: {}, items: { type: "string" } },
+      { patternProperties: {}, ...tuple },
+      { additionalProperties: false, items: { type: "string" } },
+      { properties: {}, patternProperties: {}, additionalProperties: false, ...tuple },
     ]
     for (const schema of either) expect(sanitizeSchema(schema)).toEqual(schema)
+    for (const additionalProperties of [true, {}]) {
+      const schema = { additionalProperties, ...tuple }
+      expect(sanitizeSchema(schema)).toEqual({ type: ["object", "array"], ...schema })
+    }
   })
 
   it("drops object keywords where the type names no object, and leaves the rest alone", () => {

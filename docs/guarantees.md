@@ -192,7 +192,9 @@ text, and `$id` moves the base of `$ref` resolution). A schema that is not an ob
 `properties`, `patternProperties` and `additionalProperties` are also dropped next to a `type` that
 names no `object`: JSON Schema applies them to objects only, and json-schema-to-typescript would
 intersect them with the type. For the same reason a schema without `type` that has both object and
-array keywords gets `type: ["object", "array"]`, typed as the union of the two.
+array keywords gets `type: ["object", "array"]`, typed as the union of the two, unless its object
+keywords type nothing (no entries, `additionalProperties: false`): that object type would be `{}`,
+which takes any value.
 
 `minItems` and `maxItems` stay on a tuple only, where they decide which elements are optional and
 whether further elements are allowed. The generator reads them and removes them before
@@ -222,7 +224,10 @@ fetched.
 
 Every reference target but the root (`#`) moves into the root `$defs` and is declared once, as a
 type named with the tool's type name and the target's path. A chain of references therefore cannot
-double the output per level, and a schema cannot declare a name of its own choosing.
+double the output per level, and a schema cannot declare a name of its own choosing. A `type` list
+next to `allOf`, `anyOf` or `oneOf` becomes a further branch of `allOf`, and a list names each type
+once, since json-schema-to-typescript repeats those keywords per type: deep nesting cannot double
+the output either.
 
 ## Comments
 
