@@ -83,6 +83,10 @@ const GEN_DIR = fileURLToPath(new URL("../../.typecheck-gen", import.meta.url)).
 /**
  * Type errors of in-memory files (name → code; `.ts`/`.tsx`), checked against
  * the runtime packages' built API. Unused locals count.
+ *
+ * A test that calls it sets a 30 s timeout: a full program over the DOM lib
+ * and the runtime packages' declarations takes 3 to 5 s on a CI runner under
+ * coverage, which vitest's 5 s default cut off.
  */
 export function typeErrors(files: Record<string, string>): string[] {
   const virtual = new Map(Object.entries(files).map(([name, code]) => [`${GEN_DIR}/${name}`, code]))

@@ -4,6 +4,8 @@ import type { CodegenConfig } from "./config.js"
 import type { ToolDescriptor } from "./fetch-tools.js"
 import { topLevelDeclarations, typeErrors } from "./test-support/typescript.js"
 
+// Each test that runs typeErrors, a full TypeScript program, sets a 30 s timeout (see typeErrors).
+
 const config: CodegenConfig = {
   name: "tasks",
   url: "http://localhost:3000/mcp",
@@ -194,7 +196,7 @@ export function useCache(queryClient: ToolQueryContext["queryClient"]) {
     expect(
       typeErrors({ "tools.ts": toolsFile, "hooks.tsx": hooksFile, "consumer.ts": consumer }),
     ).toEqual([])
-  })
+  }, 30_000)
 
   it("leaves hooks.tsx out unless react is on", async () => {
     const result = await renderCodegen([listTasks], { ...config, react: undefined })
@@ -226,7 +228,7 @@ export function useCache(queryClient: ToolQueryContext["queryClient"]) {
     expect(toolsFile).not.toContain("ToolCallOptions")
     expect(hooksFile.endsWith("\n\nexport {}\n")).toBe(true)
     expect(typeErrors({ "tools.ts": toolsFile, "hooks.tsx": hooksFile })).toEqual([])
-  })
+  }, 30_000)
 })
 
 describe("renderCodegen: types", () => {
@@ -342,7 +344,7 @@ export async function use() {
 }
 `
     expect(typeErrors({ "tools.ts": toolsFile, "consumer.ts": consumer })).toEqual([])
-  })
+  }, 30_000)
 
   it("requires args unless {} is a valid input", async () => {
     const tool = (name: string, inputSchema: Record<string, unknown>): ToolDescriptor => ({
@@ -431,7 +433,7 @@ export async function use() {
     expect(toolsFile).toContain("(args: TasksFlagOnRootInput, options")
     expect(toolsFile).toContain("(args: TasksPlainRefInput = {}, options")
     expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
-  })
+  }, 30_000)
 
   it("names a json2ts failure after the tool and the override that avoids it", async () => {
     // json2ts calls schema.hasOwnProperty on the properties map, which this key replaces.
@@ -541,7 +543,7 @@ describe("renderCodegen: overrides", () => {
       "useTasksAddTaskMutation",
     ])
     expect(typeErrors({ "tools.ts": toolsFile, "hooks.tsx": hooksFile })).toEqual([])
-  })
+  }, 30_000)
 
   it("fails on overrides for tools the server does not list, naming them", async () => {
     await expect(
