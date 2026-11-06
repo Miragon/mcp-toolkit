@@ -12,15 +12,16 @@ import eslintComments from "@eslint-community/eslint-plugin-eslint-comments"
 
 const TEST_FILES = ["**/*.test.ts", "**/*.test.tsx"]
 
-// Relative imports carry the compiled extension (the ESM output references .js). tsc with
-// moduleResolution "bundler" cannot enforce this; the selector can.
+// Relative imports carry the compiled extension (the ESM output references .js; a Node script
+// imports a script by its .mjs). tsc with moduleResolution "bundler" cannot enforce this; the
+// selector can.
 const relativeImportsCarryExtension = [
   "ImportDeclaration",
   "ExportNamedDeclaration",
   "ExportAllDeclaration",
   "ImportExpression",
 ].map((node) => ({
-  selector: `${node}[source.value=/^\\.\\.?\\u002F/]:not([source.value=/\\.(js|json|css)$/])`,
+  selector: `${node}[source.value=/^\\.\\.?\\u002F/]:not([source.value=/\\.(m?js|json|css)$/])`,
   message:
     'Relative imports carry the compiled extension in this ESM repo: "./foo" → "./foo.js" (also for type imports).',
 }))

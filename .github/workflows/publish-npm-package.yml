@@ -8,6 +8,9 @@ name: Publish npm package
 # the tarball, with lifecycle scripts off. npm checks the CALLING workflow, so each package's
 # trusted publisher on npmjs.com names release-please.yml and the environment npm
 # (CONTRIBUTING.md, "Trusted publishing").
+#
+# A dry run takes the same path: the same pack job, then the same npm publish command with
+# --dry-run, in a job without the id-token and outside the npm environment.
 on:
   workflow_call:
     inputs:
@@ -15,6 +18,16 @@ on:
         description: Package directory name under packages/
         required: true
         type: string
+      tag:
+        description: Release tag to pack (v<version>); empty packs the tag of the version in the calling commit's root package.json
+        required: false
+        type: string
+        default: ""
+      dry_run:
+        description: Run npm publish with --dry-run, without the id-token and outside the npm environment
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,8 +42,46 @@ jobs:
       published: ${{ steps.pack.outputs.published }}
       tarball: ${{ steps.pack.outputs.tarball }}
     steps:
+      # Only to read the version: the job packs the release tag, not what the branch holds now
+      # (main moves on after a release, and force_publish must not publish those commits).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      - name: Resolve the release tag
+        id: release
+        env:
+          TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${TAG:-v$(node -p "require('./package.json').version")}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::$tag is not a release tag (v<version>)"
+            exit 1
+          fi
+          if lookup="$(gh api --silent "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" 2>&1)"; then
+            ref="refs/tags/$tag"
+          elif [[ "$lookup" != *"(HTTP 404)"* ]]; then
+            # Only a 404 means "no such tag": an outage or a rate limit must not make the dry run
+            # pack the calling commit instead.
+            echo "::error::Could not look up the tag $tag: $lookup"
+            exit 1
+          elif [ "$DRY_RUN" = "true" ]; then
+            # A version without a tag yet (the Release PR's branch): the release tags its squash
+            # merge, which holds this commit's tree while the Release PR is up to date with main.
+            echo "::notice::$tag is not tagged yet: the dry run packs $GITHUB_SHA"
+            ref="$GITHUB_SHA"
+          else
+            echo "::error::There is no tag $tag: a publish packs a release tag only"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.release.outputs.ref }}
           persist-credentials: false
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -49,12 +100,19 @@ jobs:
         id: pack
         env:
           PACKAGE: ${{ inputs.package }}
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
           dir="packages/$PACKAGE"
           name="$(node -p "require('./$dir/package.json').name")"
           version="$(node -p "require('./$dir/package.json').version")"
+          # Else a tag that holds an older version would skip it below as published.
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::$name is at $version in $TAG"
+            exit 1
+          fi
+          # npm publish refuses a published version, with --dry-run too.
           if npm view "$name@$version" version > /dev/null 2>&1; then
-            echo "$name@$version is already on npm: skipping"
+            echo "::notice::$name@$version is already on npm: skipping"
             echo "published=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -74,7 +132,7 @@ jobs:
   publish:
     name: Publish
     needs: pack
-    if: needs.pack.outputs.published == 'false'
+    if: needs.pack.outputs.published == 'false' && !inputs.dry_run
     runs-on: ubuntu-latest
     environment: npm
     permissions:
@@ -97,3 +155,31 @@ jobs:
         env:
           TARBALL: ${{ needs.pack.outputs.tarball }}
         run: npm publish "./tarball/$TARBALL" --provenance --access public --ignore-scripts
+
+  # The steps of publish, with --dry-run: npm reads the tarball and checks its version against the
+  # registry, but uploads nothing. Without the id-token npm gets no publish token, so a lost
+  # --dry-run fails instead of publishing.
+  publish-dry-run:
+    name: Publish (dry run)
+    needs: pack
+    if: needs.pack.outputs.published == 'false' && inputs.dry_run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-${{ inputs.package }}
+          path: tarball
+
+      # The leading ./ is load-bearing: npm reads "tarball/<file>.tgz" as the GitHub repository
+      # tarball/<file>.tgz and tries to clone it.
+      - name: Publish ${{ needs.pack.outputs.tarball }}
+        env:
+          TARBALL: ${{ needs.pack.outputs.tarball }}
+        run: npm publish "./tarball/$TARBALL" --provenance --access public --ignore-scripts --dry-run
