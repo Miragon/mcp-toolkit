@@ -50,8 +50,8 @@ export function ToolCallerProvider({
           },
     [parent, namespace, caller],
   )
-  // `.Provider` rather than `<Context>` as a provider: React 18 knows only the former.
-  return <ToolCallerContext.Provider value={callers}>{children}</ToolCallerContext.Provider>
+  // The context itself as the provider (React 19): React plans to deprecate `.Provider`.
+  return <ToolCallerContext value={callers}>{children}</ToolCallerContext>
 }
 
 /**

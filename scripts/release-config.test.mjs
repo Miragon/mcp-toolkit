@@ -372,13 +372,17 @@ describe("dependabot.yml", () => {
     updates.map((entry) => [entry["package-ecosystem"], entry]),
   )
 
-  it("writes no feat commits, which would cut a feature release for a dependency bump", () => {
-    assert.deepEqual(byEcosystem.npm["commit-message"], {
-      prefix: "fix",
-      "prefix-development": "chore",
-      include: "scope",
-    })
+  // With the published packages' ranges, an update moves the lockfile and nothing a consumer
+  // installs, so it cuts no release at all.
+  it("writes neither feat nor fix commits, which would cut a release for a dependency bump", () => {
+    assert.deepEqual(byEcosystem.npm["commit-message"], { prefix: "chore", include: "scope" })
     assert.deepEqual(byEcosystem["github-actions"]["commit-message"], { prefix: "ci" })
+  })
+
+  // The default treats the private root as an app and raises the lower bound of every published
+  // range on every update.
+  it("keeps a published range that already admits the new version", () => {
+    assert.equal(byEcosystem.npm["versioning-strategy"], "increase-if-necessary")
   })
 
   // Dependabot runs pnpm with a cooldown longer than pnpm's own window as the minimum release age,
@@ -437,6 +441,35 @@ describe("ci.yml", () => {
     assert.equal(ci.jobs.build.name, "Typecheck + Build")
     assert.equal(ci.jobs.quality.name, "Lint + Format")
     assert.equal(mutation.name, "Mutation diff gate")
+  })
+
+  // A matrix names its checks per leg, so the required name belongs to a job that needs them all.
+  // The lower bounds count too: Dependabot's auto-merge waits for required checks only.
+  it("passes the required build check only when every Node.js leg and the lower bounds passed", () => {
+    const { build, test } = ci.jobs
+    assert.ok(test.strategy.matrix.node.length >= 2)
+    assert.equal(test.name, "Typecheck + Build (Node.js ${{ matrix.node }})")
+    assert.deepEqual(build.needs, ["test", "lower-bounds"])
+    // A skipped job counts as passed: the job must run after a failed leg too.
+    assert.equal(build.if, "${{ !cancelled() }}")
+    const [check] = steps(build)
+    assert.equal(check.env?.TEST_RESULT, "${{ needs.test.result }}")
+    assert.equal(check.env?.LOWER_BOUNDS_RESULT, "${{ needs.lower-bounds.result }}")
+    for (const [testResult, lowerBounds, status] of [
+      ["success", "success", 0],
+      ["failure", "success", 1],
+      ["cancelled", "success", 1],
+      ["skipped", "success", 1],
+      ["success", "failure", 1],
+      ["success", "cancelled", 1],
+      ["success", "skipped", 1],
+    ]) {
+      const run = spawnSync("bash", ["-e", "-c", check.run], {
+        encoding: "utf8",
+        env: { ...isolatedEnv, TEST_RESULT: testResult, LOWER_BOUNDS_RESULT: lowerBounds },
+      })
+      assert.equal(run.status, status, `${testResult} ${lowerBounds}`)
+    }
   })
 
   // A required check whose workflow never starts stays pending and blocks the merge.

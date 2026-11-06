@@ -18,7 +18,8 @@ Both files:
   `// Source: <origin>`, names the origin of `url`, never its path, query or credentials.
 - List the tools sorted by name, in code-unit order rather than by locale. The same `tools/list`
   gives byte-identical files in whatever order the server lists the tools, and the files hold no
-  date or version.
+  date or version. The generator's Prettier and json-schema-to-typescript are ranges your lockfile
+  resolves, so updating them there can change the files.
 - Come out formatted like Prettier with a print width of 100, double quotes, no semicolons and
   trailing commas. If your formatter's style differs, exclude `out` from it.
 - Are meant to be committed. `generate --check` tells you when they no longer match the server.

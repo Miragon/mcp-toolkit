@@ -3,8 +3,7 @@
 Point a config file at your MCP server and let `mcp-tool-codegen generate` write the types, the
 tool map, a typed client and, if you want them, React hooks.
 
-**Requirements:** an MCP server that answers over streamable HTTP, Node.js 20 or later (22.18 or
-later for a `.ts` config).
+**Requirements:** an MCP server that answers over streamable HTTP, Node.js 22.18 or later.
 
 The examples on this page use the server of `examples/tasks`, started as in
 [Getting started](../getting-started.md). Paths in the output are those of a project in
@@ -15,13 +14,13 @@ The examples on this page use the server of `examples/tasks`, started as in
 The generator is a dev dependency. The code it writes imports the core package at run time:
 
 ```sh
-pnpm add -D @miragon/mcp-toolkit-tool-codegen@3
-pnpm add @miragon/mcp-toolkit-tool-codegen-core@3
+pnpm add -D @miragon/mcp-toolkit-tool-codegen@4
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@4
 ```
 
 Keep the generator and its runtime packages on the same minor version. The generator writes code
 against the runtime API of its own release and declares the runtime packages as optional peers
-(`~` its version), so your package manager reports a mismatch. The `@3` in each command pins the
+(`~` its version), so your package manager reports a mismatch. The `@4` in each command pins the
 major: a package manager that holds back fresh releases (a minimum release age) could otherwise
 install the previous major of one package next to the current major of another.
 
@@ -98,8 +97,8 @@ mark it as generated and name the server by its origin only, without path, query
 ```
 
 Commit the generated files, so a change to the server's tools shows up as a diff in review. The
-tools are sorted by name, the files regenerate byte for byte and come out formatted as Prettier
-prints them (print width 100, double quotes, no semicolons, trailing commas); exclude `out` from
+tools are sorted by name, the files regenerate byte for byte on the same lockfile and come out
+formatted as Prettier prints them (print width 100, double quotes, no semicolons, trailing commas); exclude `out` from
 your formatter if your style differs.
 
 A tool without an `outputSchema` gets the output type `unknown`. Give the tool an output schema on
@@ -120,7 +119,7 @@ server lists for them.
 Install the React package and TanStack Query, and set `react: true` in the config:
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-react@3 @tanstack/react-query react
+pnpm add @miragon/mcp-toolkit-tool-codegen-react@4 @tanstack/react-query react
 ```
 
 ```ts{5}
@@ -249,10 +248,11 @@ mcp-tool-codegen: invalid codegen config:
 
 The config is an ES module that Node.js loads itself. Two setups need another file:
 
-- **Node.js older than 22.18** cannot load a `.ts` config. Use a `.mjs` config, or run the CLI
-  through tsx (a dev dependency then):
-  `NODE_OPTIONS="--import tsx" pnpm exec mcp-tool-codegen generate`. Without either, the run
-  fails with:
+- **Node.js older than 22.18**, below the CLI's engines range (npm and pnpm only warn about it),
+  cannot load a `.ts` config. Update Node.js, use a `.mjs` config, or run the CLI through tsx (a
+  dev dependency then):
+  `NODE_OPTIONS="--import tsx" pnpm exec mcp-tool-codegen generate`. Otherwise the run fails
+  with:
 
   ```txt
   mcp-tool-codegen: cannot load /home/you/tasks-client/codegen.config.ts (Node.js loads a .ts config from version 22.18 on; use a .mjs config, or run the CLI with NODE_OPTIONS="--import tsx"): Unknown file extension ".ts" for /home/you/tasks-client/codegen.config.ts

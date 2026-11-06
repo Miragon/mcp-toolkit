@@ -14,9 +14,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Typecheck + Build
+  # Every gate that runs code, on the oldest Node.js line the published packages support (their
+  # engines) and on the newest LTS, the dev toolchain (the root engines). The legs' checks carry the
+  # Node.js line in their names; the required check is the job "build" below.
+  test:
+    name: Typecheck + Build (Node.js ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 26]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -24,7 +31,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -43,20 +50,94 @@ jobs:
 
       - run: pnpm check:exports
 
+  # The repository ruleset requires the check "Typecheck + Build" by name, and a matrix names its
+  # checks per leg. This job carries the name and passes only when every leg and the lower bounds
+  # passed, so Dependabot's auto-merge, which waits for required checks only, waits for them all;
+  # !cancelled() runs it after a failed leg too, since a skipped job would count as passed.
+  build:
+    name: Typecheck + Build
+    needs: [test, lower-bounds]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every Node.js leg and the lower bounds passed
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          LOWER_BOUNDS_RESULT: ${{ needs.lower-bounds.result }}
+        run: |
+          if [ "$TEST_RESULT" != success ] || [ "$LOWER_BOUNDS_RESULT" != success ]; then
+            echo "::error::\"Typecheck + Build\": Node.js legs $TEST_RESULT, lower bounds $LOWER_BOUNDS_RESULT."
+            exit 1
+          fi
+
+  # The lowest versions the published ranges admit: the generator's tests on the
+  # first Node.js its engines range allows (22.18 loads the default codegen.config.ts) and against
+  # the lower bound of each of its dependencies, which the lockfile moves past (Dependabot keeps
+  # the ranges), and the React package's tests and type tests against the lower bound of each peer
+  # range. The generator's tests type-check generated hooks against those peers too.
+  # scripts/dependency-ranges.test.mjs holds these versions equal to the ranges.
+  lower-bounds:
+    name: Lower bounds (Node.js 22.18.0, React 19.0.0, TanStack Query 5.100.2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install the lowest versions of the React package's peers
+        run: >-
+          pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-tool-codegen-react
+          add --save-dev --save-exact
+          react@19.0.0 react-dom@19.0.0 @types/react@19.0.0 @types/react-dom@19.0.0
+          @tanstack/react-query@5.100.2
+
+      - name: Install the lowest versions of the generator's dependencies
+        run: >-
+          pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-tool-codegen
+          add --save-prod --save-exact
+          @modelcontextprotocol/client@2.4.0 handlebars@4.7.10
+          json-schema-to-typescript@16.0.0 prettier@3.9.10
+
+      - run: pnpm --fail-if-no-match --filter "./packages/*" run build
+
+      - run: pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-tool-codegen-react run typecheck
+
+      - run: pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-tool-codegen-react run test
+
+      - run: pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-tool-codegen run test
+
   quality:
     name: Lint + Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Every manifest whose dependencies and devDependencies are exact pins. The generator's
+      # dependencies are caret ranges, as a published package's must be, so its manifest is not
+      # listed; scripts/dependency-ranges.test.mjs pins its devDependencies and holds this list
+      # complete.
       - name: Enforce pinned dependencies
         uses: miragon/pin-npm-dependencies@3f7f02fa2454cdd2cdb65df19b081c0d77d301a5 # v1.2.2
+        with:
+          files: |
+            package.json
+            packages/tool-codegen-core/package.json
+            packages/tool-codegen-react/package.json
+            examples/tasks/package.json
+            docs/package.json
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 26
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -87,7 +168,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 26
 
       - id: scope
         run: node scripts/mutation-scope.mjs HEAD^1 HEAD >> "$GITHUB_OUTPUT"
@@ -110,7 +191,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 26
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile

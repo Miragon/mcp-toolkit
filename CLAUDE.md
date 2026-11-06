@@ -47,8 +47,10 @@ its patterns).
   built-ins, no import of the other two packages. It compiles against the ES2022 lib alone
   (`types: []`), so a DOM or Node global fails the build; `src/abort-signal.d.ts` names
   `AbortSignal` without emitting it.
-- **react** builds on core with `react` and `@tanstack/react-query` (from 5.48, the first with a
-  function `enabled`) as peers. No Node built-ins, never the codegen package. The app owns the
+- **react** builds on core with `react` (`^19.0.0`) and `@tanstack/react-query` as peers
+  (`^5.100.2`, the lowest release its type tests pass against: the source compiles from 5.90.2 on,
+  whose `onSuccess` gets the mutation context, and `fetchQuery` takes `toolQueryOptions`' result
+  from 5.100.2 on). No Node built-ins, never the codegen package. The app owns the
   `QueryClientProvider`; `ToolCallerProvider` only supplies the caller, per namespace (the hooks
   look up their own; a provider without `namespace` serves the rest).
 - **codegen** is build-time only: runtime code never imports it (the example only as a type, plus
@@ -147,11 +149,16 @@ Prettier-clean.
   there must be killed.
 - The GitHub ruleset requires the checks `Typecheck + Build`, `Lint + Format`,
   `Mutation diff gate` (`.github/workflows/ci.yml`) and `Validate PR title`
-  (`.github/workflows/pr-title.yml`). Keep those job names. A required job is scoped with a
-  job-level `if`, never a workflow-level `paths` filter: a check whose workflow never starts stays
-  pending, a skipped job counts as passed. `Mutation diff gate` runs when a pull request touches
-  `scripts/mutation-scope.mjs`'s list (the `changes` job); add a path there when the mutated
-  packages' tests start to read it.
+  (`.github/workflows/pr-title.yml`). Keep those job names. The tests run in the matrix job `test`
+  on Node.js 22 (the oldest line the published packages support) and 26 (the newest LTS, the root
+  `engines` and every other job's Node.js); the job `build` carries the required name and passes
+  only when every leg and `Lower bounds` passed. `Lower bounds` runs the generator's tests on the
+  lowest Node.js its `engines` allow and against its dependencies' lower bounds, and the React
+  package's against its peers' lower bounds. A
+  required job is scoped with a job-level `if`, never a workflow-level `paths` filter: a check
+  whose workflow never starts stays pending, a skipped job counts as passed. `Mutation diff gate`
+  runs when a pull request touches `scripts/mutation-scope.mjs`'s list (the `changes` job); add a
+  path there when the mutated packages' tests start to read it.
 - The root `test:coverage` and `test:mutation` name each package with its own `--filter`, never
   `pnpm -r --if-present`, which goes green when a script is renamed away.
   `scripts/release-config.test.mjs` (in `Lint + Format`) pins that, the publish order and the
@@ -165,9 +172,17 @@ Prettier-clean.
 ## Conventions
 
 - ESM only; relative imports carry `.js`, also type imports (an ESLint selector enforces it).
-- `dependencies`/`devDependencies` are exact pins (`.npmrc` `save-exact=true`, checked in CI).
-  Peers are ranged: `react` and `@tanstack/react-query` with `^`, the workspace packages as
-  `workspace:~` ([`.claude/rules/package-json-fixed-versions.md`](.claude/rules/package-json-fixed-versions.md)).
+- What a consumer installs is a range: a published package's `dependencies` and `peerDependencies`
+  take `^` (the workspace packages `workspace:~`), its `engines.node` is `>=`. `devDependencies`
+  and the private packages' dependencies are exact pins (`saveExact` in `pnpm-workspace.yaml`, so
+  write a published range by hand). Dependabot leaves a range that admits the new version
+  (`versioning-strategy: increase-if-necessary`), so a lower bound moves by hand, with the versions
+  of the `Lower bounds` job. Its pull requests are `chore(deps)` and cut no release; one that changes
+  a published range gets a releasing title by hand. `scripts/dependency-ranges.test.mjs` and the pin action in
+  `Lint + Format` check both
+  ([`.claude/rules/package-json-fixed-versions.md`](.claude/rules/package-json-fixed-versions.md)).
+- TypeScript stays on 6.x: typescript-eslint 8 supports `<6.1.0`, and `typeErrors` uses the classic
+  compiler API, which the `typescript` 7 package no longer exports.
 - The packages build without source or declaration maps: the tarball ships no `src/`
   (`pnpm check:exports` fails on a packed map that points outside the tarball).
 - The three packages share one version. `CHANGELOG.md` belongs to release-please: never edit it.

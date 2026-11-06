@@ -32,7 +32,7 @@
   "devDependencies": {
     "@miragon/mcp-toolkit-tool-codegen": "workspace:*",
     "@testing-library/react": "16.3.3",
-    "@types/node": "26.6.6",
+    "@types/node": "22.20.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
@@ -40,6 +40,6 @@
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vite": "8.3.5",
-    "vitest": "4.1.12"
+    "vitest": "5.0.5"
   }
 }

@@ -9,7 +9,7 @@ Node.js, browsers and MCP Apps widgets.
 ## Install
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-core@3
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@4
 ```
 
 ## Usage

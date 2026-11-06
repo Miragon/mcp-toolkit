@@ -64,6 +64,7 @@ export default miragonDocs({
       text: "Background",
       items: [
         { text: "Guarantees and limits", link: "/guarantees" },
+        { text: "Migrating from 3.x", link: "/migrating-from-3x" },
         { text: "Migrating from 2.x", link: "/migrating-from-2x" },
       ],
     },

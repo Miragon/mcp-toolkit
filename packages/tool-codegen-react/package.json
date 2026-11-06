@@ -46,8 +46,8 @@
   },
   "peerDependencies": {
     "@miragon/mcp-toolkit-tool-codegen-core": "workspace:~",
-    "@tanstack/react-query": "^5.48.0",
-    "react": "^18.0.0 || ^19.0.0"
+    "@tanstack/react-query": "^5.100.2",
+    "react": "^19.0.0"
   },
   "devDependencies": {
     "@miragon/mcp-toolkit-tool-codegen-core": "workspace:*",
@@ -55,11 +55,11 @@
     "@testing-library/react": "16.3.3",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@vitest/coverage-v8": "4.1.12",
+    "@vitest/coverage-v8": "5.0.5",
     "happy-dom": "21.0.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "typescript": "6.0.3",
-    "vitest": "4.1.12"
+    "vitest": "5.0.5"
   }
 }

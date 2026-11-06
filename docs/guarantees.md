@@ -299,8 +299,9 @@ MCP's default is `false`. An unannotated write therefore never becomes a query, 
 marks a write read-only gets one. `overrides.<tool>.hook` decides per tool.
 
 **It does not follow your code style.** The files come out formatted as Prettier prints them, with
-print width 100 and no semicolons, and regenerate byte for byte. Exclude `out` from your formatter
-if your style differs.
+print width 100 and no semicolons, and regenerate byte for byte on the same locked dependencies:
+the generator's Prettier and json-schema-to-typescript are ranges your lockfile resolves. Exclude
+`out` from your formatter if your style differs.
 
 ## Known limits
 
@@ -337,12 +338,6 @@ would mean writing out a tuple as long as a number the server sends. Any other a
 not typed either: `z.array(z.string()).min(1)` is `string[]`. The server's input validation rejects
 an array of the wrong length.
 
-### React 18 is allowed but untested
-
-The React package's peer range is `react` `^18.0.0 || ^19.0.0`. The hooks use only what both
-versions have: `createContext` with its `.Provider`, `useContext`, `useMemo` and TanStack Query's
-hooks. The test suite runs on React 19 only.
-
 ### OAuth is not supported at build time
 
 The build-time handshake takes `{ mode: "none" }`, a bearer token or one custom header, and no OAuth
@@ -356,10 +351,16 @@ an environment variable; see [Configuration](./reference/configuration.md).
 compile for either: TypeScript's correlated-union limit. Pass a literal name, as the generated
 client's methods and hooks do.
 
-### The CLI needs Node.js 20
+### The lowest supported versions are tested, older ones are not
 
-The CLI declares Node.js 20 or newer. Node.js loads a `.ts` config from 22.18 on; on an older
-version use a `.mjs` config or run the CLI through tsx.
+The CLI declares Node.js 22.18 or newer, the first Node.js that loads the default
+`codegen.config.ts`. The React package needs React 19 (`^19.0.0`) and TanStack Query from 5.100.2
+on, the first release whose `fetchQuery` takes the options `toolQueryOptions` returns. CI runs the
+tests on the oldest and the newest Node.js LTS line, the generator's tests on Node.js 22.18.0 and
+against the lowest version of each of its dependencies, and the React package's tests and type
+tests against React 19.0.0 and TanStack Query 5.100.2. Below
+these versions nothing is tested: an older Node.js loads a `.ts` config only through tsx, and your
+package manager reports React 18 as a peer dependency conflict of the React package.
 
 ## Next steps
 

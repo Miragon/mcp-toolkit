@@ -17,8 +17,19 @@ peerDependencyRules:
 
 # pnpm resolves no version published less than 7 days ago (in minutes), direct or transitive: the
 # window of Dependabot's npm cooldown (.github/dependabot.yml), and scripts/release-config.test.mjs
-# holds the two equal. Dependabot runs pnpm under its cooldown, and on an update pnpm 10 checks every
-# version already in the lockfile against that window: one younger version anywhere in the workspace
-# fails every update. With this window only a security update, which Dependabot runs without one,
-# brings in a younger version.
+# holds the two equal. pnpm 11 checks every version in the lockfile against that window on every
+# install, --frozen-lockfile included (trustLockfile stays false): one younger version anywhere in
+# the workspace fails every install, in CI and in Dependabot's runs. Only a security update, which
+# Dependabot runs without the window, brings in a younger version; its pull request then needs the
+# fix in minimumReleaseAgeExclude as name@version until it is 7 days old (CONTRIBUTING.md).
 minimumReleaseAge: 10080
+
+# dependencies and devDependencies are exact pins; pnpm 11 reads only auth and registry settings
+# from .npmrc, so the setting lives here. The dependencies of a published package are the
+# exception: caret ranges, edited by hand (scripts/dependency-ranges.test.mjs).
+saveExact: true
+
+# pnpm 11 fails an install on a dependency build script it was not told about. esbuild's
+# postinstall only verifies the platform binary that its optional dependency already installs.
+allowBuilds:
+  esbuild: false

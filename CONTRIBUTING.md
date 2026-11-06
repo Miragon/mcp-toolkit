@@ -8,8 +8,11 @@ If you've found a bug or have an idea, please [open an issue](https://github.com
 
 ## Setup
 
-You need Node.js 22.22.2 or newer (mcp-use's minimum, which the example and the codegen tests run
-on) and pnpm 10.32.1 (pinned in `packageManager`; `corepack enable` picks it up).
+You need Node.js 26.13.0 or newer, the newest LTS line (the root `engines`), and pnpm 11 or newer
+(`npm install --global pnpm`), which switches to the 11.28.10 pinned in `packageManager`. Node.js 26
+no longer ships Corepack, and pnpm 10 cannot make the switch: it stops with
+`Failed to switch pnpm to v11.28.10`. CI runs the tests on Node.js 22 as well, the oldest line the
+published packages support.
 
 ```sh
 pnpm install
@@ -43,25 +46,42 @@ mcp-use, the example's server framework, sends anonymized usage telemetry when t
 a request (not under the tests, which run with `NODE_ENV=test`); set
 `MCP_USE_ANONYMIZED_TELEMETRY=false` to turn it off.
 
-CI also runs the coverage floors (`pnpm test:coverage`, inline in each `vitest.config.ts`; raise
-them, never lower them) and, on pull requests, the mutation tests of tool-codegen and
-tool-codegen-core (`pnpm test:mutation`, about 14 minutes). The required check
-`Mutation diff gate` runs them only when a pull request changes what they mutate or read: the
-three packages but their READMEs and licenses, the root `package.json`, the lockfile and the
-workspace and compiler configs, `ci.yml` and `scripts/mutation-scope.mjs`, which holds that list.
-Otherwise the job is skipped, which the check counts as passed. Pin `dependencies` and
-`devDependencies` to exact versions; only peers are ranged.
+CI runs these checks on Node.js 22 and 26, the oldest line the packages support and the newest
+LTS, with the coverage floors (`pnpm test:coverage`, inline in each `vitest.config.ts`; raise them,
+never lower them) and, on pull requests, the mutation tests of tool-codegen and tool-codegen-core
+(`pnpm test:mutation`, about 30 minutes on CI). The required check `Mutation diff gate` runs them only
+when a pull request changes what they mutate or read: the three packages but their READMEs and
+licenses, the root `package.json`, the lockfile and the workspace and compiler configs, `ci.yml`
+and `scripts/mutation-scope.mjs`, which holds that list. Otherwise the job is skipped, which the
+check counts as passed.
+
+What a consumer installs is a range, everything else an exact pin. The `dependencies` and
+`peerDependencies` of a published package take `^` (the workspace packages `workspace:~`), so npm
+can share them with the app's own copies; pnpm saves exact versions (`saveExact` in
+`pnpm-workspace.yaml`), so write those ranges by hand. `devDependencies` and the dependencies of
+the private packages stay exact pins, and the lockfile pins what CI tests.
+`scripts/dependency-ranges.test.mjs` fails on an exact version where a range belongs and the other
+way round. Dependabot keeps a range that already admits the new version and moves the lockfile
+(`versioning-strategy: increase-if-necessary`), so a lower bound moves only by hand. Its pull
+requests are `chore(deps)` and cut no release, since nothing a consumer installs changes. One that
+changes a published range needs a releasing title before it merges: `fix(deps):` for a lower bound
+you raise, say to force a security fix on every install, and for a runtime dependency's major,
+`feat!:` if that major changes what consumers get. The job `Lower bounds`, part of the required
+`Typecheck + Build`, runs the generator's tests on the lowest Node.js its `engines` allow and
+against the lowest version of each of its dependencies, and the React package's tests and type tests
+against the lowest version of each peer range; raise a lower bound in `package.json` and that job's
+versions together.
 
 pnpm resolves no version published less than 7 days ago, direct or transitive
 (`minimumReleaseAge` in `pnpm-workspace.yaml`). It is the window of Dependabot's npm cooldown, and
-the two stay equal: Dependabot runs pnpm under its cooldown, and pnpm 10 checks every version
-already in the lockfile against it, so one younger version in the lockfile stops every Dependabot
-update. A release you need sooner goes into `minimumReleaseAgeExclude` as `name@version`, with the
-reason, and comes out once it is 7 days old. A security update is the exception: Dependabot runs
-it without the window, so its fix can be younger and then holds up the version updates until it is
-7 days old. pnpm skips the check for a version already in its store, so a local `pnpm update` can
-pass where Dependabot, which starts with an empty store, fails; to reproduce a Dependabot run, give
-its command `--config.store-dir` with an empty directory.
+the two stay equal: Dependabot runs pnpm under its cooldown, and pnpm 11 checks every version in
+the lockfile against the window on every install, `--frozen-lockfile` included, so one younger
+version in the lockfile fails every install, in CI and in every Dependabot update. A release you
+need sooner goes into `minimumReleaseAgeExclude` as `name@version`, with the reason, and comes out
+once it is 7 days old. A security update is the exception: Dependabot runs it without the window,
+so its fix can be younger; add the fix to `minimumReleaseAgeExclude` in the security update's pull
+request, or its CI fails until the fix is 7 days old. The check reads the registry, not the store,
+so a local install fails where CI and Dependabot do.
 
 ## Docs
 
@@ -157,12 +177,12 @@ Actions): this repository, the workflow `release-please.yml` (npm checks the cal
 the reusable one) and the environment `npm`. `npm trust list @miragon/mcp-toolkit-tool-codegen`
 shows the configuration that works; copy it.
 
-The `npm` environment has no protection rules (owner decision): no branch rule and no required
-reviewer. What keeps publishing on `main` is the workflow itself, whose publish jobs run only for a
-release that release-please created on `main` or for `force_publish` dispatched on `main`
-(`scripts/release-config.test.mjs` pins that condition). npm does not check the branch either, so
-the boundary is write access to this repository: a changed copy of the workflow, dispatched from
-another branch, could publish.
+The `npm` environment allows deployments from `main` only (a deployment branch policy) and has no
+required reviewer (owner decision). npm does not check the branch, but it checks the environment,
+and a job in the `npm` environment that runs on another branch fails before its first step: a
+changed copy of the workflow, dispatched from another branch, cannot publish. The workflow itself
+also runs the publish jobs only for a release that release-please created on `main` or for
+`force_publish` dispatched on `main` (`scripts/release-config.test.mjs` pins that condition).
 
 ### Adding a package
 

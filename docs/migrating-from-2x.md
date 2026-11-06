@@ -8,9 +8,11 @@ packages.
 3.0 keeps one part of the toolkit. `@miragon/mcp-toolkit-core` and `@miragon/mcp-toolkit-ui` are no
 longer developed in this repository, and their published 2.x versions stay on npm. The 2.x docs site
 about those packages, the hosted playground and the starter template are no longer built from it
-either; this site covers 3.0 only. The 2.x docs, including core, ui and the playground, are in the
-repository at the tag [`v2.9.0`](https://github.com/Miragon/mcp-toolkit/tree/v2.9.0/docs). The
-steps below move a project that uses `@miragon/mcp-toolkit-tool-codegen`.
+either; this site covers 3.0 and later. The 2.x docs, including core, ui and the playground, are in
+the repository at the tag [`v2.9.0`](https://github.com/Miragon/mcp-toolkit/tree/v2.9.0/docs). The
+steps below move a project that uses `@miragon/mcp-toolkit-tool-codegen`; then
+[Migrating from 3.x](./migrating-from-3x.md) takes it to 4.0, which raises the Node.js, React and
+TanStack Query versions only.
 
 ## 1. Install the 3.0 packages
 

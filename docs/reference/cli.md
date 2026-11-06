@@ -2,7 +2,7 @@
 
 Every command and flag of `mcp-tool-codegen`, what it prints and which exit code it returns.
 
-**Requirements:** Node.js 20 or newer; 22.18 or newer for a `.ts` config.
+**Requirements:** Node.js 22.18 or newer, the first that loads a `.ts` config.
 
 <dl class="facts">
   <dt>Binary</dt><dd><code>mcp-tool-codegen</code></dd>
