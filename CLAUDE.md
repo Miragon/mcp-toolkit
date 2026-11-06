@@ -121,13 +121,18 @@ Prettier-clean.
   there must be killed.
 - The GitHub ruleset requires the checks `Typecheck + Build`, `Lint + Format`,
   `Mutation diff gate` (`.github/workflows/ci.yml`) and `Validate PR title`
-  (`.github/workflows/pr-title.yml`). Keep those job names.
+  (`.github/workflows/pr-title.yml`). Keep those job names. A required job is scoped with a
+  job-level `if`, never a workflow-level `paths` filter: a check whose workflow never starts stays
+  pending, a skipped job counts as passed. `Mutation diff gate` runs when a pull request touches
+  `scripts/mutation-scope.mjs`'s list (the `changes` job); add a path there when the mutated
+  packages' tests start to read it.
 - The root `test:coverage` and `test:mutation` name each package with its own `--filter`, never
   `pnpm -r --if-present`, which goes green when a script is renamed away.
   `scripts/release-config.test.mjs` (in `Lint + Format`) pins that, the publish order and the
-  id-token job's shape (no install, no build, no checkout, no cache), the read-only
-  `GITHUB_TOKEN`, the PR-title check of single commits, Dependabot's commit prefixes and its npm
-  cooldown, which equals pnpm's `minimumReleaseAge` in `pnpm-workspace.yaml`.
+  id-token job's shape (no install, no build, no checkout, no cache), the release tag the pack job
+  builds, the dry run through the real publish command, the read-only `GITHUB_TOKEN`, the
+  mutation gate's scope, the PR-title check of single commits, Dependabot's commit prefixes and
+  its npm cooldown, which equals pnpm's `minimumReleaseAge` in `pnpm-workspace.yaml`.
 - Tests pin behaviour, not lines. Type-level contracts (unknown tool names, wrong args) are
   pinned with `expectTypeOf` and `@ts-expect-error`; `pnpm typecheck` checks them.
 

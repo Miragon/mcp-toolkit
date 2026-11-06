@@ -45,8 +45,12 @@ a request (not under the tests, which run with `NODE_ENV=test`); set
 
 CI also runs the coverage floors (`pnpm test:coverage`, inline in each `vitest.config.ts`; raise
 them, never lower them) and, on pull requests, the mutation tests of tool-codegen and
-tool-codegen-core (`pnpm test:mutation`). Pin `dependencies` and `devDependencies` to exact
-versions; only peers are ranged.
+tool-codegen-core (`pnpm test:mutation`, about 14 minutes). The required check
+`Mutation diff gate` runs them only when a pull request changes what they mutate or read: the
+three packages but their READMEs and licenses, the root `package.json`, the lockfile and the
+workspace and compiler configs, `ci.yml` and `scripts/mutation-scope.mjs`, which holds that list.
+Otherwise the job is skipped, which the check counts as passed. Pin `dependencies` and
+`devDependencies` to exact versions; only peers are ranged.
 
 pnpm resolves no version published less than 7 days ago, direct or transitive
 (`minimumReleaseAge` in `pnpm-workspace.yaml`). It is the window of Dependabot's npm cooldown, and
@@ -123,11 +127,28 @@ publishing (OIDC, with provenance, no `NPM_TOKEN`), skipping a version that is a
 jobs run in dependency order (core, then react, then the generator), so generated code never
 reaches npm ahead of its runtime. `.github/workflows/publish-npm-package.yml` packs a package in
 one job and publishes the tarball from another, the only one with the id-token, which runs no
-install, no build and no lifecycle script.
+install, no build and no lifecycle script. The pack job builds a release tag, never the branch:
+the tag release-please just created or, in a run by hand, the tag `v<version>` of the version in
+the root `package.json`. It fails when a package in that tag holds another version.
 
-Dispatching `release-please.yml` with `dry_run` packs the three packages without publishing;
-`force_publish` (on `main` only) publishes the versions in `package.json` again after a failed
-run.
+### Running the release workflow by hand
+
+Run `release-please.yml` from the Actions tab or with `gh workflow run`, for example
+`gh workflow run release-please.yml --ref main -f dry_run=true`.
+
+- `dry_run` runs the publish path without publishing: the same pack job, then the same
+  `npm publish` command with `--dry-run`, in a job without the id-token and outside the `npm`
+  environment, so no reviewer has to approve it. It leaves the Release PR alone. It packs the tag
+  `force_publish` would publish and, for a version without a tag yet, the dispatched commit. npm
+  refuses a version that is already on npm, in a dry run too, so the pack job skips such a
+  package as a publish does. Dry-run a version that is not on npm yet: on the Release PR's branch
+  (`release-please--branches--main--components--mcp-toolkit`) before you merge it, or on `main`
+  after a failed publish, before `force_publish`.
+- `force_publish` (on `main` only) recovers a failed publish: it publishes the tag of the version
+  in `package.json` again, never what `main` holds at dispatch time, and skips the packages that
+  already reached npm. It fails when that version has no tag. A fix to the publish workflows takes
+  effect, since the workflows run from `main`; a defect in a package needs a new release.
+- With both set, `dry_run` wins and nothing is published.
 
 ### Trusted publishing
 

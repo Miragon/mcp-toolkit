@@ -68,12 +68,40 @@ jobs:
       # The workflow and package-script shape the release depends on (scripts/*.test.mjs).
       - run: pnpm test:scripts
 
+  # Which gates a pull request's diff reaches. The jobs read it in a job-level if, never through a
+  # workflow-level paths filter: a required check whose workflow never starts stays pending, while
+  # a job skipped by its if reports success.
+  changes:
+    name: Changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      mutation: ${{ steps.scope.outputs.mutation }}
+    steps:
+      # The pull request's merge commit and its parents: HEAD^1 is the base branch, so
+      # HEAD^1..HEAD is what the pull request changes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - id: scope
+        run: node scripts/mutation-scope.mjs HEAD^1 HEAD >> "$GITHUB_OUTPUT"
+
   # The job name is kept because the repository ruleset requires the check "Mutation diff gate".
-  # It runs the full Stryker suites of tool-codegen and tool-codegen-core, each named in the root
-  # test:mutation script (a missing script fails it), not a diff-scoped selection.
+  # The diff decides whether it runs, not what it mutates: a pull request that changes what the
+  # suites mutate or read (scripts/mutation-scope.mjs) runs the full Stryker suites of
+  # tool-codegen and tool-codegen-core, each named in the root test:mutation script (a missing
+  # script fails it), never a diff-scoped selection. Only an explicit "false" from the changes
+  # job skips it, so a failed changes job runs the suites.
   mutation:
     name: Mutation diff gate
-    if: github.event_name == 'pull_request'
+    needs: changes
+    if: ${{ github.event_name == 'pull_request' && !cancelled() && needs.changes.outputs.mutation != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
