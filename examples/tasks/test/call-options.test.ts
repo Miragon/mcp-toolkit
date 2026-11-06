@@ -84,7 +84,9 @@ describe("tool call options over the MCP SDK", () => {
     await expect(call("wait", { steps: 5, stepMs: 60 }, options)).resolves.toEqual({ steps: 5 })
   })
 
-  it("fails a call at maxTotalTimeout, progress or not", async () => {
+  // The SDK checks maxTotalTimeout when a notification would start the timeout again: the one at
+  // 300 ms is the first past 250.
+  it("fails a call that progress keeps alive past maxTotalTimeout, at its next notification", async () => {
     const options = {
       timeout: 200,
       resetTimeoutOnProgress: true,
@@ -95,5 +97,12 @@ describe("tool call options over the MCP SDK", () => {
     await expect(call("wait", { steps: 6, stepMs: 60 }, options)).rejects.toThrow(
       "Maximum total timeout exceeded",
     )
+  })
+
+  // What the docs say: without resetTimeoutOnProgress the SDK never checks maxTotalTimeout.
+  it("leaves a call without resetTimeoutOnProgress to its timeout, whatever maxTotalTimeout says", async () => {
+    const options = { timeout: 2_000, maxTotalTimeout: 50, onprogress: () => undefined }
+
+    await expect(call("wait", { steps: 3, stepMs: 60 }, options)).resolves.toEqual({ steps: 3 })
   })
 })

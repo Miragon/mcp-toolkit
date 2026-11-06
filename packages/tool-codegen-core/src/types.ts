@@ -39,8 +39,10 @@ export interface ToolCallOptions {
    */
   resetTimeoutOnProgress?: boolean
   /**
-   * Milliseconds the call may take in all, progress notifications or not. Default: no limit
-   * beyond `timeout`.
+   * Milliseconds the call may take in all. The MCP SDK checks it only when a progress
+   * notification starts the `timeout` again (`resetTimeoutOnProgress`), and before each further
+   * round of a call that asks the client for input: the first check past it rejects the call.
+   * Without `resetTimeoutOnProgress`, `timeout` alone limits an ordinary call. Default: no limit.
    */
   maxTotalTimeout?: number
 }

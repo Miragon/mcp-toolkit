@@ -267,11 +267,17 @@ by name and meaning. The runtime hands them to the caller untouched and reads no
 | `timeout`                | Milliseconds to wait for the result; then the call rejects with `Request timed out`.                           | `60000`     |
 | `onprogress`             | Receives each progress notification the server sends for this call. Setting it asks the server for them.       | none        |
 | `resetTimeoutOnProgress` | Starts `timeout` again with every progress notification. Needs `onprogress`: without it the server sends none. | `false`     |
-| `maxTotalTimeout`        | Milliseconds the call may take in all, progress or not; then it rejects with `Maximum total timeout exceeded`. | no limit    |
+| `maxTotalTimeout`        | Milliseconds the call may take in all, however often progress starts `timeout` again; see below.               | no limit    |
 
 A tool that runs longer than a minute needs a `timeout`, or progress notifications with
 `resetTimeoutOnProgress`; see
 [Give a long call more time](../guides/call-tools.md#give-a-long-call-more-time).
+
+The SDK checks `maxTotalTimeout` only when a progress notification starts `timeout` again, and
+before each further round of a call that asks the client for input. The first check past it rejects
+the call with `Maximum total timeout exceeded`, so a call can run up to one `timeout` past it.
+Without `resetTimeoutOnProgress`, an ordinary call never reaches such a check: `timeout` alone
+limits it.
 
 ### `ToolCallProgress`
 

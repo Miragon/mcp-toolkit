@@ -182,7 +182,7 @@ const { tasks: all } = await tasks.listTasks({}, { timeout: 300_000 })
 
 A tool that reports progress can keep its call alive instead: `onprogress` asks the server for
 progress notifications and receives each one, `resetTimeoutOnProgress` starts the timeout again
-with each, and `maxTotalTimeout` caps the whole call:
+with each, and `maxTotalTimeout` caps how long progress can keep the call alive:
 
 ```ts
 const { tasks: all } = await tasks.listTasks(
@@ -198,8 +198,10 @@ const { tasks: all } = await tasks.listTasks(
 
 The example server's tools answer at once and send no progress, so there `onprogress` never runs and
 only `timeout` counts; a tool that reports progress (in mcp-use, `ctx.reportProgress`) has each step
-logged. A call past `maxTotalTimeout` rejects with `SdkError: Maximum total timeout exceeded`. The
-options carry the SDK's own names and meanings
+logged. Once a call has run past `maxTotalTimeout`, its next progress notification rejects it with
+`SdkError: Maximum total timeout exceeded`. The SDK checks the cap only then: without
+`resetTimeoutOnProgress`, `timeout` alone limits the call. The options carry the SDK's own names
+and meanings
 ([`ToolCallOptions`](../reference/core.md#toolcalloptions)); a caller other than
 `toolCallerFromClient`, such as a widget host bridge, honours what it supports.
 

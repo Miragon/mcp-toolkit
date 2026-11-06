@@ -194,8 +194,9 @@ Type a title and press **Add task**: the task shows up in the list, and the fiel
 
 The hook takes every `useMutation` option except `mutationFn`, plus `invalidates` and
 `callOptions` (the call options of every `mutate`, a `signal` included), and returns TanStack's
-`UseMutationResult`. For a tool whose input has no required property, `mutate()` sends `{}`. `useToolCaller()` returns `null` while the provider has no caller; the form disables its
-button with it, because a mutation without a caller rejects with a `NoToolCallerError`.
+`UseMutationResult`. For a tool whose input has no required property, `mutate()` sends `{}`.
+`useToolCaller()` returns `null` while the provider has no caller; the form disables its button
+with it, because a mutation without a caller rejects with a `NoToolCallerError`.
 
 ## Invalidate only what changed
 
@@ -263,9 +264,9 @@ const addTask = useTasksAddTaskMutation({
 
 `toolQueryOptions(namespace, tool, args, { callTool, queryClient })` returns the options a query
 hook runs with: the key, the call with TanStack's abort signal and the retry rule. A `callOptions`
-entry in the last argument gives the call a timeout or a progress callback, as in a query hook. Use it where
-TanStack takes options instead of a hook: `useSuspenseQuery`, `useQueries`, `prefetchQuery` and
-`ensureQueryData`.
+entry in the last argument gives the call a timeout or a progress callback, as in a query hook.
+Use it where TanStack takes options instead of a hook: `useSuspenseQuery`, `useQueries`,
+`prefetchQuery` and `ensureQueryData`.
 
 ```tsx
 import {
