@@ -243,7 +243,9 @@ describe("hostile schemas", () => {
   )
 
   // json2ts spells a tuple as the union of every length up to its own unless told otherwise: a
-  // 300-element draft-07 tuple (5 KB) made 0.7 MB of output, 20,000 elements gigabytes.
+  // 300-element draft-07 tuple (5 KB) made 0.7 MB of output, 20,000 elements gigabytes. The run
+  // takes about 1 s here and 4.5 s on a CI runner under coverage, so the bound and the timeout
+  // leave room for a slow runner; the quadratic spelling takes minutes or runs out of memory.
   it("render a 20,000-element tuple in either spelling in output linear in its length", async () => {
     const elements = 20_000
     const list = Array.from({ length: elements }, () => ({ type: "string" }))
@@ -262,10 +264,10 @@ describe("hostile schemas", () => {
       ],
       config,
     )
-    expect(performance.now() - started).toBeLessThan(5000)
+    expect(performance.now() - started).toBeLessThan(15_000)
     expect(toolsFile.length).toBeLessThan(2 * elements * 20)
     expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
-  })
+  }, 30_000)
 
   it("render tuples nested 100 levels deep, and keep a tuple that contains itself named", async () => {
     let nested: Record<string, unknown> = { type: "string" }
