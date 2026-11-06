@@ -7,7 +7,12 @@ import {
   type ToolName,
   type ToolOutput,
 } from "@miragon/mcp-toolkit-tool-codegen-core"
-import type { QueryClient, QueryFunction, UseQueryOptions } from "@tanstack/react-query"
+import {
+  isServer,
+  type QueryClient,
+  type QueryFunction,
+  type UseQueryOptions,
+} from "@tanstack/react-query"
 import { callToolTyped } from "./call-tool.js"
 import { isNoToolCallerError } from "./provider.js"
 import { toolQueryKey, type ToolCallQueryKey, type ToolQueryKey } from "./query-key.js"
@@ -75,11 +80,20 @@ export function isRequestTimeout(error: unknown): boolean {
 }
 
 /**
+ * TanStack's retry when nothing sets one: 3 in the browser, none on the server, where a failed
+ * render should not wait for retries. `isServer` is TanStack's own reading (no `window`, or
+ * Deno), exported by every 5.x version; `environmentManager`, which can override it, exists only
+ * from 5.91 on, so an override through it is not read here.
+ */
+const tanstackDefaultRetry = () => (isServer ? 0 : 3)
+
+/**
  * The retry of a tool query: never for a `ToolCallError` (asking the tool again gets the same
  * answer), a `NoToolCallerError` (a caller that arrives later starts the query by itself) or a
  * request timeout (each retry waits the whole timeout again: with `callOptions.timeout` at five
  * minutes, TanStack's 3 retries would keep the query pending for twenty), else as the
- * QueryClient's defaults for the key say. Read at failure time, so those defaults stay in charge.
+ * QueryClient's defaults for the key say, and without them as TanStack's own default. Read at
+ * failure time, so those defaults stay in charge.
  */
 export function toolQueryRetry(queryClient: QueryClient, queryKey: ToolQueryKey) {
   return (failureCount: number, error: Error): boolean => {
@@ -89,7 +103,7 @@ export function toolQueryRetry(queryClient: QueryClient, queryKey: ToolQueryKey)
     const retry =
       queryClient.getQueryDefaults(queryKey).retry ??
       queryClient.getDefaultOptions().queries?.retry ??
-      3
+      tanstackDefaultRetry()
     if (typeof retry === "function") return retry(failureCount, error)
     return typeof retry === "number" ? failureCount < retry : retry
   }

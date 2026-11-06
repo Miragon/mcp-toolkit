@@ -36,7 +36,7 @@ export type UseToolQueryOptions<TOutput, TSelected = TOutput> = Omit<
  * - Without `options.retry`, never retries a `ToolCallError` (the tool ran and answered
  *   `isError`), a `NoToolCallerError` or the MCP SDK's request timeout (a retry would wait the
  *   whole timeout again); any other failure retries as the QueryClient's defaults for the key
- *   say, 3 times when they say nothing.
+ *   say, and as TanStack does when they say nothing: 3 times, on the server not at all.
  */
 export function useToolQuery<
   TMap extends ToolMapOf<TMap>,

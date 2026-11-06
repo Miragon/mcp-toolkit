@@ -383,7 +383,9 @@ A query without its own `retry` option never retries:
   `Session not found`, is not a timeout and is retried.
 
 Any other failure, such as a dropped connection, is retried as the `QueryClient` says for the
-query's key (`setQueryDefaults`, then `defaultOptions.queries.retry`), 3 times when it says nothing.
+query's key (`setQueryDefaults`, then `defaultOptions.queries.retry`). When it says nothing, the
+query keeps TanStack's own default: 3 retries in the browser, none on the server, such as a
+prefetch for a server render.
 A `retry` option on the query decides alone, for a `ToolCallError` and a timeout too. Mutations keep
 TanStack's default: no retry.
 
