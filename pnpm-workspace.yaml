@@ -14,3 +14,11 @@ peerDependencyRules:
   allowedVersions:
     # vitepress-plugin-mermaid 2.0.17 asks for mermaid 10 or 11; the Miragon docs kit pins 12.
     "vitepress-plugin-mermaid>mermaid": "12"
+
+# pnpm resolves no version published less than 7 days ago (in minutes), direct or transitive: the
+# window of Dependabot's npm cooldown (.github/dependabot.yml), and scripts/release-config.test.mjs
+# holds the two equal. Dependabot runs pnpm under its cooldown, and on an update pnpm 10 checks every
+# version already in the lockfile against that window: one younger version anywhere in the workspace
+# fails every update. With this window only a security update, which Dependabot runs without one,
+# brings in a younger version.
+minimumReleaseAge: 10080

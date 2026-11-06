@@ -1,7 +1,7 @@
 /**
  * The shape of the release path that no other check sees: the publish workflows, the PR-title
- * gate that guards the commit subject release-please reads, Dependabot's commit prefixes and the
- * root gate scripts. Run with `pnpm test:scripts` (node --test).
+ * gate that guards the commit subject release-please reads, Dependabot's commit prefixes and its
+ * cooldown, and the root gate scripts. Run with `pnpm test:scripts` (node --test).
  */
 import assert from "node:assert/strict"
 import { readdirSync, readFileSync } from "node:fs"
@@ -106,17 +106,29 @@ describe("pr-title.yml", () => {
 })
 
 describe("dependabot.yml", () => {
+  const updates = yaml.load(read(".github/dependabot.yml")).updates
+  const byEcosystem = Object.fromEntries(
+    updates.map((entry) => [entry["package-ecosystem"], entry]),
+  )
+
   it("writes no feat commits, which would cut a feature release for a dependency bump", () => {
-    const updates = yaml.load(read(".github/dependabot.yml")).updates
-    const byEcosystem = Object.fromEntries(
-      updates.map((entry) => [entry["package-ecosystem"], entry]),
-    )
     assert.deepEqual(byEcosystem.npm["commit-message"], {
       prefix: "fix",
       "prefix-development": "chore",
       include: "scope",
     })
     assert.deepEqual(byEcosystem["github-actions"]["commit-message"], { prefix: "ci" })
+  })
+
+  // Dependabot runs pnpm with a cooldown longer than pnpm's own window as the minimum release age,
+  // and pnpm checks every locked version against it: every update fails on a version that window
+  // let into the lockfile. A shorter cooldown is dead config, since Dependabot raises it to pnpm's
+  // window.
+  it("cools npm updates down for exactly pnpm's minimumReleaseAge, one window for every type", () => {
+    const { minimumReleaseAge } = yaml.load(read("pnpm-workspace.yaml"))
+    const days = minimumReleaseAge / (24 * 60)
+    assert.ok(Number.isInteger(days) && days > 0, `minimumReleaseAge ${minimumReleaseAge}`)
+    assert.deepEqual(byEcosystem.npm.cooldown, { "default-days": days })
   })
 })
 

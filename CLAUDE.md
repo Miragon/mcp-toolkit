@@ -126,7 +126,8 @@ Prettier-clean.
   `pnpm -r --if-present`, which goes green when a script is renamed away.
   `scripts/release-config.test.mjs` (in `Lint + Format`) pins that, the publish order and the
   id-token job's shape (no install, no build, no checkout, no cache), the read-only
-  `GITHUB_TOKEN`, the PR-title check of single commits and Dependabot's commit prefixes.
+  `GITHUB_TOKEN`, the PR-title check of single commits, Dependabot's commit prefixes and its npm
+  cooldown, which equals pnpm's `minimumReleaseAge` in `pnpm-workspace.yaml`.
 - Tests pin behaviour, not lines. Type-level contracts (unknown tool names, wrong args) are
   pinned with `expectTypeOf` and `@ts-expect-error`; `pnpm typecheck` checks them.
 

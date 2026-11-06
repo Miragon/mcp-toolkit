@@ -52,7 +52,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/client": "2.4.0",
     "handlebars": "4.7.10",
     "json-schema-to-typescript": "16.0.0"
   },
@@ -76,7 +76,7 @@
     "@types/node": "26.6.5",
     "@vitest/coverage-v8": "4.1.12",
     "fast-check": "4.10.2",
-    "mcp-use": "2.9.0",
+    "mcp-use": "2.12.2",
     "prettier": "3.9.10",
     "typescript": "6.0.3",
     "vitest": "4.1.12",
