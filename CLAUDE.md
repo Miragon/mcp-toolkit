@@ -83,6 +83,10 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   exponential output, and unprefixed names for anonymous cycles. `compileSchema` fails on a
   declared name without the tool's prefix. json2ts runs with
   `$refOptions: { resolve: { external: false } }`, so no file is read and no URL called.
+- A tuple reaches json2ts in draft-07's spelling: `draft07Tuples` turns 2020-12's `prefixItems`
+  into an `items` list after `normalizeRefs` (which walks `prefixItems` like `allOf`), and json2ts
+  runs with `ignoreMinAndMaxItems`, so a tuple is one type with every element required. json2ts's
+  default spells it as the union of every length, which grows with the square of the length.
 - Descriptions cannot close a JSDoc or become a TypeScript directive (a line starting with `@`
   never ends a comment's last line); the `Source:` header is the URL's origin only (a path may hold
   an API key); the CLI replaces invisible characters in server text it prints (`terminalText`) and
@@ -91,10 +95,10 @@ a malicious server could inject code. Keep these rules and the tests that pin th
   auth value (fetch would echo the secret); errors name the field, never the value.
 - Tests: `src/codegen.security.test.ts` (hostile names, schemas, text, header, `$ref` with a
   control test that proves json2ts alone would read a file and call a server, the exponential
-  chains), `src/codegen.property.test.ts` (arbitrary input still parses and declares only its own
-  names), `src/identifiers.test.ts`, `src/safe-text.test.ts`, `src/sanitize-schema.test.ts`,
-  `src/schema-refs.test.ts`. A change that weakens a rule changes these tests in the same PR, with
-  the reason.
+  chains, the 20,000-element tuples), `src/codegen.property.test.ts` (arbitrary input still parses
+  and declares only its own names), `src/declarations.test.ts`, `src/identifiers.test.ts`,
+  `src/safe-text.test.ts`, `src/sanitize-schema.test.ts`, `src/schema-refs.test.ts`. A change that
+  weakens a rule changes these tests in the same PR, with the reason.
 
 ## Query or mutation
 

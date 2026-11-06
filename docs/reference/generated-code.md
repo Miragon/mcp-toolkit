@@ -190,6 +190,7 @@ export type TasksClient = ReturnType<typeof createTasksClient>
 | An input `{ type: "object" }` with no properties, nothing required and `additionalProperties` absent or `false`  | `export type <T> = Record<string, never>`                                                                                                                                      |
 | An output `{ type: "object" }` with no properties, nothing required and `additionalProperties` absent or `false` | `Record<string, unknown>` with `additionalProperties` absent, `Record<string, never>` with `false`                                                                             |
 | An input or output `{ type: "object" }` with no properties and `additionalProperties: true` or a schema          | An interface with an index signature: `[k: string]: unknown` for `true`, the schema's type for a schema                                                                        |
+| A tuple: `prefixItems` (draft 2020-12, zod 4's `z.tuple`) or `items` as a list (draft-07)                        | A TypeScript tuple with every element required, `[A, B]`, or `[A, B, ...C[]]` with a schema for the elements after them, see [Tuples](#tuples)                                 |
 | Any other schema                                                                                                 | json-schema-to-typescript's interface or type alias; a property the schema does not declare is a type error unless `additionalProperties` allows it, descriptions become JSDoc |
 | The target of a `$ref`                                                                                           | Declared once as its own type, named after the input or output type and the target's path                                                                                      |
 
@@ -225,6 +226,51 @@ export interface MyAppMoveInput {
 export interface MyAppMoveInputPoint {
   x: number
   y: number
+}
+```
+
+### Tuples
+
+A tuple lists a schema per position: `prefixItems` in draft 2020-12, `items` as a list in draft-07.
+The schema for the elements after the listed ones is `items` beside `prefixItems`, or
+`additionalItems` beside an `items` list:
+
+| Elements after the listed ones | Generated type         |
+| ------------------------------ | ---------------------- |
+| `false`, or no schema for them | `[A, B]`               |
+| A schema `C`                   | `[A, B, ...C[]]`       |
+| `true`                         | `[A, B, ...unknown[]]` |
+
+Every listed element is required, whatever `minItems` says: the generator drops `minItems`
+([Guarantees and limits](../guarantees.md#optional-tuple-elements-are-typed-as-required)). A
+`$ref` may point into a tuple (`#/properties/at/prefixItems/0`); its target is declared once, as
+for any other path.
+
+A zod 4 server declares a parameter `z.tuple([z.string(), z.number()])` and another
+`z.tuple([z.string()], z.boolean())`, which reach `tools/list` as:
+
+```json
+{
+  "pair": {
+    "type": "array",
+    "prefixItems": [{ "type": "string" }, { "type": "number" }],
+    "items": false,
+    "minItems": 2,
+    "maxItems": 2
+  },
+  "flags": {
+    "type": "array",
+    "prefixItems": [{ "type": "string" }],
+    "items": { "type": "boolean" },
+    "minItems": 1
+  }
+}
+```
+
+```ts
+export interface MyAppMarkInput {
+  pair: [string, number]
+  flags: [string, ...boolean[]]
 }
 ```
 

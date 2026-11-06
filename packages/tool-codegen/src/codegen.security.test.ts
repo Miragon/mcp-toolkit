@@ -242,6 +242,133 @@ describe("hostile schemas", () => {
     30_000,
   )
 
+  // json2ts spells a tuple as the union of every length up to its own unless told otherwise: a
+  // 300-element draft-07 tuple (5 KB) made 0.7 MB of output, 20,000 elements gigabytes.
+  it("render a 20,000-element tuple in either spelling in output linear in its length", async () => {
+    const elements = 20_000
+    const list = Array.from({ length: elements }, () => ({ type: "string" }))
+    const started = performance.now()
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("huge", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              prefixed: { type: "array", prefixItems: list, items: false },
+              listed: { type: "array", items: list, additionalItems: false },
+            },
+          },
+        }),
+      ],
+      config,
+    )
+    expect(performance.now() - started).toBeLessThan(5000)
+    expect(toolsFile.length).toBeLessThan(2 * elements * 20)
+    expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
+  })
+
+  it("render tuples nested 100 levels deep, and keep a tuple that contains itself named", async () => {
+    let nested: Record<string, unknown> = { type: "string" }
+    for (let level = 0; level < 100; level++) {
+      nested = { type: "array", prefixItems: [nested, { type: "number" }], items: false }
+    }
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("deep", { inputSchema: { type: "object", properties: { t: nested } } }),
+        tool("cycle", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              t: { type: "array", prefixItems: [{ type: "string" }, { $ref: "#/properties/t" }] },
+            },
+          },
+        }),
+      ],
+      config,
+    )
+    const deep = toolsFile.slice(toolsFile.indexOf("export interface EvilDeepInput {"))
+    const declaration = deep.slice(0, deep.indexOf("\n}\n"))
+    expect(declaration.match(/\[/g)).toHaveLength(100)
+    expect(declaration.match(/\bnumber\b/g)).toHaveLength(100)
+    expect(toolsFile).toContain("export type EvilCycleInputT = [string, EvilCycleInputT]")
+    expect(topLevelDeclarations(toolsFile, "tools.ts")).toEqual([
+      "EvilCycleInputT",
+      "EvilCycleInput",
+      "EvilCycleOutput",
+      "EvilDeepInput",
+      "EvilDeepOutput",
+      ...FIXED_NAMES,
+    ])
+    expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
+  })
+
+  it("ignore a prefixItems that is not a list", async () => {
+    const values = [
+      { type: "string" },
+      `string] export const pwned = 1; type Q = [`,
+      42,
+      null,
+      true,
+    ]
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("odd", {
+          inputSchema: {
+            type: "object",
+            properties: Object.fromEntries(
+              values.map((prefixItems, i) => [`t${i}`, { type: "array", prefixItems }]),
+            ),
+          },
+        }),
+      ],
+      config,
+    )
+    for (const [i] of values.entries()) expect(toolsFile).toContain(`  t${i}?: unknown[]\n`)
+    expect(codeOnly(toolsFile, "tools.ts")).not.toContain("pwned")
+  })
+
+  it("apply every schema rule inside prefixItems: raw text, comments, $refs", async () => {
+    const breakOut = "*/ export const pwned = 1; /*"
+    const { toolsFile } = await renderCodegen(
+      [
+        tool("inside", {
+          inputSchema: {
+            type: "object",
+            properties: {
+              t: {
+                type: "array",
+                prefixItems: [
+                  { tsType: injection },
+                  { type: "string", description: breakOut, title: "Pwned" },
+                  { $ref: "file:///etc/hosts" },
+                  { $ref: "#/$defs/Point" },
+                ],
+                items: { tsType: injection },
+              },
+              first: { $ref: "#/properties/t/prefixItems/1" },
+            },
+            $defs: { Point: { type: "object", properties: { x: { type: "number" } } } },
+          },
+        }),
+      ],
+      config,
+    )
+    expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
+    expect(codeOnly(toolsFile, "tools.ts")).not.toContain("pwned")
+    expect(toolsFile).toContain(
+      "  t?: [unknown, EvilInsideInputTPrefixItems1, unknown, EvilInsideInputPoint, ...unknown[]]\n",
+    )
+    expect(toolsFile).toContain("  first?: EvilInsideInputTPrefixItems1\n")
+    expect(topLevelDeclarations(toolsFile, "tools.ts")).toEqual([
+      "EvilInsideInputTPrefixItems1",
+      "EvilInsideInput",
+      "EvilInsideInputPoint",
+      "EvilInsideOutput",
+      ...FIXED_NAMES,
+    ])
+    expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
+  })
+
   // json2ts names an anonymous reference cycle after a property key, without the tool's prefix:
   // two tools sharing a recursive parameter (zod-to-json-schema's root-path refs) collided, and
   // a key named like a global the files use shadowed it.

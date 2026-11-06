@@ -17,6 +17,12 @@ describe("sanitizeSchema", () => {
           items: [{ type: "string" }, { type: "number" }],
           additionalItems: false,
         },
+        prefixed: {
+          type: "array",
+          prefixItems: [{ type: "string" }, { $ref: "#/$defs/Other" }],
+          items: { type: "boolean" },
+        },
+        closed: { type: "array", prefixItems: [true], items: false },
         choice: { anyOf: [{ type: "string" }, { $ref: "#/$defs/Other" }] },
         both: { allOf: [{ type: "object" }], oneOf: [true, false] },
       },
@@ -50,6 +56,7 @@ describe("sanitizeSchema", () => {
         type: "object",
         properties: { a: { ...hostile, type: "string" } },
         items: { ...hostile },
+        prefixItems: [{ ...hostile }],
         anyOf: [{ ...hostile }],
         additionalProperties: { ...hostile },
         $defs: { D: { ...hostile } },
@@ -58,6 +65,7 @@ describe("sanitizeSchema", () => {
       type: "object",
       properties: { a: { type: "string" } },
       items: {},
+      prefixItems: [{}],
       anyOf: [{}],
       additionalProperties: {},
       $defs: { D: {} },
@@ -127,10 +135,12 @@ describe("sanitizeSchema", () => {
         additionalProperties: "x",
         additionalItems: 0,
         items: "string",
+        prefixItems: { type: "string" },
         patternProperties: null,
         $defs: "D",
       }),
     ).toEqual({})
+    expect(sanitizeSchema({ prefixItems: "*/ evil" })).toEqual({})
     expect(sanitizeSchema({ type: ["string", "*/", 1, "null"] })).toEqual({
       type: ["string", "null"],
     })
@@ -144,11 +154,13 @@ describe("sanitizeSchema", () => {
       sanitizeSchema({
         properties: { a: 5, b: "string", c: null, d: true, e: false },
         anyOf: [1, true],
+        prefixItems: ["string", null, false],
         items: true,
       }),
     ).toEqual({
       properties: { a: {}, b: {}, c: {}, d: true, e: false },
       anyOf: [{}, true],
+      prefixItems: [{}, {}, false],
       items: true,
     })
     expect(sanitizeSchema("not a schema")).toEqual({})

@@ -46,6 +46,8 @@ const KEYWORDS: Record<string, (value: unknown) => unknown> = {
   nullable: booleanOnly,
   additionalProperties: schemaOrBoolean,
   additionalItems: schemaOrBoolean,
+  // A tuple: draft 2020-12's `prefixItems`, or draft-07's `items` as a list.
+  prefixItems: schemaList,
   items: (value) => (Array.isArray(value) ? value.map(sanitizeNode) : schemaOrBoolean(value)),
   allOf: schemaList,
   anyOf: schemaList,

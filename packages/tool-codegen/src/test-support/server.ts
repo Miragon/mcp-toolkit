@@ -9,7 +9,8 @@ export interface TestServer {
   close(): Promise<void>
 }
 
-export async function startTestServer(): Promise<TestServer> {
+/** `tools: false` starts the server without a tool, as a wrong endpoint or a missing scope looks. */
+export async function startTestServer({ tools = true } = {}): Promise<TestServer> {
   const requests: Record<string, string>[] = []
   const server = new MCPServer({
     name: "codegen-test-server",
@@ -20,6 +21,12 @@ export async function startTestServer(): Promise<TestServer> {
     requests.push(context.req.header())
     await next()
   })
+  if (tools) registerTools(server)
+  const { port } = await server.listen(0, { host: "127.0.0.1" })
+  return { url: `http://127.0.0.1:${port}/mcp`, requests, close: () => server.close() }
+}
+
+function registerTools(server: MCPServer): void {
   server.tool(
     {
       name: "list_tasks",
@@ -43,6 +50,4 @@ export async function startTestServer(): Promise<TestServer> {
     },
     ({ title }) => ({ content: [{ type: "text", text: title }] }),
   )
-  const { port } = await server.listen(0, { host: "127.0.0.1" })
-  return { url: `http://127.0.0.1:${port}/mcp`, requests, close: () => server.close() }
 }

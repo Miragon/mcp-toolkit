@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { z } from "zod"
 import { renderCodegen } from "./codegen.js"
 import type { CodegenConfig } from "./config.js"
 import type { ToolDescriptor } from "./fetch-tools.js"
@@ -334,6 +335,89 @@ describe("renderCodegen: types", () => {
       )
       expect(toolsFile, JSON.stringify(outputSchema)).toContain(`\n${declaration}\n`)
     }
+  })
+
+  // zod 4 emits z.tuple in draft 2020-12's spelling, prefixItems and items: false, which
+  // json-schema-to-typescript alone types never[].
+  it("types tuples in draft 2020-12's and draft-07's spelling as TypeScript tuples", async () => {
+    const shape = z.object({
+      pair: z.tuple([z.string(), z.number()]),
+      rest: z.tuple([z.string()], z.boolean()),
+    })
+    const expected = "{\n  pair: [string, number]\n  rest: [string, ...boolean[]]\n}"
+    for (const target of ["draft-2020-12", "draft-7"] as const) {
+      const { toolsFile } = await renderCodegen(
+        [{ name: "a", inputSchema: z.toJSONSchema(shape, { target }) }],
+        config,
+      )
+      expect(toolsFile, target).toContain(`\nexport interface TasksAInput ${expected}\n`)
+    }
+
+    const arrays: [Record<string, unknown>, string][] = [
+      [{ prefixItems: [{ type: "string" }], items: false }, "[string]"],
+      [{ prefixItems: [{ type: "string" }] }, "[string]"],
+      [{ prefixItems: [{ type: "string" }], items: true }, "[string, ...unknown[]]"],
+      [{ prefixItems: [], items: false }, "[]"],
+      [{ prefixItems: [{ type: "string" }], items: [{ type: "number" }] }, "[string]"],
+      [{ prefixItems: [true], additionalItems: { type: "number" } }, "[unknown]"],
+      [{ items: [{ type: "string" }] }, "[string]"],
+      [{ items: [{ type: "string" }], additionalItems: true }, "[string, ...unknown[]]"],
+      [{ items: [{ type: "string" }], minItems: 0 }, "[string]"],
+      [{ items: false }, "never[]"],
+    ]
+    for (const [array, type] of arrays) {
+      const { toolsFile } = await renderCodegen(
+        [
+          {
+            name: "a",
+            inputSchema: {
+              type: "object",
+              properties: { t: { type: "array", ...array } },
+              required: ["t"],
+            },
+          },
+        ],
+        config,
+      )
+      expect(toolsFile, JSON.stringify(array)).toContain(`\n  t: ${type}\n`)
+    }
+  })
+
+  it("type-checks tuples in args and results, element by element", async () => {
+    const tuples = z.object({
+      pair: z.tuple([z.string(), z.number()]),
+      rest: z.tuple([z.string()], z.boolean()),
+      nested: z.tuple([z.tuple([z.literal("x")]), z.object({ at: z.tuple([z.number()]) })]),
+    })
+    const schema = z.toJSONSchema(tuples)
+    const { toolsFile } = await renderCodegen(
+      [{ name: "move", inputSchema: schema, outputSchema: schema }],
+      { ...config, react: false },
+    )
+    const consumer = `
+import { createTasksClient } from "./tools.js"
+declare const callTool: import("@miragon/mcp-toolkit-tool-codegen-core").ToolCaller
+const client = createTasksClient(callTool)
+const ok = { pair: ["a", 1], rest: ["a"], nested: [["x"], { at: [1] }] } as const
+export async function use() {
+  const moved = await client.move({ pair: ["a", 1], rest: ["a", true, false], nested: [["x"], { at: [1] }] })
+  const [name, count]: [string, number] = moved.pair
+  const flags: boolean[] = moved.rest.slice(1) as boolean[]
+  const at: number = moved.nested[1].at[0]
+  // @ts-expect-error -- a closed tuple takes no third element
+  await client.move({ ...ok, pair: ["a", 1, 2] })
+  // @ts-expect-error -- every element is required
+  await client.move({ ...ok, pair: ["a"] })
+  // @ts-expect-error -- each position has its own type
+  await client.move({ ...ok, pair: [1, "a"] })
+  // @ts-expect-error -- the elements after the listed ones have the rest's type
+  await client.move({ ...ok, rest: ["a", "b"] })
+  // @ts-expect-error -- a nested tuple is typed too
+  await client.move({ ...ok, nested: [["y"], { at: [1] }] })
+  return [name, count, flags, at]
+}
+`
+    expect(typeErrors({ "tools.ts": toolsFile, "consumer.ts": consumer })).toEqual([])
   })
 
   it("rejects what an object input with required names but no properties does not accept", async () => {

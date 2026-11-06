@@ -31,6 +31,8 @@ written.
 | `tsType`, `tsEnumNames`, `title`, `$id`, `minItems` or an unknown keyword    | drops it                                                                                         |
 | a `$ref` to a file, a URL or a relative path                                 | types it `unknown` and fetches nothing                                                           |
 | a chain of local `$ref`s or a recursive type                                 | declares each target once, named with the tool's prefix                                          |
+| a tuple of 20,000 elements                                                   | writes one tuple type, output that grows with the tuple's length only                            |
+| an empty `tools/list`                                                        | fails before anything is written                                                                 |
 | a URL that carries an API key in its path or query                           | writes only the origin into the `// Source:` header and its messages                             |
 | an error body with escape sequences or a line such as `::error`              | prints control characters as spaces and marks every line after the first                         |
 
@@ -179,7 +181,7 @@ TypeScript type, each checked for its JSON Schema shape, before json-schema-to-t
 | `deprecated`, `nullable`                                  | it is a boolean                                              |
 | `properties`, `patternProperties`, `$defs`, `definitions` | it is a map of schemas, each rebuilt the same way            |
 | `items`, `additionalItems`, `additionalProperties`        | it is a schema or a boolean (`items` also a list of schemas) |
-| `allOf`, `anyOf`, `oneOf`                                 | it is a list of schemas                                      |
+| `allOf`, `anyOf`, `oneOf`, `prefixItems`                  | it is a list of schemas                                      |
 
 Every other keyword is dropped, notably `tsType` and `tsEnumNames` (json-schema-to-typescript emits
 their value as raw TypeScript), `title`, `$id` and `id` (they would name declarations after server
@@ -187,10 +189,16 @@ text, and `$id` moves the base of `$ref` resolution), and `minItems` and `maxIte
 not a number lands raw in a JSDoc tag, and a huge `minItems` expands into a huge tuple). A schema
 that is not an object becomes `{}`.
 
+A tuple, draft 2020-12's `prefixItems` or draft-07's `items` as a list, becomes one TypeScript
+tuple with every element required. json-schema-to-typescript would otherwise write the union of
+every length up to the tuple's own, `[] | [A] | [A, B]`, which grows with the square of the length:
+in 3.0.0 a draft-07 tuple of 300 elements, 5 KB of schema, made 0.7 MB of code. See
+[Generated code](./reference/generated-code.md#tuples) for the types.
+
 ## `$ref` handling
 
 Only local references resolve, `#` and `#/…`, and only to a schema position of the same schema: a
-path through `properties`, `patternProperties`, `$defs`, `definitions`, `items`,
+path through `properties`, `patternProperties`, `$defs`, `definitions`, `prefixItems`, `items`,
 `additionalProperties`, `additionalItems`, `allOf`, `anyOf` and `oneOf`, own keys only. A pointer
 into a `required` list or a name map, a prototype member, a boolean schema and a cycle of bare
 `$ref`s become `unknown`. So does every other `$ref` (`file:`, `http:`, a relative path): the
@@ -247,6 +255,11 @@ with an empty title passes the compiler, the server's input validation rejects i
 rejects with a `ToolCallError` whose message is the server's text, here
 `Input validation error: Invalid arguments for tool add-task: title: Too small: expected string to have >=1 characters`.
 
+**It does not generate from an empty tool list.** A wrong path, another server on the same port and
+a token without the scope that shows the tools all answer with an empty `tools/list`, and files
+written from it would drop every method of the committed client. `generate` and `generate --check`
+fail on it before anything is written, after reading every page of the list.
+
 **It does not notice a server that changed.** The generated types describe the tool list at the
 moment you ran `generate`. A renamed tool or a changed schema shows up only when you generate again,
 which is why the drift check belongs in CI; see
@@ -279,6 +292,14 @@ client keep the text. Give the tool an `outputSchema` and `structuredContent`, o
 yourself with `parseToolResult(name, await callTool(name, args), { text: "raw" })`; see
 [Core API](./reference/core.md#parsetoolresult). An `output: "string"` override does not change the
 decoding and is only right for text that never parses as JSON.
+
+### Optional tuple elements are typed as required
+
+A tuple's type lists every element as required, since the generator drops `minItems`. A tuple whose
+trailing elements may be left out, such as zod's `z.tuple([z.string(), z.number().optional()])`,
+is therefore typed `[string, number]`: an input must pass the number, and an output claims it is
+there. Set an `input` or `output` override for such a tool; see
+[Configuration](./reference/configuration.md#overrides).
 
 ### React 18 is allowed but untested
 

@@ -4,11 +4,12 @@
  * inlines none:
  *
  * - A `$ref` has to name a schema position of this schema: `#`, or a path
- *   through `properties`, `patternProperties`, `$defs`, `definitions`, `items`,
- *   `additionalProperties`, `additionalItems`, `allOf`, `anyOf` and `oneOf`,
- *   own keys only. Anything else (a name→schema map, a `required` list, a
- *   prototype member), a boolean schema and a cycle of bare `$ref`s become
- *   `unknown`: json2ts would read map keys as keywords, crash or recurse.
+ *   through `properties`, `patternProperties`, `$defs`, `definitions`,
+ *   `prefixItems`, `items`, `additionalProperties`, `additionalItems`, `allOf`,
+ *   `anyOf` and `oneOf`, own keys only. Anything else (a name→schema map, a
+ *   `required` list, a prototype member), a boolean schema and a cycle of bare
+ *   `$ref`s become `unknown`: json2ts would read map keys as keywords, crash or
+ *   recurse.
  * - Every target but the root moves into the root `$defs`, under a key built
  *   from the [A-Za-z0-9] runs of its path, and its old place refers to it.
  *   json2ts names a root `$defs` entry after its key (prefixed by
@@ -31,7 +32,7 @@ import { pascalCase } from "./identifiers.js"
 import { isJsonObject, type JsonObject } from "./sanitize-schema.js"
 
 const MAPS = new Set(["properties", "patternProperties", "$defs", "definitions"])
-const LISTS = new Set(["allOf", "anyOf", "oneOf"])
+const LISTS = new Set(["allOf", "anyOf", "oneOf", "prefixItems"])
 const DEFINITIONS = new Set(["$defs", "definitions"])
 const INDEX = /^(?:0|[1-9]\d*)$/
 

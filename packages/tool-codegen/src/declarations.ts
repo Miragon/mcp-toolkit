@@ -75,6 +75,41 @@ const COMPILE_OPTIONS: Partial<CompileOptions> = {
   // Never read a file or a URL for a `$ref`. sanitizeSchema already drops
   // non-local refs; should one slip through, the compile fails instead.
   $refOptions: { resolve: { external: false } },
+  // A tuple types every element as required, `[A, B]`. Otherwise json2ts reads
+  // the `minItems` sanitizeSchema drops as 0 and spells the tuple as the union
+  // of every length up to its own, `[] | [A] | [A, B]`: output that grows with
+  // the square of the tuple's length.
+  ignoreMinAndMaxItems: true,
+}
+
+/**
+ * The schema in the tuple spelling json-schema-to-typescript reads, draft-07's:
+ * `items` as a list and `additionalItems` for the elements after it. Draft
+ * 2020-12 spells a tuple `prefixItems` with `items` for the rest (zod 4 emits
+ * `z.tuple([a, b])` as `prefixItems: [a, b], items: false`); json2ts ignores
+ * `prefixItems` and types that `never[]`. Runs after normalizeRefs, so a
+ * `$ref` into `prefixItems` already names its hoisted target.
+ *
+ * Walks every object below `schema`: only a schema node can hold a list under
+ * `prefixItems`, since the values of a name→schema map are schemas, never
+ * lists. Exported for tests.
+ */
+export function draft07Tuples(schema: JsonObject): JsonObject {
+  const out = Object.fromEntries(
+    Object.entries(schema).map(([keyword, value]) => [keyword, tuplesBelow(value)]),
+  )
+  if (!Array.isArray(out.prefixItems)) return out
+  const { prefixItems, items, ...tuple } = out
+  // 2020-12 has no `additionalItems` and no `items` list: next to `prefixItems` they mean nothing.
+  delete tuple.additionalItems
+  if (isJsonObject(items) || typeof items === "boolean") tuple.additionalItems = items
+  tuple.items = prefixItems
+  return tuple
+}
+
+function tuplesBelow(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(tuplesBelow)
+  return isJsonObject(value) ? draft07Tuples(value) : value
 }
 
 /**
@@ -83,7 +118,7 @@ const COMPILE_OPTIONS: Partial<CompileOptions> = {
  * declare the same type, and none can shadow a global the files use.
  */
 export async function compileSchema(schema: JsonObject, name: string): Promise<string> {
-  const code = await compile({ ...schema, title: name }, name, {
+  const code = await compile({ ...draft07Tuples(schema), title: name }, name, {
     ...COMPILE_OPTIONS,
     // Declarations json-schema-to-typescript names after a `$ref` target or a
     // `$defs` key are prefixed with the tool's type name.

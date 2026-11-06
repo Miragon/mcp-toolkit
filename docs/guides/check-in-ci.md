@@ -77,8 +77,8 @@ run "mcp-tool-codegen generate" to update /home/you/tasks-client/src/generated
 ```
 
 In every case, run `pnpm generate`, review the diff and commit it. Exit code 1 also means the
-server could not be reached or the config is invalid; the message says which. Exit code 2 is a
-wrong command line.
+server could not be reached, listed no tools or the config is invalid; the message says which.
+Exit code 2 is a wrong command line.
 
 ## 3. Run the check in CI
 

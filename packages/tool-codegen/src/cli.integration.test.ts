@@ -151,6 +151,36 @@ describe("mcp-tool-codegen against a real MCP server", { timeout: 30_000 }, () =
     expect(await runCli(["generate", "--config", "plain.config.mjs", "--check"], io)).toBe(0)
   })
 
+  // A wrong path or a token without the scope that shows the tools answers with an empty list:
+  // written, it would drop every method of the committed client.
+  it("exits 1 on an empty tools/list, generate and --check alike, and writes nothing", async () => {
+    await writeConfig("codegen.config.mjs", true)
+    const io = captureIo(path.join(dir, "app"))
+    expect(await runCli(["generate", "--config", "codegen.config.mjs"], io)).toBe(0)
+    const before = [await read("tools.ts"), await read("hooks.tsx")]
+
+    const empty = await startTestServer({ tools: false })
+    try {
+      const { origin } = new URL(empty.url)
+      const config = { name: "tasks", url: `${empty.url}?key=S3CRET`, out: "./src/generated" }
+      await fs.writeFile(
+        path.join(dir, "app", "empty.config.mjs"),
+        `export default ${JSON.stringify(config)}\n`,
+      )
+      const message = `mcp-tool-codegen: the server at ${origin} lists no tools, so nothing was generated. Check that "url" names its MCP endpoint, path included, that the server registers its tools, and that "auth" or "headers" carry the token or scope it needs to list them.`
+      for (const check of [[], ["--check"]]) {
+        const failed = captureIo(path.join(dir, "app"))
+        expect(await runCli(["generate", "--config", "empty.config.mjs", ...check], failed)).toBe(1)
+        expect(failed.stderr).toEqual([message])
+        expect(failed.stdout).toEqual([])
+      }
+      // react is off in this config: a run that got past the check would also remove hooks.tsx.
+      expect([await read("tools.ts"), await read("hooks.tsx")]).toEqual(before)
+    } finally {
+      await empty.close()
+    }
+  })
+
   it("exits 1 naming the server and the cause when it is unreachable", async () => {
     const port = await closedPort()
     const config = {

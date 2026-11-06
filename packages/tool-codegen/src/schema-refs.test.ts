@@ -76,6 +76,28 @@ describe("normalizeRefs: targets move into the root $defs", () => {
     })
   })
 
+  it("walks draft 2020-12 prefixItems like a tuple's items, and its items as one schema", () => {
+    const schema = object({
+      p: {
+        type: "array",
+        prefixItems: [{ type: "string" }, { type: "object", properties: { n: { $ref: "#" } } }],
+        items: { type: "boolean" },
+      },
+      r: { $ref: "#/properties/p/prefixItems/1" },
+      s: { $ref: "#/properties/p/items" },
+    })
+    const out = prepared(schema)
+    expect(out.$defs).toEqual({
+      PItems: { type: "boolean" },
+      PPrefixItems1: { type: "object", properties: { n: { $ref: "#" } } },
+    })
+    expect((out.properties as Record<string, unknown>).p).toEqual({
+      type: "array",
+      prefixItems: [{ type: "string" }, { $ref: "#/$defs/PPrefixItems1" }],
+      items: { $ref: "#/$defs/PItems" },
+    })
+  })
+
   it("keeps the root's own definitions referenced, under a sanitised key, and drops the rest", () => {
     const schema = object(
       {
@@ -220,6 +242,11 @@ describe("normalizeRefs: what a $ref may name", () => {
     "#/properties/missing",
     "#/properties/a/items/0",
     "#/properties/t/0",
+    "#/properties/u/prefixItems",
+    "#/properties/u/prefixItems/1",
+    "#/properties/u/prefixItems/00",
+    "#/properties/u/prefixItems/length",
+    "#/properties/v/prefixItems/0",
     "#/allOf/01",
     "#/allOf/-1",
     "#/allOf/9",
@@ -231,6 +258,9 @@ describe("normalizeRefs: what a $ref may name", () => {
         a: { type: "array", items: { type: "string" } },
         b: true,
         t: { type: "array", items: [{ type: "string" }] },
+        u: { type: "array", prefixItems: [{ type: "string" }] },
+        // not a list: the sanitiser drops it
+        v: { type: "array", prefixItems: { type: "string" } },
         // what "#/properties" would wrongly reach, should the map's key be read as undefined
         undefined: { type: "string" },
         x: { $ref: ref },
