@@ -244,7 +244,7 @@ describe("hostile schemas", () => {
 
   // json2ts spells a tuple as the union of every length up to its own unless told otherwise: a
   // 300-element draft-07 tuple (5 KB) made 0.7 MB of output, 20,000 elements gigabytes. The run
-  // takes about 1 s here and 4.5 s on a CI runner under coverage, so the bound and the timeout
+  // takes about 1 s here and 4 to 7 s on a CI runner under coverage, so the bound and the timeout
   // leave room for a slow runner; the quadratic spelling takes minutes or runs out of memory.
   it("render a 20,000-element tuple in either spelling in output linear in its length", async () => {
     const elements = 20_000
@@ -264,7 +264,7 @@ describe("hostile schemas", () => {
       ],
       config,
     )
-    expect(performance.now() - started).toBeLessThan(15_000)
+    expect(performance.now() - started).toBeLessThan(20_000)
     expect(toolsFile.length).toBeLessThan(2 * elements * 20)
     expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
   }, 30_000)
@@ -418,6 +418,7 @@ describe("hostile schemas", () => {
     expect(toolsFile.length).toBeLessThan(4000)
   })
 
+  // About 2 s on a CI runner under coverage; bound and timeout as for the 20,000 elements above.
   it("render a 10,000-element tuple with bounds in output linear in its length", async () => {
     const elements = 10_000
     const list = Array.from({ length: elements }, () => ({ type: "string" }))
@@ -436,7 +437,7 @@ describe("hostile schemas", () => {
       ],
       config,
     )
-    expect(performance.now() - started).toBeLessThan(5000)
+    expect(performance.now() - started).toBeLessThan(10_000)
     expect(toolsFile.length).toBeLessThan(2 * elements * 20)
     expect(syntaxErrors(toolsFile, "tools.ts")).toEqual([])
     const [t = "", u = ""] = toolsFile.split("\n  u?: ")
@@ -446,7 +447,7 @@ describe("hostile schemas", () => {
     expect(u.match(/\bstring,/g)).toHaveLength(2_500)
     expect(u.match(/\bstring\?,/g)).toHaveLength(5_000)
     expect(u).toContain("string?,\n  ]\n}")
-  })
+  }, 30_000)
 
   // json2ts names an anonymous reference cycle after a property key, without the tool's prefix:
   // two tools sharing a recursive parameter (zod-to-json-schema's root-path refs) collided, and
