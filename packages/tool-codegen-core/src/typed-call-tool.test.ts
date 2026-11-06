@@ -4,6 +4,7 @@ import { createTypedCallTool } from "./typed-call-tool.js"
 import type {
   ToolCaller,
   ToolCallOptions,
+  ToolCallProgress,
   ToolCallResult,
   ToolInput,
   ToolMapOf,
@@ -49,6 +50,23 @@ describe("createTypedCallTool", () => {
     expect(callTool).toHaveBeenCalledExactlyOnceWith("add", args, options)
     expect(callTool.mock.calls[0]?.[1]).toBe(args)
     expect(callTool.mock.calls[0]?.[2]?.signal).toBe(signal)
+  })
+
+  it("hands the timeouts and the progress callback to the caller untouched", async () => {
+    const callTool = callerResolving({ structuredContent: [] })
+    const onprogress = vi.fn<NonNullable<ToolCallOptions["onprogress"]>>()
+    const options: ToolCallOptions = {
+      signal,
+      timeout: 120_000,
+      onprogress,
+      resetTimeoutOnProgress: true,
+      maxTotalTimeout: 600_000,
+    }
+
+    await createTypedCallTool<TestMap>(callTool)("list-items", {}, options)
+
+    expect(callTool.mock.calls[0]?.[2]).toBe(options)
+    expect(onprogress).not.toHaveBeenCalled()
   })
 
   it("passes no options when the call has none", async () => {
@@ -112,6 +130,31 @@ describe("the tool map types", () => {
     >()
     expectTypeOf(call<"add">).returns.toEqualTypeOf<Promise<AddOutput>>()
     expectTypeOf(call("list-items", {}, { signal })).toEqualTypeOf<Promise<string[]>>()
+  })
+
+  // The MCP SDK's RequestOptions, by name and type: toolCallerFromClient hands them on as they are.
+  it("takes the MCP SDK's per-request options", () => {
+    expectTypeOf<ToolCallOptions>().toEqualTypeOf<{
+      signal?: AbortSignal
+      timeout?: number
+      onprogress?: (progress: ToolCallProgress) => void
+      resetTimeoutOnProgress?: boolean
+      maxTotalTimeout?: number
+    }>()
+    expectTypeOf<ToolCallProgress>().toEqualTypeOf<{
+      progress: number
+      total?: number
+      message?: string
+    }>()
+    void call(
+      "list-items",
+      {},
+      { timeout: 1, onprogress: ({ progress, total, message }) => [progress, total, message] },
+    )
+    // @ts-expect-error the timeout is milliseconds, a number
+    void call("list-items", {}, { timeout: "60s" })
+    // @ts-expect-error an option the SDK does not know
+    void call("list-items", {}, { retries: 3 })
   })
 
   it("rejects a tool name the map does not list", () => {

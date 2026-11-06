@@ -1,5 +1,6 @@
 import {
   isToolCallError,
+  type ToolCallOptions,
   type ToolCaller,
   type ToolInput,
   type ToolMapOf,
@@ -11,33 +12,68 @@ import { callToolTyped } from "./call-tool.js"
 import { isNoToolCallerError } from "./provider.js"
 import { toolQueryKey, type ToolCallQueryKey, type ToolQueryKey } from "./query-key.js"
 
-/** What a tool query runs with, outside a component: the caller and the QueryClient. */
+/**
+ * The options a query hands its tool call: timeouts and progress, everything of
+ * `ToolCallOptions` but the signal, which TanStack owns (it aborts the call on unmount and on
+ * cancel). They are not part of the query key.
+ */
+export type ToolQueryCallOptions = Omit<ToolCallOptions, "signal">
+
+/**
+ * What a tool query runs with, outside a component: the caller, the QueryClient and the call's
+ * options.
+ */
 export interface ToolQueryContext {
   /** The caller to call the tool with; `null` fails the query with a `NoToolCallerError`. */
   callTool: ToolCaller | null
-  /** The client whose retry defaults decide failures other than the tool's own answer. */
+  /**
+   * The client whose retry defaults decide failures other than the tool's own answer and a
+   * request timeout.
+   */
   queryClient: QueryClient
+  /** Timeouts and progress for the call. */
+  callOptions?: ToolQueryCallOptions
 }
 
-/** The queryFn of a tool query: one typed call, with TanStack's abort signal. */
+/** The queryFn of a tool query: one typed call, with its options and TanStack's abort signal. */
 export function toolQueryFn<TMap extends ToolMapOf<TMap>, TName extends ToolName<TMap>>(
   callTool: ToolCaller | null,
   name: TName,
   args: ToolInput<TMap, TName>,
+  callOptions?: ToolQueryCallOptions,
 ) {
+  // The signal last: a signal smuggled into callOptions never replaces TanStack's.
   return ({ signal }: { signal: AbortSignal }) =>
-    callToolTyped<TMap, TName>(callTool, name, args, { signal })
+    callToolTyped<TMap, TName>(callTool, name, args, { ...callOptions, signal })
+}
+
+/**
+ * True for the MCP SDK's request timeout: the call's `timeout` ran out, or progress kept it alive
+ * past `maxTotalTimeout`. The v2 SDK (`@modelcontextprotocol/client`, which ext-apps' `App` runs
+ * on) rejects with an `SdkError` of code `"REQUEST_TIMEOUT"`, the v1 SDK
+ * (`@modelcontextprotocol/sdk`) with an `McpError` of code `-32001`. Read from the code alone, so
+ * the package needs no SDK and recognises the error of any copy of it. Both SDKs give a call that
+ * its signal aborted the same code; the retry rule never sees one, since TanStack settles a
+ * cancelled query before it aborts the signal.
+ */
+export function isRequestTimeout(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false
+  const { code } = error as { code?: unknown }
+  return code === "REQUEST_TIMEOUT" || code === -32001
 }
 
 /**
  * The retry of a tool query: never for a `ToolCallError` (asking the tool again gets the same
- * answer) or a `NoToolCallerError` (a caller that arrives later starts the query by itself),
- * else as the QueryClient's defaults for the key say. Read at failure time, so those defaults
- * stay in charge.
+ * answer), a `NoToolCallerError` (a caller that arrives later starts the query by itself) or a
+ * request timeout (each retry waits the whole timeout again: with `callOptions.timeout` at five
+ * minutes, TanStack's 3 retries would keep the query pending for twenty), else as the
+ * QueryClient's defaults for the key say. Read at failure time, so those defaults stay in charge.
  */
-export function retryUnlessToolError(queryClient: QueryClient, queryKey: ToolQueryKey) {
+export function toolQueryRetry(queryClient: QueryClient, queryKey: ToolQueryKey) {
   return (failureCount: number, error: Error): boolean => {
-    if (isToolCallError(error) || isNoToolCallerError(error)) return false
+    if (isToolCallError(error) || isNoToolCallerError(error) || isRequestTimeout(error)) {
+      return false
+    }
     const retry =
       queryClient.getQueryDefaults(queryKey).retry ??
       queryClient.getDefaultOptions().queries?.retry ??
@@ -64,18 +100,19 @@ export type ToolQueryOptions<
 /**
  * The options `useToolQuery` runs a tool call with, for what takes options instead of a hook:
  * `useSuspenseQuery`, `useQueries`, `queryClient.prefetchQuery` and `ensureQueryData`. The key,
- * the call (with TanStack's abort signal) and the retry rule are the hook's own.
+ * the call (with the context's `callOptions` and TanStack's abort signal) and the retry rule are
+ * the hook's own.
  */
 export function toolQueryOptions<TMap extends ToolMapOf<TMap>, TName extends ToolName<TMap>>(
   namespace: string,
   name: TName,
   args: ToolInput<TMap, TName>,
-  { callTool, queryClient }: ToolQueryContext,
+  { callTool, queryClient, callOptions }: ToolQueryContext,
 ): ToolQueryOptions<TMap, TName> {
   const queryKey = toolQueryKey<TMap, TName>(namespace, name, args)
   return {
     queryKey,
-    queryFn: toolQueryFn<TMap, TName>(callTool, name, args),
-    retry: retryUnlessToolError(queryClient, queryKey),
+    queryFn: toolQueryFn<TMap, TName>(callTool, name, args, callOptions),
+    retry: toolQueryRetry(queryClient, queryKey),
   }
 }

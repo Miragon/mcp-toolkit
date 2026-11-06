@@ -6,6 +6,8 @@ import { toolQueryKey } from "./query-key.js"
 import {
   createQueryClient,
   renderToolHook,
+  REQUEST_TIMEOUTS,
+  sdkError,
   structured,
   toolError,
   type Task,
@@ -140,6 +142,46 @@ describe("useToolQuery", () => {
     expect(signal?.aborted).toBe(true)
   })
 
+  it("hands callOptions to the caller next to TanStack's signal, and keeps them out of the key", async () => {
+    const callTool = taskCaller()
+    const onprogress = vi.fn()
+    const { result, queryClient } = renderToolHook(
+      () => useGetTask("1", { callOptions: { timeout: 120_000, onprogress } }),
+      { callTool },
+    )
+
+    await waitFor(() => expect(result.current.data).toEqual(readme))
+
+    expect(callTool).toHaveBeenCalledExactlyOnceWith(
+      "get_task",
+      { id: "1" },
+      { timeout: 120_000, onprogress, signal: expect.any(AbortSignal) as unknown },
+    )
+    const [cached] = queryClient.getQueryCache().getAll()
+    expect(cached?.queryKey).toEqual(
+      toolQueryKey<TestToolMap, "get_task">("tasks", "get_task", { id: "1" }),
+    )
+    expect(cached?.options).not.toHaveProperty("callOptions")
+  })
+
+  it("keeps TanStack's signal when callOptions carry one anyway", async () => {
+    const foreign = new AbortController().signal
+    const callTool = taskCaller()
+    const { result } = renderToolHook(
+      () =>
+        useGetTask("1", {
+          callOptions: { signal: foreign } as UseToolQueryOptions<Task>["callOptions"],
+        }),
+      { callTool },
+    )
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    const signal = callTool.mock.calls[0]?.[2]?.signal
+    expect(signal).toBeInstanceOf(AbortSignal)
+    expect(signal).not.toBe(foreign)
+  })
+
   it("maps the output with select and caches the output itself", async () => {
     const callTool = vi.fn<ToolCaller>(() => Promise.resolve(structured([readme, ship])))
     const { result, queryClient } = renderToolHook(
@@ -175,6 +217,45 @@ describe("useToolQuery retry", () => {
     expect(callTool).toHaveBeenCalledOnce()
     expect(result.current.error).toBeInstanceOf(ToolCallError)
     expect(result.current.error?.message).toBe("No task 9")
+  })
+
+  it.each(REQUEST_TIMEOUTS)(
+    "never retries %s, even when the client's defaults retry",
+    async (_label, timeout) => {
+      const callTool = vi.fn<ToolCaller>(() => Promise.reject(timeout))
+      const { result } = renderToolHook(() => useGetTask("1"), {
+        callTool,
+        queryClient: createQueryClient({ retry: 3, retryDelay: 0 }),
+      })
+
+      await waitFor(() => expect(result.current.isError).toBe(true))
+
+      expect(callTool).toHaveBeenCalledOnce()
+      expect(result.current.error).toBe(timeout)
+    },
+  )
+
+  // The v2 SDK reports any failed POST under one string code, the v1 SDK under the HTTP status.
+  it.each([
+    ["a closed connection", sdkError("SdkError", "CONNECTION_CLOSED", "Connection closed")],
+    [
+      "the v2 SDK's HTTP 503",
+      sdkError("SdkHttpError", "CLIENT_HTTP_NOT_IMPLEMENTED", "Error POSTing to endpoint: busy"),
+    ],
+    [
+      "the v1 SDK's HTTP 503",
+      sdkError("Error", 503, "Streamable HTTP error: Error POSTing to endpoint: busy"),
+    ],
+  ])("retries %s, which the next attempt may get past", async (_label, transient) => {
+    const callTool = vi.fn<ToolCaller>(() => Promise.reject(transient))
+    const { result } = renderToolHook(() => useGetTask("1"), {
+      callTool,
+      queryClient: createQueryClient({ retry: 3, retryDelay: 0 }),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(callTool).toHaveBeenCalledTimes(4)
   })
 
   it("retries any other failure 3 times when the client sets no retry", async () => {
@@ -239,5 +320,19 @@ describe("useToolQuery retry", () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     expect(callTool).toHaveBeenCalledTimes(2)
+  })
+
+  it("leaves a request timeout to an options.retry function when given", async () => {
+    const timeout = sdkError("SdkError", "REQUEST_TIMEOUT", "Request timed out")
+    const callTool = vi.fn<ToolCaller>(() => Promise.reject(timeout))
+    const retry = vi.fn<(failureCount: number, error: Error) => boolean>((count) => count < 2)
+    const { result } = renderToolHook(() => useGetTask("1", { retry, retryDelay: 0 }), {
+      callTool,
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(callTool).toHaveBeenCalledTimes(3)
+    expect(retry).toHaveBeenCalledWith(0, timeout)
   })
 })

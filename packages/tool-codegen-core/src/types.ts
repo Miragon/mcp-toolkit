@@ -8,9 +8,43 @@ export interface ToolCallResult {
   isError?: boolean
 }
 
+/** One progress notification of a running call: the MCP SDK's `Progress`. */
+export interface ToolCallProgress {
+  /** The progress so far; grows with every notification, also when the total is unknown. */
+  progress: number
+  /** The total the progress counts towards, when the server knows it. */
+  total?: number
+  /** What the tool is doing, when the server says. */
+  message?: string
+}
+
+/**
+ * Per-call options, handed to the {@link ToolCaller} untouched. The names and meanings are the MCP
+ * SDK client's `RequestOptions`, so `toolCallerFromClient` passes them on as they are; another
+ * caller (a widget host bridge, a test fake) honours what it supports.
+ */
 export interface ToolCallOptions {
-  /** Cancels the call; handed through to the transport untouched. */
+  /** Cancels the call. */
   signal?: AbortSignal
+  /** Milliseconds to wait for the result before the call fails. The MCP SDK's default: 60,000. */
+  timeout?: number
+  /**
+   * Receives the server's progress notifications for this call. Setting it asks the server for
+   * them; a server that sends none never calls it.
+   */
+  onprogress?: (progress: ToolCallProgress) => void
+  /**
+   * Starts the `timeout` again with every progress notification. Default `false`. Needs
+   * `onprogress`: a server sends progress only for a call that asks for it.
+   */
+  resetTimeoutOnProgress?: boolean
+  /**
+   * Milliseconds the call may take in all. The MCP SDK checks it only when a progress
+   * notification starts the `timeout` again (`resetTimeoutOnProgress`), and before each further
+   * round of a call that asks the client for input: the first check past it rejects the call.
+   * Without `resetTimeoutOnProgress`, `timeout` alone limits an ordinary call. Default: no limit.
+   */
+  maxTotalTimeout?: number
 }
 
 /**

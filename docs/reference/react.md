@@ -18,25 +18,26 @@ what it takes, what it returns and how it fails.
 
 ## Exports
 
-| Export                                                | Kind      | What it is                                                         |
-| ----------------------------------------------------- | --------- | ------------------------------------------------------------------ |
-| [`ToolCallerProvider`](#toolcallerprovider)           | component | supplies the `ToolCaller` for one namespace or for every other one |
-| [`useToolCaller`](#usetoolcaller)                     | hook      | the caller for a namespace, or `null` while there is none          |
-| [`useToolQuery`](#usetoolquery)                       | hook      | a tool call as a TanStack query                                    |
-| [`useToolMutation`](#usetoolmutation)                 | hook      | a tool call as a TanStack mutation                                 |
-| [`toolQueryKey`](#toolquerykey)                       | function  | the typed query key `[namespace, toolName, args]`                  |
-| [`toolQueryOptions`](#toolqueryoptions)               | function  | the options `useToolQuery` runs with, for suspense and prefetching |
-| [`isNoToolCallerError`](#isnotoolcallererror)         | function  | `true` for a `NoToolCallerError`, also one from another copy       |
-| [`NoToolCallerError`](#notoolcallererror)             | class     | a tool was called while the provider had no caller                 |
-| [`ToolCallerProviderProps`](#toolcallerproviderprops) | type      | the provider's props                                               |
-| [`UseToolQueryOptions`](#usetoolqueryoptions)         | type      | `useQuery` options without `queryKey` and `queryFn`                |
-| [`UseToolMutationOptions`](#usetoolmutationoptions)   | type      | `useMutation` options without `mutationFn`, plus `invalidates`     |
-| [`ToolMutationVariables`](#toolmutationvariables)     | type      | what `mutate()` takes                                              |
-| [`ToolQueryKey`](#toolquerykey-1)                     | type      | the runtime shape of a tool query's key                            |
-| [`ToolCallQueryKey`](#toolcallquerykey)               | type      | the key of one call, typed and tagged with the tool's output       |
-| [`ToolQueryKeyPrefix`](#toolquerykeyprefix)           | type      | one entry of `invalidates`                                         |
-| [`ToolQueryContext`](#toolquerycontext)               | type      | the last argument of `toolQueryOptions`                            |
-| [`ToolQueryOptions`](#toolqueryoptions-1)             | type      | what `toolQueryOptions` returns                                    |
+| Export                                                | Kind      | What it is                                                                       |
+| ----------------------------------------------------- | --------- | -------------------------------------------------------------------------------- |
+| [`ToolCallerProvider`](#toolcallerprovider)           | component | supplies the `ToolCaller` for one namespace or for every other one               |
+| [`useToolCaller`](#usetoolcaller)                     | hook      | the caller for a namespace, or `null` while there is none                        |
+| [`useToolQuery`](#usetoolquery)                       | hook      | a tool call as a TanStack query                                                  |
+| [`useToolMutation`](#usetoolmutation)                 | hook      | a tool call as a TanStack mutation                                               |
+| [`toolQueryKey`](#toolquerykey)                       | function  | the typed query key `[namespace, toolName, args]`                                |
+| [`toolQueryOptions`](#toolqueryoptions)               | function  | the options `useToolQuery` runs with, for suspense and prefetching               |
+| [`isNoToolCallerError`](#isnotoolcallererror)         | function  | `true` for a `NoToolCallerError`, also one from another copy                     |
+| [`NoToolCallerError`](#notoolcallererror)             | class     | a tool was called while the provider had no caller                               |
+| [`ToolCallerProviderProps`](#toolcallerproviderprops) | type      | the provider's props                                                             |
+| [`UseToolQueryOptions`](#usetoolqueryoptions)         | type      | `useQuery` options without `queryKey` and `queryFn`, plus `callOptions`          |
+| [`UseToolMutationOptions`](#usetoolmutationoptions)   | type      | `useMutation` options without `mutationFn`, plus `invalidates` and `callOptions` |
+| [`ToolQueryCallOptions`](#toolquerycalloptions)       | type      | a query's `callOptions`: `ToolCallOptions` without `signal`                      |
+| [`ToolMutationVariables`](#toolmutationvariables)     | type      | what `mutate()` takes                                                            |
+| [`ToolQueryKey`](#toolquerykey-1)                     | type      | the runtime shape of a tool query's key                                          |
+| [`ToolCallQueryKey`](#toolcallquerykey)               | type      | the key of one call, typed and tagged with the tool's output                     |
+| [`ToolQueryKeyPrefix`](#toolquerykeyprefix)           | type      | one entry of `invalidates`                                                       |
+| [`ToolQueryContext`](#toolquerycontext)               | type      | the last argument of `toolQueryOptions`                                          |
+| [`ToolQueryOptions`](#toolqueryoptions-1)             | type      | what `toolQueryOptions` returns                                                  |
 
 ## Components
 
@@ -135,7 +136,7 @@ function useToolQuery<
 | `namespace` | `string`                                      | the first element of the key and the key to the caller                                                                                                                              |
 | `name`      | `TName`                                       | the tool                                                                                                                                                                            |
 | `args`      | `ToolInput<TMap, TName>`                      | the tool's input                                                                                                                                                                    |
-| `options`   | [`UseToolQueryOptions`](#usetoolqueryoptions) | every `useQuery` option except `queryKey` and `queryFn`                                                                                                                             |
+| `options`   | [`UseToolQueryOptions`](#usetoolqueryoptions) | every `useQuery` option except `queryKey` and `queryFn`, plus `callOptions` for the tool call                                                                                       |
 
 - Returns TanStack's `UseQueryResult<TSelected, Error>` for the query cached under
   [`toolQueryKey(namespace, name, args)`](#toolquerykey). Its `data` is the tool's output, decoded
@@ -152,8 +153,15 @@ function useToolQuery<
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Waiting    | While the provider has no caller, the query is disabled on top of `options.enabled` (`status: "pending"`, `fetchStatus: "idle"`) and starts once a caller arrives. `enabled` as a boolean or a function still applies.                                                                                                                        |
 | Cancelling | TanStack's `AbortSignal` goes to the caller, so a query that unmounts or is cancelled mid-call aborts the request.                                                                                                                                                                                                                            |
-| Retry      | Without `options.retry`: a `ToolCallError` or a `NoToolCallerError` never retries; any other failure retries as the `QueryClient` says for the key (`setQueryDefaults`, then `defaultOptions.queries.retry`), 3 times when it says nothing. Read at failure time. With `options.retry`, that option decides alone, for a `ToolCallError` too. |
+| Call       | `options.callOptions` (`timeout`, `onprogress`, `resetTimeoutOnProgress`, `maxTotalTimeout`) go to the caller with that signal, on every fetch. They are not part of the key, and they take no `signal`: the query's own one would replace it.                                                                                                |
+| Retry      | Without `options.retry`: a `ToolCallError`, a `NoToolCallerError` or a request timeout (below) never retries; any other failure retries as the `QueryClient` says for the key (`setQueryDefaults`, then `defaultOptions.queries.retry`), 3 times when it says nothing. Read at failure time. With `options.retry`, that option decides alone. |
 | Key        | TanStack hashes the key by value, so args built anew on every render are fine.                                                                                                                                                                                                                                                                |
+
+A request timeout is the MCP SDK's error for a call that ran past its `timeout` or, kept alive by
+progress, past its `maxTotalTimeout`: an `SdkError` with code `REQUEST_TIMEOUT` from the v2 SDK, an
+`McpError` with code `-32001` from the v1 SDK. The hook recognises it by the code, without the SDK.
+A retry would wait the whole timeout again: with `callOptions: { timeout: 300_000 }`, TanStack's 3
+retries would keep the query pending for about 20 minutes. To retry timeouts anyway, pass `retry`.
 
 ```tsx
 import { useToolQuery } from "@miragon/mcp-toolkit-tool-codegen-react"
@@ -166,6 +174,7 @@ const count = useToolQuery<TasksToolMap, "list-tasks", number>(
   {},
   {
     select: (data) => data.tasks.length,
+    callOptions: { timeout: 120_000 },
   },
 )
 ```
@@ -196,7 +205,7 @@ function useToolMutation<
 | `TOnMutateResult` | type parameter                                      | what `onMutate` returns, the context `onError` and `onSettled` receive                                                                                                              |
 | `namespace`       | `string`                                            | the key to the caller and the default prefix to invalidate                                                                                                                          |
 | `name`            | `TName`                                             | the tool                                                                                                                                                                            |
-| `options`         | [`UseToolMutationOptions`](#usetoolmutationoptions) | every `useMutation` option except `mutationFn`, plus `invalidates`                                                                                                                  |
+| `options`         | [`UseToolMutationOptions`](#usetoolmutationoptions) | every `useMutation` option except `mutationFn`, plus `invalidates` and `callOptions`                                                                                                |
 
 - Returns TanStack's `UseMutationResult`: `mutate(args)` and `mutateAsync(args)` run the tool and
   resolve with its parsed output. For a tool whose input has no required property, `mutate()` sends
@@ -205,7 +214,9 @@ function useToolMutation<
   [`NoToolCallerError`](#notoolcallererror) (the provider has no caller) or whatever the caller
   threw, unchanged. Throws during render as [`useToolQuery`](#usetoolquery) does.
 - Leaves retries to TanStack's mutation default, no retry, unless `options.retry` says otherwise.
-  The call gets no abort signal.
+  Every call `mutate` makes gets `options.callOptions` (a
+  [`ToolCallOptions`](./core.md#toolcalloptions)), and no abort signal unless they carry one: a
+  mutation has none of its own. Once that signal is aborted, every later `mutate` fails at once.
 
 After a success, the invalidation starts first, then your `onSuccess` runs with all of TanStack's
 arguments:
@@ -227,6 +238,7 @@ import type { TasksToolMap } from "./generated/tools.js"
 const addTask = useToolMutation<TasksToolMap, "add-task">("tasks", "add-task", {
   invalidates: [["tasks", "list-tasks"]],
   onSuccess: (task) => showMessage(`${task.title} was added`),
+  callOptions: { timeout: 30_000 },
 })
 addTask.mutate({ title: "Tag the release" })
 ```
@@ -280,15 +292,16 @@ function toolQueryOptions<TMap extends ToolMapOf<TMap>, TName extends ToolName<T
 ): ToolQueryOptions<TMap, TName>
 ```
 
-| Parameter   | Type                                    | Meaning                     |
-| ----------- | --------------------------------------- | --------------------------- |
-| `namespace` | `string`                                | the codegen config's `name` |
-| `name`      | `TName`                                 | the tool                    |
-| `args`      | `ToolInput<TMap, TName>`                | the tool's input            |
-| `context`   | [`ToolQueryContext`](#toolquerycontext) | `{ callTool, queryClient }` |
+| Parameter   | Type                                    | Meaning                                   |
+| ----------- | --------------------------------------- | ----------------------------------------- |
+| `namespace` | `string`                                | the codegen config's `name`               |
+| `name`      | `TName`                                 | the tool                                  |
+| `args`      | `ToolInput<TMap, TName>`                | the tool's input                          |
+| `context`   | [`ToolQueryContext`](#toolquerycontext) | `{ callTool, queryClient, callOptions? }` |
 
-- Returns `{ queryKey, queryFn, retry }` with the key, the call (with TanStack's abort signal) and
-  the retry rule of [`useToolQuery`](#usetoolquery), for what takes options instead of a hook:
+- Returns `{ queryKey, queryFn, retry }` with the key, the call (with `context.callOptions` and
+  TanStack's abort signal) and the retry rule of [`useToolQuery`](#usetoolquery), for what takes
+  options instead of a hook:
   `useSuspenseQuery`, `useQueries`, `queryClient.prefetchQuery` and `ensureQueryData`. Spread it to
   add options: `{ ...toolQueryOptions(...), staleTime: 60_000 }`.
 - Fails the query as [`useToolQuery`](#usetoolquery) does, with one difference: with
@@ -384,11 +397,27 @@ or `undefined` while the caller is not ready.
 type UseToolQueryOptions<TOutput, TSelected = TOutput> = Omit<
   UseQueryOptions<TOutput, Error, TSelected, ToolQueryKey>,
   "queryKey" | "queryFn"
->
+> & {
+  callOptions?: ToolQueryCallOptions
+}
 ```
 
-Every `useQuery` option except the two [`useToolQuery`](#usetoolquery) owns. The generated query
-hooks take it as their `options`.
+Every `useQuery` option except the two [`useToolQuery`](#usetoolquery) owns, plus `callOptions`:
+the timeouts and the progress callback of the tool call, see
+[`ToolQueryCallOptions`](#toolquerycalloptions). The generated query hooks take it as their
+`options`: `useTasksListTasksQuery({}, { callOptions: { timeout: 120_000 } })`.
+
+### `ToolQueryCallOptions`
+
+```ts
+type ToolQueryCallOptions = Omit<ToolCallOptions, "signal">
+```
+
+The core package's [`ToolCallOptions`](./core.md#toolcalloptions) without `signal`: `timeout`,
+`onprogress`, `resetTimeoutOnProgress` and `maxTotalTimeout`. A query hands TanStack's own signal
+to the call, which aborts it on unmount and on cancel, so it takes no other. The options are not
+part of the query key: two components that query the same tool with the same args share one cache
+entry, and the call runs with the options of whichever fetches.
 
 ### `UseToolMutationOptions`
 
@@ -407,12 +436,14 @@ type UseToolMutationOptions<
   "mutationFn"
 > & {
   invalidates?: false | readonly ToolQueryKeyPrefix<TMap>[]
+  callOptions?: ToolCallOptions
 }
 ```
 
 Every `useMutation` option except `mutationFn`, plus `invalidates`: the key prefixes to invalidate
-once the tool succeeded, default `[namespace]`, `false` for none. The generated mutation hooks take
-it as their `options`.
+once the tool succeeded, default `[namespace]`, `false` for none, and `callOptions`: the
+[`ToolCallOptions`](./core.md#toolcalloptions) of every call `mutate` makes, a `signal` included.
+The generated mutation hooks take it as their `options`.
 
 ### `ToolMutationVariables`
 
@@ -468,13 +499,15 @@ one fails to compile) and more. Another server's tool cannot be named this way; 
 interface ToolQueryContext {
   callTool: ToolCaller | null
   queryClient: QueryClient
+  callOptions?: ToolQueryCallOptions
 }
 ```
 
 What a tool query runs with outside a component, the last argument of
 [`toolQueryOptions`](#toolqueryoptions). `callTool: null` fails the query with a
 [`NoToolCallerError`](#notoolcallererror); `queryClient`'s retry defaults decide failures other than
-the tool's own answer.
+the tool's own answer and a request timeout; `callOptions` go to the call as in
+[`useToolQuery`](#usetoolquery).
 
 ### `ToolQueryOptions`
 

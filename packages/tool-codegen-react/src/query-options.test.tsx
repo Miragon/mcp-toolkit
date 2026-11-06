@@ -4,10 +4,12 @@ import { renderHook, waitFor } from "@testing-library/react"
 import { Suspense, type ReactNode } from "react"
 import { describe, expect, it, vi } from "vitest"
 import { NoToolCallerError } from "./provider.js"
-import { toolQueryOptions } from "./query-options.js"
+import { isRequestTimeout, toolQueryOptions } from "./query-options.js"
 import {
   createQueryClient,
   renderToolHook,
+  REQUEST_TIMEOUTS,
+  sdkError,
   structured,
   toolError,
   type Task,
@@ -54,6 +56,25 @@ describe("toolQueryOptions", () => {
     )
   })
 
+  it("hands the context's callOptions to the call, next to the query's abort signal", async () => {
+    const callTool = vi.fn<ToolCaller>(() => Promise.resolve(structured(readme)))
+    const queryClient = createQueryClient()
+    const options = toolQueryOptions<TestToolMap, "get_task">(
+      "tasks",
+      "get_task",
+      { id: "1" },
+      { callTool, queryClient, callOptions: { timeout: 5_000, resetTimeoutOnProgress: true } },
+    )
+
+    expect(await queryClient.fetchQuery(options)).toEqual(readme)
+    expect(options.queryKey).toEqual(getTask(callTool).queryKey)
+    expect(callTool).toHaveBeenCalledExactlyOnceWith(
+      "get_task",
+      { id: "1" },
+      { timeout: 5_000, resetTimeoutOnProgress: true, signal: expect.any(AbortSignal) as unknown },
+    )
+  })
+
   it("never retries a ToolCallError or a NoToolCallerError, whatever the client's defaults", async () => {
     const queryClient = createQueryClient({ retry: 3, retryDelay: 0 })
     const callTool = vi.fn<ToolCaller>(() => Promise.resolve(toolError("No task 1")))
@@ -67,6 +88,17 @@ describe("toolQueryOptions", () => {
       NoToolCallerError,
     )
   })
+
+  it.each(REQUEST_TIMEOUTS)(
+    "never retries %s, whatever the client's defaults",
+    async (_label, timeout) => {
+      const queryClient = createQueryClient({ retry: 3, retryDelay: 0 })
+      const callTool = vi.fn<ToolCaller>(() => Promise.reject(timeout))
+
+      await expect(queryClient.fetchQuery(getTask(callTool, queryClient))).rejects.toBe(timeout)
+      expect(callTool).toHaveBeenCalledOnce()
+    },
+  )
 
   it("retries any other failure as the client's defaults say", async () => {
     const queryClient = createQueryClient({ retry: 2, retryDelay: 0 })
@@ -90,5 +122,31 @@ describe("toolQueryOptions", () => {
     })
 
     await waitFor(() => expect(result.current).toEqual(readme))
+  })
+})
+
+describe("isRequestTimeout", () => {
+  it.each(REQUEST_TIMEOUTS)("is true for %s", (_label, timeout) => {
+    expect(isRequestTimeout(timeout)).toBe(true)
+  })
+
+  it.each([
+    ["a plain Error with the SDK's message", new Error("Request timed out")],
+    ["another SDK code", sdkError("SdkError", "CONNECTION_CLOSED", "Connection closed")],
+    [
+      "the v2 SDK's HTTP 504",
+      sdkError(
+        "SdkHttpError",
+        "CLIENT_HTTP_NOT_IMPLEMENTED",
+        "Error POSTing to endpoint: Gateway Timeout",
+      ),
+    ],
+    ["the v1 SDK's HTTP 504", sdkError("Error", 504, "Streamable HTTP error: Gateway Timeout")],
+    ["the v1 code as a string", { code: "-32001" }],
+    ["null", null],
+    ["undefined", undefined],
+    ["a string", "REQUEST_TIMEOUT"],
+  ])("is false for %s", (_label, value) => {
+    expect(isRequestTimeout(value)).toBe(false)
   })
 })

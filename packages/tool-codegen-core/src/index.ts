@@ -1,5 +1,6 @@
 export type {
   ToolCallOptions,
+  ToolCallProgress,
   ToolCaller,
   ToolCallResult,
   ToolInput,

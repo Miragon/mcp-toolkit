@@ -24,6 +24,25 @@ export function toolError(text: string): ToolCallResult {
   return { isError: true, content: [{ type: "text", text }] }
 }
 
+/** An error as an MCP SDK client rejects with: its name, code and message, without the SDK. */
+export function sdkError(name: string, code: string | number, message: string): Error {
+  return Object.assign(new Error(message), { name, code })
+}
+
+/**
+ * The request timeouts of the MCP SDK clients, as `@modelcontextprotocol/client` 2.3.1 and 2.4.0
+ * and `@modelcontextprotocol/sdk` 1.32.2 reject. The example's call-options test pins the v2 ones
+ * against the real SDK.
+ */
+export const REQUEST_TIMEOUTS: [label: string, error: Error][] = [
+  ["the v2 SDK's timeout", sdkError("SdkError", "REQUEST_TIMEOUT", "Request timed out")],
+  [
+    "the v2 SDK's maxTotalTimeout",
+    sdkError("SdkError", "REQUEST_TIMEOUT", "Maximum total timeout exceeded"),
+  ],
+  ["the v1 SDK's timeout", sdkError("McpError", -32001, "MCP error -32001: Request timed out")],
+]
+
 /**
  * A fresh client per test. Retries are off unless a test is about retrying and passes its own
  * defaults; `gcTime: Infinity` keeps the cache from scheduling garbage collection timers.
