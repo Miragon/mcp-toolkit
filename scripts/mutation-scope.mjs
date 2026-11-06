@@ -31,11 +31,13 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
   const [base, head] = process.argv.slice(2)
   if (!base || !head) throw new Error("usage: node scripts/mutation-scope.mjs <base> <head>")
   // --no-renames lists a moved file under its old path too, so a file moved out of a package
-  // counts. A failing git throws: no output, and the gate runs.
-  const files = execFileSync("git", ["diff", "--name-only", "--no-renames", base, head], {
+  // counts. -z prints each path verbatim: without it git quotes a path with a non-ASCII or
+  // special character ("packages/…\303\244.ts"), which no pattern matches. A failing git
+  // throws: no output, and the gate runs.
+  const files = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", base, head], {
     encoding: "utf8",
   })
-    .split("\n")
+    .split("\0")
     .filter(Boolean)
   console.log(`mutation=${inMutationScope(files)}`)
 }

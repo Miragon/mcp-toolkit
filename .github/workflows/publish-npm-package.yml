@@ -63,7 +63,8 @@ jobs:
           if gh api --silent "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag"; then
             ref="refs/tags/$tag"
           elif [ "$DRY_RUN" = "true" ]; then
-            # A version without a tag yet (the Release PR's branch): merging tags this commit.
+            # A version without a tag yet (the Release PR's branch): the release tags its squash
+            # merge, which holds this commit's tree while the Release PR is up to date with main.
             echo "::notice::$tag is not tagged yet: the dry run packs $GITHUB_SHA"
             ref="$GITHUB_SHA"
           else

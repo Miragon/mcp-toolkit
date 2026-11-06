@@ -131,36 +131,38 @@ describe("publish-npm-package.yml", () => {
     ([, job]) => job.permissions?.["id-token"] === "write",
   )
   const resolveTag = steps(jobs.pack).find((step) => step.id === "release")
+  const packStep = steps(jobs.pack).find((step) => step.id === "pack")
 
-  /** Runs the pack job's "Resolve the release tag" step against a stubbed `gh api`. */
-  const runResolveTag = ({ tag = "", dryRun = false, version = "3.0.1", tags = [] }) => {
+  /**
+   * Runs a step's script in a scratch checkout holding `files`, with the commands in `stubs`
+   * (name → bash script) first on the PATH; returns its exit status, outputs and log.
+   */
+  const runStep = (step, { files, stubs, env }) => {
     const dir = scratch()
-    const bin = path.join(dir, "bin")
-    mkdirSync(bin)
-    // gh api --silent repos/<repo>/git/ref/tags/<tag>: found only for the tags in STUB_TAGS.
-    writeFileSync(
-      path.join(bin, "gh"),
-      '#!/usr/bin/env bash\ntag="${!#}"; tag="${tag##*/tags/}"\n' +
-        'for t in $STUB_TAGS; do [ "$t" = "$tag" ] && exit 0; done\n' +
-        'echo "gh: Not Found (HTTP 404)" >&2; exit 1\n',
-    )
-    chmodSync(path.join(bin, "gh"), 0o755)
-    writeFileSync(path.join(dir, "package.json"), JSON.stringify({ version }))
-    writeFileSync(path.join(dir, "step.sh"), resolveTag.run)
+    const [bin, checkout, runnerTemp] = ["bin", "checkout", "runner-temp"].map((name) => {
+      mkdirSync(path.join(dir, name))
+      return path.join(dir, name)
+    })
+    for (const [name, script] of Object.entries(stubs)) {
+      writeFileSync(path.join(bin, name), `#!/usr/bin/env bash\n${script}`)
+      chmodSync(path.join(bin, name), 0o755)
+    }
+    for (const [file, content] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(checkout, file)), { recursive: true })
+      writeFileSync(path.join(checkout, file), content)
+    }
+    writeFileSync(path.join(dir, "step.sh"), step.run)
     const output = path.join(dir, "output")
     writeFileSync(output, "")
     // bash -e is how GitHub runs a step without a shell of its own.
-    const run = spawnSync("bash", ["-e", "step.sh"], {
-      cwd: dir,
+    const run = spawnSync("bash", ["-e", path.join(dir, "step.sh")], {
+      cwd: checkout,
       encoding: "utf8",
       env: {
         PATH: `${bin}${path.delimiter}${process.env.PATH}`,
-        TAG: tag,
-        DRY_RUN: String(dryRun),
         GITHUB_OUTPUT: output,
-        GITHUB_REPOSITORY: "Miragon/mcp-toolkit",
-        GITHUB_SHA: "0123abcd",
-        STUB_TAGS: tags.join(" "),
+        RUNNER_TEMP: runnerTemp,
+        ...env,
       },
     })
     const outputs = Object.fromEntries(
@@ -171,6 +173,45 @@ describe("publish-npm-package.yml", () => {
     )
     return { status: run.status, outputs, log: run.stdout + run.stderr }
   }
+
+  /** Runs the pack job's "Resolve the release tag" step against a stubbed `gh api`. */
+  const runResolveTag = ({ tag = "", dryRun = false, version = "3.0.1", tags = [] }) =>
+    runStep(resolveTag, {
+      files: { "package.json": JSON.stringify({ version }) },
+      // gh api --silent repos/<repo>/git/ref/tags/<tag>: found only for the tags in STUB_TAGS.
+      stubs: {
+        gh:
+          'tag="${!#}"; tag="${tag##*/tags/}"\n' +
+          'for t in $STUB_TAGS; do [ "$t" = "$tag" ] && exit 0; done\n' +
+          'echo "gh: Not Found (HTTP 404)" >&2; exit 1\n',
+      },
+      env: {
+        TAG: tag,
+        DRY_RUN: String(dryRun),
+        GITHUB_REPOSITORY: "Miragon/mcp-toolkit",
+        GITHUB_SHA: "0123abcd",
+        STUB_TAGS: tags.join(" "),
+      },
+    })
+
+  /** Runs the pack job's "Pack" step for tool-codegen against a stubbed `npm view` and `pnpm pack`. */
+  const codegen = "@miragon/mcp-toolkit-tool-codegen"
+  const runPack = ({ tag, version, published }) =>
+    runStep(packStep, {
+      files: { "packages/tool-codegen/package.json": JSON.stringify({ name: codegen, version }) },
+      stubs: {
+        // npm view <name>@<version> version: found only for the specs in STUB_PUBLISHED.
+        npm:
+          '[ "$1" = view ] || exit 2\n' +
+          'for p in $STUB_PUBLISHED; do [ "$p" = "$2" ] && exit 0; done\n' +
+          "exit 1\n",
+        // pnpm pack --pack-destination <dir>, in the package: the tarball of its version.
+        pnpm:
+          '[ "$1 $2" = "pack --pack-destination" ] || exit 2\n' +
+          `touch "$3/package-$(node -p "require('./package.json').version").tgz"\n`,
+      },
+      env: { PACKAGE: "tool-codegen", TAG: tag, STUB_PUBLISHED: published.join(" ") },
+    })
 
   it("asks for the id-token in one job only, in the npm environment", () => {
     assert.deepEqual(permissions, { contents: "read" })
@@ -282,10 +323,19 @@ describe("publish-npm-package.yml", () => {
 
   // Else a tag that holds an older version would be skipped as already published.
   it("refuses to pack a package whose version is not the tag's", () => {
-    const pack = steps(jobs.pack).find((step) => step.id === "pack")
-    const versionCheck = pack.run.indexOf('if [ "v$version" != "$TAG" ]; then')
-    assert.ok(versionCheck > 0)
-    assert.ok(versionCheck < pack.run.indexOf("npm view"))
+    const run = runPack({ tag: "v3.0.1", version: "3.0.0", published: [`${codegen}@3.0.0`] })
+    assert.notEqual(run.status, 0)
+    assert.deepEqual(run.outputs, {})
+    assert.match(run.log, /@miragon\/mcp-toolkit-tool-codegen is at 3\.0\.0 in v3\.0\.1/)
+  })
+
+  it("skips a version that is on npm and packs one that is not", () => {
+    const published = runPack({ tag: "v3.0.1", version: "3.0.1", published: [`${codegen}@3.0.1`] })
+    assert.equal(published.status, 0)
+    assert.deepEqual(published.outputs, { published: "true" })
+    const fresh = runPack({ tag: "v3.0.1", version: "3.0.1", published: [`${codegen}@3.0.0`] })
+    assert.equal(fresh.status, 0)
+    assert.deepEqual(fresh.outputs, { tarball: "package-3.0.1.tgz", published: "false" })
   })
 })
 
@@ -498,6 +548,16 @@ describe("mutation-scope.mjs", () => {
     const before = { "packages/tool-codegen/src/a.ts": "a\n".repeat(20), "docs/index.md": "b" }
     const run = scopeOfCommit(before, (git) => {
       git("mv", "packages/tool-codegen/src/a.ts", "docs/a.ts")
+    })
+    assert.equal(run.stdout, "mutation=true\n")
+  })
+
+  // Without -z git prints such a path quoted ("packages/…\303\244.hbs"), which no pattern matches.
+  it("counts a path with a non-ASCII character in a mutated package", () => {
+    const run = scopeOfCommit({ "docs/index.md": "a" }, (git, dir) => {
+      mkdirSync(path.join(dir, "packages/tool-codegen/templates"), { recursive: true })
+      writeFileSync(path.join(dir, "packages/tool-codegen/templates/ä.hbs"), "b")
+      git("add", ".")
     })
     assert.equal(run.stdout, "mutation=true\n")
   })
