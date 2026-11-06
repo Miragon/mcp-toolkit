@@ -1,6 +1,6 @@
 {
   "name": "@miragon/mcp-toolkit-tool-codegen-core",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "description": "Framework-free runtime for typed MCP tool calls: the ToolCaller contract, the typed call and client the codegen emits, and tool-result parsing. No React, no Node APIs.",
   "license": "MIT",
   "repository": {
