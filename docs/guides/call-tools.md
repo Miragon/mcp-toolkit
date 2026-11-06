@@ -24,7 +24,7 @@ The generated `tools.ts` imports the core package, and the MCP SDK v2 client con
 (`examples/tasks` has both):
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-core @modelcontextprotocol/client
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@3 @modelcontextprotocol/client
 ```
 
 Keep the core on the same minor version as the generator that wrote `tools.ts`. The core has no

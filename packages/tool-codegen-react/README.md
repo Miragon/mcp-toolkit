@@ -11,7 +11,7 @@ server's queries on success.
 ## Install
 
 ```sh
-pnpm add @miragon/mcp-toolkit-tool-codegen-react @miragon/mcp-toolkit-tool-codegen-core @tanstack/react-query
+pnpm add @miragon/mcp-toolkit-tool-codegen-react@3 @miragon/mcp-toolkit-tool-codegen-core@3 @tanstack/react-query
 ```
 
 ## Usage

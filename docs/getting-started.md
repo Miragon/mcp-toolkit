@@ -46,8 +46,8 @@ and the MCP SDK client connects to the server:
 ```sh
 mkdir tasks-client && cd tasks-client
 echo '{ "name": "tasks-client", "private": true, "type": "module" }' > package.json
-pnpm add -D @miragon/mcp-toolkit-tool-codegen typescript
-pnpm add @miragon/mcp-toolkit-tool-codegen-core @modelcontextprotocol/client
+pnpm add -D @miragon/mcp-toolkit-tool-codegen@3 typescript
+pnpm add @miragon/mcp-toolkit-tool-codegen-core@3 @modelcontextprotocol/client
 ```
 
 `"type": "module"` lets Node.js load the config and the script below as ES modules. `inspect`

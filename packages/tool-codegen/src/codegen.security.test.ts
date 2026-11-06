@@ -19,6 +19,8 @@ import type { CodegenConfig } from "./config.js"
 import type { ToolDescriptor } from "./fetch-tools.js"
 import { syntaxErrors, topLevelDeclarations, typeErrors } from "./test-support/typescript.js"
 
+// Each test that runs typeErrors, a full TypeScript program, sets a 30 s timeout (see typeErrors).
+
 const config: CodegenConfig = { name: "evil", url: "http://localhost/mcp", out: "out", react: true }
 
 const FIXED_NAMES = [
@@ -126,7 +128,7 @@ describe("hostile tool names", () => {
     expect(invisibleCharacters(toolsFile)).toEqual([])
     expect(invisibleCharacters(hooksFile)).toEqual([])
     expect(typeErrors({ "tools.ts": toolsFile, "hooks.tsx": hooksFile })).toEqual([])
-  })
+  }, 30_000)
 
   it("fail when two tools produce the same identifier, naming both", async () => {
     await expect(renderCodegen([tool("get-task"), tool("get_task")], config)).rejects.toThrow(
@@ -212,29 +214,33 @@ describe("hostile schemas", () => {
   it.each([
     ["targets reached by path", (k: number) => `#/properties/p${k}`, {}],
     ["$refs with sibling keywords", (k: number) => `#/$defs/P${k}`, { description: "d" }],
-  ])("render a 24-level chain of %s once each, quickly", async (_label, ref, siblings) => {
-    const levels = 24
-    const properties: Record<string, unknown> = { p0: { type: "string" } }
-    const $defs: Record<string, unknown> = { P0: { type: "string" } }
-    for (let k = 1; k <= levels; k++) {
-      const node = {
-        anyOf: [
-          { $ref: ref(k - 1), ...siblings },
-          { type: "array", items: { $ref: ref(k - 1), ...siblings } },
-        ],
+  ])(
+    "render a 24-level chain of %s once each, quickly",
+    async (_label, ref, siblings) => {
+      const levels = 24
+      const properties: Record<string, unknown> = { p0: { type: "string" } }
+      const $defs: Record<string, unknown> = { P0: { type: "string" } }
+      for (let k = 1; k <= levels; k++) {
+        const node = {
+          anyOf: [
+            { $ref: ref(k - 1), ...siblings },
+            { type: "array", items: { $ref: ref(k - 1), ...siblings } },
+          ],
+        }
+        properties[`p${k}`] = node
+        $defs[`P${k}`] = node
       }
-      properties[`p${k}`] = node
-      $defs[`P${k}`] = node
-    }
-    const started = performance.now()
-    const { toolsFile } = await renderCodegen(
-      [tool("chain", { inputSchema: { type: "object", properties, $defs } })],
-      config,
-    )
-    expect(performance.now() - started).toBeLessThan(2000)
-    expect(toolsFile.length).toBeLessThan(20_000)
-    expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
-  })
+      const started = performance.now()
+      const { toolsFile } = await renderCodegen(
+        [tool("chain", { inputSchema: { type: "object", properties, $defs } })],
+        config,
+      )
+      expect(performance.now() - started).toBeLessThan(2000)
+      expect(toolsFile.length).toBeLessThan(20_000)
+      expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
+    },
+    30_000,
+  )
 
   // json2ts names an anonymous reference cycle after a property key, without the tool's prefix:
   // two tools sharing a recursive parameter (zod-to-json-schema's root-path refs) collided, and
@@ -268,7 +274,7 @@ describe("hostile schemas", () => {
     expect(toolsFile).toContain("export type EvilReturnsInputReturnType =")
     expect(toolsFile).toContain("export type EvilRecordsInputRecord =")
     expect(typeErrors({ "tools.ts": toolsFile, "hooks.tsx": hooksFile })).toEqual([])
-  })
+  }, 30_000)
 
   it("fail rather than emit a declaration json2ts named without the tool's prefix", async () => {
     // compileSchema without normalizeRefs: the root-path cycle json2ts names after its key.
@@ -312,7 +318,7 @@ describe("hostile schemas", () => {
     for (const [i] of refs.entries())
       expect(toolsFile).toContain(`  r${i}${i === 0 ? "" : "?"}: unknown\n`)
     expect(typeErrors({ "tools.ts": toolsFile })).toEqual([])
-  })
+  }, 30_000)
   it("never emit tsType or tsEnumNames, at any depth", async () => {
     const { toolsFile } = await renderCodegen(
       [
@@ -486,7 +492,7 @@ describe("hostile text", () => {
     expect(toolsFile).toContain(`  "раssword"?: string\n`)
     expect(toolsFile).toContain(`  "a\\udb40\\udc62"?: "v\\u2060"\n`)
     expect(typeErrors({ "tools.ts": toolsFile, "hooks.tsx": hooksFile })).toEqual([])
-  })
+  }, 30_000)
 
   // TypeScript reads `/** @ts-ignore */` as a directive for the generated line below it.
   it("cannot become a TypeScript comment directive", async () => {
@@ -509,7 +515,7 @@ describe("hostile text", () => {
     expect(toolsFile).not.toMatch(/\/\*\* @ts-/)
     expect(hooksFile).not.toMatch(/\/\*\* @ts-/)
     expect(typeErrors({ "tools.ts": toolsFile, "hooks.tsx": hooksFile })).toEqual([])
-  })
+  }, 30_000)
 })
 
 describe("$ref resolution", () => {

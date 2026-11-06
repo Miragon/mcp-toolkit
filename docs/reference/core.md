@@ -7,7 +7,7 @@ what it takes, what it returns and how it fails.
   <dt>Package</dt>
   <dd><code>@miragon/mcp-toolkit-tool-codegen-core</code></dd>
   <dt>Install</dt>
-  <dd><code>pnpm add @miragon/mcp-toolkit-tool-codegen-core</code></dd>
+  <dd><code>pnpm add @miragon/mcp-toolkit-tool-codegen-core@3</code></dd>
   <dt>Imported by</dt>
   <dd>the generated <code>tools.ts</code> and <code>@miragon/mcp-toolkit-tool-codegen-react</code></dd>
   <dt>Runs in</dt>

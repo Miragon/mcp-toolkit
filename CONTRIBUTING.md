@@ -4,7 +4,7 @@
 
 We're currently not accepting pull requests from outside the team. We don't have the resources to fully review and validate external contributions, so we can't guarantee that a merged change keeps the project free of bugs, free of security vulnerabilities or malicious code, and consistent with requirements that make sense for it. Pull requests opened by external contributors will be closed.
 
-If you've found a bug or have an idea, please [open an issue](https://github.com/Miragon/mcp-toolkit/issues/new) instead. We read every one, and it's the best way to get something onto our radar.
+If you've found a bug or have an idea, please [open an issue](https://github.com/Miragon/mcp-toolkit/issues/new) instead. We read every one, and it's the best way to get something onto our radar. A security vulnerability never goes into an issue: report it privately as [`SECURITY.md`](SECURITY.md) describes.
 
 ## Setup
 
@@ -56,6 +56,12 @@ The docs site lives in `docs/`: a VitePress site, the workspace package
 `pnpm-workspace.yaml` or the generator's `package.json` (the landing page shows its version and
 Node.js range, so a release deploys the site again). The pages are the Markdown files in `docs/`; navigation and sidebar are in
 `docs/.vitepress/config.ts`. Dependabot leaves the docs pins alone: they move with a kit release.
+
+The 2.x site had other pages under the same base. Each one has a redirect stub in `docs/public/`
+at the path it was served from, which sends the reader to the page that took over its topic or to
+its file at the tag `v2.9.0`, and the 404 page names that tag (`docs/.vitepress/theme/Layout.vue`).
+`scripts/docs-redirects.test.mjs` fails when a stub points at a page that no longer exists or
+shadows one: rename or remove a page, and update the stubs that point at it.
 
 The site is the one home of the user documentation. The READMEs, which npm shows, only say what a
 package is, show one example and link to the site. A change users see (a config key, a CLI flag
@@ -117,19 +123,29 @@ run.
 Trusted publishing is configured per package on npmjs.com (Settings → Trusted publishing → GitHub
 Actions): this repository, the workflow `release-please.yml` (npm checks the calling workflow, not
 the reusable one) and the environment `npm`. `npm trust list @miragon/mcp-toolkit-tool-codegen`
-shows the configuration that works; copy it. The `npm` environment should allow `main` only and ask
-for a reviewer, which is what binds publishing to `main`.
+shows the configuration that works; copy it.
 
-### The first release of a new package
+The `npm` environment has no protection rules (owner decision): no branch rule and no required
+reviewer. What keeps publishing on `main` is the workflow itself, whose publish jobs run only for a
+release that release-please created on `main` or for `force_publish` dispatched on `main`
+(`scripts/release-config.test.mjs` pins that condition). npm does not check the branch either, so
+the boundary is write access to this repository: a changed copy of the workflow, dispatched from
+another branch, could publish.
+
+### Adding a package
 
 A package that is not on npm yet has no trusted-publishing settings, and npm expires a new
-configuration that sees no publish within two days. For the first release of
-`@miragon/mcp-toolkit-tool-codegen-core` and `-react` (3.0.0), before merging its Release PR:
+configuration that sees no publish within two days. To release a new package under `packages/`:
 
-1. Publish a placeholder of each by hand with pnpm (which rewrites the `workspace:` ranges), for
-   example with the version set to `0.0.0-bootstrap.0` locally and
-   `pnpm publish --access public --tag bootstrap`. npm may point `latest` at it until 3.0.0
-   replaces it.
-2. Configure each package's trusted publisher as above.
-3. Merge the Release PR within two days: its OIDC publish of 3.0.0 validates the configuration.
-   Do not publish 3.0.0 by hand.
+1. Wire it into the release: its `package.json` version in the `extra-files` of
+   `release-please-config.json` (one version for every package), and a publish job in
+   `release-please.yml` after the jobs of the packages it imports, with the same `if` as the
+   others. Extend the publish-order test in `scripts/release-config.test.mjs` with it.
+2. Publish a placeholder by hand with pnpm, which rewrites the `workspace:` ranges: in the
+   package's directory, set its version to `0.0.0-bootstrap.0` locally (do not commit it) and run
+   `pnpm publish --access public --tag bootstrap`. npm may point `latest` at the placeholder until
+   the first release replaces it.
+3. Configure the package's trusted publisher as above.
+4. Within two days of step 3, merge the Release PR that first carries the package (a `feat` or `fix`
+   commit opens one): its OIDC publish validates the configuration. Do not publish the release
+   version by hand.

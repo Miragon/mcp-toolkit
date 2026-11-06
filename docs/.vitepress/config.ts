@@ -14,6 +14,8 @@ export default miragonDocs({
   // MIT, the owner's decision; the LICENSE file and the packages' license fields come with the
   // license pull request, which merges before this site goes live.
   footerMessage: "Released under the MIT License.",
+  // VitePress appends each page's path without the base, so the hostname carries /mcp-toolkit/.
+  sitemap: { hostname: "https://miragon.github.io/mcp-toolkit/" },
   socialLinks: [
     {
       icon: "npm",
