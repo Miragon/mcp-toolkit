@@ -53,7 +53,11 @@ pnpm resolves no version published less than 7 days ago, direct or transitive
 the two stay equal: Dependabot runs pnpm under its cooldown, and pnpm 10 checks every version
 already in the lockfile against it, so one younger version in the lockfile stops every Dependabot
 update. A release you need sooner goes into `minimumReleaseAgeExclude` as `name@version`, with the
-reason, and comes out once it is 7 days old.
+reason, and comes out once it is 7 days old. A security update is the exception: Dependabot runs
+it without the window, so its fix can be younger and then holds up the version updates until it is
+7 days old. pnpm skips the check for a version already in its store, so a local `pnpm update` can
+pass where Dependabot, which starts with an empty store, fails; to reproduce a Dependabot run, give
+its command `--config.store-dir` with an empty directory.
 
 ## Docs
 

@@ -15,10 +15,11 @@ updates:
       include: "scope"
     open-pull-requests-limit: 10
     # One window for every update type, equal to pnpm's minimumReleaseAge (pnpm-workspace.yaml):
-    # Dependabot hands its cooldown to pnpm as the minimum release age, and pnpm checks the versions
-    # already in the lockfile against it. A window longer than pnpm's fails every update on a
-    # locked version between the two (ERR_PNPM_NO_MATURE_MATCHING_VERSION, "update_not_possible");
-    # a shorter one proposes versions pnpm then refuses. Security updates skip both windows.
+    # Dependabot hands a cooldown longer than pnpm's window to pnpm as the minimum release age, and
+    # pnpm checks the versions already in the lockfile against it, so a longer one fails every
+    # update on a locked version between the two (ERR_PNPM_NO_MATURE_MATCHING_VERSION,
+    # "update_not_possible"). A shorter one has no effect: Dependabot raises every cooldown to
+    # pnpm's window. Security updates skip both windows.
     cooldown:
       default-days: 7
     ignore:

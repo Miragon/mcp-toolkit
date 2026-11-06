@@ -19,5 +19,6 @@ peerDependencyRules:
 # window of Dependabot's npm cooldown (.github/dependabot.yml), and scripts/release-config.test.mjs
 # holds the two equal. Dependabot runs pnpm under its cooldown, and on an update pnpm 10 checks every
 # version already in the lockfile against that window: one younger version anywhere in the workspace
-# fails every update. With this window no lockfile change brings in a younger one.
+# fails every update. With this window only a security update, which Dependabot runs without one,
+# brings in a younger version.
 minimumReleaseAge: 10080

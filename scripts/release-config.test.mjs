@@ -120,9 +120,10 @@ describe("dependabot.yml", () => {
     assert.deepEqual(byEcosystem["github-actions"]["commit-message"], { prefix: "ci" })
   })
 
-  // Dependabot runs pnpm with its cooldown as the minimum release age, and pnpm checks every
-  // locked version against it. A longer cooldown than pnpm's own window fails every update on a
-  // version that window let into the lockfile; a shorter one proposes versions pnpm refuses.
+  // Dependabot runs pnpm with a cooldown longer than pnpm's own window as the minimum release age,
+  // and pnpm checks every locked version against it: every update fails on a version that window
+  // let into the lockfile. A shorter cooldown is dead config, since Dependabot raises it to pnpm's
+  // window.
   it("cools npm updates down for exactly pnpm's minimumReleaseAge, one window for every type", () => {
     const { minimumReleaseAge } = yaml.load(read("pnpm-workspace.yaml"))
     const days = minimumReleaseAge / (24 * 60)
