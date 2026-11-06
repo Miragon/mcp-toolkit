@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 This changelog is generated from the conventional-commit history that preceded
 release-please. Future entries are written by release-please on tagged releases.
 
+## [3.1.1](https://github.com/Miragon/mcp-toolkit/compare/v3.1.0...v3.1.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **tool-codegen-react:** keep TanStack's no-retry default for a tool query on the server ([f9d2c59](https://github.com/Miragon/mcp-toolkit/commit/f9d2c5912c29c6b8a4876525f93530c2aacebf8b))
+* **tool-codegen-react:** retry a server's -32001 error instead of reading it as a timeout ([f9d2c59](https://github.com/Miragon/mcp-toolkit/commit/f9d2c5912c29c6b8a4876525f93530c2aacebf8b))
+* **tool-codegen:** clean what the MCP SDK prints while the tools are fetched ([f9d2c59](https://github.com/Miragon/mcp-toolkit/commit/f9d2c5912c29c6b8a4876525f93530c2aacebf8b))
+* **tool-codegen:** keep a type list beside a composition from aborting generate ([f9d2c59](https://github.com/Miragon/mcp-toolkit/commit/f9d2c5912c29c6b8a4876525f93530c2aacebf8b))
+* **tool-codegen:** split GitHub Actions' ##[ commands in server text ([f9d2c59](https://github.com/Miragon/mcp-toolkit/commit/f9d2c5912c29c6b8a4876525f93530c2aacebf8b))
+* **tool-codegen:** type object and array keywords for their own types only ([f9d2c59](https://github.com/Miragon/mcp-toolkit/commit/f9d2c5912c29c6b8a4876525f93530c2aacebf8b))
+
 ## [3.1.0](https://github.com/Miragon/mcp-toolkit/compare/v3.0.0...v3.1.0) (2026-11-06)
 
 
