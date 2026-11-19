@@ -35,7 +35,7 @@
 import { spawn } from "node:child_process"
 import { readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { githubSlug } from "../.vitepress/miragon/slug.mjs"
+import { githubSlug } from "@miragon/docs-starter/slug"
 
 const REPO = path.resolve(import.meta.dirname, "../..")
 const EXAMPLE = path.join(REPO, "examples/tasks")

@@ -52,9 +52,7 @@ export default defineConfig(
       "**/coverage/",
       "**/reports/",
       "**/.stryker-tmp/",
-      // The Miragon docs kit, vendored byte for byte from Miragon/corporate-identity and linted
-      // there; check.mjs pins the copy. VitePress' cache is build output.
-      "docs/.vitepress/miragon/",
+      // VitePress' cache is build output.
       "docs/.vitepress/cache/",
     ],
   },
@@ -99,18 +97,18 @@ export default defineConfig(
     rules: { "no-console": "off" },
   },
 
-  // The docs site (docs/.vitepress/): Vite bundles it, tsc emits nothing, so imports stay as
-  // VitePress and the docs kit write them ("./miragon/config", "../miragon/theme"), without the
-  // compiled extension the packages need.
+  // The docs site (docs/.vitepress/): Vite bundles it, tsc emits nothing, so imports name the
+  // source file as Vite resolves it ("./HomeLanding.vue", "./Layout.vue"), not the compiled
+  // extension the packages need.
   {
     files: ["docs/.vitepress/**/*.ts"],
     rules: { "no-restricted-syntax": "off" },
   },
 
   // The landing page's data script (docs/shots/): Node runs the .ts itself, so its imports name
-  // the file on disk ("../.vitepress/miragon/slug.mjs"), and its output is the console. It sits
-  // in no tsconfig of its own; the example's program holds it through the drift test that
-  // imports it (examples/tasks/test/docs-landing.test.ts), with the Node types it needs.
+  // the file on disk, and its output is the console. It sits in no tsconfig of its own; the
+  // example's program holds it through the drift test that imports it
+  // (examples/tasks/test/docs-landing.test.ts), with the Node types it needs.
   {
     files: ["docs/shots/**/*.ts"],
     languageOptions: {

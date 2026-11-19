@@ -4,7 +4,7 @@
 // their old pages redirect from docs/public/. The default theme exports no NotFound, so the
 // import names its file.
 import VPNotFound from "vitepress/dist/client/theme-default/NotFound.vue"
-import MiragonTheme from "../miragon/theme"
+import MiragonTheme from "@miragon/docs-starter/theme"
 
 const MiragonLayout = MiragonTheme.Layout
 </script>

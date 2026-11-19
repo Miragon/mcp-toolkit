@@ -1,9 +1,9 @@
 name: Docs
 
 # The docs (docs/) as a VitePress site on GitHub Pages: https://miragon.github.io/mcp-toolkit/.
-# A pull request that touches docs/ checks the vendored Miragon docs kit and builds the site
+# A pull request that touches docs/ builds the site with the Miragon docs kit (@miragon/docs-starter)
 # (VitePress fails the build on a dead link). A push to main also deploys it.
-# Template from Miragon/corporate-identity (skill docs-site), with the pnpm workspace steps:
+# Template from Miragon/brand-toolbox (kits/docs/templates/), with the pnpm workspace steps:
 # docs/ is the workspace package @miragon/mcp-toolkit-docs.
 
 # The paths include the root files that hold the docs' toolchain: the vite override and the
@@ -54,12 +54,6 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-
-      # The kit in docs/.vitepress/miragon/ and the logos in docs/public/logo/ come unchanged
-      # from the corporate identity. Fails when someone edited them in this repo.
-      - name: Check the Miragon docs kit
-        run: node .vitepress/miragon/check.mjs
-        working-directory: docs
 
       - run: pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-docs build
         env:
