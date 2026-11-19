@@ -123,25 +123,16 @@ when its example or requirements change. Package READMEs link the site with abso
 pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-docs dev     # dev server on http://localhost:5173
 pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-docs build   # fails on a dead link; the root pnpm build runs it too
 DOCS_BASE=/mcp-toolkit/ pnpm --fail-if-no-match --filter @miragon/mcp-toolkit-docs build   # as the workflow builds it
-node docs/.vitepress/miragon/check.mjs                             # the vendored docs kit is unchanged
 ```
 
-`docs/.vitepress/miragon/` and `docs/public/logo/` are the Miragon docs kit, vendored byte for
-byte from [Miragon/corporate-identity](https://github.com/Miragon/corporate-identity) (skill
-`docs-site`): theme, colours, fonts, Mermaid and the legal row. Never edit them; `check.mjs` fails
-on any change (the Docs workflow runs it), and Prettier and ESLint skip the kit. To lift the kit to
-a new release, compare it against a clone of corporate-identity at the new tag:
-
-```sh
-node docs/.vitepress/miragon/check.mjs --ci ../corporate-identity
-```
-
-When it reports an outdated, new or removed file, copy the kit again from the clone's
-`plugins/miragon-brand/skills/docs-site/assets/` (`miragon/` to `docs/.vitepress/miragon/` after
-deleting the old folder, `logo/*.svg` to `docs/public/logo/`), run `check.mjs` and build. Carry
-changed pins from `assets/vorlagen/package.json` there into `docs/package.json`, and the vite
-override and the mermaid peer rule into `pnpm-workspace.yaml`, then run `pnpm install`. When only
-the versions in `manifest.json` differ, the kit is unchanged and there is nothing to do.
+Theme, colours, fonts, favicon, Mermaid and the legal row come from the Miragon docs kit, the
+devDependency [`@miragon/docs-starter`](https://www.npmjs.com/package/@miragon/docs-starter) from
+[Miragon/brand-toolbox](https://github.com/Miragon/brand-toolbox) (`kits/docs/`). The site's own
+files import it (`@miragon/docs-starter`, `@miragon/docs-starter/theme`, `@miragon/docs-starter/slug`)
+and keep no copy. To lift the kit to a new release, bump `@miragon/docs-starter` in
+`docs/package.json`, carry changed pins from `kits/docs/example/package.json` in brand-toolbox
+into `docs/package.json`, and its `overrides` into `pnpm-workspace.yaml` (the vite override and
+the mermaid peer rule), then run `pnpm install` and build.
 
 ## Commits
 

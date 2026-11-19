@@ -5,9 +5,9 @@ packages:
 
 overrides:
   # The docs site (docs/): VitePress 1.6.4 asks for vite ^5.4.14, below the fixes for its dev
-  # server. An exact pin, not a range: it is the vite the Miragon docs kit
-  # (docs/.vitepress/miragon/) is built and tested with, and it moves only with a release of
-  # Miragon/corporate-identity (skill docs-site).
+  # server. An exact pin, not a range: it is the vite the Miragon docs kit (@miragon/docs-starter)
+  # is built and tested with (kits/docs/example/package.json in Miragon/brand-toolbox), and it
+  # moves only with a release of the kit.
   "vitepress>vite": 6.4.5
 
 peerDependencyRules:
@@ -23,6 +23,10 @@ peerDependencyRules:
 # Dependabot runs without the window, brings in a younger version; its pull request then needs the
 # fix in minimumReleaseAgeExclude as name@version until it is 7 days old (CONTRIBUTING.md).
 minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # The first release of the Miragon docs kit as a package, published 2026-11-19, which the docs
+  # site (docs/) moves to from its vendored copy. Comes out once it is 7 days old (2026-11-26).
+  - "@miragon/docs-starter@1.0.0"
 
 # dependencies and devDependencies are exact pins; pnpm 11 reads only auth and registry settings
 # from .npmrc, so the setting lives here. The dependencies of a published package are the
