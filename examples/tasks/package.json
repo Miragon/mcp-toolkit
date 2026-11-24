@@ -23,8 +23,8 @@
     "@miragon/mcp-toolkit-tool-codegen-core": "workspace:*",
     "@miragon/mcp-toolkit-tool-codegen-react": "workspace:*",
     "@modelcontextprotocol/client": "2.4.0",
-    "@tanstack/react-query": "5.107.1",
-    "mcp-use": "2.12.3",
+    "@tanstack/react-query": "5.108.0",
+    "mcp-use": "2.12.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "zod": "4.6.7"
@@ -39,7 +39,7 @@
     "happy-dom": "21.0.4",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "vite": "8.3.7",
+    "vite": "8.3.8",
     "vitest": "5.1.0"
   }
 }
